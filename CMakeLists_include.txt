@@ -1,0 +1,315 @@
+set(VERSION "1.3.3")
+
+set(USE_NSIGHT OFF CACHE BOOL "Use NSight for custom markers")
+if(WIN32)
+  SET( MEMORY_LEAKS_CHECK OFF CACHE BOOL "Check for Memory leaks" )
+  SET(USE_GLFW OFF CACHE BOOL "Use GLFW instead of our own simple Window management")
+else(WIN32)
+  SET(USE_GLFW ON CACHE BOOL "Use GLFW instead of our own simple Window management")
+endif(WIN32)
+
+SET(RESOURCE_DIRECTORY "${BASE_DIRECTORY}/shared_sources/resources")
+add_definitions(-DRESOURCE_DIRECTORY="${RESOURCE_DIRECTORY}/")
+
+Message(STATUS "BASE_DIRECTORY = ${BASE_DIRECTORY}")
+Message(STATUS "CMAKE_CURRENT_SOURCE_DIR = ${CMAKE_CURRENT_SOURCE_DIR}")
+
+# Specify the list of directories to search for cmake modules.
+set(CMAKE_MODULE_PATH
+    ${BASE_DIRECTORY}/shared_sources/cmake
+)
+
+set( CMAKE_FIND_ROOT_PATH "")
+
+if( CMAKE_SIZEOF_VOID_P EQUAL 8 )
+  set (ARCH "x64" CACHE STRING "CPU Architecture")
+else ()
+  set (ARCH "x86" CACHE STRING "CPU Architecture")
+endif()
+
+set(EXECUTABLE_OUTPUT_PATH
+    ${BASE_DIRECTORY}/bin
+    CACHE PATH
+    "Directory where executables will be stored"
+)
+
+#####################################################################################
+if(UNIX) 
+  set(OS "linux")
+  add_definitions(-DLINUX)
+else(UNIX)
+  if(APPLE)
+  else(APPLE)
+    if(WIN32)
+      set(OS "win")
+      add_definitions(-DNOMINMAX)
+      if(MEMORY_LEAKS_CHECK)
+        add_definitions(-DMEMORY_LEAKS_CHECK)
+      endif()
+    endif(WIN32)
+  endif(APPLE)
+endif(UNIX)
+
+# Macro for adding files close to the executable
+macro(_copy_files_to_target target thefiles)
+    if(WIN32)
+        foreach (FFF ${thefiles} )
+          if(EXISTS "${FFF}")
+            add_custom_command(
+              TARGET ${target} POST_BUILD
+              COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                ${FFF}
+                $<TARGET_FILE_DIR:${target}>
+                VERBATIM
+            )
+          endif()
+        endforeach()
+    endif()
+
+endmacro()
+
+
+# ===============> OpenGL
+find_package(OpenGL)
+# ===============> GLEW
+if (NOT APPLE)
+  find_package(GLEW REQUIRED)
+  if(NOT GLEW_FOUND)
+    message(WARNING "Try to set GLEW_LOCATION")
+  else()
+    include_directories(${GLEW_INCLUDE_DIR} )
+  endif()
+endif()
+# ===============> GLFW
+find_package(GLFW)
+if(GLFW_FOUND AND USE_GLFW)
+  include_directories(${GLFW_INCLUDE_DIR} )
+endif()
+
+#####################################################################################
+# Optional UI using Windows MFC
+#
+macro(_add_package_ZLIB)
+  set(ZLIB_ROOT ${BASE_DIRECTORY}/shared_external/zlib)
+  find_package(ZLIB)
+  Message(STATUS "--> using package ZLIB")
+  if(ZLIB_FOUND)
+      include_directories(${ZLIB_INCLUDE_DIR})
+      LIST(APPEND PACKAGE_SOURCE_FILES
+        ${ZLIB_HEADERS}
+        )
+      source_group(SvcMFCUI FILES  
+        ${SVCMFCUI_HEADERS}
+      )
+      LIST(APPEND LIBRARIES_OPTIMIZED ${ZLIB_LIBRARY})
+      LIST(APPEND LIBRARIES_DEBUG ${ZLIB_LIBRARY})
+  else()
+    add_definitions(-DNOGZLIB)
+  endif()
+endmacro()
+#####################################################################################
+# Optional UI using Windows MFC
+#
+macro(_add_package_MFCUI)
+  find_package(SvcMFCUI)
+  Message(STATUS "--> using package SvcMFCUI")
+  if(SVCMFCUI_FOUND)
+      add_definitions(-DUSESVCUI)
+      include_directories(${SVCMFCUI_INCLUDE_DIR})
+      LIST(APPEND PACKAGE_SOURCE_FILES
+        ${SVCMFCUI_HEADERS}
+        #SvcMFCUI.h
+        )
+      source_group(SvcMFCUI FILES  
+        ${SVCMFCUI_HEADERS}
+        #SvcMFCUI.h
+      )
+ endif()
+endmacro()
+#####################################################################################
+# AntTweakBar UI
+#
+macro(_add_package_AntTweakBar)
+  Message(STATUS "--> using package AntTweakBar")
+  find_package(AntTweakBar)
+  if(ANTTWEAKBAR_FOUND)
+    add_definitions(-DUSEANTTWEAKBAR)
+    include_directories(${ANTTWEAKBAR_INCLUDE_DIR})
+    LIST(APPEND PACKAGE_SOURCE_FILES 
+      ${ANTTWEAKBAR_HEADERS}
+    )
+    LIST(APPEND LIBRARIES_OPTIMIZED ${ANTTWEAKBAR_LIB})
+    LIST(APPEND LIBRARIES_DEBUG ${ANTTWEAKBAR_LIB})
+    source_group(AntTweakBar FILES 
+      ${ANTTWEAKBAR_HEADERS}
+    )
+  endif()
+endmacro()
+#####################################################################################
+# nvFx package
+#
+macro(_add_package_nvFx)
+  Message(STATUS "--> using package nvFX")
+  find_package(nvFx)
+  if(NVFX_FOUND)
+    add_definitions(-DUSE_NVFX)
+    LIST(APPEND LIBRARIES_OPTIMIZED ${NVFX_LIBRARIES} ${NVFX_LIBRARIES_GL} )
+    LIST(APPEND LIBRARIES_DEBUG ${NVFX_LIBRARIES} ${NVFX_LIBRARIES_GL} )
+    LIST(APPEND PACKAGE_SOURCE_FILES ${NVFX_HEADERS})
+    source_group(nvFX FILES ${NVFX_HEADERS})
+  endif()
+endmacro()
+#####################################################################################
+#
+macro(_add_package_OpenGLText)
+  # commented: this is a small external tool that we can make local (in shared_sources), for now
+  #if(NOT OPENGLTEXT_FOUND)
+  #  find_package(OpenGLText)
+  #endif()
+  set( OPENGLTEXT_FOUND "YES" )
+  Message(STATUS "--> using package OpenGLText")
+  if(OPENGLTEXT_FOUND)
+    if(NOT OPENGLTEXT_PATH)
+        set(OPENGLTEXT_PATH "${BASE_DIRECTORY}/shared_sources/nv_helpers_gl/OpenGLText")
+        set(OPENGLTEXT_CPP "${BASE_DIRECTORY}/shared_sources/nv_helpers_gl/OpenGLText/OpenGLText.cpp")
+        set(OPENGLTEXT_H "${BASE_DIRECTORY}/shared_sources/nv_helpers_gl/OpenGLText/OpenGLText.h")
+    endif()
+    add_definitions(-DUSEOPENGLTEXT)
+    set(OGLTEXT
+      ${BASE_DIRECTORY}/shared_sources/nv_helpers_gl/traceDisplay/tracedisplayogl.cpp
+      ${BASE_DIRECTORY}/shared_sources/nv_helpers_gl/traceDisplay/tracedisplay.h
+      ${BASE_DIRECTORY}/shared_sources/nv_helpers_gl/traceDisplay/trace.h
+      ${BASE_DIRECTORY}/shared_sources/nv_helpers_gl/OpenGLText/arial_10.h
+      ${BASE_DIRECTORY}/shared_sources/nv_helpers_gl/OpenGLText/arial_10_bitmap.h
+      ${BASE_DIRECTORY}/shared_sources/nv_helpers_gl/OpenGLText/baub_16.h
+      ${BASE_DIRECTORY}/shared_sources/nv_helpers_gl/OpenGLText/baub_16_bitmap.h
+      ${OPENGLTEXT_CPP}
+      ${OPENGLTEXT_H}
+    )
+    source_group(OpenGLText FILES ${OGLTEXT})
+    LIST(APPEND PACKAGE_SOURCE_FILES ${OGLTEXT}) 
+    include_directories(${OPENGLTEXT_PATH})
+    include_directories(${BASE_DIRECTORY}/shared_sources/nv_helpers_gl/OpenGLText)
+    include_directories(${BASE_DIRECTORY}/shared_sources/nv_helpers_gl/traceDisplay)
+  endif()
+endmacro()
+#####################################################################################
+#
+set(PLATFORM_LIBRARIES
+    ${OPENGL_LIBRARY}
+)
+set(COMMON_SOURCE_FILES ${BASE_DIRECTORY}/shared_sources/main.h )
+if(GLFW_FOUND AND USE_GLFW)
+  SET(MAIN_FILE ${BASE_DIRECTORY}/shared_sources/main_glfw.cpp)
+else()
+  if(UNIX) 
+    SET(MAIN_FILE ${BASE_DIRECTORY}/shared_sources/main_x11.cpp ) #TODO
+  else(UNIX)
+    if(APPLE)
+      SET(MAIN_FILE ${BASE_DIRECTORY}/shared_sources/main_osx.cpp ) #TODO
+    else(APPLE)
+      if(WIN32)
+        SET(MAIN_FILE ${BASE_DIRECTORY}/shared_sources/main_win32.cpp )
+      endif(WIN32)
+    endif(APPLE)
+  endif(UNIX)
+endif()
+LIST(APPEND COMMON_SOURCE_FILES
+    ${BASE_DIRECTORY}/shared_sources/resources.h
+    ${BASE_DIRECTORY}/shared_sources/resources.rc
+    ${MAIN_FILE}
+)
+MESSAGE(STATUS "${BASE_DIRECTORY}/shared_sources/main.h")
+
+#####################################################################################
+# Glew : source or lib
+if(GLEW_SOURCE)
+  message(STATUS "found Glew source code. Using it instead of library")
+  LIST(APPEND COMMON_SOURCE_FILES ${GLEW_SOURCE})
+  add_definitions(-DGLEW_STATIC)
+else()
+    message(STATUS "using GLEW library")
+    LIST(APPEND PLATFORM_LIBRARIES ${GLEW_LIBRARY})
+endif()
+add_definitions(-DGLEW_NO_GLU)
+
+#####################################################################################
+# GLFW library
+if(GLFW_FOUND AND USE_GLFW)
+  message(STATUS "using GLFW library")
+  LIST(APPEND PLATFORM_LIBRARIES ${GLFW_LIBRARY})
+  add_definitions(-DUSE_GLFW)
+endif()
+
+#####################################################################################
+# NSight
+#
+# still need the include directory when no use of NSIGHT: for empty #defines
+macro(_add_package_NSight)
+  Message(STATUS "--> using package NSight")
+  include_directories(
+      ${BASE_DIRECTORY}/shared_external/NSight
+  )
+  if(USE_NSIGHT)
+    link_directories(
+        ${BASE_DIRECTORY}/shared_external/NSight
+    )
+    LIST(APPEND PACKAGE_SOURCE_FILES 
+      ${BASE_DIRECTORY}/shared_external/NSight/NSightEvents.h
+      ${BASE_DIRECTORY}/shared_external/NSight/nvToolsExt.h
+    )
+    add_definitions(-DUSE_NSIGHT)
+    if(ARCH STREQUAL "x86")
+      SET(NSIGHT_DLL ${BASE_DIRECTORY}/shared_external/NSight/nvToolsExt32_1.dll)
+      SET(NSIGHT_LIB ${BASE_DIRECTORY}/shared_external/NSight/nvToolsExt32_1.lib)
+    else()
+      SET(NSIGHT_DLL ${BASE_DIRECTORY}/shared_external/NSight/nvToolsExt64_1.dll)
+      SET(NSIGHT_LIB ${BASE_DIRECTORY}/shared_external/NSight/nvToolsExt64_1.lib)
+    endif()
+    LIST(APPEND LIBRARIES_OPTIMIZED ${NSIGHT_LIB})
+    LIST(APPEND LIBRARIES_DEBUG ${NSIGHT_LIB})
+  endif()
+endmacro()
+
+#####################################################################################
+# Macro that copies various binaries that need to be close to the exe files
+#
+macro(_copy_binaries_to_target _PROJNAME)
+
+  if(USE_NSIGHT)
+    _copy_files_to_target( ${_PROJNAME} "${NSIGHT_DLL}")
+    install(FILES "${NSIGHT_DLL}" DESTINATION bin)
+    install(FILES "${NSIGHT_DLL}" DESTINATION bin_debug)
+  endif()
+
+  if(ZLIB_FOUND)
+    _copy_files_to_target( ${_PROJNAME} "${ZLIB_BIN}")
+    install(FILES "${ZLIB_BIN}" DESTINATION bin)
+    install(FILES "${ZLIB_BIN}" DESTINATION bin_debug)
+  endif()
+
+  if(SVCMFCUI_FOUND)
+      _copy_files_to_target( ${_PROJNAME} "${SVCMFCUI_DLL}")
+      install(FILES "${SVCMFCUI_DLL}" DESTINATION bin)
+      if(SVCMFCUID_DLL)
+        _copy_files_to_target( ${_PROJNAME} "${SVCMFCUID_DLL}")
+        install(FILES "${SVCMFCUID_DLL}" DESTINATION bin_debug)
+      endif()
+ endif()
+  if(ANTTWEAKBAR_FOUND)
+    _copy_files_to_target( ${_PROJNAME} "${ANTTWEAKBAR_DLL}")
+    install(FILES "${ANTTWEAKBAR_DLL}" DESTINATION bin)
+    install(FILES "${ANTTWEAKBAR_DLL}" DESTINATION bin_debug)
+  endif()
+  install(TARGETS ${_PROJNAME} DESTINATION bin CONFIGURATIONS Release)
+  install(TARGETS ${_PROJNAME} DESTINATION bin_debug CONFIGURATIONS Debug)
+endmacro()
+
+include_directories(
+    ${BASE_DIRECTORY}/shared_sources
+    ${BASE_DIRECTORY}/shared_sources/nv_math
+    ${BASE_DIRECTORY}/shared_sources/nv_helpers_gl
+    ${BASE_DIRECTORY}/shared_sources/nv_helpers
+)
+
+
