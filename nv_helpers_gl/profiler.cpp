@@ -10,6 +10,9 @@
  */
 
 #include "profiler.hpp"
+#include <assert.h>
+#include <stdarg.h>
+#include <stdio.h>
 
 #ifdef _WIN32
 #define NOMINMAX 
@@ -20,7 +23,7 @@
 
 //////////////////////////////////////////////////////////////////////////
 
-namespace nv_helpers
+namespace nv_helpers_gl
 {
 
   Profiler::Profiler()

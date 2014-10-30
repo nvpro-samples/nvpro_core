@@ -13,9 +13,22 @@
  */
 
 #include "programmanager.hpp"
+#include <assert.h>
+#include <stdarg.h>
+#include <stdio.h>
 #include <algorithm>
+#include <sstream>
+#include <fstream>
+#include <iostream>
 
-namespace nv_helpers
+#ifndef nvprintf
+extern void nvprintf(const char * fmt, ...);
+//#define nvprintf printf
+#endif
+
+#define NV_LINE_MARKERS           1
+
+namespace nv_helpers_gl
 {
   std::string ProgramManager::format(const char* msg, ...)
   {
@@ -88,14 +101,14 @@ namespace nv_helpers
 
     if(result == GL_FALSE)
     {
-      fprintf(stdout, "Validate program\n");
+      nvprintf("Validate program\n");
       int infoLogLength;
       glGetProgramiv(program, GL_INFO_LOG_LENGTH, &infoLogLength);
       if(infoLogLength > 0)
       {
         std::vector<char> buffer(infoLogLength);
         glGetProgramInfoLog(program, infoLogLength, NULL, &buffer[0]);
-        fprintf(stdout, "%s\n", &buffer[0]);
+        nvprintf( "%s\n", &buffer[0]);
       }
     }
 
@@ -110,14 +123,14 @@ namespace nv_helpers
     GLint result = GL_FALSE;
     glGetProgramiv(program, GL_LINK_STATUS, &result);
 
-    //fprintf(stdout, "Linking program\n");
+    //nvprintf( "Linking program\n");
     int infoLogLength;
     glGetProgramiv(program, GL_INFO_LOG_LENGTH, &infoLogLength);
     if(infoLogLength > 1)
     {
       std::vector<char> buffer(infoLogLength);
       glGetProgramInfoLog(program, infoLogLength, NULL, &buffer[0]);
-      fprintf(stdout, "%s\n", &buffer[0]);
+      nvprintf( "%s\n", &buffer[0]);
     }
 
     return result == GL_TRUE;
@@ -126,7 +139,7 @@ namespace nv_helpers
   bool checkShader
     (
     GLuint shader, 
-    std::string const & File
+    std::string const & filename
     )
   {
     if(!shader)
@@ -135,14 +148,14 @@ namespace nv_helpers
     GLint result = GL_FALSE;
     glGetShaderiv(shader, GL_COMPILE_STATUS, &result);
 
-    fprintf(stdout, "%s...\n", File.c_str());
+    nvprintf( "%s ...\n", filename.c_str());
     int infoLogLength;
     glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &infoLogLength);
     if(infoLogLength > 1)
     {
       std::vector<char> buffer(infoLogLength);
       glGetShaderInfoLog(shader, infoLogLength, NULL, &buffer[0]);
-      fprintf(stdout, "%s\n", &buffer[0]);
+      nvprintf( "%s\n", &buffer[0]);
     }
 
     return result == GL_TRUE;
@@ -178,6 +191,16 @@ namespace nv_helpers
 #endif
   }
 
+  inline std::string markerString(int line, std::string const & Filename, int fileid)
+  {
+    if (GLEW_ARB_shading_language_include){
+      return ProgramManager::format("#line %d \"",line) + fixFilename(Filename) + std::string("\"\n");
+    }
+    else{
+      return ProgramManager::format("#line %d %d\n",line,fileid);
+    }
+  }
+
   std::string manualInclude (
     std::string const & Filename,
     std::string const & prepend,
@@ -195,8 +218,8 @@ namespace nv_helpers
 
     // Handle command line defines
     Text += prepend;
-#if LINE_MARKERS
-    Text +=  std::string("#line 1 \"") + fixFilename(Filename) + std::string("\"\n");
+#if NV_LINE_MARKERS
+    Text +=  markerString(1,Filename,0);
 #endif
     int lineCount  = 0;
     while(std::getline(Stream, Line))
@@ -235,12 +258,12 @@ namespace nv_helpers
           std::string Source = loadFile(PathName);
           if(!Source.empty())
           {
-#if LINE_MARKERS
-            Text += std::string("#line 1 \"") + fixFilename(PathName) + std::string("\"\n");
+#if NV_LINE_MARKERS
+            Text += markerString(1,PathName,1);
 #endif
             Text += Source;
-#if LINE_MARKERS
-            Text += ProgramManager::format("\n#line %d \"",lineCount + 1) + fixFilename(Filename) + std::string("\"\n");
+#if NV_LINE_MARKERS
+            Text += std::string("\n") + markerString(lineCount + 1, Filename, 0);
 #endif
             break;
           }
@@ -285,7 +308,7 @@ namespace nv_helpers
   {
     IncludeEntry entry;
     entry.name = name;
-    entry.filename = filename;
+    entry.filename = m_directory + filename;
 
     m_includes.push_back(entry);
   }
@@ -298,7 +321,7 @@ namespace nv_helpers
 
     prog.program = glCreateProgram();
     for (size_t i = 0; i < num; i++) {
-      GLuint shader = createShader(definitions[i].type, m_prepend + definitions[i].prepend, definitions[i].filename, m_includes);
+      GLuint shader = createShader(definitions[i].type, m_prepend + definitions[i].prepend, m_directory + definitions[i].filename, m_includes);
       if (!shader || !checkShader(shader,definitions[i].filename)){
         glDeleteShader(shader);
         glDeleteProgram(prog.program);
@@ -341,14 +364,15 @@ namespace nv_helpers
   {
     Program prog;
     if (createProgram(prog,num,definitions)){
-      prog.definitions.reserve(num);
-      for (size_t i = 0; i < num; i++){
-        prog.definitions.push_back(definitions[i]);
-      }
-      m_programs.push_back(prog);
-      return m_programs.size()-1;
+
     }
-    return ~0;
+    // fixme handle this stuff better, needed here so we get invalid error
+    prog.definitions.reserve(num);
+    for (size_t i = 0; i < num; i++){
+      prog.definitions.push_back(definitions[i]);
+    }
+    m_programs.push_back(prog);
+    return m_programs.size()-1;
   }
 
   bool ProgramManager::areProgramsValid()
@@ -373,7 +397,7 @@ namespace nv_helpers
 
   void ProgramManager::reloadPrograms()
   {
-    fprintf(stdout,"Reloading programs...\n");
+    nvprintf("Reloading programs...\n");
     for (size_t i = 0; i < m_programs.size(); i++){
       if (m_programs[i].program){
         glDeleteProgram(m_programs[i].program);
@@ -384,7 +408,7 @@ namespace nv_helpers
       }
 
     }
-    fprintf(stdout,"done\n");
+    nvprintf("done\n");
   }
 
   bool ProgramManager::isValid( ProgramID idx ) const
@@ -407,6 +431,6 @@ namespace nv_helpers
     return m_programs[idx];
   }
 
-}//namespace nv_helpers
+}//namespace nvglf
 
 

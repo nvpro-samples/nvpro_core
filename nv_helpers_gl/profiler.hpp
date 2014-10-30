@@ -9,17 +9,18 @@
  *
  */
 
-#ifndef _PROFILER_INCLUDED
-#define _PROFILER_INCLUDED
+#ifndef NV_PROFILER_INCLUDED
+#define NV_PROFILER_INCLUDED
 
-#include "common.hpp"
+#include <GL/glew.h>
+#include <stdio.h>
+#include <vector>
 
+#ifndef NV_TIMER_FLUSH
+#define NV_TIMER_FLUSH 0
+#endif
 
-//#ifndef SUPPORT_NVTOOLSEXT
-//#define SUPPORT_NVTOOLSEXT 1
-//#endif
-
-#if SUPPORT_NVTOOLSEXT
+#ifdef SUPPORT_NVTOOLSEXT
 
 #if _MSC_VER >= 1600 
 #include <stdint.h>
@@ -37,7 +38,7 @@ typedef __int64 int64_t;
 #include <nvToolsExt.h>
 #endif
 
-namespace nv_helpers
+namespace nv_helpers_gl
 {
   class Profiler {
     static const int CONFIG_DELAY = 16;
@@ -96,7 +97,7 @@ namespace nv_helpers
     struct Entry {
       const char* name;
       int         level;
-#if SUPPORT_NVTOOLSEXT
+#ifdef SUPPORT_NVTOOLSEXT
       nvtxRangeId_t m_nvrange;
 #endif
       GLuint      queries[FRAME_DELAY * 2];
@@ -125,7 +126,7 @@ namespace nv_helpers
 
 //////////////////////////////////////////////////////////////////////////
 
-namespace nv_helpers
+namespace nv_helpers_gl
 {
 
   inline void Profiler::accumulationSplit()
@@ -156,7 +157,7 @@ namespace nv_helpers
     m_entries[slot].level = level;
     m_entries[slot].splitter = false;
 
-#if SUPPORT_NVTOOLSEXT
+#ifdef SUPPORT_NVTOOLSEXT
     {
       nvtxEventAttributes_t eventAttrib = {0};
       eventAttrib.version = NVTX_VERSION;
@@ -191,8 +192,11 @@ namespace nv_helpers
 
     m_entries[slot].deltas[queryFrame] += getMicroSeconds();
     glQueryCounter(m_entries[slot].queries[queryFrame + FRAME_DELAY],GL_TIMESTAMP);
+#if NV_TIMER_FLUSH
+    glFlush();
+#endif
 
-#if SUPPORT_NVTOOLSEXT
+#ifdef SUPPORT_NVTOOLSEXT
     nvtxRangePop();
 #endif
 

@@ -9,14 +9,15 @@
  *
  */
 
-#ifndef _PROGRAMMANAGER_INCLUDED
-#define _PROGRAMMANAGER_INCLUDED
+#ifndef NV_PROGRAMMANAGER_INCLUDED
+#define NV_PROGRAMMANAGER_INCLUDED
 
-#include "common.hpp"
+#include <GL/glew.h>
+#include <stdio.h>
+#include <vector>
+#include <string>
 
-#define LINE_MARKERS           1
-
-namespace nv_helpers
+namespace nv_helpers_gl
 {
 
   class ProgramManager {
@@ -79,6 +80,7 @@ namespace nv_helpers
     const Program& getProgram(ProgramID idx) const;
 
     std::string m_prepend;
+    std::string m_directory;
 
   private:
     bool createProgram(Program& prog, size_t num, const Definition* definitions);
@@ -87,7 +89,7 @@ namespace nv_helpers
     std::vector<Program>  m_programs;
   };
 
-}//namespace nv_helpers
+}//namespace nvglf
 
 
-#endif//_PROGRAM_INCLUDED
+#endif//NV_PROGRAM_INCLUDED

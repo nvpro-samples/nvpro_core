@@ -9,15 +9,17 @@
  *
  */
 
-#ifndef _GLRESOURCES_INCLUDED
-#define _GLRESOURCES_INCLUDED
+#ifndef NV_GLRESOURCES_INCLUDED
+#define NV_GLRESOURCES_INCLUDED
 
 #include <GL/glew.h>
 
+#include <cstdio>
 
-#define BUFFER_OFFSET(i) ((char *)NULL + (i))
 
-namespace nv_helpers
+#define NV_BUFFER_OFFSET(i) ((char *)NULL + (i))
+
+namespace nv_helpers_gl
 {
 
   class ResourceGLuint {
@@ -32,11 +34,28 @@ namespace nv_helpers
     ResourceGLuint& operator=( GLuint b) { m_value = b; return *this; }
   };
 
+  class ResourceGLuint64 {
+  public:
+    GLuint64  m_value;
+
+    ResourceGLuint64() : m_value(0) {}
+
+    ResourceGLuint64( GLuint64 b) : m_value(b) {}
+    operator GLuint64() const { return m_value; }
+    operator GLuint64&() { return m_value; }
+    ResourceGLuint64& operator=( GLuint64 b) { m_value = b; return *this; }
+  };
 
   inline void newBuffer(GLuint &glid)
   {
     if (glid) glDeleteBuffers(1,&glid);
     glGenBuffers(1,&glid);
+  }
+
+  inline void deleteBuffer(GLuint &glid)
+  {
+    if (glid) glDeleteBuffers(1,&glid);
+    glid = 0;
   }
 
   inline void newTexture(GLuint &glid)
@@ -45,10 +64,22 @@ namespace nv_helpers
     glGenTextures(1,&glid);
   }
 
+  inline void deleteTexture( GLuint &glid )
+  {
+    if (glid) glDeleteTextures(1,&glid);
+    glid = 0;
+  }
+
   inline void newFramebuffer(GLuint &glid)
   {
     if (glid) glDeleteFramebuffers(1,&glid);
     glGenFramebuffers(1,&glid);
+  }
+
+  inline void deleteFramebuffer(GLuint &glid)
+  {
+    if (glid) glDeleteFramebuffers(1,&glid);
+    glid = 0;
   }
 
   inline void newSampler(GLuint &glid)
@@ -57,16 +88,22 @@ namespace nv_helpers
     glGenSamplers(1,&glid);
   }
 
-  inline void newTransformFeedback(GLuint &glid)
+  inline void deleteSampler(GLuint &glid)
   {
-    if (glid) glDeleteTransformFeedbacks(1,&glid);
-    glGenTransformFeedbacks(1,&glid);
+    if (glid) glDeleteSamplers(1,&glid);
+    glid = 0;
   }
 
   inline void newQuery(GLuint &glid)
   {
     if (glid) glDeleteQueries(1,&glid);
     glGenQueries(1,&glid);
+  }
+
+  inline void deleteQuery(GLuint &glid)
+  {
+    if (glid) glDeleteQueries(1,&glid);
+    glid = 0;
   }
   
   inline bool checkNamedFramebuffer(GLuint fbo)

@@ -374,7 +374,7 @@ void WindowInertiaCamera::display()
     }
     ///////////////////////////////////////////////
     // additional HUD stuff
-#ifdef USEOPENGLTEXT
+#if 0//def USEOPENGLTEXT
     OpenGLText::BackupStates();
     //
     // Graph need texts
@@ -432,6 +432,6 @@ void WindowInertiaCamera::reshape(int w, int h)
     glViewport(0, 0, W, H);
 
     float r = (float)getWidth() / (float)getHeight();
-    perspective(m_projection, 50.0f, r, 0.01f, 10.0f);
+    m_projection = perspective(50.0f, r, 0.01f, 10.0f);
 }
 #endif //WINDOWINERTIACAMERA_EXTERN

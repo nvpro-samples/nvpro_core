@@ -12,22 +12,22 @@
  * This file contains code derived from glf by Christophe Riccio, www.g-truc.net
  */
  
-#ifndef _ERROR_INCLUDED
-#define _ERROR_INCLUDED
+#ifndef NV_ERROR_INCLUDED
+#define NV_ERROR_INCLUDED
 
-#include "common.hpp"
+#include <GL/glew.h>
 
-namespace nv_helpers
+namespace nv_helpers_gl
 {
   bool checkError(const char* Title);
   bool checkGLVersion(GLint MajorVersionRequire, GLint MinorVersionRequire);
   bool checkExtension(char const * String);
 
-}//namespace helpers
+}//namespace nvglf
 
 //////////////////////////////////////////////////////////////////////////
 
-namespace nv_helpers
+namespace nv_helpers_gl
 {
 
   inline bool checkGLVersion(GLint MajorVersionRequire, GLint MinorVersionRequire)
@@ -81,7 +81,7 @@ namespace nv_helpers
     }
     return Error == GL_NO_ERROR;
   }
-}//namespace nv_helpers
+}//namespace nvglf
 
 
-#endif//_ERROR_INCLUDED
+#endif//NV_ERROR_INCLUDED
