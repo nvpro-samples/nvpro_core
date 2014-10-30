@@ -9,8 +9,8 @@
  *
  */
 
-#ifndef _MISC_INCLUDED
-#define _MISC_INCLUDED
+#ifndef NV_MISC_INCLUDED
+#define NV_MISC_INCLUDED
 
 #include <assert.h>
 #include <stdlib.h>

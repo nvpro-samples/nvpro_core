@@ -9,12 +9,12 @@
  *
  */
 
-#ifndef CAMCONTROL_INCLUDED
-#define CAMCONTROL_INCLUDED
+#ifndef NV_CAMCONTROL_INCLUDED
+#define NV_CAMCONTROL_INCLUDED
 
-#include "common.hpp"
 #include <nv_math/nv_math.h>
-  
+#include <algorithm>
+
 namespace nv_helpers
 {
 
@@ -90,7 +90,7 @@ namespace nv_helpers
           m_sceneOrthoZoom = std::max(0.0001f,m_startZoomOrtho - (dist));
         }
         else{
-          nv_math::matrix4f delta = nv_math::translation(nv_math::matrix4f(),nv_math::vec3f(0,0,dist * 2.0f));
+          nv_math::mat4f delta = nv_math::translation_mat4(nv_math::vec3f(0,0,dist * 2.0f));
           m_viewMatrix = delta * m_startMatrix;
         }
 
@@ -99,7 +99,7 @@ namespace nv_helpers
       if (m_panning){
         float aspect = float(window.x)/float(window.y);
 
-        nv_math::vec3f winsize((float)window.x, (float)window.y, 1.0f);
+        nv_math::vec3f winsize(window.x, window.y, 1.0f);
         nv_math::vec3f ortho(m_sceneOrthoZoom * aspect, m_sceneOrthoZoom, 1.0f);
         nv_math::vec3f sub( mouse - m_startPan, 0.0f);
         sub /= winsize;
@@ -109,8 +109,8 @@ namespace nv_helpers
           sub *= m_sensePan * m_sceneDimension;
         }
 
-        nv_math::matrix4f delta;
-        delta.set_translate(sub);
+        nv_math::mat4f delta;
+        delta.as_translation(sub);
         m_viewMatrix = delta * m_startMatrix;
       }
 
@@ -120,8 +120,8 @@ namespace nv_helpers
         nv_math::vec2f angles = (mouse - m_startRotate) * m_senseRotate;
         nv_math::vec3f center = nv_math::vec3f(m_startMatrix * nv_math::vec4f(m_sceneOrbit,1.0f));
 
-        nv_math::matrix4f rot   = nv_math::rotationYawPitchRoll(nv_math::matrix4f(), angles.x, angles.y, 0.0f);
-        nv_math::matrix4f delta = nv_math::translation(nv_math::matrix4f(),center) * rot * nv_math::translation(nv_math::matrix4f(),-center);
+        nv_math::mat4f rot   = nv_math::rotation_yaw_pitch_roll(angles.x, angles.y, 0.0f);
+        nv_math::mat4f delta = nv_math::translation_mat4(center) * rot * nv_math::translation_mat4(-center);
 
         m_viewMatrix = delta * m_startMatrix;
       }
@@ -132,7 +132,7 @@ namespace nv_helpers
     float       m_sceneDimension;
     nv_math::vec3f   m_sceneOrbit;
 
-    nv_math::matrix4f   m_viewMatrix;
+    nv_math::mat4f   m_viewMatrix;
 
   private:
     float       m_senseWheelZoom;
@@ -148,7 +148,7 @@ namespace nv_helpers
     nv_math::vec2f   m_startPan;
     nv_math::vec2f   m_startZoom;
     nv_math::vec2f   m_startRotate;
-    nv_math::matrix4f   m_startMatrix;
+    nv_math::mat4f   m_startMatrix;
     int         m_startZoomWheel;
     float       m_startZoomOrtho;
 

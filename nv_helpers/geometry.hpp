@@ -9,13 +9,12 @@
  *
  */
 
-#ifndef _GEOMETRY_INCLUDED
-#define _GEOMETRY_INCLUDED
+#ifndef NV_GEOMETRY_INCLUDED
+#define NV_GEOMETRY_INCLUDED
 
-#include "common.hpp"
 #include <nv_math/nv_math.h>
 
-namespace nv_helpers {
+namespace nv_helpers{
   namespace geometry{
     struct Vertex
     {
@@ -98,7 +97,7 @@ namespace nv_helpers {
     template <class TVertex>
     class Plane : public Mesh<TVertex> {
     public:
-      static void add(Mesh<TVertex>& geo, const nv_math::matrix4f& mat, int w, int h)
+      static void add(Mesh<TVertex>& geo, const nv_math::mat4f& mat, int w, int h)
       {
         int xdim = w;
         int ydim = h;
@@ -139,20 +138,20 @@ namespace nv_helpers {
 
         for (y = 0; y < ydim; y++){
           for (x = 0; x < xdim; x++){
-            // lower tris
-            geo.m_indicesTriangles.push_back(
-              nv_math::vec3ui(
-              (x)      + (y)     * width + vertOffset,
-              (x + 1)  + (y)     * width + vertOffset,
-              (x + 1)  + (y + 1) * width + vertOffset
-              )
-              );
             // upper tris
             geo.m_indicesTriangles.push_back(
               nv_math::vec3ui(
-              (x + 1)  + (y + 1) * width + vertOffset,
               (x)      + (y + 1) * width + vertOffset,
-              (x)      + (y)     * width + vertOffset
+              (x)      + (y)     * width + vertOffset,
+              (x + 1)  + (y + 1) * width + vertOffset
+              )
+              );
+            // lower tris
+            geo.m_indicesTriangles.push_back(
+              nv_math::vec3ui(
+              (x + 1)  + (y + 1) * width + vertOffset,
+              (x)      + (y)     * width + vertOffset,
+              (x + 1)  + (y)     * width + vertOffset
               )
               );
           }
@@ -193,14 +192,14 @@ namespace nv_helpers {
       }
 
       Plane (int segments = 1 ){
-        add(*this,nv_math::matrix4f(),segments,segments);
+        add(*this,nv_math::mat4f(1),segments,segments);
       }
     };
 
     template <class TVertex>
     class Box : public Mesh<TVertex> {
     public:
-      static void add(Mesh<TVertex>& geo, const nv_math::matrix4f& mat, int w, int h, int d)
+      static void add(Mesh<TVertex>& geo, const nv_math::mat4f& mat, int w, int h, int d)
       {
         int configs[6][2] = {
           {w,h},
@@ -214,44 +213,44 @@ namespace nv_helpers {
         };
 
         for (int side = 0; side < 6; side++){
-          nv_math::matrix4f matrixRot;
+          nv_math::mat4f matrixRot(1);
 
           switch (side)
           {
           case 0:
             break;
           case 1:
-            nv_math::rotationY(matrixRot,nv_pi);
+            nv_math::rotation_y(matrixRot,nv_pi);
             break;
           case 2:
-            nv_math::rotationY(matrixRot,nv_pi * 0.5f);
+            nv_math::rotation_y(matrixRot,nv_pi * 0.5f);
             break;
           case 3:
-            nv_math::rotationY(matrixRot,nv_pi * 1.5f);
+            nv_math::rotation_y(matrixRot,nv_pi * 1.5f);
             break;
           case 4:
-            nv_math::rotationX(matrixRot,nv_pi * 0.5f);
+            nv_math::rotation_x(matrixRot,nv_pi * 0.5f);
             break;
           case 5:
-            nv_math::rotationX(matrixRot,nv_pi * 1.5f);
+            nv_math::rotation_x(matrixRot,nv_pi * 1.5f);
             break;
           }
 
-          nv_math::matrix4f matrixMove = nv_math::translation(nv_math::matrix4f(),nv_math::vec3f(0,0,1));
+          nv_math::mat4f matrixMove = nv_math::translation(nv_math::mat4f(),nv_math::vec3f(0,0,1));
 
           Plane<TVertex>::add(geo, mat * matrixRot * matrixMove,configs[side][0],configs[side][1]);
         }
       }
 
       Box (int segments = 1 ){
-        add(*this,nv_math::matrix4f(),segments,segments,segments);
+        add(*this,nv_math::mat4f(1),segments,segments,segments);
       }
     };
 
     template <class TVertex>
     class Sphere : public Mesh<TVertex> {
     public:
-      static void add(Mesh<TVertex>& geo, const nv_math::matrix4f& mat, int w, int h)
+      static void add(Mesh<TVertex>& geo, const nv_math::mat4f& mat, int w, int h)
       {
         int xydim = w;
         int zdim  = h;
@@ -332,7 +331,7 @@ namespace nv_helpers {
       }
 
       Sphere (int w=16, int h=8 ){
-        add(*this,nv_math::matrix4f(),w,h);
+        add(*this,nv_math::mat4f(1),w,h);
       }
     };
   }

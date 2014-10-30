@@ -56,8 +56,7 @@ struct InertiaCamera
         vec3f o = focusPos;
         vec3f po = p-o;
         float l = po.norm();
-        vec3f dv;
-        cross(dv, po, vec3f(0,1,0) );
+        vec3f dv = cross(po, vec3f(0,1,0) );
         dv *= s;
         p += dv;
         po = p-o;
@@ -74,11 +73,9 @@ struct InertiaCamera
         vec3f o = focusPos;
         vec3f po = p-o;
         float l = po.norm();
-        vec3f dv;
-        cross(dv, po, vec3f(0,-1,0) );
+        vec3f dv = cross(po, vec3f(0,-1,0) );
         dv.normalize();
-        vec3f dv2;
-        cross(dv2, po, dv );
+        vec3f dv2 = cross(po, dv );
         dv2 *= s;
         p += dv2;
         po = p-o;
@@ -154,8 +151,7 @@ struct InertiaCamera
         //
         vec3f up(0,1,0);
         m4_view.identity();
-        mat4f Lookat;
-        look_at(Lookat, curEyePos, curFocusPos, up);
+        mat4f Lookat = look_at(curEyePos, curFocusPos, up);
         m4_view *= Lookat;
         return bContinue;
     }
