@@ -1,6 +1,6 @@
 set(VERSION "1.3.3")
 
-set(USE_NSIGHT OFF CACHE BOOL "Use NSight for custom markers")
+set(SUPPORT_NVTOOLSEXT OFF CACHE BOOL "Use NSight for custom markers")
 if(WIN32)
   SET( MEMORY_LEAKS_CHECK OFF CACHE BOOL "Check for Memory leaks" )
   SET(USE_GLFW OFF CACHE BOOL "Use GLFW instead of our own simple Window management")
@@ -250,7 +250,7 @@ macro(_add_package_NSight)
   include_directories(
       ${BASE_DIRECTORY}/shared_external/NSight
   )
-  if(USE_NSIGHT)
+  if(SUPPORT_NVTOOLSEXT)
     link_directories(
         ${BASE_DIRECTORY}/shared_external/NSight
     )
@@ -276,7 +276,7 @@ endmacro()
 #
 macro(_copy_binaries_to_target _PROJNAME)
 
-  if(USE_NSIGHT)
+  if(SUPPORT_NVTOOLSEXT)
     _copy_files_to_target( ${_PROJNAME} "${NSIGHT_DLL}")
     install(FILES "${NSIGHT_DLL}" DESTINATION bin)
     install(FILES "${NSIGHT_DLL}" DESTINATION bin_debug)
