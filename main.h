@@ -62,7 +62,7 @@
     #endif
 #endif
 
-#ifdef USE_NSIGHT
+#ifdef SUPPORT_NVTOOLSEXT
 #include "NSightEvents.h"
 #else
 // Note: they are defined inside "NSightEvents.h"
@@ -262,54 +262,41 @@ public:
 
   typedef struct WINinternal* WINhandle;
 
-// OPENGL specific
+  // OpenGL specific
   struct ContextFlags {
-    int       major;
-    int       minor;
-    bool      core;
-    int       MSAA;
-    bool      debug;
-    bool      robust;
-    bool      forward;
-    WINhandle share;
+    int         major;
+    int         minor;
+    int         MSAA;
+    bool        debug;
+    bool        robust;
+    bool        core;
+    bool        forward;
+    NVPWindow*  share;
 
-    ContextFlags(int _major=4, int _minor=3, bool _core=false, int _MSAA=0, bool _debug=false, bool _robust=false, bool _forward=false, WINhandle _share=0)
+    ContextFlags(int _major=4, int _minor=3, bool _core=false, int _MSAA=0,bool _debug=false, bool _robust=false, bool _forward=false, NVPWindow* _share=0)
     {
       major = _major;
       minor = _minor;
-      core = _core;
       MSAA = _MSAA;
+      core = _core;
       debug = _debug;
       robust = _robust;
       forward = _forward;
       share = _share;
     }
+
   };
+  unsigned int  m_debugFilter;
+  std::string   m_debugTitle;
 
   WINhandle     m_internal;
-//private:
-  unsigned int  m_debugFilter;
+  
   int         m_renderCnt;
   int         m_curX;
   int         m_curY;
   int         m_wheel;
   int         m_winSz[2];
   int         m_mods;
-
-public:
-    // Accessors
-    inline void         setWinSz(int w, int h) { m_winSz[0]=w; m_winSz[1]=h; }
-    inline const int*   getWinSz() const { return m_winSz; }
-    inline int          getWidth() const { return m_winSz[0]; }
-    inline int          getHeight() const { return m_winSz[1]; }
-    inline const int    getWheel() const { return m_wheel; }
-    inline int          getMods() const { return m_mods; }
-    inline void         setMods(int m) { m_mods = m; }
-    inline void         setCurMouse(int x, int y) { m_curX = x; m_curY = y; }
-    inline int          getCurX() { return m_curX; }
-    inline int          getCurY() { return m_curY; }
-
-    inline void         postRedisplay(int n=1) { m_renderCnt+=n; }
 
   NVPWindow()
     : m_renderCnt(1)
@@ -318,32 +305,50 @@ public:
   {
 
   }
-  //
-  // Default implementation
-  // You can overload it with your own implementation
-  //
-  virtual bool init() {return true;}
-  virtual void shutdown() {};
-  virtual void reshape(int w, int h)
-  {
-    m_winSz[0] = w; 
-    m_winSz[1] = h;
-  };
-  virtual void motion(int x, int y) {};
-  virtual void mousewheel(short delta) {};
-  virtual void mouse(NVPWindow::MouseButton button, NVPWindow::ButtonAction action, int mods, int x, int y) {};
-  virtual void keyboard(NVPWindow::KeyCode key, ButtonAction action, int mods, int x, int y) {};
-  virtual void keyboardchar( unsigned char key, int mods, int x, int y) {};
-  virtual void display() {};
-    
+
+  // Accessors
+  inline void         setWinSz(int w, int h) { m_winSz[0]=w; m_winSz[1]=h; }
+  inline const int*   getWinSz() const { return m_winSz; }
+  inline int          getWidth() const { return m_winSz[0]; }
+  inline int          getHeight() const { return m_winSz[1]; }
+  inline const int    getWheel() const { return m_wheel; }
+  inline int          getMods() const { return m_mods; }
+  inline void         setMods(int m) { m_mods = m; }
+  inline void         setCurMouse(int x, int y) { m_curX = x; m_curY = y; }
+  inline int          getCurX() { return m_curX; }
+  inline int          getCurY() { return m_curY; }
+
+
+  // activate and deactivate are not thread-safe, need to be wrapped in mutex if called from multiple threads
+  // invisible windows will not have any active callbacks, nor will they be affected by sysEvents
+  bool activate(int width, int height, const char* title, const ContextFlags* flags, int invisible=0);
+  void deactivate();
+  // compatibility hack
   bool create(const char* title=NULL, const ContextFlags* cflags=0, int width=1024, int height=768);
-  void postQuit();
-  void postRedraw();
-  void swapBuffers();
-  void makeContextCurrent();
-  void swapInterval(int i);
-  bool isOpen();
+
   void setTitle(const char* title);
+
+  void postRedisplay(int n=1) { m_renderCnt+=n; }
+
+  void postQuit();
+
+  void makeContextCurrent();
+  void makeContextNonCurrent();
+  void swapBuffers();
+  void swapInterval(int i);
+
+  bool isOpen();
+
+  // from NVPWindow
+  virtual bool init() { return true; }
+  virtual void shutdown() {}
+  virtual void reshape(int w, int h) { }
+  virtual void motion(int x, int y) {}
+  virtual void mousewheel(int delta) {}
+  virtual void mouse(MouseButton button, ButtonAction action, int mods, int x, int y) {}
+  virtual void keyboard(KeyCode key, ButtonAction action, int mods, int x, int y) {}
+  virtual void keyboardchar(unsigned char key, int mods, int x, int y) {}
+  virtual void display() {}
 
   //////////////////////////////////////////////////////////////////////////
   // system related
@@ -356,7 +361,7 @@ public:
 
   static void*    sysGetProcAddress(const char* name);
   static int      sysExtensionSupported(const char* name);
-  static double   sysGetTime();
+  static double   sysGetTime(); // in seconds
   static void     sysSleep( double seconds );
 
   static void     sysVisibleConsole();

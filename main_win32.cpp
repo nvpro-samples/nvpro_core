@@ -72,7 +72,7 @@ struct WINinternal
   }
 
   bool create(const char* title, int width, int height);
-  bool initBase(const NVPWindow::ContextFlags * cflags);
+  bool initBase(const NVPWindow::ContextFlags * cflags, NVPWindow* sourcewindow);
 };
 
 
@@ -90,6 +90,22 @@ void APIENTRY myOpenGLCallback(  GLenum source,
                         const GLchar* message,
                         GLvoid* userParam)
 {
+
+  NVPWindow* window = (NVPWindow*)userParam;
+
+  GLenum filter = window->m_debugFilter;
+  GLenum severitycmp = severity;
+  // minor fixup for filtering so notification becomes lowest priority
+  if (GL_DEBUG_SEVERITY_NOTIFICATION == filter){
+    filter = GL_DEBUG_SEVERITY_LOW_ARB+1;
+  }
+  if (GL_DEBUG_SEVERITY_NOTIFICATION == severitycmp){
+    severitycmp = GL_DEBUG_SEVERITY_LOW_ARB+1;
+  }
+
+  if (!filter|| severitycmp <= filter )
+  {
+  
     //static std::map<GLuint, bool> ignoreMap;
     //if(ignoreMap[id] == true)
     //    return;
@@ -140,18 +156,19 @@ void APIENTRY myOpenGLCallback(  GLenum source,
     switch(severity)
     {
     case GL_DEBUG_SEVERITY_HIGH_ARB:
-        LOGE("ARB_debug : High - %s - %s : %s\n", strSource, strType, message);
+        LOGE("ARB_debug : %s High - %s - %s : %s\n", window->m_debugTitle.c_str(), strSource, strType, message);
         break;
     case GL_DEBUG_SEVERITY_MEDIUM_ARB:
-        LOGW("ARB_debug : Medium - %s - %s : %s\n", strSource, strType, message);
+        LOGW("ARB_debug : %s Medium - %s - %s : %s\n", window->m_debugTitle.c_str(), strSource, strType, message);
         break;
     case GL_DEBUG_SEVERITY_LOW_ARB:
-        LOGI("ARB_debug : Low - %s - %s : %s\n", strSource, strType, message);
+        LOGI("ARB_debug : %s Low - %s - %s : %s\n", window->m_debugTitle.c_str(), strSource, strType, message);
         break;
     default:
         //LOGI("ARB_debug : comment - %s - %s : %s\n", strSource, strType, message);
         break;
     }
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -167,7 +184,7 @@ void checkGL( char* msg )
 }
 #endif
 //------------------------------------------------------------------------------
-bool WINinternal::initBase(const NVPWindow::ContextFlags* cflags)
+bool WINinternal::initBase(const NVPWindow::ContextFlags* cflags, NVPWindow* sourcewindow)
 {
     GLuint PixelFormat;
     
@@ -276,7 +293,7 @@ bool WINinternal::initBase(const NVPWindow::ContextFlags* cflags)
             }
             if(glDebugMessageCallbackARB)
             {
-                glDebugMessageCallbackARB(myOpenGLCallback, NULL);
+                glDebugMessageCallbackARB(myOpenGLCallback, sourcewindow);
                 glDebugMessageControlARB(GL_DONT_CARE, GL_DONT_CARE, GL_DEBUG_SEVERITY_HIGH_ARB, 0, NULL, GL_TRUE);
             }
 #endif
@@ -699,14 +716,27 @@ bool WINinternal::create(const char* title, int width, int height)
   return true;
 }
 
+bool NVPWindow::activate(int width, int height, const char* title, const ContextFlags* cflags, int invisible)
+{
+  // FIXME invisibile handling!
+  return create(title,cflags,width,height);
+}
+
+void NVPWindow::deactivate()
+{
+  // FIXME should remove from g_windows
+}
+
 bool NVPWindow::create(const char* title, const ContextFlags* cflags, int width, int height)
 {
     m_winSz[0] = width;
     m_winSz[1] = height;
     
     m_internal = new WINinternal(this);
+    
+    m_debugTitle = title ? title:"Sample";
 
-    if (m_internal->create(title,width,height))
+    if (m_internal->create(m_debugTitle.c_str(), width,height))
     {
       // Keep track of the windows
       g_windows.push_back(this);
@@ -714,7 +744,7 @@ bool NVPWindow::create(const char* title, const ContextFlags* cflags, int width,
       ShowWindow( m_internal->m_hWnd, g_nCmdShow );
       UpdateWindow( m_internal->m_hWnd );
       // Initialize the very base of OpenGL
-      if(m_internal->initBase(cflags))
+      if(m_internal->initBase(cflags, this))
         if(init())
           return true;
     }
@@ -732,11 +762,6 @@ bool NVPWindow::create(const char* title, const ContextFlags* cflags, int width,
 void NVPWindow::postQuit()
 {
     PostQuitMessage(0);
-}
-
-void NVPWindow::postRedraw()
-{
-    postRedisplay();
 }
 
 void NVPWindow::swapBuffers()
@@ -1053,7 +1078,7 @@ static char *fmt2 = NULL;
 static FILE *fd = NULL;
 static bool bLogReady = false;
 static bool bPrintLogging = true;
-static int  printLevel = 0;
+static int  printLevel = -1; // <0 mean no level prefix
 void setPrintLevel(int l)
 {
     printLevel = l;
@@ -1080,7 +1105,7 @@ void nvprintf2(va_list &vlist, const char * fmt, int level)
         if(fmt2) free(fmt2);
         fmt2 = (char*)malloc(fmt2_sz);
     }
-    char *prefix = "LOG Message >> ";
+    char *prefix = "";
     switch(level)
     {
     case LOGLEVEL_WARNING:
@@ -1091,8 +1116,11 @@ void nvprintf2(va_list &vlist, const char * fmt, int level)
         break;
     case LOGLEVEL_OK:
         prefix = "LOG !OK! >> ";
-    default:
+        break;
     case LOGLEVEL_INFO:
+        prefix = "LOG Message >> ";
+        break;
+    default:
         break;
     }
 #ifdef WIN32

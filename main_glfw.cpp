@@ -341,7 +341,7 @@ void NVPWindow::setTitle( const char* title )
   glfwSetWindowTitle((GLFWwindow*)m_handle,title);
 }
 
-void NVPWindow::postRedraw()
+void NVPWindow::postRedisplay()
 {
   m_renderCnt++;
 }
