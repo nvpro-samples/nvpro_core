@@ -33,7 +33,7 @@
 #ifdef USEOPENGLTEXT
 #	define NV_REPORT_COMPILE_ERRORS
 #   include "OpenGLText.h"
-#   include "TraceDisplay.h"
+#   include "tracedisplay.h"
 #endif
 #include "TimeSampler.h"
 #include "InertiaCamera.h"

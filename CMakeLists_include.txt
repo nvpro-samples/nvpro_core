@@ -111,20 +111,24 @@ endmacro()
 # Optional UI using Windows MFC
 #
 macro(_add_package_MFCUI)
-  find_package(SvcMFCUI)
-  Message(STATUS "--> using package SvcMFCUI")
-  if(SVCMFCUI_FOUND)
-      add_definitions(-DUSESVCUI)
-      include_directories(${SVCMFCUI_INCLUDE_DIR})
-      LIST(APPEND PACKAGE_SOURCE_FILES
-        ${SVCMFCUI_HEADERS}
-        #SvcMFCUI.h
+  if(UNIX)
+    Message(STATUS "--> package SvcMFCUI not available under Unix")
+  else(UNIX)
+    find_package(SvcMFCUI)
+    Message(STATUS "--> using package SvcMFCUI")
+    if(SVCMFCUI_FOUND)
+        add_definitions(-DUSESVCUI)
+        include_directories(${SVCMFCUI_INCLUDE_DIR})
+        LIST(APPEND PACKAGE_SOURCE_FILES
+          ${SVCMFCUI_HEADERS}
+          #SvcMFCUI.h
+          )
+        source_group(SvcMFCUI FILES  
+          ${SVCMFCUI_HEADERS}
+          #SvcMFCUI.h
         )
-      source_group(SvcMFCUI FILES  
-        ${SVCMFCUI_HEADERS}
-        #SvcMFCUI.h
-      )
- endif()
+   endif()
+  endif(UNIX)
 endmacro()
 #####################################################################################
 # AntTweakBar UI
@@ -282,21 +286,25 @@ macro(_copy_binaries_to_target _PROJNAME)
     install(FILES "${NSIGHT_DLL}" DESTINATION bin_debug)
   endif()
 
-  if(ZLIB_FOUND)
-    _copy_files_to_target( ${_PROJNAME} "${ZLIB_BIN}")
-    install(FILES "${ZLIB_BIN}" DESTINATION bin)
-    install(FILES "${ZLIB_BIN}" DESTINATION bin_debug)
-  endif()
+  if(NOT UNIX)
+    if(ZLIB_FOUND)
+      Message(STATUS "======> ZLIB: ${ZLIB_BIN}")
+      _copy_files_to_target( ${_PROJNAME} "${ZLIB_BIN}")
+      install(FILES "${ZLIB_BIN}" DESTINATION bin)
+      install(FILES "${ZLIB_BIN}" DESTINATION bin_debug)
+    endif()
 
-  if(SVCMFCUI_FOUND)
-      _copy_files_to_target( ${_PROJNAME} "${SVCMFCUI_DLL}")
-      install(FILES "${SVCMFCUI_DLL}" DESTINATION bin)
-      if(SVCMFCUID_DLL)
-        _copy_files_to_target( ${_PROJNAME} "${SVCMFCUID_DLL}")
-        install(FILES "${SVCMFCUID_DLL}" DESTINATION bin_debug)
-      endif()
- endif()
+    if(SVCMFCUI_FOUND)
+        _copy_files_to_target( ${_PROJNAME} "${SVCMFCUI_DLL}")
+        install(FILES "${SVCMFCUI_DLL}" DESTINATION bin)
+        if(SVCMFCUID_DLL)
+          _copy_files_to_target( ${_PROJNAME} "${SVCMFCUID_DLL}")
+          install(FILES "${SVCMFCUID_DLL}" DESTINATION bin_debug)
+        endif()
+   endif()
+  endif()
   if(ANTTWEAKBAR_FOUND)
+Message(STATUS "=======> ${ANTTWEAKBAR_DL}" )
     _copy_files_to_target( ${_PROJNAME} "${ANTTWEAKBAR_DLL}")
     install(FILES "${ANTTWEAKBAR_DLL}" DESTINATION bin)
     install(FILES "${ANTTWEAKBAR_DLL}" DESTINATION bin_debug)
