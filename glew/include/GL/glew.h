@@ -291,11 +291,13 @@ typedef signed long long GLint64EXT;
 typedef unsigned long long GLuint64EXT;
 #else
 #  if defined(__MINGW32__) || defined(__CYGWIN__) || defined(__unix__)
-#include <stdint.h>
-#include <inttypes.h>
+//#include <stdint.h>
+//#include <inttypes.h>
 #  endif
-typedef int64_t GLint64EXT;
-typedef uint64_t GLuint64EXT;
+//typedef int64_t GLint64EXT;
+//typedef uint64_t GLuint64EXT;
+typedef long long GLint64EXT;
+typedef unsigned long long GLuint64EXT;
 #endif
 typedef GLint64EXT  GLint64;
 typedef GLuint64EXT GLuint64;
