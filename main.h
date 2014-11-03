@@ -261,6 +261,7 @@ public:
   };
 
   typedef struct WINinternal* WINhandle;
+  typedef void (*NVPproc)(void);
 
   // OpenGL specific
   struct ContextFlags {
@@ -359,7 +360,7 @@ public:
   static bool     sysPollEvents(bool bLoop);
   static void     sysWaitEvents();
 
-  static void*    sysGetProcAddress(const char* name);
+  static NVPproc  sysGetProcAddress(const char* name);
   static int      sysExtensionSupported(const char* name);
   static double   sysGetTime(); // in seconds
   static void     sysSleep( double seconds );

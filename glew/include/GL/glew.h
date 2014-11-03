@@ -290,7 +290,8 @@ typedef unsigned __int64 GLuint64EXT;
 typedef signed long long GLint64EXT;
 typedef unsigned long long GLuint64EXT;
 #else
-#  if defined(__MINGW32__) || defined(__CYGWIN__)
+#  if defined(__MINGW32__) || defined(__CYGWIN__) || defined(__unix__)
+#include <stdint.h>
 #include <inttypes.h>
 #  endif
 typedef int64_t GLint64EXT;

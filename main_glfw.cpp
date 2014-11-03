@@ -29,11 +29,13 @@
 
 #include <stdio.h>
 #include <fcntl.h>
-#include <io.h>
+//#include <io.h>
 #include <iostream>
 #include <fstream>
 #include <algorithm>
 #include <string>
+#include <assert.h>
+#include <stdarg.h>
 
 
 #ifdef _WIN32
@@ -47,7 +49,7 @@ extern "C" {
 };
 #endif
 
-#include <gl/glew.h>
+#include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
 static std::vector<NVPWindow*>  s_windows;
@@ -149,7 +151,7 @@ void NVPWindow::sysDeinit()
   {
     NVPWindow *pWin = s_windows[i];
     pWin->shutdown();
-    glfwDestroyWindow((GLFWwindow*)pWin->m_handle);
+    glfwDestroyWindow((GLFWwindow*)pWin->m_internal);
   }
 
   glfwTerminate();
@@ -160,9 +162,10 @@ double NVPWindow::sysGetTime()
   return glfwGetTime();
 }
 
-void NVPWindow:sleep(double seconds)
+void NVPWindow::sysSleep(double seconds)
 {
-  glfwSleep(seconds);
+  // no more available ?
+  //glfwSleep(seconds);
 }
 
 bool NVPWindow::sysPollEvents(bool loop)
@@ -172,7 +175,7 @@ bool NVPWindow::sysPollEvents(bool loop)
     for(int i=0; i<s_windows.size(); i++)
     {
       NVPWindow *pWin = s_windows[i];
-      if(glfwWindowShouldClose( (GLFWwindow*)pWin->m_handle))
+      if(glfwWindowShouldClose( (GLFWwindow*)pWin->m_internal))
         return false;
       if(pWin->m_renderCnt > 0 && pWin->isOpen())
       {
@@ -191,7 +194,7 @@ void NVPWindow::sysWaitEvents()
   glfwWaitEvents();
 }
 
-void* NVPWindow::sysGetProcAddress( const char* name )
+NVPWindow::NVPproc NVPWindow::sysGetProcAddress( const char* name )
 {
   return glfwGetProcAddress(name);
 }
@@ -275,21 +278,21 @@ static void resize_callback(GLFWwindow* win, int width, int height)
   window->m_winSz[1] = height;
 }
 
-bool NVPWindow::create( int width, int height, const char* title, const ContextFlags* flags )
+bool NVPWindow::create(const char* title, const ContextFlags* cflags, int width, int height)
 {
   GLFWwindow* win = NULL;
 
-  if(version(flags->major, flags->minor) >= version(3, 2) && flags->core)
+  if(version(cflags->major, cflags->minor) >= version(3, 2) && cflags->core)
   {
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, flags->major);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, flags->minor);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, cflags->major);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, cflags->minor);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
   }
 
-  glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, flags->debug ? GL_TRUE : GL_FALSE);
+  glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, cflags->debug ? GL_TRUE : GL_FALSE);
 
-  win = glfwCreateWindow(width, height, title, NULL, (GLFWwindow*)flags->share);
+  win = glfwCreateWindow(width, height, title, NULL, (GLFWwindow*)cflags->share);
   glfwSetWindowUserPointer(win,this);
 
   glfwSetInputMode(win,GLFW_STICKY_KEYS,GL_TRUE);
@@ -301,7 +304,7 @@ bool NVPWindow::create( int width, int height, const char* title, const ContextF
   glGetIntegerv(GL_MAJOR_VERSION, &ctxMajor);
   glGetIntegerv(GL_MINOR_VERSION, &ctxMinor);
 
-  if (version(ctxMajor,ctxMinor) < version(flags->major,flags->minor)){
+  if (version(ctxMajor,ctxMinor) < version(cflags->major,cflags->minor)){
     return false;
   }
 
@@ -322,7 +325,7 @@ bool NVPWindow::create( int width, int height, const char* title, const ContextF
   glfwSetKeyCallback(win, key_callback);
   glfwSetCharCallback(win, char_callback);
 
-  m_handle = (NVPWindow::WINhandle)win;
+  m_internal = (NVPWindow::WINhandle)win;
 
 #if !defined (NDEBUG)
   if (GLEW_ARB_debug_output){
@@ -338,27 +341,22 @@ bool NVPWindow::create( int width, int height, const char* title, const ContextF
 
 void NVPWindow::setTitle( const char* title )
 {
-  glfwSetWindowTitle((GLFWwindow*)m_handle,title);
-}
-
-void NVPWindow::postRedisplay()
-{
-  m_renderCnt++;
+  glfwSetWindowTitle((GLFWwindow*)m_internal,title);
 }
 
 void NVPWindow::postQuit()
 {
-  glfwSetWindowShouldClose((GLFWwindow*)m_handle, GL_TRUE);
+  glfwSetWindowShouldClose((GLFWwindow*)m_internal, GL_TRUE);
 }
 
 void NVPWindow::makeContextCurrent()
 {
-  glfwMakeContextCurrent((GLFWwindow*)m_handle);
+  glfwMakeContextCurrent((GLFWwindow*)m_internal);
 }
 
 void NVPWindow::swapBuffers()
 {
-  glfwSwapBuffers((GLFWwindow*)m_handle);
+  glfwSwapBuffers((GLFWwindow*)m_internal);
 }
 
 void NVPWindow::swapInterval( int interval )
@@ -368,9 +366,10 @@ void NVPWindow::swapInterval( int interval )
 
 bool NVPWindow::isOpen()
 {
-  return glfwGetWindowAttrib((GLFWwindow*)m_handle,GLFW_VISIBLE) && !glfwGetWindowAttrib((GLFWwindow*)m_handle,GLFW_ICONIFIED);
+  return glfwGetWindowAttrib((GLFWwindow*)m_internal,GLFW_VISIBLE) && !glfwGetWindowAttrib((GLFWwindow*)m_internal,GLFW_ICONIFIED);
 }
 
+#ifdef WIN32
 static const WORD MAX_CONSOLE_LINES = 500;
 
 using namespace std;
@@ -426,7 +425,6 @@ void NVPWindow::sysVisibleConsole()
 
   ios::sync_with_stdio();
 }
-
 // http://www.codeguru.com/cpp/w-p/win32/article.php/c1427/A-Simple-Win32-CommandLine-Parser.htm
 class CmdLineArgs : public std::vector<char*>
 {
@@ -561,7 +559,9 @@ int WINAPI WinMain(    HINSTANCE hInstance,
 
     return 0;
 }
-
+#else
+void NVPWindow::sysVisibleConsole() {}
+#endif // WIN32
 //------------------------------------------------------------------------------
 // 
 //------------------------------------------------------------------------------

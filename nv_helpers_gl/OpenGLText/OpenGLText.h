@@ -33,6 +33,7 @@
 #define OpenGLText_H__
 
 #include <vector>
+#include <string.h>
 
 class OpenGLText
 {

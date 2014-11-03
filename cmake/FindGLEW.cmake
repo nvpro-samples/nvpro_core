@@ -83,6 +83,8 @@ if (${CMAKE_HOST_UNIX})
         NAMES
             GL/glew.h
         PATHS
+            ${PROJECT_SOURCE_DIR}/shared_sources/glew/include
+            ${PROJECT_SOURCE_DIR}/../shared_sources/glew/include
             ${GLEW_LOCATION}/include
             $ENV{GLEW_LOCATION}/include
             /usr/include
@@ -92,6 +94,13 @@ if (${CMAKE_HOST_UNIX})
             NO_DEFAULT_PATH
             DOC "The directory where GL/glew.h resides"
     )
+    find_file( GLEW_SOURCE
+        NAMES
+            glew.c
+        PATHS
+            ${PROJECT_SOURCE_DIR}/shared_sources/glew/src
+            ${PROJECT_SOURCE_DIR}/../shared_sources/glew/src
+            DOC "The directory where GL/glew.c resides" )
     find_library( GLEW_LIBRARY
         NAMES
             GLEW glew
