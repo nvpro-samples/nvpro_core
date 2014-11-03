@@ -31,7 +31,7 @@
 #include <math.h>
 #include <stdio.h>
 
-#include "gl\glew.h"
+#include <GL/glew.h>
 
 #include "tracedisplay.h"
 #include "nv_math/nv_math.h"
