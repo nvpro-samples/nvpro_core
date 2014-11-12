@@ -188,6 +188,11 @@ bool WINinternal::initBase(const NVPWindow::ContextFlags* cflags, NVPWindow* sou
 {
     GLuint PixelFormat;
     
+    NVPWindow::ContextFlags  settings;
+    if (cflags){
+      settings = *cflags;
+    }
+
     PIXELFORMATDESCRIPTOR pfd;
     memset(&pfd, 0, sizeof(PIXELFORMATDESCRIPTOR));
 
@@ -196,14 +201,9 @@ bool WINinternal::initBase(const NVPWindow::ContextFlags* cflags, NVPWindow* sou
     pfd.dwFlags    = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
     pfd.iPixelType = PFD_TYPE_RGBA;
     pfd.cColorBits = 32;
-    pfd.cDepthBits = 24;
-    pfd.cStencilBits = 8;
+    pfd.cDepthBits = settings.depth;
+    pfd.cStencilBits = settings.stencil;
 
-    NVPWindow::ContextFlags  settings;
-    if (cflags){
-      settings = *cflags;
-    }
-    
     if(settings.MSAA > 1)
     {
         m_hDC = GetDC(m_hWndDummy);
@@ -220,8 +220,8 @@ bool WINinternal::initBase(const NVPWindow::ContextFlags* cflags, NVPWindow* sou
 		    WGL_SUPPORT_OPENGL_ARB, true,
 			WGL_ACCELERATION_ARB, WGL_FULL_ACCELERATION_ARB,
 	        WGL_DOUBLE_BUFFER_ARB, true,
-	        WGL_DEPTH_BITS_ARB, 24,
-	        WGL_STENCIL_BITS_ARB, 8,
+	        WGL_DEPTH_BITS_ARB, cflags->depth,
+	        WGL_STENCIL_BITS_ARB, cflags->stencil,
             WGL_SAMPLE_BUFFERS_ARB, 1,
 			WGL_SAMPLES_ARB,
 			settings.MSAA,
@@ -659,9 +659,11 @@ LRESULT CALLBACK WindowProc( HWND   m_hWnd,
             pWin->reshape(LOWORD(lParam), HIWORD(lParam));
             break;
         case WM_CLOSE:
+            pWin->shutdown();
             PostQuitMessage(0);
             break;
         case WM_DESTROY:
+            pWin->shutdown();
             PostQuitMessage(0);
             break;
         default:
@@ -824,9 +826,9 @@ int NVPWindow::sysExtensionSupported( const char* name )
     return glewIsExtensionSupported(name);
 }
 
-void* NVPWindow::sysGetProcAddress( const char* name )
+NVPWindow::NVPproc NVPWindow::sysGetProcAddress( const char* name )
 {
-    return wglGetProcAddress(name);
+    return (NVPWindow::NVPproc)wglGetProcAddress(name);
 }
 
 void NVPWindow::sysWaitEvents()
@@ -1079,15 +1081,15 @@ static FILE *fd = NULL;
 static bool bLogReady = false;
 static bool bPrintLogging = true;
 static int  printLevel = -1; // <0 mean no level prefix
-void setPrintLevel(int l)
+void nvprintSetLevel(int l)
 {
     printLevel = l;
 }
-int getPrintLevel()
+int nvprintGetLevel()
 {
     return printLevel;
 }
-void printLogging(bool b)
+void nvprintSetLogging(bool b)
 {
     bPrintLogging = b;
 }
@@ -1139,7 +1141,7 @@ void nvprintf2(va_list &vlist, const char * fmt, int level)
     }
 #endif
 #endif
-    printMessage(level, fmt2);
+    sample_print(level, fmt2);
     ::printf(prefix);
     ::printf(fmt2);
 }
@@ -1150,7 +1152,7 @@ void nvprintf(const char * fmt, ...)
     va_start(vlist, fmt);
     nvprintf2(vlist, fmt, printLevel);
 }
-void logMessage(int level, const char * fmt, ...)
+void nvprintfLevel(int level, const char * fmt, ...)
 {
     va_list  vlist;
     va_start(vlist, fmt);

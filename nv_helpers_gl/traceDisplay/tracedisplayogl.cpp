@@ -42,11 +42,11 @@ using namespace nv_math;
 #include "tga.h"
 
 #ifdef USESVCUI
-void logMessage(int level, const char * fmt, ...);
-#   define  LOGI(...)  { logMessage(0, __VA_ARGS__); }
-#   define  LOGW(...)  { logMessage(1, __VA_ARGS__); }
-#   define  LOGE(...)  { logMessage(2, __VA_ARGS__); }
-#   define  LOGOK(...)  { logMessage(7, __VA_ARGS__); }
+void nvprintfLevel(int level, const char * fmt, ...);
+#   define  LOGI(...)  { nvprintfLevel(0, __VA_ARGS__); }
+#   define  LOGW(...)  { nvprintfLevel(1, __VA_ARGS__); }
+#   define  LOGE(...)  { nvprintfLevel(2, __VA_ARGS__); }
+#   define  LOGOK(...)  { nvprintfLevel(7, __VA_ARGS__); }
 #else
 #   define  LOGI(...)  printf(__VA_ARGS__)
 #   define  LOGW(...)  printf(__VA_ARGS__)

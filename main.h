@@ -84,10 +84,10 @@
 #   define  LOGLEVEL_WARNING 1
 #   define  LOGLEVEL_ERROR 2
 #   define  LOGLEVEL_OK 7
-#   define  LOGI(...)  { logMessage(0, __VA_ARGS__); }
-#   define  LOGW(...)  { logMessage(1, __VA_ARGS__); }
-#   define  LOGE(...)  { logMessage(2, __FILE__"("S__LINE__"): "__VA_ARGS__); }
-#   define  LOGOK(...)  { logMessage(7, __VA_ARGS__); }
+#   define  LOGI(...)  { nvprintfLevel(0, __VA_ARGS__); }
+#   define  LOGW(...)  { nvprintfLevel(1, __VA_ARGS__); }
+#   define  LOGE(...)  { nvprintfLevel(2, __FILE__"("S__LINE__"): "__VA_ARGS__); }
+#   define  LOGOK(...)  { nvprintfLevel(7, __VA_ARGS__); }
 
 #if _MSC_VER
     #define snprintf _snprintf
@@ -268,17 +268,21 @@ public:
     int         major;
     int         minor;
     int         MSAA;
+    int         depth;
+    int         stencil;
     bool        debug;
     bool        robust;
     bool        core;
     bool        forward;
     NVPWindow*  share;
 
-    ContextFlags(int _major=4, int _minor=3, bool _core=false, int _MSAA=0,bool _debug=false, bool _robust=false, bool _forward=false, NVPWindow* _share=0)
+    ContextFlags(int _major=4, int _minor=3, bool _core=false, int _MSAA=0, int _depth=24, int _stencil=8,bool _debug=false, bool _robust=false, bool _forward=false, NVPWindow* _share=0)
     {
       major = _major;
       minor = _minor;
       MSAA = _MSAA;
+      depth = _depth;
+      stencil = _stencil;
       core = _core;
       debug = _debug;
       robust = _robust;
@@ -373,14 +377,18 @@ public:
 
 extern int  sample_main(int argc, const char**argv);
 
-// sample-specific implementation, called by logMessage. For example to redirect the message to a specific window or part of the viewport
-extern void printMessage(int level, const char * fmt2);
+// sample-specific implementation, called by nvprintfLevel. For example to redirect the message to a specific window or part of the viewport
+extern void sample_print(int level, const char * fmt2);
 
-extern void nvprintf(const char * fmt, ...);
-extern void logMessage(int level, const char * fmt, ...);
 extern void checkGL( char* msg );
-extern void setPrintLevel(int l);
-extern int  getPrintLevel();
-extern void printLogging(bool b);
+
+// sample-specific implementation, called by nvprintf*. For example to redirect the message to a specific window or part of the viewport
+extern void sample_print(int level, const char * fmt);
+
+void nvprintf(const char * fmt, ...);
+void nvprintfLevel(int level, const char * fmt, ...);
+void nvprintSetLevel(int l);
+int  nvprintGetLevel();
+void nvprintSetLogging(bool b);
 
 #endif

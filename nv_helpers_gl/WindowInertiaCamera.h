@@ -75,7 +75,8 @@ inline void addToggleKey(char c, bool* target, const char* desc)
 class WindowInertiaCamera: public NVPWindow
 {
 public:
-    WindowInertiaCamera()
+    WindowInertiaCamera(const vec3f eye=vec3f(0.0f,1.0f,-3.0f), const vec3f focus=vec3f(0,0,0), const vec3f object=vec3f(0,0,0)) :
+      m_camera(eye, focus, object)
 	{
 		m_bCameraMode = true;
 		m_bContinue = true;
@@ -131,9 +132,13 @@ public:
     virtual void keyboardchar(unsigned char key, int mods, int x, int y);
     virtual void idle();
     virtual void display();
+    virtual void displayHUD();
 };
 #ifndef WINDOWINERTIACAMERA_EXTERN
 
+//------------------------------------------------------------------------------
+// 
+//------------------------------------------------------------------------------
 bool WindowInertiaCamera::init()
 {
     assert(glewInit() == GLEW_OK);
@@ -180,6 +185,8 @@ void WindowInertiaCamera::shutdown()
 
 
 //------------------------------------------------------------------------------
+// 
+//------------------------------------------------------------------------------
 #define CAMERATAU 0.03f
 void WindowInertiaCamera::motion(int x, int y)
 {
@@ -221,11 +228,15 @@ void WindowInertiaCamera::motion(int x, int y)
 }
 
 //------------------------------------------------------------------------------
+// 
+//------------------------------------------------------------------------------
 void WindowInertiaCamera::mousewheel(short delta)
 {
     // TODO
     postRedisplay();
 }
+//------------------------------------------------------------------------------
+// 
 //------------------------------------------------------------------------------
 void WindowInertiaCamera::mouse(NVPWindow::MouseButton button, NVPWindow::ButtonAction state, int mods, int x, int y)
 {
@@ -281,6 +292,8 @@ void WindowInertiaCamera::mouse(NVPWindow::MouseButton button, NVPWindow::Button
     }
 }
 //------------------------------------------------------------------------------
+// 
+//------------------------------------------------------------------------------
 #define KEYTAU 0.10f
 void WindowInertiaCamera::keyboard(NVPWindow::KeyCode key, NVPWindow::ButtonAction action, int mods, int x, int y)
 {
@@ -334,6 +347,9 @@ void WindowInertiaCamera::keyboard(NVPWindow::KeyCode key, NVPWindow::ButtonActi
     }
 }
 
+//------------------------------------------------------------------------------
+// 
+//------------------------------------------------------------------------------
 void WindowInertiaCamera::keyboardchar( unsigned char key, int mods, int x, int y )
 {
     // check registered toggles
@@ -344,6 +360,9 @@ void WindowInertiaCamera::keyboardchar( unsigned char key, int mods, int x, int 
     }
 }
 
+//------------------------------------------------------------------------------
+// 
+//------------------------------------------------------------------------------
 void WindowInertiaCamera::idle()
 {
     //
@@ -352,6 +371,10 @@ void WindowInertiaCamera::idle()
     if (m_bContinue || m_realtime.bNonStopRendering)
         postRedisplay();
 }
+
+//------------------------------------------------------------------------------
+// 
+//------------------------------------------------------------------------------
 void WindowInertiaCamera::display()
 {
     //
@@ -372,9 +395,14 @@ void WindowInertiaCamera::display()
 		m_trace.insert(ms);
 #endif
     }
-    ///////////////////////////////////////////////
-    // additional HUD stuff
-#if 0//def USEOPENGLTEXT
+}
+
+//------------------------------------------------------------------------------
+// 
+//------------------------------------------------------------------------------
+void WindowInertiaCamera::displayHUD()
+{
+#ifdef USEOPENGLTEXT
     OpenGLText::BackupStates();
     //
     // Graph need texts
@@ -403,9 +431,10 @@ void WindowInertiaCamera::display()
     m_oglTextBig.endString();
     OpenGLText::RestoreStates();
 #endif
-    //
-    /////////////////////////////////////////////////////////////////////////////////////
 }
+
+//------------------------------------------------------------------------------
+// 
 //------------------------------------------------------------------------------
 void WindowInertiaCamera::reshape(int w, int h)
 {

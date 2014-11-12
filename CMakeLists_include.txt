@@ -65,7 +65,6 @@ macro(_copy_files_to_target target thefiles)
           endif()
         endforeach()
     endif()
-
 endmacro()
 
 
@@ -90,20 +89,20 @@ endif()
 # Optional UI using Windows MFC
 #
 macro(_add_package_ZLIB)
-  set(ZLIB_ROOT ${BASE_DIRECTORY}/shared_external/zlib)
-  find_package(ZLIB)
+  if(EXISTS ${BASE_DIRECTORY}/shared_external/zlib)
+    set(ZLIB_ROOT ${BASE_DIRECTORY}/shared_external/zlib)
+  endif()
   Message(STATUS "--> using package ZLIB")
+  find_package(ZLIB)
   if(ZLIB_FOUND)
       include_directories(${ZLIB_INCLUDE_DIR})
       LIST(APPEND PACKAGE_SOURCE_FILES
         ${ZLIB_HEADERS}
         )
-      source_group(SvcMFCUI FILES  
-        ${SVCMFCUI_HEADERS}
-      )
       LIST(APPEND LIBRARIES_OPTIMIZED ${ZLIB_LIBRARY})
       LIST(APPEND LIBRARIES_DEBUG ${ZLIB_LIBRARY})
   else()
+    Message(WARNING "ZLIB not available. setting NOGZLIB define")
     add_definitions(-DNOGZLIB)
   endif()
 endmacro()
@@ -288,7 +287,6 @@ macro(_copy_binaries_to_target _PROJNAME)
 
   if(NOT UNIX)
     if(ZLIB_FOUND)
-      Message(STATUS "======> ZLIB: ${ZLIB_BIN}")
       _copy_files_to_target( ${_PROJNAME} "${ZLIB_BIN}")
       install(FILES "${ZLIB_BIN}" DESTINATION bin)
       install(FILES "${ZLIB_BIN}" DESTINATION bin_debug)

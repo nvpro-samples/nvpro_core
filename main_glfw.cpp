@@ -597,7 +597,7 @@ void logMessage(int level, const char * fmt, ...)
 
 #endif
 #endif
-    printMessage(level, fmt2);
+    sample_print(level, fmt2);
     ::printf(fmt2);
 }
 

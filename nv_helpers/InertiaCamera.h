@@ -38,18 +38,26 @@ struct InertiaCamera
     float   tau;
     float   epsilon;
     mat4f m4_view;
-    InertiaCamera()
+    //------------------------------------------------------------------------------
+    // 
+    //------------------------------------------------------------------------------
+    InertiaCamera(const vec3f eye=vec3f(0.0f,1.0f,-3.0f), const vec3f focus=vec3f(0,0,0), const vec3f object=vec3f(0,0,0))
     {
-        m4_view.identity();
         epsilon = 0.001f;
         tau = 0.2f;
-        curEyePos = vec3f(0.0f,1.0f,-3.0f);
-        eyePos = curEyePos;
-        curFocusPos = vec3f(0,0,0);
-        curObjectPos = vec3f(0,0,0);
-        focusPos = vec3f(0,0,0);
-        objectPos = vec3f(0,0,0);
+        curEyePos = eye;
+        eyePos = eye;
+        curFocusPos = focus;
+        focusPos = focus;
+        curObjectPos = object;
+        objectPos = object;
+        m4_view.identity();
+        mat4f Lookat = nv_math::look_at(curEyePos, curFocusPos, vec3f(0,1,0));
+        m4_view *= Lookat;
     }
+    //------------------------------------------------------------------------------
+    // 
+    //------------------------------------------------------------------------------
     void rotateH(float s, bool bPan=false)
     {
         vec3f p = eyePos;
@@ -67,6 +75,9 @@ struct InertiaCamera
         if(bPan)
             focusPos += dv;
     }
+    //------------------------------------------------------------------------------
+    // 
+    //------------------------------------------------------------------------------
     void rotateV(float s, bool bPan=false)
     {
         vec3f p = eyePos;
@@ -86,6 +97,9 @@ struct InertiaCamera
         if(bPan)
             focusPos += dv2;
     }
+    //------------------------------------------------------------------------------
+    // 
+    //------------------------------------------------------------------------------
     void move(float s, bool bPan)
     {
         vec3f p = eyePos;
@@ -97,6 +111,9 @@ struct InertiaCamera
             focusPos -= po;
         eyePos = p;
     }
+    //------------------------------------------------------------------------------
+    // 
+    //------------------------------------------------------------------------------
     bool update(float dt)
     {
         if(dt > (1.0f/60.0f))
@@ -151,8 +168,33 @@ struct InertiaCamera
         //
         vec3f up(0,1,0);
         m4_view.identity();
-        mat4f Lookat = look_at(curEyePos, curFocusPos, up);
+        mat4f Lookat = nv_math::look_at(curEyePos, curFocusPos, up);
         m4_view *= Lookat;
         return bContinue;
+    }
+    //------------------------------------------------------------------------------
+    // 
+    //------------------------------------------------------------------------------
+    void look_at(const vec3f& eye, const vec3f& center/*, const vec3f& up*/, bool reset=false)
+    {
+        eyePos = eye;
+        focusPos = center;
+        if(reset)
+        {
+            curEyePos = eye;
+            curFocusPos = center;
+            vec3f up(0,1,0);
+            m4_view.identity();
+            mat4f Lookat = nv_math::look_at(curEyePos, curFocusPos, up);
+            m4_view *= Lookat;
+        }
+    }
+    //------------------------------------------------------------------------------
+    // 
+    //------------------------------------------------------------------------------
+    void print_look_at()
+    {
+        LOGI("{vec3f(%.2f, %.2f, %.2f), vec3f(%.2f, %.2f, %.2f)},\n",
+            eyePos.x, eyePos.y, eyePos.z, focusPos.x, focusPos.y, focusPos.z);
     }
 };
