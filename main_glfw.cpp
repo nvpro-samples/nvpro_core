@@ -569,22 +569,54 @@ static size_t fmt2_sz    = 0;
 static char *fmt2 = NULL;
 static FILE *fd = NULL;
 static bool bLogReady = false;
-void logMessage(int level, const char * fmt, ...)
+static bool bPrintLogging = true;
+static int  printLevel = -1; // <0 mean no level prefix
+void nvprintSetLevel(int l)
 {
-//    int r = 0;
+    printLevel = l;
+}
+int nvprintGetLevel()
+{
+    return printLevel;
+}
+void nvprintSetLogging(bool b)
+{
+    bPrintLogging = b;
+}
+void nvprintf2(va_list &vlist, const char * fmt, int level)
+{
+    if(bPrintLogging == false)
+        return;
     if(fmt2_sz == 0) {
         fmt2_sz = 1024;
         fmt2 = (char*)malloc(fmt2_sz);
     }
-    va_list  vlist;
-    va_start(vlist, fmt);
     while((vsnprintf(fmt2, fmt2_sz, fmt, vlist)) < 0) // means there wasn't anough room
     {
         fmt2_sz *= 2;
         if(fmt2) free(fmt2);
         fmt2 = (char*)malloc(fmt2_sz);
     }
+    char *prefix = "";
+    switch(level)
+    {
+    case LOGLEVEL_WARNING:
+        prefix = "LOG *WARNING* >> ";
+        break;
+    case LOGLEVEL_ERROR:
+        prefix = "LOG **ERROR** >> ";
+        break;
+    case LOGLEVEL_OK:
+        prefix = "LOG !OK! >> ";
+        break;
+    case LOGLEVEL_INFO:
+        prefix = "LOG Message >> ";
+        break;
+    default:
+        break;
+    }
 #ifdef WIN32
+    OutputDebugStringA(prefix);
     OutputDebugStringA(fmt2);
 #ifdef _DEBUG
     if(bLogReady == false)
@@ -593,12 +625,27 @@ void logMessage(int level, const char * fmt, ...)
         bLogReady = true;
     }
     if(fd)
+    {
+        fprintf(fd, prefix);
         fprintf(fd, fmt2);
-
+    }
 #endif
 #endif
     sample_print(level, fmt2);
+    ::printf(prefix);
     ::printf(fmt2);
 }
-
+void nvprintf(const char * fmt, ...)
+{
+//    int r = 0;
+    va_list  vlist;
+    va_start(vlist, fmt);
+    nvprintf2(vlist, fmt, printLevel);
+}
+void nvprintfLevel(int level, const char * fmt, ...)
+{
+    va_list  vlist;
+    va_start(vlist, fmt);
+    nvprintf2(vlist, fmt, level);
+}
 //------------------------------------------------------------------------------
