@@ -77,7 +77,7 @@ namespace nv_helpers_gl
         ErrorString = "UNKNOWN";
         break;
       }
-      fprintf(stdout, "OpenGL Error(%s): %s\n", ErrorString.c_str(), Title);
+      nvprintfLevel(LOGLEVEL_ERROR,"OpenGL Error(%s): %s\n", ErrorString.c_str(), Title);
     }
     return Error == GL_NO_ERROR;
   }

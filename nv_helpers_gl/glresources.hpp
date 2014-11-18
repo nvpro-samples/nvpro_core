@@ -15,12 +15,16 @@
 #include <GL/glew.h>
 
 #include <cstdio>
+#include <main.h>
 
 
 #define NV_BUFFER_OFFSET(i) ((char *)NULL + (i))
 
 namespace nv_helpers_gl
 {
+  inline size_t uboAligned(size_t size){
+    return ((size+255)/256)*256;
+  }
 
   class ResourceGLuint {
   public:
@@ -112,28 +116,28 @@ namespace nv_helpers_gl
     switch(status)
     {
     case GL_FRAMEBUFFER_UNDEFINED:
-      fprintf(stdout, "OpenGL Error(%s)\n", "GL_FRAMEBUFFER_UNDEFINED");
+      nvprintfLevel(LOGLEVEL_ERROR,"OpenGL Error(%s)\n", "GL_FRAMEBUFFER_UNDEFINED");
       break;
     case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
-      fprintf(stdout, "OpenGL Error(%s)\n", "GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT");
+      nvprintfLevel(LOGLEVEL_ERROR,"OpenGL Error(%s)\n", "GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT");
       break;
     case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
-      fprintf(stdout, "OpenGL Error(%s)\n", "GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT");
+      nvprintfLevel(LOGLEVEL_ERROR,"OpenGL Error(%s)\n", "GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT");
       break;
     case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER:
-      fprintf(stdout, "OpenGL Error(%s)\n", "GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER");
+      nvprintfLevel(LOGLEVEL_ERROR,"OpenGL Error(%s)\n", "GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER");
       break;
     case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER:
-      fprintf(stdout, "OpenGL Error(%s)\n", "GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER");
+      nvprintfLevel(LOGLEVEL_ERROR,"OpenGL Error(%s)\n", "GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER");
       break;
     case GL_FRAMEBUFFER_UNSUPPORTED:
-      fprintf(stdout, "OpenGL Error(%s)\n", "GL_FRAMEBUFFER_UNSUPPORTED");
+      nvprintfLevel(LOGLEVEL_ERROR,"OpenGL Error(%s)\n", "GL_FRAMEBUFFER_UNSUPPORTED");
       break;
     case GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE:
-      fprintf(stdout, "OpenGL Error(%s)\n", "GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE");
+      nvprintfLevel(LOGLEVEL_ERROR,"OpenGL Error(%s)\n", "GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE");
       break;
     case GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS:
-      fprintf(stdout, "OpenGL Error(%s)\n", "GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS");
+      nvprintfLevel(LOGLEVEL_ERROR,"OpenGL Error(%s)\n", "GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS");
       break;
     }
 
