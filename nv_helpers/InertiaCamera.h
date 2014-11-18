@@ -37,6 +37,9 @@ struct InertiaCamera
     vec3f    eyePos, focusPos, objectPos;
     float   tau;
     float   epsilon;
+    float   eyeD;
+    float   focusD;
+    float   objectD;
     mat4f m4_view;
     //------------------------------------------------------------------------------
     // 
@@ -51,6 +54,9 @@ struct InertiaCamera
         focusPos = focus;
         curObjectPos = object;
         objectPos = object;
+        eyeD = 0.0f;
+        focusD = 0.0f;
+        objectD = 0.0f;
         m4_view.identity();
         mat4f Lookat = nv_math::look_at(curEyePos, curFocusPos, vec3f(0,1,0));
         m4_view *= Lookat;
@@ -121,7 +127,8 @@ struct InertiaCamera
         bool bContinue = false;
         static vec3f eyeVel = vec3f(0,0,0);
         static vec3f eyeAcc = vec3f(0,0,0);
-        if(nv_norm(curEyePos - eyePos) > epsilon)
+        eyeD = nv_norm(curEyePos - eyePos);
+        if(eyeD > epsilon)
         {
             bContinue = true;
             vec3f dV = curEyePos - eyePos;
@@ -136,7 +143,8 @@ struct InertiaCamera
 
         static vec3f focusVel = vec3f(0,0,0);
         static vec3f focusAcc = vec3f(0,0,0);
-        if(nv_norm(curFocusPos - focusPos) > epsilon)
+        focusD = nv_norm(curFocusPos - focusPos);
+        if(focusD > epsilon)
         {
             bContinue = true;
             vec3f dV = curFocusPos - focusPos;
@@ -151,7 +159,8 @@ struct InertiaCamera
 
         static vec3f objectVel = vec3f(0,0,0);
         static vec3f objectAcc = vec3f(0,0,0);
-        if(nv_norm(curObjectPos - objectPos) > epsilon)
+        objectD = nv_norm(curObjectPos - objectPos);
+        if(objectD > epsilon)
         {
             bContinue = true;
             vec3f dV = curObjectPos - objectPos;
@@ -192,9 +201,15 @@ struct InertiaCamera
     //------------------------------------------------------------------------------
     // 
     //------------------------------------------------------------------------------
-    void print_look_at()
+    void print_look_at(bool cppLike=false)
     {
-        LOGI("{vec3f(%.2f, %.2f, %.2f), vec3f(%.2f, %.2f, %.2f)},\n",
+        if(cppLike)
+        {
+            LOGI("{vec3f(%.2f, %.2f, %.2f), vec3f(%.2f, %.2f, %.2f)},\n",
             eyePos.x, eyePos.y, eyePos.z, focusPos.x, focusPos.y, focusPos.z);
+        } else {
+            LOGI("%.2f %.2f %.2f %.2f %.2f %.2f 0.0\n",
+            eyePos.x, eyePos.y, eyePos.z, focusPos.x, focusPos.y, focusPos.z);
+        }
     }
 };
