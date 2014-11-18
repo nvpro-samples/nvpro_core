@@ -35,8 +35,8 @@
 #   include "OpenGLText.h"
 #   include "tracedisplay.h"
 #endif
-#include "TimeSampler.h"
-#include "InertiaCamera.h"
+#include "nv_helpers/TimeSampler.h"
+#include "nv_helpers/InertiaCamera.h"
 
 #include <map>
 using std::map;
@@ -171,7 +171,7 @@ bool WindowInertiaCamera::init()
     m_traceDisp.SetDrawDoubleColumn(false);
     m_traceDisp.setStaticLabel(true);
     m_traceDisp.setFillGraph(true);
-    m_traceDisp.setLineThickness(2.0);
+    m_traceDisp.setLineThickness(1.0);
     m_traceDisp.setSmoothLine(1);
     m_traceDisp.setNameColorIdx(0);
     m_traceDisp.setValueColorIdx(-1);
@@ -389,7 +389,7 @@ void WindowInertiaCamera::display()
 #ifdef USEOPENGLTEXT
 		float ms = 1000.0f * (float)m_realtime.getTiming();
 		if(m_bAdjustTimeScale) {
-			m_traceDisp.setScaleBias(10.0f*(2+2*(int)(ms/10.0f)), 0.0f);
+			m_traceDisp.setScaleBias(10.0f*(1+1*(int)(ms/10.0f)), 0.0f);
 			m_bAdjustTimeScale = false;
 		}
 		m_trace.insert(ms);
