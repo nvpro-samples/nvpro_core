@@ -9,6 +9,7 @@ find_path( ANTTWEAKBAR_INCLUDE_DIR AntTweakBar.h
   $ENV{ANTTWEAKBAR_LOCATION}/include
   ${PROJECT_SOURCE_DIR}/shared_external/AntTweakBar/include
   ${PROJECT_SOURCE_DIR}/../shared_external/AntTweakBar/include
+  ${PROJECT_SOURCE_DIR}/../../shared_external/AntTweakBar/include
 )
 
 macro(_find_dll targetVar dllName dllName64 folder)
