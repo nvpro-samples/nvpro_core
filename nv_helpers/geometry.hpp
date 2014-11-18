@@ -220,23 +220,23 @@ namespace nv_helpers{
           case 0:
             break;
           case 1:
-            nv_math::rotation_y(matrixRot,nv_pi);
+            matrixRot = nv_math::rotation_mat4_y(nv_pi);
             break;
           case 2:
-            nv_math::rotation_y(matrixRot,nv_pi * 0.5f);
+            matrixRot = nv_math::rotation_mat4_y(nv_pi * 0.5f);
             break;
           case 3:
-            nv_math::rotation_y(matrixRot,nv_pi * 1.5f);
+            matrixRot = nv_math::rotation_mat4_y(nv_pi * 1.5f);
             break;
           case 4:
-            nv_math::rotation_x(matrixRot,nv_pi * 0.5f);
+            matrixRot = nv_math::rotation_mat4_x(nv_pi * 0.5f);
             break;
           case 5:
-            nv_math::rotation_x(matrixRot,nv_pi * 1.5f);
+            matrixRot = nv_math::rotation_mat4_x(nv_pi * 1.5f);
             break;
           }
 
-          nv_math::mat4f matrixMove = nv_math::translation(nv_math::mat4f(),nv_math::vec3f(0,0,1));
+          nv_math::mat4f matrixMove = nv_math::translation_mat4(0.0f,0.0f,1.0f);
 
           Plane<TVertex>::add(geo, mat * matrixRot * matrixMove,configs[side][0],configs[side][1]);
         }
