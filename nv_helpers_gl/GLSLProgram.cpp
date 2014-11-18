@@ -13,7 +13,7 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include "main.h"
-#include "GLSLProgram.h"
+#include "nv_helpers_gl/GLSLProgram.h"
 
 GLSLProgram::GLSLProgram() : mProg(0)
 {
