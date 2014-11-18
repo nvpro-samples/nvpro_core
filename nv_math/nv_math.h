@@ -67,6 +67,7 @@ template<class T> const vector4<T> operator*(const matrix4<T>&, const vector4<T>
 template<class T> const vector4<T> operator*(const matrix4<T>&, const vector3<T>&);
 template<class T> const vector4<T> operator*(const vector4<T>&, const matrix4<T>&);
 
+template<class T>  matrix4<T> scale_mat4(const vector3<T> &t);
 template<class T>  matrix4<T> translation_mat4(const vector3<T> &t);
 template<class T>  matrix4<T> translation_mat4(T x, T y, T z);
 template<class T>  matrix4<T> rotation_mat4_x(T a);
@@ -192,7 +193,6 @@ template<class T>  vector3<T> sub(const vector3<T> & v, const vector3<T> & w);
 template<class T>  vector2<T> scale(const vector2<T> & u, const T s);
 template<class T>  vector3<T> scale(const vector3<T> & u, const T s);
 template<class T>  vector4<T> scale(const vector4<T> & u, const T s);
-template<class T>  matrix4<T> scale(const matrix4<T> & u, const vector3<T> s);
 
 // Computes u = M * v
 template<class T>  vector3<T> mult(const matrix3<T> & M, const vector3<T> & v);

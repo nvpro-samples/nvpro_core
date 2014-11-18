@@ -17,12 +17,11 @@
 
 #include "nv_math_types.h"
 
-// See http://stackoverflow.com/questions/7895869/cross-platform-alignx-macro
 #if defined(_MSC_VER)
-#	define ALIGNED_(x) __declspec(align(x))
+#	define ALIGNED_(x,t) __declspec(align(x)) t
 #else
 #if defined(__GNUC__)
-#	define ALIGNED_(x) __attribute__ ((aligned(x)))
+#	define ALIGNED_(x,t) t __attribute__ ((aligned(x)))
 #endif
 #endif
 
@@ -31,21 +30,21 @@ namespace nv_math {
 
 #if defined(__amd64__) || defined(__x86_64__) || defined(_M_X64) || defined(__AMD64__)
   // Matrices, must align to 4 vector (16 bytes)
-  typedef mat4f mat4 ALIGNED_(16);
+  ALIGNED_(16, typedef mat4f mat4);
 
   // vectors, 4-tuples and 3-tuples must align to 16 bytes
   //  2-vectors must align to 8 bytes
-  typedef vec4f vec4 ALIGNED_(16);
-  typedef vec3f vec3 ALIGNED_(16);
-  typedef vec2f vec2 ALIGNED_(8);
+  ALIGNED_(16, typedef vec4f vec4 );
+  ALIGNED_(16, typedef vec3f vec3 );
+  ALIGNED_(8 , typedef vec2f vec2 );
 
-  typedef vec4i ivec4 ALIGNED_(16);
-  typedef vec3i ivec3 ALIGNED_(16);
-  typedef vec2i ivec2 ALIGNED_(8);
+  ALIGNED_(16, typedef vec4i ivec4 );
+  ALIGNED_(16, typedef vec3i ivec3 );
+  ALIGNED_(8 , typedef vec2i ivec2 );
 
-  typedef vec4ui uvec4 ALIGNED_(16);
-  typedef vec3ui uvec3 ALIGNED_(16);
-  typedef vec2ui uvec2 ALIGNED_(8);
+  ALIGNED_(16, typedef vec4ui uvec4 );
+  ALIGNED_(16, typedef vec3ui uvec3 );
+  ALIGNED_(16, typedef vec2ui uvec2 );
 #else
   // Matrices, must align to 4 vector (16 bytes)
   typedef  mat4f mat4;
@@ -76,7 +75,7 @@ struct boolClass
 	boolClass& operator=( bool b) { _rep = b; return *this; }
 };
 
-typedef boolClass bool32 ALIGNED_(4);
+ALIGNED_(4, typedef boolClass bool32);
 
 }
 

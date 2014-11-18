@@ -175,6 +175,14 @@ inline const vector4<T> operator*(const vector4<T>& u, const vector4<T>& v)
 }
 
 template<class T>
+inline matrix4<T> scale_mat4(const vector3<T>& s)
+{
+  matrix4<T> u;
+  u.as_scale(s);
+  return u;
+}
+
+template<class T>
 inline matrix4<T> translation_mat4(const vector3<T> &t)
 {
     matrix4<T> m;
@@ -1604,13 +1612,6 @@ inline quaternion<T> matrix4<T>::get_rot_quat() const
 	get_rot(m);
 	q.from_matrix(m);
     return q;
-}
-
-template<class T> inline matrix4<T> scale_mat4(const vector3<T> s)
-{
-    matrix4<T> u;
-    u.as_scale(s);
-    return u;
 }
 
 template<class T>
