@@ -32,12 +32,13 @@ namespace nv_helpers_gl
     static std::string format(const char* msg, ...);
 
   public:
+    static const GLuint PREPROCESS = ~0;
+
     class ProgramID {
-      static const size_t INVALID = ~0;
     public:
       size_t  m_value;
 
-      ProgramID() : m_value(0) {}
+      ProgramID() : m_value(~0) {}
 
       ProgramID( size_t b) : m_value(b) {}
       operator size_t() const { return m_value; }
@@ -54,6 +55,7 @@ namespace nv_helpers_gl
       GLenum      type;
       std::string prepend;
       std::string filename;
+      std::string preprocessed;
     };
 
     struct Program {
@@ -69,6 +71,8 @@ namespace nv_helpers_gl
     ProgramID createProgram(const std::vector<Definition>& definitions);
     ProgramID createProgram(const Definition& def0, const Definition& def1 = Definition(), const Definition& def2 = Definition(), const Definition& def3 = Definition(), const Definition& def4 = Definition());
 
+    void destroyProgram( ProgramID idx );
+
     void reloadPrograms();
     void deletePrograms();
     bool areProgramsValid();
@@ -80,13 +84,24 @@ namespace nv_helpers_gl
     const Program& getProgram(ProgramID idx) const;
 
     std::string m_prepend;
-    std::string m_directory;
+    bool        m_preprocessOnly;
+
+    void addDirectory(const std::string& dir){
+      m_directories.push_back(dir);
+    }
+
+    ProgramManager() 
+      : m_preprocessOnly(false)
+    {
+      m_directories.push_back(".");
+    }
 
   private:
-    bool createProgram(Program& prog, size_t num, const Definition* definitions);
+    bool createProgram(Program& prog, size_t num, Definition* definitions);
 
-    IncludeRegistry       m_includes;
-    std::vector<Program>  m_programs;
+    std::vector<std::string>  m_directories;
+    IncludeRegistry           m_includes;
+    std::vector<Program>      m_programs;
   };
 
 }//namespace nvglf
