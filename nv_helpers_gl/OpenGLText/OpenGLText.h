@@ -87,8 +87,8 @@ public:
     void beginString();
     void endString();
     void stringSize(const char *text, float *sz);
-    void drawString( int x, int y, const char * text, int nbLines, unsigned long color);
-    void drawString( int x, int y, const char * text, int nbLines, float * color4f);
+    float drawString( int x, int y, const char * text, int nbLines, unsigned long color);
+    float drawString( int x, int y, const char * text, int nbLines, float * color4f);
     bool init(const char * fontName, int w, int h);
     bool init(unsigned char *imageData, FileHeader *glyphInfos, int w, int h);
     void changeCanvas(int w, int h);

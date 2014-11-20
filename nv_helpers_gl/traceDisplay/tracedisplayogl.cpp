@@ -39,7 +39,7 @@
 using namespace nv_math;
 
 #define TGA_NOIMPL
-#include "tga.h"
+#include "../OpenGLText/tga.h"
 
 #ifdef USESVCUI
 void nvprintfLevel(int level, const char * fmt, ...);

@@ -10,6 +10,7 @@ find_path( SVCSPACEMOUSE_INCLUDE_DIR ISvcSpaceMouse.h
   ${GITPROJECTS_LOCATION}/SvcSpaceMouse/include
   $ENV{GITPROJECTS_LOCATION}/SvcSpaceMouse/include
   ${PROJECT_SOURCE_DIR}/../shared_external/SvcSpaceMouse/include
+  ${PROJECT_SOURCE_DIR}/../../shared_external/SvcSpaceMouse/include
   ${PROJECT_SOURCE_DIR}/shared_external/SvcSpaceMouse/include
 )
 

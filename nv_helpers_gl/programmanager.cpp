@@ -1,13 +1,27 @@
-/*
- * Copyright 1993-2014 NVIDIA Corporation.  All rights reserved.
- *
- * Please refer to the NVIDIA end user license agreement (EULA) associated
- * with this source code for terms and conditions that govern your use of
- * this software. Any use, reproduction, disclosure, or distribution of
- * this software and related documentation outside the terms of the EULA
- * is strictly prohibited.
- *
- */
+/*-----------------------------------------------------------------------
+  Copyright (c) 2014, NVIDIA. All rights reserved.
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions
+  are met:
+   * Redistributions of source code must retain the above copyright
+     notice, this list of conditions and the following disclaimer.
+   * Neither the name of its contributors may be used to endorse 
+     or promote products derived from this software without specific
+     prior written permission.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
+  EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+  PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+  PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+  OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-----------------------------------------------------------------------*/
 /*
  * This file contains code derived from glf by Christophe Riccio, www.g-truc.net
  */
@@ -20,7 +34,6 @@
 #include <sstream>
 #include <fstream>
 #include <iostream>
-
 #include <main.h>
 
 
@@ -61,7 +74,7 @@ namespace nv_helpers_gl
     std::string result;
     std::string filename = infilename;
 
-    std::ifstream stream(filename.c_str());
+    std::ifstream stream(filename.c_str(), std::ios::binary | std::ios::in);
     if(!stream.is_open()){
       nvprintfLevel(LOGLEVEL_WARNING,"file not found:%s\n",filename.c_str());
       return result;
@@ -319,35 +332,54 @@ namespace nv_helpers_gl
 
     if (!num) return false;
 
-    if (!m_preprocessOnly){
-      prog.program = glCreateProgram();
+    std::string combinedPrepend = m_prepend;
+    std::string combinedFilenames;
+    for (size_t i = 0; i < num; i++) {
+      combinedPrepend += definitions[i].prepend;
+      combinedFilenames += definitions[i].filename;
     }
-    else{
-      prog.program = PREPROCESS;
-    }
-    
+
+    bool allFound = true;
     for (size_t i = 0; i < num; i++) {
       definitions[i].preprocessed = preprocess(m_prepend + definitions[i].prepend, definitions[i].filename, m_directories, m_includes);
-      if (m_preprocessOnly) continue;
-
-      GLuint shader = createShader(definitions[i].type, definitions[i].preprocessed);
-      if (!shader || !checkShader(shader,definitions[i].filename)){
-        glDeleteShader(shader);
-        glDeleteProgram(prog.program);
-        prog.program = 0;
-        return false;
-      }
-      glAttachShader(prog.program, shader);
-      glDeleteShader(shader);
+      allFound = allFound && !definitions[i].preprocessed.empty();
     }
 
     if (m_preprocessOnly){
+      prog.program = PREPROCESS;
       return true;
     }
+    else{
+      prog.program = glCreateProgram();
+      if (!m_useCacheFile.empty()){
+        glProgramParameteri(prog.program,GL_PROGRAM_BINARY_RETRIEVABLE_HINT, GL_TRUE);
+      }
+    }
 
-    glLinkProgram(prog.program);
+    bool loadedCache = false;
+    if (!m_useCacheFile.empty() && (!allFound || m_preferCache)){
+      // try cache
+      loadedCache = loadBinary(prog.program,combinedPrepend,combinedFilenames);
+    }
+    if (!loadedCache){
+      for (size_t i = 0; i < num; i++) {
+        GLuint shader = createShader(definitions[i].type, definitions[i].preprocessed);
+        if (!shader || !checkShader(shader,definitions[i].filename)){
+          glDeleteShader(shader);
+          glDeleteProgram(prog.program);
+          prog.program = 0;
+          return false;
+        }
+        glAttachShader(prog.program, shader);
+        glDeleteShader(shader);
+      }
+      glLinkProgram(prog.program);
+    }
 
     if (checkProgram(prog.program)){
+      if (!m_useCacheFile.empty() && !loadedCache){
+        saveBinary(prog.program,combinedPrepend,combinedFilenames);
+      }
       return true;
     }
 
@@ -467,6 +499,129 @@ namespace nv_helpers_gl
     }
     m_programs[idx].program = 0;
     m_programs[idx].definitions.clear();
+  }
+
+
+  //-----------------------------------------------------------------------------
+  // MurmurHash2A, by Austin Appleby
+
+  // This is a variant of MurmurHash2 modified to use the Merkle-Damgard
+  // construction. Bulk speed should be identical to Murmur2, small-key speed
+  // will be 10%-20% slower due to the added overhead at the end of the hash.
+
+  // This variant fixes a minor issue where null keys were more likely to
+  // collide with each other than expected, and also makes the algorithm
+  // more amenable to incremental implementations. All other caveats from
+  // MurmurHash2 still apply.
+
+#define mmix(h,k) { k *= m; k ^= k >> r; k *= m; h *= m; h ^= k; }
+
+  static unsigned int strMurmurHash2A ( const void * key, size_t len, unsigned int seed )
+  {
+    const unsigned int m = 0x5bd1e995;
+    const int r = 24;
+    unsigned int l = (unsigned int)len;
+
+    const unsigned char * data = (const unsigned char *)key;
+
+    unsigned int h = seed;
+    unsigned int t = 0;
+
+    while(len >= 4)
+    {
+      unsigned int k = *(unsigned int*)data;
+
+      mmix(h,k);
+
+      data += 4;
+      len -= 4;
+    }
+
+
+
+    switch(len)
+    {
+    case 3: t ^= data[2] << 16;
+    case 2: t ^= data[1] << 8;
+    case 1: t ^= data[0];
+    };
+
+    mmix(h,t);
+    mmix(h,l);
+
+    h ^= h >> 13;
+    h *= m;
+    h ^= h >> 15;
+
+    return h;
+  }
+#undef mmix
+
+
+  static size_t strHexFromByte(char *buffer, size_t bufferlen, const void *data, size_t len)
+  {
+    const char tostr[16] = {'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
+    const unsigned char *d = (const unsigned char *)data;
+    char *out = buffer;
+    size_t i = 0;
+    for (; i < len && (i*2)+1 < bufferlen; i++,d++,out+=2){
+      unsigned int val = *d;
+      unsigned int hi = val/16;
+      unsigned int lo = val%16;
+      out[0] = tostr[hi];
+      out[1] = tostr[lo];
+    }
+
+    return i*2;
+  }
+
+
+  std::string  ProgramManager::binaryName(const std::string& combinedPrepend, const std::string& combinedFilenames)
+  {
+    unsigned int hashCombine   = combinedPrepend.empty() ? 0 : strMurmurHash2A(&combinedPrepend[0],combinedPrepend.size(),127);
+    unsigned int hashFilenames = strMurmurHash2A(&combinedFilenames[0],combinedFilenames.size(),129);
+
+    std::string hexCombine;
+    std::string hexFilenames;
+    hexCombine.resize(8);
+    hexFilenames.resize(8);
+    strHexFromByte(&hexCombine[0], 8, &hashCombine, 4);
+    strHexFromByte(&hexFilenames[0], 8, &hashFilenames, 4);
+
+    return m_useCacheFile + "_" + hexCombine + "_" + hexFilenames + ".glp";
+  }
+
+  bool ProgramManager::loadBinary( GLuint program, const std::string& combinedPrepend, const std::string& combinedFilenames )
+  {
+    std::string filename = binaryName(combinedPrepend,combinedFilenames);
+
+    std::string binraw = loadFile(filename.c_str());
+    if (!binraw.empty()){
+      const char* bindata = &binraw[0];
+      glProgramBinary(program, *(GLenum*)bindata, bindata+4, GLsizei(binraw.size()-4));
+      return true;
+    }
+    return false;
+  }
+
+  void ProgramManager::saveBinary( GLuint program, const std::string& combinedPrepend, const std::string& combinedFilenames )
+  {
+    std::string filename = binaryName(combinedPrepend,combinedFilenames);
+
+    GLint datasize;
+    GLint datasize2;
+    glGetProgramiv(program, GL_PROGRAM_BINARY_LENGTH, &datasize);
+
+    std::string binraw;
+    binraw.resize(datasize + 4);
+    char* bindata = &binraw[0];
+    glGetProgramBinary(program, datasize, &datasize2, (GLenum*)bindata, bindata+4);
+
+    std::ofstream binfile;
+    binfile.open( filename.c_str(), std::ios::binary | std::ios::out );
+    if (binfile.is_open()){
+      binfile.write(bindata,datasize+4);
+    }
   }
 
 }//namespace nvglf

@@ -17,7 +17,7 @@
 */
 
 #include "trace.h"
-#include "OpenGLText.h"
+#include "../OpenGLText/OpenGLText.h"
 
 /*****************************************************************************************
  * Measuring the current window as [0,1] in width and height, with 0,0 being the bottom left,

@@ -642,27 +642,29 @@ void OpenGLText::stringSize(const char *text, float *sz)
 ///////////////////////////////////////////////////////////////////////////////////////
 //
 //
-void OpenGLText::drawString( int x, int y, const char * text, int nbLines, unsigned long color)
+float OpenGLText::drawString( int x, int y, const char * text, int nbLines, unsigned long color)
 {
     float color4f[4];
     color4f[0] = (float)(color>>24 & 0xFF)/255.0;
     color4f[1] = (float)(color>>16 & 0xFF)/255.0;
     color4f[2] = (float)(color>>8 & 0xFF)/255.0;
     color4f[3] = (float)(color & 0xFF)/255.0;
-    drawString( x, y, text, nbLines, color4f);
+    return drawString( x, y, text, nbLines, color4f);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
 //
 //
-void OpenGLText::drawString( int x, int y, const char * text, int nbLines, float * color4f)
+float OpenGLText::drawString( int x, int y, const char * text, int nbLines, float * color4f)
 {
     int h = glyphInfos->pix.ascent + glyphInfos->pix.descent + glyphInfos->pix.linegap;
+    float usedHeight = 0;
     float lPosX = x+1;
     float lPosY = y ;
     if (nbLines > 1)
+    {
         lPosY +=  h * (nbLines - 1);
-
+    }
     float lLinePosX = lPosX;
     float lLinePosY = lPosY;
     const char* c = text;
@@ -679,6 +681,7 @@ void OpenGLText::drawString( int x, int y, const char * text, int nbLines, float
         {
             lPosX = lLinePosX;
             lLinePosY -= h;
+            usedHeight += h;
             lPosY = lLinePosY; 
         }
         else if ( *c > 128 || *c < 0 )
@@ -703,6 +706,7 @@ void OpenGLText::drawString( int x, int y, const char * text, int nbLines, float
         c++;
     }
     m_vertexDepth = 1.f;
+    return usedHeight;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////

@@ -50,6 +50,7 @@ using std::map;
 #endif
 #endif
 
+#define KEYTAU 0.10f
 //-----------------------------------------------------------------------------
 // GLOBALS
 //-----------------------------------------------------------------------------
@@ -126,13 +127,27 @@ public:
     virtual void shutdown();
     virtual void reshape(int w, int h);
     virtual void motion(int x, int y);
-    virtual void mousewheel(short delta);
+    virtual void mousewheel(int delta);
     virtual void mouse(NVPWindow::MouseButton button, ButtonAction action, int mods, int x, int y);
     virtual void keyboard(WindowInertiaCamera::KeyCode key, ButtonAction action, int mods, int x, int y);
     virtual void keyboardchar(unsigned char key, int mods, int x, int y);
     virtual void idle();
     virtual void display();
-    virtual void displayHUD();
+    virtual void displayHUD();      // use this one for normal default HUD
+    virtual void beginDisplayHUD(); // or use begin/end to insert text in-between
+    virtual void endDisplayHUD();
+    const char* getHelpText(int *lines=NULL) {
+        if(lines) *lines = 7;
+        return 
+        "Left mouse button: rotate arount target\n"
+        "Right mouse button: translate target forward backward (+ Y axis rotate)\n"
+        "Middle mouse button: Pan target along view plane\n"
+        "Mouse wheel or PgUp/PgDn: zoom in/out\n"
+        "Arrow keys: rotate arount target\n"
+        "Ctrl+Arrow keys: Pan target\n"
+        "Ctrl+PgUp/PgDn: translate target forward/backward\n"
+        ;
+    }
 };
 #ifndef WINDOWINERTIACAMERA_EXTERN
 
@@ -219,7 +234,7 @@ void WindowInertiaCamera::motion(int x, int y)
         float vval = -2.0f*(float)(m_ptCurrentMousePosit.y - m_ptLastMousePosit.y)/(float)getHeight();
         m_camera.tau = CAMERATAU;
         m_camera.rotateH(hval, !!(getMods()&KMOD_CONTROL));
-        m_camera.move(vval, !!(getMods()&KMOD_CONTROL));
+        m_camera.move(vval, !(getMods()&KMOD_CONTROL));
         postRedisplay();
     }
     
@@ -230,9 +245,10 @@ void WindowInertiaCamera::motion(int x, int y)
 //------------------------------------------------------------------------------
 // 
 //------------------------------------------------------------------------------
-void WindowInertiaCamera::mousewheel(short delta)
+void WindowInertiaCamera::mousewheel(int delta)
 {
-    // TODO
+    m_camera.tau = KEYTAU;
+    m_camera.move(delta > 0 ? m_moveStep: -m_moveStep, !!(getMods()&KMOD_CONTROL));
     postRedisplay();
 }
 //------------------------------------------------------------------------------
@@ -294,7 +310,6 @@ void WindowInertiaCamera::mouse(NVPWindow::MouseButton button, NVPWindow::Button
 //------------------------------------------------------------------------------
 // 
 //------------------------------------------------------------------------------
-#define KEYTAU 0.10f
 void WindowInertiaCamera::keyboard(NVPWindow::KeyCode key, NVPWindow::ButtonAction action, int mods, int x, int y)
 {
     if(action == NVPWindow::BUTTON_RELEASE)
@@ -398,9 +413,9 @@ void WindowInertiaCamera::display()
 }
 
 //------------------------------------------------------------------------------
-// 
+// when the sample wants to add some text
 //------------------------------------------------------------------------------
-void WindowInertiaCamera::displayHUD()
+void WindowInertiaCamera::beginDisplayHUD()
 {
 #ifdef USEOPENGLTEXT
     OpenGLText::BackupStates();
@@ -409,6 +424,11 @@ void WindowInertiaCamera::displayHUD()
     //
     m_oglText.beginString();
     m_oglTextBig.beginString();
+#endif
+}
+void WindowInertiaCamera::endDisplayHUD()
+{
+#ifdef USEOPENGLTEXT
     //
     // Start batching graphs
     //
@@ -432,7 +452,16 @@ void WindowInertiaCamera::displayHUD()
     OpenGLText::RestoreStates();
 #endif
 }
-
+//------------------------------------------------------------------------------
+// when only default HUD needed
+//------------------------------------------------------------------------------
+void WindowInertiaCamera::displayHUD()
+{
+#ifdef USEOPENGLTEXT
+    beginDisplayHUD();
+    endDisplayHUD();
+#endif
+}
 //------------------------------------------------------------------------------
 // 
 //------------------------------------------------------------------------------

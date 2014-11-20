@@ -1,13 +1,27 @@
-/*
- * Copyright 1993-2014 NVIDIA Corporation.  All rights reserved.
- *
- * Please refer to the NVIDIA end user license agreement (EULA) associated
- * with this source code for terms and conditions that govern your use of
- * this software. Any use, reproduction, disclosure, or distribution of
- * this software and related documentation outside the terms of the EULA
- * is strictly prohibited.
- *
- */
+/*-----------------------------------------------------------------------
+  Copyright (c) 2014, NVIDIA. All rights reserved.
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions
+  are met:
+   * Redistributions of source code must retain the above copyright
+     notice, this list of conditions and the following disclaimer.
+   * Neither the name of its contributors may be used to endorse 
+     or promote products derived from this software without specific
+     prior written permission.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
+  EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+  PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+  PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+  OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-----------------------------------------------------------------------*/
 
 #ifndef NV_PROGRAMMANAGER_INCLUDED
 #define NV_PROGRAMMANAGER_INCLUDED
@@ -84,6 +98,8 @@ namespace nv_helpers_gl
     const Program& getProgram(ProgramID idx) const;
 
     std::string m_prepend;
+    std::string m_useCacheFile;
+    bool        m_preferCache;
     bool        m_preprocessOnly;
 
     void addDirectory(const std::string& dir){
@@ -92,12 +108,16 @@ namespace nv_helpers_gl
 
     ProgramManager() 
       : m_preprocessOnly(false)
+      , m_preferCache(false)
     {
       m_directories.push_back(".");
     }
 
   private:
     bool createProgram(Program& prog, size_t num, Definition* definitions);
+    bool loadBinary( GLuint program, const std::string& combinedPrepend, const std::string& combinedFilenames );
+    void saveBinary( GLuint program, const std::string& combinedPrepend, const std::string& combinedFilenames );
+    std::string binaryName(const std::string& combinedPrepend, const std::string& combinedFilenames);
 
     std::vector<std::string>  m_directories;
     IncludeRegistry           m_includes;

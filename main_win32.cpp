@@ -25,6 +25,9 @@
     feedback to tlorach@nvidia.com (Tristan Lorach)
 */ //--------------------------------------------------------------------
 
+#include <GL/glew.h>
+#include <GL/wglew.h>
+
 #include "main.h"
 
 #include <stdio.h>
@@ -35,8 +38,6 @@
 #include <algorithm>
 #include <string>
 
-#include <GL/glew.h>
-#include <GL/wglew.h>
 #include <windows.h>
 #include <windowsx.h>
 #include "resources.h"
@@ -82,13 +83,13 @@ struct WINinternal
 
 //------------------------------------------------------------------------------
 #ifdef _DEBUG
-void APIENTRY myOpenGLCallback(  GLenum source,
+static void APIENTRY myOpenGLCallback(  GLenum source,
                         GLenum type,
                         GLuint id,
                         GLenum severity,
                         GLsizei length,
                         const GLchar* message,
-                        GLvoid* userParam)
+                        const GLvoid* userParam)
 {
 
   NVPWindow* window = (NVPWindow*)userParam;
@@ -220,8 +221,8 @@ bool WINinternal::initBase(const NVPWindow::ContextFlags* cflags, NVPWindow* sou
 		    WGL_SUPPORT_OPENGL_ARB, true,
 			WGL_ACCELERATION_ARB, WGL_FULL_ACCELERATION_ARB,
 	        WGL_DOUBLE_BUFFER_ARB, true,
-	        WGL_DEPTH_BITS_ARB, cflags->depth,
-	        WGL_STENCIL_BITS_ARB, cflags->stencil,
+	        WGL_DEPTH_BITS_ARB, settings.depth,
+	        WGL_STENCIL_BITS_ARB, settings.stencil,
             WGL_SAMPLE_BUFFERS_ARB, 1,
 			WGL_SAMPLES_ARB,
 			settings.MSAA,
@@ -286,15 +287,17 @@ bool WINinternal::initBase(const NVPWindow::ContextFlags* cflags, NVPWindow* sou
             wglDeleteContext( m_hRC );
             m_hRC = hRC;
 #ifdef _DEBUG
-            if(!glDebugMessageCallbackARB)
+            if(!__glewDebugMessageCallbackARB)
             {
-                glDebugMessageCallbackARB = (PFNGLDEBUGMESSAGECALLBACKARBPROC)wglGetProcAddress("glDebugMessageCallbackARB");
-                glDebugMessageControlARB =  (PFNGLDEBUGMESSAGECONTROLARBPROC)wglGetProcAddress("glDebugMessageControlARB");
+                __glewDebugMessageCallbackARB = (PFNGLDEBUGMESSAGECALLBACKARBPROC)wglGetProcAddress("glDebugMessageCallbackARB");
+                __glewDebugMessageControlARB =  (PFNGLDEBUGMESSAGECONTROLARBPROC)wglGetProcAddress("glDebugMessageControlARB");
             }
-            if(glDebugMessageCallbackARB)
+            if(__glewDebugMessageCallbackARB)
             {
                 glDebugMessageCallbackARB(myOpenGLCallback, sourcewindow);
                 glDebugMessageControlARB(GL_DONT_CARE, GL_DONT_CARE, GL_DEBUG_SEVERITY_HIGH_ARB, 0, NULL, GL_TRUE);
+                // Added to prevent useless warnings when 'length' of glBufferAddressRangeNV is too big...
+                glDebugMessageControlARB(GL_DEBUG_SOURCE_API_ARB, GL_DEBUG_TYPE_OTHER_ARB, GL_DEBUG_SEVERITY_MEDIUM_ARB, 0, NULL, GL_FALSE);
             }
 #endif
         }
@@ -743,12 +746,15 @@ bool NVPWindow::create(const char* title, const ContextFlags* cflags, int width,
       // Keep track of the windows
       g_windows.push_back(this);
       SetWindowLongPtr(m_internal->m_hWnd, GWLP_USERDATA, g_windows.size()-1 );
-      ShowWindow( m_internal->m_hWnd, g_nCmdShow );
       UpdateWindow( m_internal->m_hWnd );
       // Initialize the very base of OpenGL
       if(m_internal->initBase(cflags, this))
-        if(init())
+        if(init()){
+          // showwindow will trigger resize/paint events, that must not be called prior
+          // sample init
+          ShowWindow( m_internal->m_hWnd, g_nCmdShow );
           return true;
+        }
     }
 
     
@@ -1120,8 +1126,6 @@ void nvprintf2(va_list &vlist, const char * fmt, int level)
         prefix = "LOG !OK! >> ";
         break;
     case LOGLEVEL_INFO:
-        prefix = "LOG Message >> ";
-        break;
     default:
         break;
     }
