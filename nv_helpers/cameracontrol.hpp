@@ -42,9 +42,10 @@ namespace nv_helpers
       int changed  = m_lastButtonFlags ^ mouseButtonFlags;
       m_lastButtonFlags = mouseButtonFlags;
 
-      int panFlag  = 1<<2;
+      int panFlag  = m_sceneOrtho ? 1<<0 : 1<<2;
       int zoomFlag = 1<<1;
-      int rotFlag  = 1<<0;
+      int rotFlag  = m_sceneOrtho ? 1<<2 : 1<<0;
+
 
       m_panning  = !!(mouseButtonFlags & panFlag);
       m_zooming  = !!(mouseButtonFlags & zoomFlag);
@@ -79,7 +80,7 @@ namespace nv_helpers
       if (m_zooming || m_zoomingWheel){
 
         float dist = 
-          m_zooming ? -(nv_math::dot( mouse - m_startZoom ,nv_math::vec2f(1,1)) * m_sceneDimension * m_senseZoom) 
+          m_zooming ? -(nv_math::dot( mouse - m_startZoom ,nv_math::vec2f(-1,1)) * m_sceneDimension * m_senseZoom) 
           : (float(wheel - m_startZoomWheel) * m_sceneDimension * m_senseWheelZoom);
 
         if (m_zoomingWheel){

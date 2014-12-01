@@ -234,7 +234,7 @@ void WindowInertiaCamera::motion(int x, int y)
         float vval = -2.0f*(float)(m_ptCurrentMousePosit.y - m_ptLastMousePosit.y)/(float)getHeight();
         m_camera.tau = CAMERATAU;
         m_camera.rotateH(hval, !!(getMods()&KMOD_CONTROL));
-        m_camera.move(vval, !(getMods()&KMOD_CONTROL));
+        m_camera.move(vval, !!(getMods()&KMOD_CONTROL));
         postRedisplay();
     }
     
