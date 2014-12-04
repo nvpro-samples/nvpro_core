@@ -827,9 +827,78 @@ bool NVPWindow::sysPollEvents(bool bLoop)
     return bContinue;
 }
 
+// from GLFW 3.0
+static int stringInExtensionString(const char* string, const char* exts)
+{
+  const GLubyte* extensions = (const GLubyte*) exts;
+  const GLubyte* start;
+  GLubyte* where;
+  GLubyte* terminator;
+
+  // It takes a bit of care to be fool-proof about parsing the
+  // OpenGL extensions string. Don't be fooled by sub-strings,
+  // etc.
+  start = extensions;
+  for (;;)
+  {
+    where = (GLubyte*) strstr((const char*) start, string);
+    if (!where)
+      return GL_FALSE;
+
+    terminator = where + strlen(string);
+    if (where == start || *(where - 1) == ' ')
+    {
+      if (*terminator == ' ' || *terminator == '\0')
+        break;
+    }
+
+    start = terminator;
+  }
+
+  return GL_TRUE;
+}
+
 int NVPWindow::sysExtensionSupported( const char* name )
 {
-    return glewIsExtensionSupported(name);
+  // we are not using the glew query, as glew will only report
+  // those extension it knows about, not what the actual driver may support
+
+  int i;
+  GLint count;
+
+  // Check if extension is in the modern OpenGL extensions string list
+  // This should be safe to use since GL 3.0 is around for a long time :)
+
+  glGetIntegerv(GL_NUM_EXTENSIONS, &count);
+
+  for (i = 0;  i < count;  i++)
+  {
+    const char* en = (const char*) glGetStringi(GL_EXTENSIONS, i);
+    if (!en)
+    {
+      return GL_FALSE;
+    }
+
+    if (strcmp(en, name) == 0)
+      return GL_TRUE;
+  }
+
+  // Check platform specifc gets
+
+  const char* exts = NULL;
+  NVPWindow* win = g_windows[0];
+
+  if (WGLEW_ARB_extensions_string){
+    exts = wglGetExtensionsStringARB(win->m_internal->m_hDC);
+  }
+  if (!exts && WGLEW_EXT_extensions_string){
+    exts = wglGetExtensionsStringEXT();
+  }
+  if (!exts) {
+    return FALSE;
+  }
+  
+  return stringInExtensionString(name,exts);
 }
 
 NVPWindow::NVPproc NVPWindow::sysGetProcAddress( const char* name )
