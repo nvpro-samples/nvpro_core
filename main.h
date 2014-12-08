@@ -28,6 +28,9 @@
 #define __MAIN_H__
 #pragma warning(disable:4996) // preventing snprintf >> _snprintf_s
 
+#include "platform.h"
+
+
 // trick for pragma message so we can write:
 // #pragma message(__FILE__"("S__LINE__"): blah")
 #define S__(x) #x
