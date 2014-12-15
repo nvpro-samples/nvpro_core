@@ -5,11 +5,11 @@ unset(OPTIX_ROOT_DIR CACHE)
 unset(OPTIX_LIB CACHE)
 unset(OPTIX_FOUND CACHE)
 
-find_path( OPTIX_ROOT_DIR optix.1.lib
+find_path( OPTIX_ROOT_DIR optix.1.dll
   ${OPTIX_LOCATION}
   $ENV{OPTIX_LOCATION}
-  ${PROJECT_SOURCE_DIR}/shared_external/Optix
-  ${PROJECT_SOURCE_DIR}/../shared_external/Optix
+  ${PROJECT_SOURCE_DIR}/shared_optix
+  ${PROJECT_SOURCE_DIR}/../shared_optix
 )
 
 macro(_find_files targetVar incDir dllName dllName64 folder)
@@ -49,9 +49,9 @@ if(OPTIX_ROOT_DIR)
     endif()
 	
 	#-------- Locate LIBS
-    _find_files( OPTIX_LIB OPTIX_ROOT_DIR "optix.1.lib" "optix.1.lib" "")
-    _find_files( OPTIX_LIB OPTIX_ROOT_DIR "optixu.1.lib" "optixu.1.lib" "")
-	_find_files( OPTIX_LIB OPTIX_ROOT_DIR "optix_prime.1.lib" "optix_prime.1.lib" "")
+    _find_files( OPTIX_LIB OPTIX_ROOT_DIR "lib/optix.1.lib" "lib64/optix.1.lib" "")
+    _find_files( OPTIX_LIB OPTIX_ROOT_DIR "lib/optixu.1.lib" "lib64/optixu.1.lib" "")
+	_find_files( OPTIX_LIB OPTIX_ROOT_DIR "lib/optix_prime.1.lib" "lib64/optix_prime.1.lib" "")
     if(NOT OPTIX_LIB)
       message(STATUS "setting OPTIX_LIB to ${OPTIX_LIB}" )
     endif()
