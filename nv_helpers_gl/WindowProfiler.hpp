@@ -1,13 +1,27 @@
-/*
- * Copyright 1993-2014 NVIDIA Corporation.  All rights reserved.
- *
- * Please refer to the NVIDIA end user license agreement (EULA) associated
- * with this source code for terms and conditions that govern your use of
- * this software. Any use, reproduction, disclosure, or distribution of
- * this software and related documentation outside the terms of the EULA
- * is strictly prohibited.
- *
- */
+/*-----------------------------------------------------------------------
+  Copyright (c) 2014, NVIDIA. All rights reserved.
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions
+  are met:
+   * Redistributions of source code must retain the above copyright
+     notice, this list of conditions and the following disclaimer.
+   * Neither the name of its contributors may be used to endorse 
+     or promote products derived from this software without specific
+     prior written permission.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
+  EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+  PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+  PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+  OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-----------------------------------------------------------------------*/
 
 #ifndef NV_PROJECTBASE_INCLUDED
 #define NV_PROJECTBASE_INCLUDED
@@ -18,10 +32,6 @@
 // enable the NV_PROFILE_SECTION(name) macro, or turn it to a noop
 #ifndef NV_SUPPORT_PROFILE
 #define NV_SUPPORT_PROFILE 1
-#endif
-
-#ifndef NV_DEBUG_FILTER
-#define NV_DEBUG_FILTER     1
 #endif
 
 
@@ -74,7 +84,7 @@ namespace nv_helpers_gl
       , m_singleThreaded(singleThreaded)
       , m_doSwap(doSwap)
     {
-      m_debugFilter = GL_DEBUG_SEVERITY_HIGH + NV_DEBUG_FILTER;
+      m_debugFilter = GL_DEBUG_SEVERITY_MEDIUM;
     }
 
     virtual bool begin() { return false; }

@@ -124,7 +124,6 @@ namespace nv_helpers_gl
     GLint result = GL_FALSE;
     glGetProgramiv(program, GL_LINK_STATUS, &result);
 
-    //nvprintf( "Linking program\n");
     int infoLogLength;
     glGetProgramiv(program, GL_INFO_LOG_LENGTH, &infoLogLength);
     if(infoLogLength > 1)
@@ -599,7 +598,7 @@ namespace nv_helpers_gl
     if (!binraw.empty()){
       const char* bindata = &binraw[0];
       glProgramBinary(program, *(GLenum*)bindata, bindata+4, GLsizei(binraw.size()-4));
-      return true;
+      return checkProgram(program);
     }
     return false;
   }
