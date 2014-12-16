@@ -10,6 +10,7 @@ find_path( OPTIX_ROOT_DIR optix.1.dll
   $ENV{OPTIX_LOCATION}
   ${PROJECT_SOURCE_DIR}/shared_optix
   ${PROJECT_SOURCE_DIR}/../shared_optix
+  ${PROJECT_SOURCE_DIR}/../../shared_optix
 )
 
 macro(_find_files targetVar incDir dllName dllName64 folder)
