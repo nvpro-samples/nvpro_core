@@ -7,6 +7,7 @@
 .metadata
 bin/
 tmp/
+bk3d_models/
 *.tmp
 *.bak
 *.swp

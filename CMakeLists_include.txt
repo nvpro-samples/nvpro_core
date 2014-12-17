@@ -432,4 +432,14 @@ include_directories(
     ${BASE_DIRECTORY}/shared_sources
 )
 
-
+#####################################################################################
+# Macro to download a file from a URL
+#
+macro(_download_file _URL _TARGET _FORCE)
+  if(${_FORCE} OR (NOT EXISTS ${_TARGET}))
+    Message(STATUS "downloading ${_URL} ==> ${_TARGET}")
+    file(DOWNLOAD ${_URL} ${_TARGET} SHOW_PROGRESS)
+  else()
+    Message(STATUS "model ${_TARGET} already loaded...")
+  endif()
+endmacro()
