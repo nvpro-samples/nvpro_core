@@ -336,7 +336,7 @@ public:
 
   void setTitle(const char* title);
 
-  void postRedisplay(int n=1) { m_renderCnt+=n; }
+  void postRedisplay(int n=1) { m_renderCnt=n; }
 
   void postQuit();
 

@@ -374,7 +374,7 @@ macro(_add_package_NSight)
       ${BASE_DIRECTORY}/shared_external/NSight/NSightEvents.h
       ${BASE_DIRECTORY}/shared_external/NSight/nvToolsExt.h
     )
-    add_definitions(-DUSE_NSIGHT)
+    add_definitions(-DSUPPORT_NVTOOLSEXT)
     if(ARCH STREQUAL "x86")
       SET(NSIGHT_DLL ${BASE_DIRECTORY}/shared_external/NSight/nvToolsExt32_1.dll)
       SET(NSIGHT_LIB ${BASE_DIRECTORY}/shared_external/NSight/nvToolsExt32_1.lib)
