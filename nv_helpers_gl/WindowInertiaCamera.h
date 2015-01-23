@@ -76,7 +76,7 @@ inline void addToggleKey(char c, bool* target, const char* desc)
 class WindowInertiaCamera: public NVPWindow
 {
 public:
-    WindowInertiaCamera(const vec3f eye=vec3f(0.0f,1.0f,-3.0f), const vec3f focus=vec3f(0,0,0), const vec3f object=vec3f(0,0,0)) :
+    WindowInertiaCamera(const vec3f eye=vec3f(0.0f,1.0f,-3.0f), const vec3f focus=vec3f(0,0,0), const vec3f object=vec3f(0,0,0), float fov_=50.0, float near_=0.01f, float far_=10.0) :
       m_camera(eye, focus, object)
 	{
 		m_bCameraMode = true;
@@ -91,6 +91,9 @@ public:
 		m_bNewTiming = false;
 		m_bAdjustTimeScale = true;
 		m_textColor = 0xE0E0FFA0;
+        m_fov = fov_;
+        m_near = near_;
+        m_far = far_;
 	}
 
 	#ifdef USEOPENGLTEXT
@@ -118,6 +121,7 @@ public:
     TimeSampler		m_realtime;
     InertiaCamera	m_camera;
     mat4f			m_projection;
+    float           m_fov, m_near, m_far;
 public:    
     inline mat4f&   projMat() { return m_projection; }
     inline mat4f&   viewMat() { return m_camera.m4_view; }
@@ -490,6 +494,6 @@ void WindowInertiaCamera::reshape(int w, int h)
     glViewport(0, 0, W, H);
 
     float r = (float)getWidth() / (float)getHeight();
-    m_projection = perspective(50.0f, r, 0.01f, 10.0f);
+    m_projection = perspective(m_fov, r, m_near, m_far);
 }
 #endif //WINDOWINERTIACAMERA_EXTERN

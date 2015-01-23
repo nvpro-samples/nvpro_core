@@ -1182,24 +1182,24 @@ void nvprintf2(va_list &vlist, const char * fmt, int level)
         if(fmt2) free(fmt2);
         fmt2 = (char*)malloc(fmt2_sz);
     }
-    char *prefix = "";
-    switch(level)
-    {
-    case LOGLEVEL_WARNING:
-        prefix = "LOG *WARNING* >> ";
-        break;
-    case LOGLEVEL_ERROR:
-        prefix = "LOG **ERROR** >> ";
-        break;
-    case LOGLEVEL_OK:
-        prefix = "LOG !OK! >> ";
-        break;
-    case LOGLEVEL_INFO:
-    default:
-        break;
-    }
+    //char *prefix = "";
+    //switch(level)
+    //{
+    //case LOGLEVEL_WARNING:
+    //    prefix = "LOG *WARNING* >> ";
+    //    break;
+    //case LOGLEVEL_ERROR:
+    //    prefix = "LOG **ERROR** >> ";
+    //    break;
+    //case LOGLEVEL_OK:
+    //    prefix = "LOG !OK! >> ";
+    //    break;
+    //case LOGLEVEL_INFO:
+    //default:
+    //    break;
+    //}
 #ifdef WIN32
-    OutputDebugStringA(prefix);
+    //OutputDebugStringA(prefix);
     OutputDebugStringA(fmt2);
 #ifdef _DEBUG
     if(bLogReady == false)
@@ -1209,13 +1209,13 @@ void nvprintf2(va_list &vlist, const char * fmt, int level)
     }
     if(fd)
     {
-        fprintf(fd, prefix);
+        //fprintf(fd, prefix);
         fprintf(fd, fmt2);
     }
 #endif
 #endif
     sample_print(level, fmt2);
-    ::printf(prefix);
+    //::printf(prefix);
     ::printf(fmt2);
 }
 void nvprintf(const char * fmt, ...)

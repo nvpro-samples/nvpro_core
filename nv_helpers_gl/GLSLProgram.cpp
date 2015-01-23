@@ -15,12 +15,24 @@
 #include "main.h"
 #include "nv_helpers_gl/GLSLProgram.h"
 
-GLSLProgram::GLSLProgram() : mProg(0)
+GLSLProgram::GLSLProgram(const char*progName) : mProg(0)
 {
+    curVSName = NULL;
+    curFSName = NULL;
+    curGSName = NULL;
+    curProgName = NULL;
+    if(progName)
+    {
+        curProgName = (char*)malloc(strlen(progName)+1);
+        strncpy(curProgName, progName, strlen(progName)+1);
+    }
 }
 
 GLSLProgram::GLSLProgram(const char *vsource, const char *fsource)
 {
+    curVSName = NULL;
+    curFSName = NULL;
+    curGSName = NULL;
     compileProgram(vsource, 0, fsource);
 }
 
@@ -31,7 +43,36 @@ GLSLProgram::GLSLProgram(const char *vsource, const char *gsource, const char *f
 }
 
 void
-GLSLProgram::loadFromFiles(const char *vFilename,  const char *gFilename, const char *fFilename,
+GLSLProgram::setShaderNames(const char*ProgName, const char *VSName,const char *GSName,const char *FSName)
+{
+    if(VSName)
+    {
+        if(curVSName) free(curVSName);
+        curVSName = (char*)malloc(strlen(VSName)+1);
+        strncpy(curVSName, VSName, strlen(VSName)+1);
+    }
+    if(FSName)
+    {
+        if(curFSName) free(curFSName);
+        curFSName = (char*)malloc(strlen(FSName)+1);
+        strncpy(curFSName, FSName, strlen(FSName)+1);
+    }
+    if(GSName)
+    {
+        if(curGSName) free(curGSName);
+        curGSName = (char*)malloc(strlen(GSName)+1);
+        strncpy(curGSName, GSName, strlen(GSName)+1);
+    }
+    if(ProgName)
+    {
+        if(curProgName) free(curProgName);
+        curProgName = (char*)malloc(strlen(ProgName)+1);
+        strncpy(curProgName, ProgName, strlen(ProgName)+1);
+    }
+}
+
+GLuint
+GLSLProgram::compileProgramFromFiles(const char *vFilename,  const char *gFilename, const char *fFilename,
                            GLenum gsInput, GLenum gsOutput, int maxVerts)
 {
     char *vsource = readTextFile(vFilename);
@@ -40,12 +81,16 @@ GLSLProgram::loadFromFiles(const char *vFilename,  const char *gFilename, const 
         gsource = readTextFile(gFilename);
     }
     char *fsource = readTextFile(fFilename);
-
-    mProg = compileProgram(vsource, gsource, fsource, gsInput, gsOutput, maxVerts);
-
-    delete [] vsource;
-    if (gsource) delete [] gsource;
-    delete [] fsource;
+    if(vsource)
+    {
+        GLSLProgram::setShaderNames(NULL, vFilename, gFilename, fFilename);
+        mProg = compileProgram(vsource, gsource, fsource, gsInput, gsOutput, maxVerts);
+        delete [] vsource;
+        if (gsource) delete [] gsource;
+        delete [] fsource;
+        return mProg;
+    }
+    return 0;
 }
 
 GLSLProgram::~GLSLProgram()
@@ -53,6 +98,9 @@ GLSLProgram::~GLSLProgram()
 	if (mProg) {
 		glDeleteProgram(mProg);
 	}
+    if(curVSName) free(curVSName);
+    if(curFSName) free(curFSName);
+    if(curGSName) free(curGSName);
 }
 
 void
@@ -86,19 +134,6 @@ GLSLProgram::setUniform2f(const char *name, float x, float y)
     GLint loc = glGetUniformLocation(mProg, name);
     if (loc >= 0) {
         glUniform2f(loc, x, y);
-    } else {
-#if _DEBUG
-        LOGE("Error setting parameter '%s'\n", name);
-#endif
-    }
-}
-
-void
-GLSLProgram::setUniform2i(const char *name, int x, int y)
-{
-    GLint loc = glGetUniformLocation(mProg, name);
-    if (loc >= 0) {
-        glUniform2i(loc, x, y);
     } else {
 #if _DEBUG
         LOGE("Error setting parameter '%s'\n", name);
@@ -184,7 +219,34 @@ GLSLProgram::setUniform3i(const char *name, int x, int y, int z)
 #endif
     }
 }
+
 void
+GLSLProgram::setUniform1i(const char *name, int x)
+{
+    GLint loc = glGetUniformLocation(mProg, name);
+    if (loc >= 0) {
+        glUniform1i(loc, x);
+    } else {
+#if _DEBUG
+        LOGE("Error setting parameter '%s'\n", name);
+#endif
+    }
+}
+
+void
+GLSLProgram::setUniform2i(const char *name, int x, int y)
+{
+    GLint loc = glGetUniformLocation(mProg, name);
+    if (loc >= 0) {
+        glUniform2i(loc, x, y);
+    } else {
+#if _DEBUG
+        LOGE("Error setting parameter '%s'\n", name);
+#endif
+    }
+}
+
+void    
 GLSLProgram::bindTexture(const char *name, GLuint tex, GLenum target, GLint unit)
 {
     GLint loc = glGetUniformLocation(mProg, name);
@@ -220,6 +282,9 @@ GLuint
 GLSLProgram::compileProgram(const char *vsource, const char *gsource, const char *fsource,
                             GLenum gsInput, GLenum gsOutput, int maxVerts)
 {
+    bool bErrors = false;
+    GLint success = 0;
+    char temp[1024];
     GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
     GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
 
@@ -229,33 +294,62 @@ GLSLProgram::compileProgram(const char *vsource, const char *gsource, const char
     {
         glShaderSource(vertexShader, 1, &vsource, 0);
         glCompileShader(vertexShader);
-        glAttachShader(mProg, vertexShader);
+        glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
+        if (!success) {
+            glGetShaderInfoLog(vertexShader, 1024, 0, temp);
+            LOGE("%s: Failed to compile VtxShader:\n%s\n", curVSName ? curVSName:"VSNoname", temp);
+            glDeleteShader(vertexShader);
+            vertexShader = 0;
+            bErrors = true;
+        }
+        else
+            glAttachShader(mProg, vertexShader);
     }
     glShaderSource(fragmentShader, 1, &fsource, 0);
     glCompileShader(fragmentShader);
-
-    glAttachShader(mProg, fragmentShader);
+    glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
+    if (!success) {
+        glGetShaderInfoLog(fragmentShader, 1024, 0, temp);
+        LOGE("%s: Failed to compile FragShader:\n%s\n", curFSName ? curFSName:"VSNoname", temp);
+        glDeleteShader(fragmentShader);
+        fragmentShader = 0;
+        bErrors = true;
+    }
+    else
+        glAttachShader(mProg, fragmentShader);
     if (gsource) {
-        GLuint geomShader = glCreateShader(GL_GEOMETRY_SHADER_EXT);
+        GLuint geomShader = glCreateShader(GL_GEOMETRY_SHADER);
         glShaderSource(geomShader, 1, &gsource, 0);
         glCompileShader(geomShader);
-        glAttachShader(mProg, geomShader);
+        glGetShaderiv(geomShader, GL_COMPILE_STATUS, &success);
+        if (!success) {
+            glGetShaderInfoLog(geomShader, 1024, 0, temp);
+            LOGE("%s: Failed to compile GShader:\n%s\n", curGSName ? curGSName:"VSNoname", temp);
+            glDeleteShader(geomShader);
+            geomShader = 0;
+            bErrors = true;
+        }
+        else
+            glAttachShader(mProg, geomShader);
 
-        glProgramParameteriEXT(mProg, GL_GEOMETRY_INPUT_TYPE_EXT, gsInput);
-        glProgramParameteriEXT(mProg, GL_GEOMETRY_OUTPUT_TYPE_EXT, gsOutput); 
-        glProgramParameteriEXT(mProg, GL_GEOMETRY_VERTICES_OUT_EXT, maxVerts); 
+        //glProgramParameteri(mProg, GL_GEOMETRY_INPUT_TYPE, gsInput);
+        //glProgramParameteri(mProg, GL_GEOMETRY_OUTPUT_TYPE, gsOutput); 
+        //glProgramParameteri(mProg, GL_GEOMETRY_VERTICES_OUT, maxVerts); 
     }
 
+    if(bErrors)
+    {
+        glDeleteProgram(mProg);
+        mProg = 0;
+        return 0;
+    }
     glLinkProgram(mProg);
 
     // check if program linked
-    GLint success = 0;
     glGetProgramiv(mProg, GL_LINK_STATUS, &success);
-
     if (!success) {
-        char temp[1024];
         glGetProgramInfoLog(mProg, 1024, 0, temp);
-        LOGE("Failed to link program:\n%s\n", temp);
+        LOGE("%s: Failed to link program:\n%s\n", curProgName ?curProgName:"Noname", temp);
         glDeleteProgram(mProg);
         mProg = 0;
         return 0;

@@ -57,6 +57,7 @@ struct TimeSampler
     inline double   getTiming() { return frameDT; }
     inline int      getFPS() { return frameFPS; }
     void            setTimeSamplingFreq(float s) { timeSamplingFreq = (double)s; }
+    void            resetSampling(int i=10) { maxTimeSamples = i; }
     bool update(bool bContinueToRender)
     {
 #ifdef WIN32
