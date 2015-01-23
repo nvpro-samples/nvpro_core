@@ -33,6 +33,7 @@ public:
 
 	void setUniform1f(const GLchar *name, GLfloat x);
 	void setUniform2f(const GLchar *name, GLfloat x, GLfloat y);
+    void setUniform2fv(const GLchar *name, float *v) { setUniformfv(name, v, 2, 1); }
     void setUniform3f(const GLchar *name, float x, float y, float z);
     void setUniform3fv(const GLchar *name, float *v) { setUniformfv(name, v, 3, 1); }
     void setUniform4f(const GLchar *name, float x, float y=0.0f, float z=0.0f, float w=0.0f);
