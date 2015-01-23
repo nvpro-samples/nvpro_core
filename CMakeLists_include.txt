@@ -154,11 +154,12 @@ if (NOT APPLE)
   endif()
 endif()
 # ===============> GLFW
-find_package(GLFW)
-if(GLFW_FOUND AND USE_GLFW)
-  include_directories(${GLFW_INCLUDE_DIR} )
+if(USE_GLFW)
+  find_package(GLFW)
+  if(GLFW_FOUND AND USE_GLFW)
+    include_directories(${GLFW_INCLUDE_DIR} )
+  endif()
 endif()
-
 #####################################################################################
 # Optional UI using Windows MFC
 #
