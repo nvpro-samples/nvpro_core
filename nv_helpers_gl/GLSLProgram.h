@@ -21,13 +21,10 @@ class GLSLProgram
 {
 public:
     // construct program from strings
-    GLSLProgram();
+    GLSLProgram(const char*progName=NULL);
 	GLSLProgram(const char *vsource, const char *fsource);
     GLSLProgram(const char *vsource, const char *gsource, const char *fsource,
                 GLenum gsInput = GL_POINTS, GLenum gsOutput = GL_TRIANGLE_STRIP, int maxVerts=4);
-
-    void loadFromFiles(const char *vFilename,  const char *gFilename, const char *fFilename,
-                       GLenum gsInput = GL_POINTS, GLenum gsOutput = GL_TRIANGLE_STRIP, int maxVerts=4);
 
 	~GLSLProgram();
 
@@ -36,23 +33,30 @@ public:
 
 	void setUniform1f(const GLchar *name, GLfloat x);
 	void setUniform2f(const GLchar *name, GLfloat x, GLfloat y);
-	void setUniform2i(const GLchar *name, GLint x, GLint y);
-    void setUniform3f(const char *name, float x, float y, float z);
-    void setUniform4f(const char *name, float x, float y=0.0f, float z=0.0f, float w=0.0f);
+    void setUniform2fv(const GLchar *name, float *v) { setUniformfv(name, v, 2, 1); }
+    void setUniform3f(const GLchar *name, float x, float y, float z);
+    void setUniform3fv(const GLchar *name, float *v) { setUniformfv(name, v, 3, 1); }
+    void setUniform4f(const GLchar *name, float x, float y=0.0f, float z=0.0f, float w=0.0f);
 	void setUniformfv(const GLchar *name, GLfloat *v, int elementSize, int count=1);
     void setUniformMatrix4fv(const GLchar *name, GLfloat *m, bool transpose);
 
-    void setUniform3i(const char *name, int x, int y, int z);
+	void setUniform1i(const GLchar *name, GLint x);
+	void setUniform2i(const GLchar *name, GLint x, GLint y);
+    void setUniform3i(const GLchar *name, int x, int y, int z);
 
-	void bindTexture(const char *name, GLuint tex, GLenum target, GLint unit);
-	void bindImage(const char *name, GLint unit, GLuint tex, GLint level, GLboolean layered, GLint layer, GLenum access, GLenum format);
+	void bindTexture(const GLchar *name, GLuint tex, GLenum target, GLint unit);
+	void bindImage  (const GLchar *name, GLint unit, GLuint tex, GLint level, GLboolean layered, GLint layer, GLenum access, GLenum format);
 
 	inline GLuint getProgId() { return mProg; }
 	
     GLuint compileProgram(const char *vsource, const char *gsource, const char *fsource,
                           GLenum gsInput = GL_POINTS, GLenum gsOutput = GL_TRIANGLE_STRIP, int maxVerts=4);
+    GLuint compileProgramFromFiles(const char *vFilename,  const char *gFilename, const char *fFilename,
+                       GLenum gsInput = GL_POINTS, GLenum gsOutput = GL_TRIANGLE_STRIP, int maxVerts=4);
+    void setShaderNames(const char*ProgName, const char *VSName=NULL,const char *GSName=NULL,const char *FSName=NULL);
 private:
     char *readTextFile(const char *filename);
+    char *curVSName, *curFSName, *curGSName, *curProgName;
 
 	GLuint mProg;
 };

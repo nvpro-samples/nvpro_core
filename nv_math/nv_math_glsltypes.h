@@ -44,7 +44,7 @@ namespace nv_math {
 
   ALIGNED_(16, typedef vec4ui uvec4 );
   ALIGNED_(16, typedef vec3ui uvec3 );
-  ALIGNED_(16, typedef vec2ui uvec2 );
+  ALIGNED_(8,  typedef vec2ui uvec2 );
 #else
   // Matrices, must align to 4 vector (16 bytes)
   typedef  mat4f mat4;

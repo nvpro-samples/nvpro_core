@@ -144,15 +144,16 @@ if (GLEW_INCLUDE_DIR AND EXISTS "${GLEW_INCLUDE_DIR}/GL/glew.h")
 endif ()
 
 if(GLEW_SOURCE)
-find_package_handle_standard_args(GLEW DEFAULT_MSG
-    GLEW_INCLUDE_DIR
-    GLEW_SOURCE
-)
+  find_package_handle_standard_args(GLEW DEFAULT_MSG
+      GLEW_INCLUDE_DIR
+      GLEW_SOURCE
+  )
+  UNSET(GLEW_LIBRARY CACHE)
 else()
-find_package_handle_standard_args(GLEW DEFAULT_MSG
-    GLEW_INCLUDE_DIR
-    GLEW_LIBRARY
-)
+  find_package_handle_standard_args(GLEW DEFAULT_MSG
+      GLEW_INCLUDE_DIR
+      GLEW_LIBRARY
+  )
 endif()
 
 mark_as_advanced( GLEW_FOUND )

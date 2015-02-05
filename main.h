@@ -89,7 +89,7 @@
 #   define  LOGLEVEL_OK 7
 #   define  LOGI(...)  { nvprintfLevel(0, __VA_ARGS__); }
 #   define  LOGW(...)  { nvprintfLevel(1, __VA_ARGS__); }
-#   define  LOGE(...)  { nvprintfLevel(2, __FILE__"("S__LINE__"): "__VA_ARGS__); }
+#   define  LOGE(...)  { nvprintfLevel(2, __FILE__"("S__LINE__"): **ERROR**:\n"__VA_ARGS__); }
 #   define  LOGOK(...)  { nvprintfLevel(7, __VA_ARGS__); }
 
 #if _MSC_VER
@@ -336,7 +336,7 @@ public:
 
   void setTitle(const char* title);
 
-  void postRedisplay(int n=1) { m_renderCnt+=n; }
+  void postRedisplay(int n=1) { m_renderCnt=n; }
 
   void postQuit();
 

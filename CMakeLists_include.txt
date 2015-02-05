@@ -154,11 +154,12 @@ if (NOT APPLE)
   endif()
 endif()
 # ===============> GLFW
-find_package(GLFW)
-if(GLFW_FOUND AND USE_GLFW)
-  include_directories(${GLFW_INCLUDE_DIR} )
+if(USE_GLFW)
+  find_package(GLFW)
+  if(GLFW_FOUND AND USE_GLFW)
+    include_directories(${GLFW_INCLUDE_DIR} )
+  endif()
 endif()
-
 #####################################################################################
 # Optional UI using Windows MFC
 #
@@ -374,7 +375,7 @@ macro(_add_package_NSight)
       ${BASE_DIRECTORY}/shared_external/NSight/NSightEvents.h
       ${BASE_DIRECTORY}/shared_external/NSight/nvToolsExt.h
     )
-    add_definitions(-DUSE_NSIGHT)
+    add_definitions(-DSUPPORT_NVTOOLSEXT)
     if(ARCH STREQUAL "x86")
       SET(NSIGHT_DLL ${BASE_DIRECTORY}/shared_external/NSight/nvToolsExt32_1.dll)
       SET(NSIGHT_LIB ${BASE_DIRECTORY}/shared_external/NSight/nvToolsExt32_1.lib)
@@ -449,7 +450,9 @@ endmacro()
 macro(_download_files _FILELIST _URL _TARGET _FORCE )
   foreach(_FILE ${_FILELIST})
     if(${_FORCE} OR (NOT EXISTS "${_TARGET}/${_FILE}"))
-      Message(STATUS "downloading ${_URL}/${_FILE} ==> ${_TARGET}")
+      Message(STATUS "*******************************************")
+      Message(STATUS "downloading ${_URL}/${_FILE}\n ==>\n ${_TARGET}")
+      Message(STATUS "*******************************************")
       file(DOWNLOAD ${_URL}/${_FILE} ${_TARGET}/${_FILE} SHOW_PROGRESS)
     else()
       Message(STATUS "model ${_FILE} already loaded...")
