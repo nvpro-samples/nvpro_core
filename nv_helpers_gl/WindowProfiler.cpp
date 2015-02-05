@@ -164,12 +164,16 @@ namespace nv_helpers_gl
     m_profiler.reset();
 
     if (width == 0 && height == 0)
+    {
       return;
+    }
 
     window.m_viewsize[0] = width;
     window.m_viewsize[1] = height;
-
-    resize(width,height);
+    if( m_active )
+    {
+      resize(width,height);
+    }
   }
 
 
@@ -239,6 +243,7 @@ namespace nv_helpers_gl
     m_window.m_viewsize[1] = height;
 
     bool Run = begin();
+    m_active = true;
 
     vsync(true);
 
@@ -308,6 +313,7 @@ namespace nv_helpers_gl
       }
     }
     end();
+    m_active = false;
 
     return Run ? EXIT_SUCCESS : EXIT_FAILURE;
   }

@@ -83,6 +83,7 @@ namespace nv_helpers_gl
       , m_vsync(false)
       , m_singleThreaded(singleThreaded)
       , m_doSwap(doSwap)
+      , m_active(false)
     {
       m_debugFilter = GL_DEBUG_SEVERITY_MEDIUM;
     }
@@ -114,6 +115,7 @@ namespace nv_helpers_gl
     bool          m_profilerPrint;
     bool          m_singleThreaded;
     bool          m_doSwap;
+    bool          m_active;
 
     void vsync(bool state);
     void waitEvents();
