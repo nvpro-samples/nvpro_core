@@ -54,11 +54,14 @@ public:
     GLuint compileProgramFromFiles(const char *vFilename,  const char *gFilename, const char *fFilename,
                        GLenum gsInput = GL_POINTS, GLenum gsOutput = GL_TRIANGLE_STRIP, int maxVerts=4);
     void setShaderNames(const char*ProgName, const char *VSName=NULL,const char *GSName=NULL,const char *FSName=NULL);
+    static bool setIncludeFromFile(const char *includeName, const char* filename);
+    static void setIncludeFromString(const char *includeName, const char* str);
 private:
-    char *readTextFile(const char *filename);
+    static char *readTextFile(const char *filename);
     char *curVSName, *curFSName, *curGSName, *curProgName;
 
 	GLuint mProg;
+    static char* GLSLProgram::incPaths[];
 };
 
 #endif

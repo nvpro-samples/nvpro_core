@@ -15,6 +15,26 @@
 #include "main.h"
 #include "nv_helpers_gl/GLSLProgram.h"
 
+char* GLSLProgram::incPaths[] = {"/"};
+
+bool GLSLProgram::setIncludeFromFile(const char *includeName, const char* filename)
+{
+    char tmpstr[200];
+    sprintf(tmpstr, "%s/%s", filename, includeName);
+    char * incStr = readTextFile(tmpstr);
+    if(!incStr)
+        return false;
+    sprintf(tmpstr, "/%s", includeName);
+    glNamedStringARB(GL_SHADER_INCLUDE_ARB, strlen(tmpstr), tmpstr, strlen(incStr), incStr);
+    return false;
+}
+void GLSLProgram::setIncludeFromString(const char *includeName, const char* str)
+{
+    char tmpstr[200];
+    sprintf(tmpstr, "/%s", includeName);
+    glNamedStringARB(GL_SHADER_INCLUDE_ARB, strlen(tmpstr), tmpstr, strlen(str), str);
+}
+
 GLSLProgram::GLSLProgram(const char*progName) : mProg(0)
 {
     curVSName = NULL;
@@ -293,7 +313,7 @@ GLSLProgram::compileProgram(const char *vsource, const char *gsource, const char
     if(vsource)
     {
         glShaderSource(vertexShader, 1, &vsource, 0);
-        glCompileShader(vertexShader);
+        glCompileShaderIncludeARB(vertexShader, 1, incPaths,NULL);
         glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
         if (!success) {
             glGetShaderInfoLog(vertexShader, 1024, 0, temp);
@@ -305,8 +325,9 @@ GLSLProgram::compileProgram(const char *vsource, const char *gsource, const char
         else
             glAttachShader(mProg, vertexShader);
     }
+    // NOTE: had some issues using include paths with https://www.opengl.org/registry/specs/ARB/shading_language_include.txt
     glShaderSource(fragmentShader, 1, &fsource, 0);
-    glCompileShader(fragmentShader);
+    glCompileShaderIncludeARB(fragmentShader, 1, incPaths,NULL);
     glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
     if (!success) {
         glGetShaderInfoLog(fragmentShader, 1024, 0, temp);
@@ -319,8 +340,9 @@ GLSLProgram::compileProgram(const char *vsource, const char *gsource, const char
         glAttachShader(mProg, fragmentShader);
     if (gsource) {
         GLuint geomShader = glCreateShader(GL_GEOMETRY_SHADER);
+        // NOTE: had some issues using include paths with https://www.opengl.org/registry/specs/ARB/shading_language_include.txt
         glShaderSource(geomShader, 1, &gsource, 0);
-        glCompileShader(geomShader);
+        glCompileShaderIncludeARB(geomShader, 1, incPaths,NULL);
         glGetShaderiv(geomShader, GL_COMPILE_STATUS, &success);
         if (!success) {
             glGetShaderInfoLog(geomShader, 1024, 0, temp);
