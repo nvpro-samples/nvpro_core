@@ -1,6 +1,6 @@
 /*
 ** The OpenGL Extension Wrangler Library
-** Copyright (C) 2008-2014, Nigel Stewart <nigels[]users sourceforge net>
+** Copyright (C) 2008-2015, Nigel Stewart <nigels[]users sourceforge net>
 ** Copyright (C) 2002-2008, Milan Ikits <milan ikits[]ieee org>
 ** Copyright (C) 2002-2008, Marcelo E. Magallon <mmagallo[]debian org>
 ** Copyright (C) 2002, Lev Povalahev
@@ -187,6 +187,10 @@ typedef BOOL (WINAPI * PFNWGLSAVEBUFFERREGIONARBPROC) (HANDLE hRegion, int x, in
 
 #ifndef WGL_ARB_context_flush_control
 #define WGL_ARB_context_flush_control 1
+
+#define WGL_CONTEXT_RELEASE_BEHAVIOR_NONE_ARB 0x0000
+#define WGL_CONTEXT_RELEASE_BEHAVIOR_ARB 0x2097
+#define WGL_CONTEXT_RELEASE_BEHAVIOR_FLUSH_ARB 0x2098
 
 #define WGLEW_ARB_context_flush_control WGLEW_GET_VAR(__WGLEW_ARB_context_flush_control)
 
@@ -1410,8 +1414,8 @@ WGLEW_VAR_EXPORT GLboolean __WGLEW_OML_sync_control;
 #ifdef GLEW_MX
 
 typedef struct WGLEWContextStruct WGLEWContext;
-GLEWAPI GLenum GLEWAPIENTRY wglewContextInit (WGLEWContext *ctx);
-GLEWAPI GLboolean GLEWAPIENTRY wglewContextIsSupported (const WGLEWContext *ctx, const char *name);
+GLEWAPI GLenum wglewContextInit (WGLEWContext *ctx);
+GLEWAPI GLboolean wglewContextIsSupported (const WGLEWContext *ctx, const char *name);
 
 #define wglewInit() wglewContextInit(wglewGetContext())
 #define wglewIsSupported(x) wglewContextIsSupported(wglewGetContext(), x)
@@ -1424,11 +1428,11 @@ GLEWAPI GLboolean GLEWAPIENTRY wglewContextIsSupported (const WGLEWContext *ctx,
 #define WGLEW_GET_VAR(x) (*(const GLboolean*)&x)
 #define WGLEW_GET_FUN(x) x
 
-GLEWAPI GLboolean GLEWAPIENTRY wglewIsSupported (const char *name);
+GLEWAPI GLboolean wglewIsSupported (const char *name);
 
 #endif /* GLEW_MX */
 
-GLEWAPI GLboolean GLEWAPIENTRY wglewGetExtension (const char *name);
+GLEWAPI GLboolean wglewGetExtension (const char *name);
 
 #ifdef __cplusplus
 }
