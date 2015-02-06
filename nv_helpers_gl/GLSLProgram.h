@@ -61,7 +61,7 @@ private:
     char *curVSName, *curFSName, *curGSName, *curProgName;
 
 	GLuint mProg;
-    static char* GLSLProgram::incPaths[];
+    static char* incPaths[];
 };
 
 #endif

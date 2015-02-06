@@ -27,6 +27,7 @@
 #define NV_PROJECTBASE_INCLUDED
 
 #include "profiler.hpp"
+#include <string.h> // for memset
 #include <main.h>
 
 // enable the NV_PROFILE_SECTION(name) macro, or turn it to a noop

@@ -11,6 +11,7 @@
  
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h> // for strcpy() etc.
 #include <sys/stat.h>
 #include "main.h"
 #include "nv_helpers_gl/GLSLProgram.h"

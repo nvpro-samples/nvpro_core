@@ -34,24 +34,24 @@ class Noise1234 {
 
 /** 1D, 2D, 3D and 4D float Perlin noise, SL "noise()"
  */
-    static float Noise1234::noise( float x );
-    static float Noise1234::noise( float x, float y );
-    static float Noise1234::noise( float x, float y, float z );
-    static float Noise1234::noise( float x, float y, float z, float w );
+    static float noise( float x );
+    static float noise( float x, float y );
+    static float noise( float x, float y, float z );
+    static float noise( float x, float y, float z, float w );
 
 /** 1D, 2D, 3D and 4D float Perlin periodic noise, SL "pnoise()"
  */
-    static float Noise1234::pnoise( float x, int px );
-    static float Noise1234::pnoise( float x, float y, int px, int py );
-    static float Noise1234::pnoise( float x, float y, float z, int px, int py, int pz );
-    static float Noise1234::pnoise( float x, float y, float z, float w,
+    static float pnoise( float x, int px );
+    static float pnoise( float x, float y, int px, int py );
+    static float pnoise( float x, float y, float z, int px, int py, int pz );
+    static float pnoise( float x, float y, float z, float w,
                               int px, int py, int pz, int pw );
 
   private:
     static unsigned char perm[];
-    static float  Noise1234::grad( int hash, float x );
-    static float  Noise1234::grad( int hash, float x, float y );
-    static float  Noise1234::grad( int hash, float x, float y , float z );
-    static float  Noise1234::grad( int hash, float x, float y, float z, float t );
+    static float  grad( int hash, float x );
+    static float  grad( int hash, float x, float y );
+    static float  grad( int hash, float x, float y , float z );
+    static float  grad( int hash, float x, float y, float z, float t );
 
 };

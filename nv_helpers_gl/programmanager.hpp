@@ -92,7 +92,7 @@ namespace nv_helpers_gl
     bool areProgramsValid();
 
 
-    bool ProgramManager::isValid( ProgramID idx ) const;
+    bool isValid( ProgramID idx ) const;
     GLuint get(ProgramID idx) const;
     Program& getProgram(ProgramID idx);
     const Program& getProgram(ProgramID idx) const;
