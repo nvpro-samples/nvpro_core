@@ -29,6 +29,7 @@
 #include <GL/glew.h>
 #include <stdio.h>
 #include <vector>
+#include <string>
 
 #ifndef NV_TIMER_FLUSH
 #define NV_TIMER_FLUSH 0
