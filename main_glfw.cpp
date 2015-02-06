@@ -63,7 +63,7 @@ static void APIENTRY debugoutput_callback
   GLenum severity,
   GLsizei length,
   const GLchar* message,
-  GLvoid* userParam
+  const GLvoid* userParam
   )
 {
   NVPWindow* window = (NVPWindow*)userParam;

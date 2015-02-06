@@ -37,6 +37,7 @@
 #elif !defined(__ANDROID__) && !defined(__native_client__) && !defined(__HAIKU__) && (!defined(__APPLE__) || defined(GLEW_APPLE_GLX))
 #  include <GL/glxew.h>
 #endif
+
 #include <stddef.h>  /* For size_t */
 
 /*
@@ -165,8 +166,6 @@ void* NSGLGetProcAddress (const GLubyte *name)
 #endif /* MAC_OS_X_VERSION_10_3 */
 #endif /* __APPLE__ */
 
-#define fqn_from_convention(convention, fqn) \
-    (convention == GLEW_NAME_MANGLED ? "m"fqn : fqn)
 /*
  * Define glewGetProcAddress.
  */
@@ -185,6 +184,7 @@ void* NSGLGetProcAddress (const GLubyte *name)
 #else /* __linux */
 #  define glewGetProcAddress(name) (*glXGetProcAddressARB)(name)
 #endif
+
 /*
  * Redefine GLEW_GET_VAR etc without const cast
  */
@@ -302,7 +302,6 @@ static GLboolean _glewStrSame3 (GLubyte** a, GLuint* na, const GLubyte* b, GLuin
  * other extension names. Could use strtok() but the constant
  * string returned by glGetString might be in read-only memory.
  */
-
 static GLboolean _glewSearchExtensionStr (const char* name, const GLubyte *start, const GLubyte *end)
 {
   const GLubyte* p;
@@ -614,6 +613,7 @@ PFNGLBLENDFUNCIPROC __glewBlendFunci = NULL;
 PFNGLMINSAMPLESHADINGPROC __glewMinSampleShading = NULL;
 
 PFNGLGETGRAPHICSRESETSTATUSPROC __glewGetGraphicsResetStatus = NULL;
+
 PFNGLTBUFFERMASK3DFXPROC __glewTbufferMask3DFX = NULL;
 
 PFNGLDEBUGMESSAGECALLBACKAMDPROC __glewDebugMessageCallbackAMD = NULL;
@@ -10316,7 +10316,7 @@ GLboolean glewGetExtension (const char* name)
 #ifndef GLEW_MX
 static
 #endif
-GLenum  glewContextInit (GLEW_CONTEXT_ARG_DEF_LIST)
+GLenum GLEWAPIENTRY glewContextInit (GLEW_CONTEXT_ARG_DEF_LIST)
 {
   const GLubyte* s;
   GLuint dot;
@@ -13132,7 +13132,7 @@ static GLboolean _glewInit_WGL_OML_sync_control (WGLEW_CONTEXT_ARG_DEF_INIT)
 static PFNWGLGETEXTENSIONSSTRINGARBPROC _wglewGetExtensionsStringARB = NULL;
 static PFNWGLGETEXTENSIONSSTRINGEXTPROC _wglewGetExtensionsStringEXT = NULL;
 
-GLboolean wglewGetExtension (const char* name)
+GLboolean GLEWAPIENTRY wglewGetExtension (const char* name)
 {    
   const GLubyte* start;
   const GLubyte* end;
@@ -13149,7 +13149,7 @@ GLboolean wglewGetExtension (const char* name)
   return _glewSearchExtension(name, start, end);
 }
 
-GLenum wglewContextInit (WGLEW_CONTEXT_ARG_DEF_LIST)
+GLenum GLEWAPIENTRY wglewContextInit (WGLEW_CONTEXT_ARG_DEF_LIST)
 {
   GLboolean crippled;
   const GLubyte* extStart;
@@ -14561,7 +14561,7 @@ GLenum glxewContextInit (GLXEW_CONTEXT_ARG_DEF_LIST)
 
 /* ------------------------------------------------------------------------ */
 
-const GLubyte * glewGetErrorString (GLenum error)
+const GLubyte * GLEWAPIENTRY glewGetErrorString (GLenum error)
 {
   static const GLubyte* _glewErrorString[] =
   {
@@ -14575,7 +14575,7 @@ const GLubyte * glewGetErrorString (GLenum error)
   return _glewErrorString[(size_t)error > max_error ? max_error : (size_t)error];
 }
 
-const GLubyte * glewGetString (GLenum name)
+const GLubyte * GLEWAPIENTRY glewGetString (GLenum name)
 {
   static const GLubyte* _glewString[] =
   {
@@ -14596,27 +14596,20 @@ GLboolean glewExperimental = GL_FALSE;
 #if !defined(GLEW_MX)
 
 #if defined(_WIN32)
-extern GLenum wglewContextInit (void);
-#elif !defined(__ANDROID__) && (!defined(__APPLE__) || defined(GLEW_APPLE_GLX))
-extern GLenum glxewContextInit (void);
+extern GLenum GLEWAPIENTRY wglewContextInit (void);
+#elif !defined(__ANDROID__) && !defined(__native_client__) && !defined(__HAIKU__) && (!defined(__APPLE__) || defined(GLEW_APPLE_GLX))
+extern GLenum GLEWAPIENTRY glxewContextInit (void);
 #endif /* _WIN32 */
 
-GLenum glewInit ()
+GLenum GLEWAPIENTRY glewInit (void)
 {
   GLenum r;
-
   r = glewContextInit();
+  if ( r != 0 ) return r;
 #if defined(_WIN32)
-  {
-    return wglewContextInit();
-  }
-  return GLEW_OK;
-#elif !defined(__APPLE__) || defined(GLEW_APPLE_GLX) /* _UNIX */
-  /* We'll need GLX to setup contexts / etc. if we're not using OSMesa. */
-  if(gl_lib_type != GLEW_LIB_TYPE_OSMESA) {
-    return glxewContextInit();
-  }
-  return r;
+  return wglewContextInit();
+#elif !defined(__ANDROID__) && !defined(__native_client__) && !defined(__HAIKU__) && (!defined(__APPLE__) || defined(GLEW_APPLE_GLX)) /* _UNIX */
+  return glxewContextInit();
 #else
   return r;
 #endif /* _WIN32 */
@@ -14624,9 +14617,9 @@ GLenum glewInit ()
 
 #endif /* !GLEW_MX */
 #ifdef GLEW_MX
-GLboolean glewContextIsSupported (const GLEWContext* ctx, const char* name)
+GLboolean GLEWAPIENTRY glewContextIsSupported (const GLEWContext* ctx, const char* name)
 #else
-GLboolean glewIsSupported (const char* name)
+GLboolean GLEWAPIENTRY glewIsSupported (const char* name)
 #endif
 {
   GLubyte* pos = (GLubyte*)name;
@@ -18682,9 +18675,9 @@ GLboolean glewIsSupported (const char* name)
 #if defined(_WIN32)
 
 #if defined(GLEW_MX)
-GLboolean wglewContextIsSupported (const WGLEWContext* ctx, const char* name)
+GLboolean GLEWAPIENTRY wglewContextIsSupported (const WGLEWContext* ctx, const char* name)
 #else
-GLboolean wglewIsSupported (const char* name)
+GLboolean GLEWAPIENTRY wglewIsSupported (const char* name)
 #endif
 {
   GLubyte* pos = (GLubyte*)name;
