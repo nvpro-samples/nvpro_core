@@ -1,3 +1,17 @@
+cmake_minimum_required(VERSION 2.8)
+#####################################################################################
+# offer the choice of having shared_sources as a sub-folder... good for packaging a sample
+#
+# if BASE_DIRECTORY not defined, it means this cmake file was called as the first entry point and not included
+if(NOT BASE_DIRECTORY) # if not defined, it means this cmake file was called as the first entry point and not included
+  set(PROJNAME shared_sources)
+  Project(${PROJNAME})
+  Message(STATUS "*******************************")
+  Message(STATUS "Processing Project ${PROJNAME}:")
+  SET(BASE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/..)
+  INCLUDE(${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists_include.txt)
+endif()
+
 set(MAIN_SOURCE ${BASE_DIRECTORY}/shared_sources/main.h )
 if(GLFW_FOUND AND USE_GLFW)
   SET(MAIN_FILE ${BASE_DIRECTORY}/shared_sources/main_glfw.cpp)

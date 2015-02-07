@@ -60,7 +60,7 @@ if (${CMAKE_HOST_UNIX})
     )
     find_library( GLFW_LIBRARY
         NAMES
-            glfw3
+            glfw3 glfw
         PATHS
             ${GLFW_LOCATION}/lib
             $ENV{GLFW_LOCATION}/lib
