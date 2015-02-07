@@ -167,14 +167,9 @@ std::string NVPWindow::sysExePath()
   return s_path;
 }
 
-static double s_frequency;
 double NVPWindow::sysGetTime()
 {
-    LARGE_INTEGER time;
-    if (QueryPerformanceCounter(&time)){
-      return (double(time.QuadPart) / s_frequency);
-    }
-    return 0;
+    return glfwGetTime();
 }
 
 void NVPWindow::sysSleep(double seconds)
@@ -542,14 +537,6 @@ int WINAPI WinMain(    HINSTANCE hInstance,
     g_hInstance = hInstance;
     g_lpCmdLine = lpCmdLine;
     g_nCmdShow = nCmdShow;
-
-    LARGE_INTEGER sysfrequency;
-    if (QueryPerformanceFrequency(&sysfrequency)){
-      s_frequency = (double)sysfrequency.QuadPart;
-    }
-    else{
-      s_frequency = 1;
-    }
 
     CmdLineArgs args;
 
