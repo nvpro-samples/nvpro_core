@@ -14,6 +14,8 @@
 
 #include <nv_math/nv_math.h>
 
+#include <vector>
+
 namespace nv_helpers{
   namespace geometry{
     struct Vertex
