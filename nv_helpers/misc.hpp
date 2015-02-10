@@ -36,7 +36,7 @@ namespace nv_helpers
     assert( size < RAND_MAX );
 
     for (size_t i = 0; i < size; i++){
-      data[i] = unsigned int(i);
+      data[i] = (unsigned int)i;
     }
 
     for (size_t i = size-1; i > 0 ; i--){
