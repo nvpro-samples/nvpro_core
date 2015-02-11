@@ -353,7 +353,7 @@ add_definitions(-DGLEW_NO_GLU)
 #####################################################################################
 # GLFW library
 if(GLFW_FOUND AND USE_GLFW)
-  message(STATUS "using GLFW library")
+  message(STATUS "using GLFW library ${GLFW_LIBRARY}")
   LIST(APPEND PLATFORM_LIBRARIES ${GLFW_LIBRARY})
   add_definitions(-DUSE_GLFW)
 endif()

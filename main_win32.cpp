@@ -1119,7 +1119,6 @@ int WINAPI WinMain( HINSTANCE hInstance,
     // relay the "main" to the sample
     // the sample will create the window(s)
     //
-    extern int sample_main(int argc, const char** argv);
     sample_main((int)args.size(), (const char**)&args[0]);
     
 

@@ -29,7 +29,6 @@
 
 #include <stdio.h>
 #include <fcntl.h>
-//#include <io.h>
 #include <iostream>
 #include <fstream>
 #include <algorithm>
@@ -37,12 +36,17 @@
 #include <assert.h>
 #include <stdarg.h>
 
-
 #ifdef _WIN32
-#define NOMINMAX 
 #define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
+#include <io.h>
+#include <windows.h>
+#include <windowsx.h>
 #include <assert.h>
+#include "resources.h"
+
+HINSTANCE   g_hInstance = 0;
+LPSTR       g_lpCmdLine;
+int         g_nCmdShow;
 
 extern "C" {
   _declspec(dllexport) DWORD NvOptimusEnablement = 0x00000001;
@@ -63,7 +67,7 @@ static void APIENTRY debugoutput_callback
   GLenum severity,
   GLsizei length,
   const GLchar* message,
-  GLvoid* userParam
+  const GLvoid* userParam
   )
 {
   NVPWindow* window = (NVPWindow*)userParam;
@@ -157,9 +161,15 @@ void NVPWindow::sysDeinit()
   glfwTerminate();
 }
 
+static std::string s_path;
+std::string NVPWindow::sysExePath()
+{
+  return s_path;
+}
+
 double NVPWindow::sysGetTime()
 {
-  return glfwGetTime();
+    return glfwGetTime();
 }
 
 void NVPWindow::sysSleep(double seconds)
@@ -309,11 +319,18 @@ bool NVPWindow::create(const char* title, const ContextFlags* cflags, int width,
   }
 
   if (!s_glew){
-    glewExperimental = 1;
+    //glewExperimental = 1;
     glewInit();
     glGetError();
     s_glew = true;
   }
+
+  s_windows.push_back( this );
+  m_internal = (NVPWindow::WINhandle)win;
+  if(!init()){
+    return false;
+  }
+  //TODO this is where we should show the window
 
   glfwSetFramebufferSizeCallback(win,resize_callback);
   glfwSetWindowRefreshCallback(win,refresh_callback);
@@ -325,8 +342,6 @@ bool NVPWindow::create(const char* title, const ContextFlags* cflags, int width,
   glfwSetKeyCallback(win, key_callback);
   glfwSetCharCallback(win, char_callback);
 
-  m_internal = (NVPWindow::WINhandle)win;
-
 #if !defined (NDEBUG)
   if (GLEW_ARB_debug_output){
     glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS_ARB);
@@ -335,8 +350,18 @@ bool NVPWindow::create(const char* title, const ContextFlags* cflags, int width,
   }
 #endif
   
-  s_windows.push_back( this );
   return true;
+}
+
+bool NVPWindow::activate(int width, int height, const char* title, const ContextFlags* cflags, int invisible)
+{
+  // FIXME invisibile handling!
+  return create(title,cflags,width,height);
+}
+
+void NVPWindow::deactivate()
+{
+  // FIXME should remove from g_windows
 }
 
 void NVPWindow::setTitle( const char* title )
@@ -500,8 +525,9 @@ private:
     } // while (*pargs)
   } // ParseCmdLine()
 }; // class CmdLineArgs
+#endif //WIN32
 
-
+#ifdef WIN32
 //------------------------------------------------------------------------------
 int WINAPI WinMain(    HINSTANCE hInstance,
                     HINSTANCE hPrevInstance,
@@ -512,16 +538,6 @@ int WINAPI WinMain(    HINSTANCE hInstance,
     g_lpCmdLine = lpCmdLine;
     g_nCmdShow = nCmdShow;
 
-    memset(&uMsg,0,sizeof(uMsg));
-
-    LARGE_INTEGER sysfrequency;
-    if (QueryPerformanceFrequency(&sysfrequency)){
-      s_frequency = (double)sysfrequency.QuadPart;
-    }
-    else{
-      s_frequency = 1;
-    }
-
     CmdLineArgs args;
 
     std::string exe = args[0];
@@ -531,37 +547,42 @@ int WINAPI WinMain(    HINSTANCE hInstance,
     if (last != std::string::npos){
       s_path = exe.substr(0,last) + std::string("/");
     }
+
+
+
     //initNSight();
 #ifdef MEMORY_LEAKS_CHECK
     _CrtSetDbgFlag ( _CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF); 
     _CrtSetReportMode ( _CRT_ERROR, _CRTDBG_MODE_DEBUG|_CRTDBG_MODE_WNDW);
 #endif
+    NVPWindow::sysInit();
     //
     // relay the "main" to the sample
     // the sample will create the window(s)
     //
-    extern bool sample_main(LPSTR lpCmdLine);
-    sample_main(lpCmdLine);
+    sample_main((int)args.size(), (const char**)&args[0]);
+
+#else //WIN32
+
+void NVPWindow::sysVisibleConsole() {}
+int main(int argc, const char **argv)
+{
+    NVPWindow::sysInit();
+    sample_main(argc, argv);
+#endif //WIN32
     //
     // Terminate
     //
-    for(int i=0; i<g_windows.size(); i++)
-    {
-        NVPWindow *pWin = g_windows[i];
-        pWin->shutdown();
-        glfwDestroyWindow(pWin->window);
-    }
+    NVPWindow::sysDeinit();
+#ifdef WIN32
     UnregisterClass( "MY_WINDOWS_CLASS", hInstance );
-
+#endif
 #ifdef MEMORY_LEAKS_CHECK
     _CrtDumpMemoryLeaks();
 #endif
 
     return 0;
 }
-#else
-void NVPWindow::sysVisibleConsole() {}
-#endif // WIN32
 //------------------------------------------------------------------------------
 // 
 //------------------------------------------------------------------------------
