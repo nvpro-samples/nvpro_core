@@ -245,8 +245,6 @@ namespace nv_helpers_gl
     bool Run = begin();
     m_active = true;
 
-    vsync(true);
-
     m_profiler.init();
 
     double timeStart = sysGetTime();

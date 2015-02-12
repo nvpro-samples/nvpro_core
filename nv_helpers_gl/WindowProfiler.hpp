@@ -81,7 +81,7 @@ namespace nv_helpers_gl
 
     WindowProfiler(bool singleThreaded = true, bool doSwap = true) 
       : m_profilerPrint(true)
-      , m_vsync(false)
+      , m_vsync(true)
       , m_singleThreaded(singleThreaded)
       , m_doSwap(doSwap)
       , m_active(false)
