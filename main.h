@@ -336,6 +336,10 @@ public:
 
   void setTitle(const char* title);
 
+  void maximize();
+  void restore();
+  void minimize();
+
   void postRedisplay(int n=1) { m_renderCnt=n; }
 
   void postQuit();

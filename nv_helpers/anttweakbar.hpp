@@ -17,7 +17,7 @@
   
 namespace nv_helpers
 {
-  bool handleTwKeyPressed(int button, int action, int mods)
+  static bool handleTwKeyPressed(int button, int action, int mods)
   {
     int twkey = button;
     switch (button){

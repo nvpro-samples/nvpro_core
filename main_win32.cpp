@@ -784,6 +784,21 @@ void NVPWindow::setTitle( const char* title )
 }
 
 
+void NVPWindow::maximize()
+{
+  ShowWindow(m_internal->m_hWnd, SW_MAXIMIZE);
+}
+
+void NVPWindow::restore()
+{
+  ShowWindow(m_internal->m_hWnd, SW_RESTORE);
+}
+
+void NVPWindow::minimize()
+{
+  ShowWindow(m_internal->m_hWnd, SW_MINIMIZE);
+}
+
 bool NVPWindow::isOpen()
 {
   return m_internal->m_visible && !m_internal->m_iconified;
