@@ -291,7 +291,8 @@ static void resize_callback(GLFWwindow* win, int width, int height)
 bool NVPWindow::create(const char* title, const ContextFlags* cflags, int width, int height)
 {
   GLFWwindow* win = NULL;
-
+  m_winSz[0] = width;
+  m_winSz[1] = height;
   if(version(cflags->major, cflags->minor) >= version(3, 2) && cflags->core)
   {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, cflags->major);

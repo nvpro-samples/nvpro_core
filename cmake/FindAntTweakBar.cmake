@@ -5,11 +5,11 @@ unset(ANTTWEAKBAR_INCLUDE_DIR CACHE)
 unset(ANTTWEAKBAR_FOUND CACHE)
 
 find_path( ANTTWEAKBAR_INCLUDE_DIR AntTweakBar.h
-  ${ANTTWEAKBAR_LOCATION}/include
-  $ENV{ANTTWEAKBAR_LOCATION}/include
   ${PROJECT_SOURCE_DIR}/shared_external/AntTweakBar/include
   ${PROJECT_SOURCE_DIR}/../shared_external/AntTweakBar/include
   ${PROJECT_SOURCE_DIR}/../../shared_external/AntTweakBar/include
+  ${ANTTWEAKBAR_LOCATION}/include
+  $ENV{ANTTWEAKBAR_LOCATION}/include
 )
 
 macro(_find_dll targetVar dllName dllName64 folder)
