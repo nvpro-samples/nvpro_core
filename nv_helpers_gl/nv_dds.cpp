@@ -975,7 +975,7 @@ void CDDSImage::flip(CSurface &surface)
 
         linesize = xblocks * blocksize;
 
-        for (unsigned int j = 0; j < max(yblocks >> 1, (unsigned int)1); j++)
+		for (unsigned int j = 0; j < ((yblocks >> 1) > (unsigned int)1 ? yblocks >> 1: (unsigned int)1); j++)
         {
             DXTColBlock *top = (DXTColBlock*)((unsigned char*)surface + j * linesize);
             DXTColBlock *bottom = (DXTColBlock*)((unsigned char*)surface + (((yblocks-j)-1) * linesize));
