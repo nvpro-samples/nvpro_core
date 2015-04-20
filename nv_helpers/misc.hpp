@@ -14,9 +14,55 @@
 
 #include <assert.h>
 #include <stdlib.h>
+#include <sstream>
+#include <fstream>
 
 namespace nv_helpers
 {
+
+  inline std::string findFile( std::string const & infilename, std::vector<std::string> directories)
+  {
+    std::ifstream stream;
+
+    for (size_t i = 0; i < directories.size(); i++ ){
+      std::string filename = directories[i] + "/" + infilename;
+      stream.open(filename.c_str());
+      if (stream.is_open()) return filename;
+    }
+    return infilename;
+  }
+
+  inline std::string loadFile( std::string const & infilename)
+  {
+    std::string result;
+    std::string filename = infilename;
+
+    std::ifstream stream(filename.c_str(), std::ios::binary | std::ios::in);
+    if(!stream.is_open()){
+      nvprintfLevel(LOGLEVEL_WARNING,"file not found:%s\n",filename.c_str());
+      return result;
+    }
+
+    stream.seekg(0, std::ios::end);
+    result.reserve(stream.tellg());
+    stream.seekg(0, std::ios::beg);
+
+    result.assign(
+      (std::istreambuf_iterator<char>(stream)),
+      std::istreambuf_iterator<char>());
+
+    return result;
+  }
+
+  inline std::string getFileName( std::string const & fullPath)
+  {
+    size_t istart;
+    for( istart = fullPath.size() - 1;  istart != -1
+      && fullPath[istart] != '\\'
+      && fullPath[istart] != '/'; istart-- );
+    return std::string( &fullPath[istart+1] );
+  }
+
   inline float frand(){
     return float( rand() % RAND_MAX ) / float(RAND_MAX);
   }

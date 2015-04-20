@@ -36,6 +36,8 @@
 #include <iostream>
 #include <main.h>
 
+#include <nv_helpers/misc.hpp>
+
 
 #define NV_LINE_MARKERS           1
 
@@ -55,40 +57,6 @@ namespace nv_helpers_gl
     va_end(list);
 
     return std::string(text);
-  }
-
-    std::string findFile( std::string const & infilename, std::vector<std::string> directories)
-    {
-      std::ifstream stream;
-
-      for (size_t i = 0; i < directories.size(); i++ ){
-        std::string filename = directories[i] + "/" + infilename;
-        stream.open(filename.c_str());
-        if (stream.is_open()) return filename;
-      }
-      return infilename;
-    }
-
-    std::string loadFile( std::string const & infilename)
-  {
-    std::string result;
-    std::string filename = infilename;
-
-    std::ifstream stream(filename.c_str(), std::ios::binary | std::ios::in);
-    if(!stream.is_open()){
-      nvprintfLevel(LOGLEVEL_WARNING,"file not found:%s\n",filename.c_str());
-      return result;
-    }
-
-    stream.seekg(0, std::ios::end);
-    result.reserve(stream.tellg());
-    stream.seekg(0, std::ios::beg);
-
-    result.assign(
-      (std::istreambuf_iterator<char>(stream)),
-      std::istreambuf_iterator<char>());
-
-    return result;
   }
 
   bool validateProgram(GLuint program)
@@ -207,8 +175,8 @@ namespace nv_helpers_gl
     const std::vector<std::string>& directories,
     const ProgramManager::IncludeRegistry &includes)
   {
-    std::string filename = findFile(filenameorig,directories);
-    std::string source = loadFile(filename);
+    std::string filename = nv_helpers::findFile(filenameorig,directories);
+    std::string source = nv_helpers::loadFile(filename);
 
     if (source.empty()){
       return std::string();
@@ -256,8 +224,8 @@ namespace nv_helpers_gl
         {
           if (includes[i].name != Include) continue;
 
-          std::string PathName = findFile(includes[i].filename,directories);
-          std::string Source = loadFile(PathName);
+          std::string PathName = nv_helpers::findFile(includes[i].filename,directories);
+          std::string Source = nv_helpers::loadFile(PathName);
           if(!Source.empty())
           {
 #if NV_LINE_MARKERS
@@ -350,13 +318,13 @@ namespace nv_helpers_gl
     }
     else{
       prog.program = glCreateProgram();
-      if (!m_useCacheFile.empty()){
+      if (!m_useCacheFile.empty() && GLEW_ARB_get_program_binary){
         glProgramParameteri(prog.program,GL_PROGRAM_BINARY_RETRIEVABLE_HINT, GL_TRUE);
       }
     }
 
     bool loadedCache = false;
-    if (!m_useCacheFile.empty() && (!allFound || m_preferCache)){
+    if (!m_useCacheFile.empty() && (!allFound || m_preferCache) && GLEW_ARB_get_program_binary){
       // try cache
       loadedCache = loadBinary(prog.program,combinedPrepend,combinedFilenames);
     }
@@ -376,7 +344,7 @@ namespace nv_helpers_gl
     }
 
     if (checkProgram(prog.program)){
-      if (!m_useCacheFile.empty() && !loadedCache){
+      if (!m_useCacheFile.empty() && !loadedCache && GLEW_ARB_get_program_binary){
         saveBinary(prog.program,combinedPrepend,combinedFilenames);
       }
       return true;
@@ -594,7 +562,7 @@ namespace nv_helpers_gl
   {
     std::string filename = binaryName(combinedPrepend,combinedFilenames);
 
-    std::string binraw = loadFile(filename.c_str());
+    std::string binraw = nv_helpers::loadFile(filename.c_str());
     if (!binraw.empty()){
       const char* bindata = &binraw[0];
       glProgramBinary(program, *(GLenum*)bindata, bindata+4, GLsizei(binraw.size()-4));
