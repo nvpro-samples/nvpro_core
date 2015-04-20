@@ -133,7 +133,7 @@ struct vector2
         return vec_array[i];
     }
 
-    const T operator[](int i) const
+    const T& operator[](int i) const
     {
         return vec_array[i];
     }
@@ -268,7 +268,7 @@ struct vector3
         return vec_array[i];
     }
 
-    const T operator[](int i) const
+    const T& operator[](int i) const
     {
         return vec_array[i];
     }
@@ -392,7 +392,7 @@ struct vector4
         return vec_array[i];
     }
 
-    const T operator[](int i) const
+    const T& operator[](int i) const
     {
         return vec_array[i];
     }
@@ -835,7 +835,7 @@ public:
     quaternion<T>& operator*=(const quaternion<T>& q);
 
     T& operator[](int i) { return comp[i]; }
-    const T operator[](int i) const { return comp[i]; }
+    const T& operator[](int i) const { return comp[i]; }
     union {
         struct {
             T x, y, z, w;
