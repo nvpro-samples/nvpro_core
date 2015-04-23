@@ -65,6 +65,7 @@ if(CUDA_ROOT_DIR)
 	  message( "CUDA directory is not valid" )
 	else()
 	  set( CUDA_ROOT_DIR ${CUDA_GENERAL_DIR}/v${CUDA_VERSION} )
+	  set( CUDA_NVCC_EXECUTABLE ${CUDA_ROOT_DIR}/bin/nvcc )
 	endif()
 
 
@@ -78,6 +79,7 @@ if(CUDA_ROOT_DIR)
 	#-------- Locate LIBS
     _find_files( CUDA_LIB CUDA_ROOT_DIR "win32/cudart.lib" "x64/cudart.lib" "lib/" RESULT)
     _find_files( CUDA_LIB CUDA_ROOT_DIR "win32/cublas.lib" "x64/cublas.lib" "lib/" RESULT)
+    _find_files( CUDA_LIB CUDA_ROOT_DIR "win32/cuda.lib" "x64/cuda.lib" "lib/" RESULT)
 
 	#-------- Locate HEADERS
 	_find_files( CUDA_HEADERS CUDA_ROOT_DIR "cuda.h" "cuda.h" "include/" RESULT)
@@ -101,5 +103,43 @@ find_package_handle_standard_args(CUDA DEFAULT_MSG
     CUDA_INCLUDE_DIR
     CUDA_DLL
 )
+
+# Generate PTX files
+# NVCUDA_COMPILE_PTX( SOURCES file1.cu file2.cu TARGET_PATH <path where ptxs should be stored> GENERATED_FILES ptx_sources NVCC_OPTIONS -arch=sm_20)
+# Generates ptx files for the given source files. ptx_sources will contain the list of generated files.
+FUNCTION(NVCUDA_COMPILE_PTX)
+  set(options "")
+  set(oneValueArgs TARGET_PATH GENERATED_FILES)
+  set(multiValueArgs NVCC_OPTIONS SOURCES)
+  CMAKE_PARSE_ARGUMENTS(NVCUDA_COMPILE_PTX "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+  
+  # Match the bitness of the ptx to the bitness of the application
+  set( MACHINE "--machine=32" )
+  if( CMAKE_SIZEOF_VOID_P EQUAL 8)
+    set( MACHINE "--machine=64" )
+  endif()
+  
+  # Custom build rule to generate ptx files from cuda files
+  FOREACH( input ${NVCUDA_COMPILE_PTX_SOURCES} )
+    get_filename_component( input_we ${input} NAME_WE )
+    
+    # generate the *.ptx files inside "ptx" folder inside the executable's output directory.
+    set( output "${CMAKE_CURRENT_SOURCE_DIR}/${input_we}.ptx" )
+
+    LIST( APPEND PTX_FILES  ${output} )
+    
+    message("${CUDA_NVCC_EXECUTABLE} ${MACHINE} --ptx ${NVCUDA_COMPILE_PTX_NVCC_OPTIONS} ${input} -o ${output} WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}")
+    
+    add_custom_command(
+      OUTPUT  ${output}
+      DEPENDS ${input}
+      COMMAND ${CUDA_NVCC_EXECUTABLE} ${MACHINE} --ptx ${NVCUDA_COMPILE_PTX_NVCC_OPTIONS} ${input} -o ${output} WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+      COMMAND ${CMAKE_COMMAND} -E echo ${NVCUDA_COMPILE_PTX_TARGET_PATH}
+      COMMAND ${CMAKE_COMMAND} -E copy ${output} "${NVCUDA_COMPILE_PTX_TARGET_PATH}/${input_we}.ptx"
+    )
+  ENDFOREACH( )
+  
+  set(${NVCUDA_COMPILE_PTX_GENERATED_FILES} ${PTX_FILES} PARENT_SCOPE)
+ENDFUNCTION()
 
 mark_as_advanced( CUDA_FOUND )
