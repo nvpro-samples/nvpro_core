@@ -33,12 +33,9 @@ LIST(APPEND MAIN_SOURCE
 )
 #MESSAGE(STATUS "${BASE_DIRECTORY}/shared_sources/main.h")
 
-_add_package_Cuda ()
-
 file(GLOB NVMATH_SOURCE nv_math/*.cpp nv_math/*.hpp nv_math/*.inl nv_math/*.h)
 file(GLOB NVHELPERS_SOURCE nv_helpers/*.cpp nv_helpers/*.hpp nv_helpers/*.inl nv_helpers/*.h)
 file(GLOB NVHELPERSGL_SOURCE nv_helpers_gl/*.cpp nv_helpers_gl/*.hpp nv_helpers_gl/*.inl nv_helpers_gl/*.h)
-file(GLOB NVHELPERSCUDA_SOURCE nv_helpers_cuda/*.cpp nv_helpers_cuda/*.hpp nv_helpers_cuda/*.inl nv_helpers_cuda/*.h)
 file(GLOB NOISE_SOURCE noise/*.cpp noise/*.hpp noise/*.inl noise/*.h)
 file(GLOB OPENGLTEXT nv_helpers_gl/OpenGLText/*.cpp nv_helpers_gl/OpenGLText/*.hpp nv_helpers_gl/OpenGLText/*.inl nv_helpers_gl/OpenGLText/*.h)
 file(GLOB TRACEDISPLAY nv_helpers_gl/traceDisplay/*.cpp nv_helpers_gl/traceDisplay/*.hpp nv_helpers_gl/traceDisplay/*.inl nv_helpers_gl/traceDisplay/*.h)
@@ -53,7 +50,6 @@ source_group("traceDisplay" FILES ${TRACEDISPLAY})
 source_group("nv_math" FILES ${NVMATH_SOURCE})
 source_group("nv_helpers" FILES ${NVHELPERS_SOURCE})
 source_group("nv_helpers_gl" FILES ${NVHELPERSGL_SOURCE})
-source_group("nv_helpers_cuda" FILES ${NVHELPERSCUDA_SOURCE})
 source_group("noise" FILES ${NOISE_SOURCE})
 source_group("main" FILES ${MAIN_SOURCE})
 
@@ -62,7 +58,6 @@ add_library(shared_sources STATIC
   ${TRACEDISPLAY}
   ${NVHELPERS_SOURCE} 
   ${NVHELPERSGL_SOURCE} 
-  ${NVHELPERSCUDA_SOURCE}
   ${NVMATH_SOURCE} 
   ${NOISE_SOURCE} 
   ${GLEW_FILES} 
