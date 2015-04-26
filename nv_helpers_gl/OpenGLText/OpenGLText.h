@@ -95,8 +95,8 @@ public:
     void changeSize(int w, int h);
 private:
     bool init(int w, int h);
-    static char*         cWidgetVSSource2;
-    static char*         cWidgetFSSource2;
+    static char const*  cWidgetVSSource2;
+    static char const*  cWidgetFSSource2;
     unsigned int        c_fontNbChars;
     unsigned int        c_fontHeight;
     unsigned int        c_fontWidth;

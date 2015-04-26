@@ -281,7 +281,7 @@ inline GLuint OpenGLText::LinkGLSLProgram( GLuint vertexShader, GLuint fragmentS
 ///////////////////////////////////////////////////////////////////////////////////////
 //
 //
-char* OpenGLText::cWidgetVSSource2 = {
+char const* OpenGLText::cWidgetVSSource2 = {
     "#version 120\n\
     uniform vec4 canvas; \n\
 \n\
@@ -298,7 +298,7 @@ char* OpenGLText::cWidgetVSSource2 = {
     }\n\
     "};
 
-char* OpenGLText::cWidgetFSSource2 = {
+char const* OpenGLText::cWidgetFSSource2 = {
     "#version 120\n\
     uniform sampler2D fontTex;\n\
 \n\
