@@ -86,7 +86,7 @@ int m_indexOffset = 0;
 GLuint CompileGLSLShader( GLenum target, const char* shader);
 GLuint LinkGLSLProgram( GLuint vertexShader, GLuint fragmentShader);
 
-static char* VSSource = {
+static char const* VSSource = {
     "#version 120\n\
     uniform vec4 canvas; \n\
     in vec4 Position;\n\
@@ -102,7 +102,7 @@ static char* VSSource = {
     }\n\
     "};
 
-static char* FSSource = {
+static char const* FSSource = {
     "#version 120\n\
     uniform sampler1D gradientSampler;\n\
     void main()\n\
