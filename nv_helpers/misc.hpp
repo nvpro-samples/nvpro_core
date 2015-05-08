@@ -14,9 +14,9 @@
 
 #include <assert.h>
 #include <stdlib.h>
-#include <math.h>
 #include <sstream>
 #include <fstream>
+#include <math.h>
 
 namespace nv_helpers
 {
@@ -33,14 +33,16 @@ namespace nv_helpers
     return infilename;
   }
 
-  inline std::string loadFile( std::string const & infilename)
+  inline std::string loadFile( std::string const & infilename, bool throwwarning = true)
   {
     std::string result;
     std::string filename = infilename;
 
     std::ifstream stream(filename.c_str(), std::ios::binary | std::ios::in);
     if(!stream.is_open()){
-      nvprintfLevel(LOGLEVEL_WARNING,"file not found:%s\n",filename.c_str());
+      if (throwwarning){
+        nvprintfLevel(LOGLEVEL_WARNING,"file not found:%s\n",filename.c_str());
+      }
       return result;
     }
 
@@ -64,6 +66,52 @@ namespace nv_helpers
     return std::string( &fullPath[istart+1] );
   }
 
+  inline void saveBMP( const char* bmpfilename, int width, int height, const unsigned char* bgra)
+  {
+#pragma pack(push, 1)
+    struct {
+      unsigned short  bfType;
+      unsigned int    bfSize;
+      unsigned int    bfReserved;
+      unsigned int    bfOffBits;
+
+      unsigned int    biSize;
+      signed   int    biWidth;
+      signed   int    biHeight;
+      unsigned short  biPlanes;
+      unsigned short  biBitCount;
+      unsigned int    biCompression;
+      unsigned int    biSizeImage;
+      signed   int    biXPelsPerMeter;
+      signed   int    biYPelsPerMeter;
+      unsigned int    biClrUsed;
+      unsigned int    biClrImportant;
+    } bmpinfo;
+#pragma pack(pop)
+
+    bmpinfo.bfType = 19778;
+    bmpinfo.bfSize = sizeof(bmpinfo) + width * height * 4 * sizeof(unsigned char);
+    bmpinfo.bfReserved = 0;
+    bmpinfo.bfOffBits = 54;
+
+    bmpinfo.biSize = 40;
+    bmpinfo.biWidth = width;
+    bmpinfo.biHeight = height;
+    bmpinfo.biPlanes = 1;
+    bmpinfo.biBitCount = 32;
+    bmpinfo.biCompression = 0;
+    bmpinfo.biSizeImage = 0;
+    bmpinfo.biXPelsPerMeter = 0;
+    bmpinfo.biYPelsPerMeter = 0;
+    bmpinfo.biClrUsed = 0;
+    bmpinfo.biClrImportant = 0;
+
+    FILE* bmpfile = fopen(bmpfilename, "wb");
+    fwrite(&bmpinfo, sizeof(bmpinfo), 1, bmpfile);
+    fwrite(bgra, sizeof(char), width * height * 4 * sizeof(unsigned char), bmpfile);
+    fclose(bmpfile);
+  }
+
   inline float frand(){
     return float( rand() % RAND_MAX ) / float(RAND_MAX);
   }
@@ -83,7 +131,7 @@ namespace nv_helpers
     assert( size < RAND_MAX );
 
     for (size_t i = 0; i < size; i++){
-      data[i] = (unsigned int)i;
+      data[i] = (unsigned int)(i);
     }
 
     for (size_t i = size-1; i > 0 ; i--){

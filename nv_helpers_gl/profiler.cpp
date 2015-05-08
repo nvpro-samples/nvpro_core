@@ -84,16 +84,28 @@ namespace nv_helpers_gl
 
         GLint available = 0;
         GLuint queryFrame = (m_numFrames + 1) % FRAME_DELAY;
-        glGetQueryObjectiv(entry.queries[queryFrame + FRAME_DELAY], GL_QUERY_RESULT_AVAILABLE,&available);
+        if (entry.gpuif){
+          available = !!entry.gpuif->TimerAvailable(getTimerIdx(Slot(i), queryFrame, false));
+        }
+        else{
+          glGetQueryObjectiv(entry.queries[queryFrame + FRAME_DELAY], GL_QUERY_RESULT_AVAILABLE,&available);
+        }
+        
 
         if (available) {
-          GLuint64 beginTime;
-          GLuint64 endTime;
-          glGetQueryObjectui64v(entry.queries[queryFrame], GL_QUERY_RESULT,&beginTime);
-          glGetQueryObjectui64v(entry.queries[queryFrame + FRAME_DELAY], GL_QUERY_RESULT,&endTime);
+          GLuint64 gpuNano;
+          if (entry.gpuif){
+            gpuNano = entry.gpuif->TimerResult( getTimerIdx(Slot(i), queryFrame, true), getTimerIdx(Slot(i), queryFrame, false) );
+          }
+          else{
+            GLuint64 beginTime;
+            GLuint64 endTime;
+            glGetQueryObjectui64v(entry.queries[queryFrame], GL_QUERY_RESULT,&beginTime);
+            glGetQueryObjectui64v(entry.queries[queryFrame + FRAME_DELAY], GL_QUERY_RESULT,&endTime);
+            gpuNano = endTime - beginTime;
+          }
 
           // nanoseconds to microseconds
-          GLuint64 gpuNano = endTime - beginTime;
           double gpu = double(gpuNano) / 1000.0;
           entry.gpuTimes += gpu;
           entry.cpuTimes += entry.deltas[queryFrame];
@@ -106,7 +118,7 @@ namespace nv_helpers_gl
   }
 
 
-  void Profiler::grow(size_t newsize)
+  void Profiler::grow(unsigned int newsize)
   {
     size_t oldsize = m_entries.size();
     assert(newsize > oldsize);
@@ -116,6 +128,7 @@ namespace nv_helpers_gl
       Entry &entry = m_entries[i];
       glGenQueries(2 * FRAME_DELAY, &entry.queries[0]);
       entry.name = NULL;
+      entry.gpuif = NULL;
     }
   }
 
@@ -191,6 +204,7 @@ namespace nv_helpers_gl
         Entry &otherentry = m_entries[n];
         if (otherentry.name == entry.name && 
           otherentry.level == entry.level &&
+          otherentry.gpuif == entry.gpuif &&
           !otherentry.accumulated
           )
         {
@@ -203,11 +217,13 @@ namespace nv_helpers_gl
         if (otherentry.splitter && otherentry.level <= entry.level) break;
       }
 
+      const char* gpuname = entry.gpuif ? entry.gpuif->TimerTypeName() : "GL ";
+
       if (found){
-        stats += format("%sTimer %s;\t GL %6d; CPU %6d; (microseconds, accumulated loop)\n",&spaces[level], entry.name, (unsigned int)(gpu), (unsigned int)(cpu));
+        stats += format("%sTimer %s;\t %s %6d; CPU %6d; (microseconds, accumulated loop)\n",&spaces[level], entry.name, gpuname, (unsigned int)(gpu), (unsigned int)(cpu));
       }
       else {
-        stats += format("%sTimer %s;\t GL %6d; CPU %6d; (microseconds, avg %d)\n",&spaces[level],entry.name, (unsigned int)(gpu), (unsigned int)(cpu), (unsigned int)entry.numTimes);
+        stats += format("%sTimer %s;\t %s %6d; CPU %6d; (microseconds, avg %d)\n",&spaces[level],entry.name, gpuname, (unsigned int)(gpu), (unsigned int)(cpu), (unsigned int)entry.numTimes);
       }
     }
   }

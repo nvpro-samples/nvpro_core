@@ -37,7 +37,8 @@
 
 
 #if NV_SUPPORT_PROFILE
-#define NV_PROFILE_SECTION(name)   nv_helpers_gl::Profiler::Section _tempTimer(m_profiler ,name)
+#define NV_PROFILE_SECTION(name)            nv_helpers_gl::Profiler::Section _tempTimer(m_profiler ,name)
+#define NV_PROFILE_SECTION_EX(name, gpui)   nv_helpers_gl::Profiler::Section _tempTimer(m_profiler, name, &gpui)
 #define NV_PROFILE_SPLIT()         m_profiler.accumulationSplit()
 #else
 #define NV_PROFILE_SECTION(name)
@@ -81,10 +82,11 @@ namespace nv_helpers_gl
 
     WindowProfiler(bool singleThreaded = true, bool doSwap = true) 
       : m_profilerPrint(true)
-      , m_vsync(true)
+      , m_vsync(false)
       , m_singleThreaded(singleThreaded)
       , m_doSwap(doSwap)
       , m_active(false)
+      , m_timeInTitle(true)
     {
       m_debugFilter = GL_DEBUG_SEVERITY_MEDIUM;
     }
@@ -114,6 +116,7 @@ namespace nv_helpers_gl
     Window        m_window;
     Profiler      m_profiler;
     bool          m_profilerPrint;
+    bool          m_timeInTitle;
     bool          m_singleThreaded;
     bool          m_doSwap;
     bool          m_active;
