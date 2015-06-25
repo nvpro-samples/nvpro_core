@@ -33,6 +33,8 @@
 #include <fstream>
 #include <iostream>
 
+#include <nv_helpers/misc.hpp>
+
 #ifdef _WIN32
 #ifndef NOMINMAX
 #define NOMINMAX 
@@ -189,6 +191,19 @@ namespace nv_helpers_gl
     sysWaitEvents();
   }
 
+  static void dumpScreenshot(const char* bmpfilename, int width, int height)
+  {
+    std::vector<unsigned char> data;
+
+    data.resize( width * height * 4);
+    glFinish();
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+    glReadPixels(0,0,width,height, GL_BGRA, GL_UNSIGNED_BYTE, &data[0]);
+
+    nv_helpers::saveBMP(bmpfilename, width, height, &data[0]);
+  }
 
   int WindowProfiler::run
   (
@@ -222,6 +237,30 @@ namespace nv_helpers_gl
     }
 #endif
 
+    bool vsyncstate = true;
+    unsigned int frameLimit = 0;
+    const char* dumpatexit = NULL;
+
+    for (int i = 0; i < argc; i++){
+      if (strcmp(argv[i],"-winsize") == 0 && i + 2 < argc){
+        width  = atoi(argv[i+1]);
+        height = atoi(argv[i+2]);
+        i+=2;
+      }
+      if (strcmp(argv[i],"-vsync") == 0 && i + 1 < argc){
+        vsyncstate = atoi(argv[i+1]) ? true : false;
+        i+=1;
+      }
+      if (strcmp(argv[i],"-frames")==0 && i+1<argc){
+        frameLimit = atoi(argv[i+1]);
+        i++;
+      }
+      if (strcmp(argv[i],"-bmpatexit")==0 && i+1<argc){
+        dumpatexit = argv[i+1];
+        i++;
+      }
+    }
+
     ContextFlags flags;
     flags.major = Major;
     flags.minor = Minor;
@@ -239,13 +278,15 @@ namespace nv_helpers_gl
       return EXIT_FAILURE;
     }
 
+    vsync( vsyncstate );
+
     m_window.m_viewsize[0] = width;
     m_window.m_viewsize[1] = height;
 
+    m_profiler.init();
+
     bool Run = begin();
     m_active = true;
-
-    m_profiler.init();
 
     double timeStart = sysGetTime();
     double timeBegin = sysGetTime();
@@ -257,9 +298,6 @@ namespace nv_helpers_gl
     {
       while(true)
       {
-        if(m_window.m_keyPressed[KEY_ESCAPE])
-          break;
-
         if (!NVPWindow::sysPollEvents(false)){
           break;
         }
@@ -300,16 +338,28 @@ namespace nv_helpers_gl
             timeDelta = 0;
           }
 
-          combined << title << ": " << (timeDelta*1000.0/(frames)) << " [ms]" << (m_vsync ? " (vsync on - V for toggle)" : "");
+          if (m_timeInTitle) {
+            combined << title << ": " << (timeDelta*1000.0/(frames)) << " [ms]" << (m_vsync ? " (vsync on - V for toggle)" : "");
 
-          setTitle(combined.str().c_str());
+            setTitle(combined.str().c_str());
+          }
 
           frames = 0;
           timeBegin = timeCurrent;
           lastVsync = m_vsync;
         }
+
+        if(m_window.m_keyPressed[KEY_ESCAPE] || frameLimit==1)
+          break;
+
+        if (frameLimit) frameLimit--;
       }
     }
+
+    if (dumpatexit){
+      dumpScreenshot(dumpatexit,m_window.m_viewsize[0],m_window.m_viewsize[1]);
+    }
+
     end();
     m_active = false;
 
