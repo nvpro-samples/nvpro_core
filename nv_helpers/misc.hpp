@@ -17,6 +17,7 @@
 #include <sstream>
 #include <fstream>
 #include <math.h>
+#include <main.h>
 
 namespace nv_helpers
 {
