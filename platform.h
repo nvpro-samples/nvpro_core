@@ -23,22 +23,33 @@
   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 -----------------------------------------------------------------------*/
 
+#include "NvFoundation.h"
+
 #ifndef NVP_PLATFORM_H__
 #define NVP_PLATFORM_H__
 
+#define NVP_RESTRICT      NV_RESTRICT
+#define NVP_INLINE        NV_INLINE
+
+#define NVP_ALIGN_V       NV_ALIGN
+#define NVP_ALIGN_BEGIN   NV_ALIGN_PREFIX
+#define NVP_ALIGN_END     NV_ALIGN_SUFFIX
+
 #if defined(__GNUC__) && __GNUC__ >= 3 && __GNUC_MINOR__ >= 4
-  #define NVP_COMPILER_GCC
+
   #define NVP_NOOP(...)
-  #define NVP_INLINE          inline
-  #define NVP_STACKALLOC      alloca
-  #define NVP_STACKALLOC16    ((void *)((((size_t)alloca( (x)+15 )) + 15) & ~15))
-  #define NVP_ALIGN_V(x,a)    x __attribute__((aligned (a)))
-  #define NVP_ALIGN_BEGIN(a)  
-  #define NVP_ALIGN_END(a)    __attribute__((aligned (a)))
-  #define NVP_FASTCALL        __attribute__((fastcall))
-  #define NVP_RESTRICT        __restrict__
-  #define NVP_ASSUME          NVP_NOOP
   #define NVP_BARRIER()       __sync_synchronize()
+
+/*
+// maybe better than __sync_synchronize?
+#if defined(__i386__ ) || defined(__x64__)
+#define NVP_BARRIER()  __asm__ __volatile__ ("mfence" ::: "memory")
+#endif
+
+#if defined(__arm__)
+#define NVP_BARRIER() __asm__ __volatile__ ("dmb" :::"memory")
+#endif
+*/
   
 #elif defined(__MSC__) || defined(_MSC_VER)
 
@@ -49,17 +60,7 @@
     #pragma warning(disable : 4996)    // Either disable all deprecation warnings,
   #endif   // VC8+
 
-  #define NVP_COMPILER_MSC
   #define NVP_NOOP            __noop
-  #define NVP_INLINE          __forceinline
-  #define NVP_STACKALLOC      _alloca
-  #define NVP_STACKALLOC16    ((void *)((((size_t)_alloca( (x)+15 )) + 15) & ~15))
-  #define NVP_ALIGN_V(x,a)    __declspec(align(a)) x
-  #define NVP_ALIGN_BEGIN(a)  __declspec(align(a))
-  #define NVP_ALIGN_END(a)  
-  #define NVP_FASTCALL        __fastcall
-  #define NVP_RESTRICT        __restrict
-  #define NVP_ASSUME          __assume
   #define NVP_BARRIER()       _mm_mfence()
 
 #else

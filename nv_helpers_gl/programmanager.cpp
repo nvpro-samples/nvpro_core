@@ -38,7 +38,6 @@
 
 #include <nv_helpers/misc.hpp>
 
-
 #define NV_LINE_MARKERS           1
 
 namespace nv_helpers_gl
@@ -169,14 +168,32 @@ namespace nv_helpers_gl
     }
   }
 
+  std::string getContent(std::string const & name, const std::vector<std::string>& directories, const ProgramManager::IncludeRegistry &includes, std::string & filename)
+  {
+    // check registered includes first
+    for(std::size_t i = 0; i < includes.size(); ++i)
+    {
+      if (includes[i].name != name) continue;
+
+      filename = nv_helpers::findFile(includes[i].filename,directories);
+      std::string content = nv_helpers::loadFile(filename, includes[i].content.empty());
+      if (content.empty()) return includes[i].content;
+      return content;
+    }
+
+    // fall back
+    filename = nv_helpers::findFile(name,directories);
+    return nv_helpers::loadFile(filename);
+  }
+
   std::string manualInclude (
     std::string const & filenameorig,
     std::string const & prepend,
     const std::vector<std::string>& directories,
     const ProgramManager::IncludeRegistry &includes)
   {
-    std::string filename = nv_helpers::findFile(filenameorig,directories);
-    std::string source = nv_helpers::loadFile(filename);
+    std::string filename;
+    std::string source = getContent(filenameorig, directories,includes, filename);
 
     if (source.empty()){
       return std::string();
@@ -224,8 +241,9 @@ namespace nv_helpers_gl
         {
           if (includes[i].name != Include) continue;
 
-          std::string PathName = nv_helpers::findFile(includes[i].filename,directories);
-          std::string Source = nv_helpers::loadFile(PathName);
+          std::string PathName;
+          std::string Source = getContent(includes[i].filename, directories, includes, PathName);
+
           if(!Source.empty())
           {
 #if NV_LINE_MARKERS
@@ -284,11 +302,12 @@ namespace nv_helpers_gl
     }
   }
 
-  void ProgramManager::registerInclude(std::string const & name, std::string const & filename)
+  void ProgramManager::registerInclude(std::string const & name, std::string const & filename, std::string const & content)
   {
     IncludeEntry entry;
     entry.name = name;
     entry.filename = filename;
+    entry.content = content;
 
     m_includes.push_back(entry);
   }
@@ -308,7 +327,13 @@ namespace nv_helpers_gl
 
     bool allFound = true;
     for (size_t i = 0; i < num; i++) {
-      definitions[i].preprocessed = preprocess(m_prepend + definitions[i].prepend, definitions[i].filename, m_directories, m_includes);
+      if (m_rawOnly){
+        std::string filename;
+        definitions[i].preprocessed = getContent(definitions[i].filename, m_directories, m_includes, filename);
+      }
+      else{
+        definitions[i].preprocessed = preprocess(m_prepend + definitions[i].prepend, definitions[i].filename, m_directories, m_includes);
+      }
       allFound = allFound && !definitions[i].preprocessed.empty();
     }
 

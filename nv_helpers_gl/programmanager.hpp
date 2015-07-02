@@ -39,6 +39,7 @@ namespace nv_helpers_gl
     struct IncludeEntry {
       std::string   name;
       std::string   filename;
+      std::string   content;
     };
 
     typedef std::vector<IncludeEntry> IncludeRegistry;
@@ -79,7 +80,7 @@ namespace nv_helpers_gl
       std::vector<Definition>   definitions;
     };
 
-    void registerInclude(std::string const & name, std::string const & filename);
+    void registerInclude(std::string const & name, std::string const & filename, std::string const & content= std::string() );
 
     ProgramID createProgram(size_t num, const Definition* definitions);
     ProgramID createProgram(const std::vector<Definition>& definitions);
@@ -101,6 +102,7 @@ namespace nv_helpers_gl
     std::string m_useCacheFile;
     bool        m_preferCache;
     bool        m_preprocessOnly;
+    bool        m_rawOnly;
 
     void addDirectory(const std::string& dir){
       m_directories.push_back(dir);
@@ -109,6 +111,7 @@ namespace nv_helpers_gl
     ProgramManager() 
       : m_preprocessOnly(false)
       , m_preferCache(false)
+      , m_rawOnly(false)
     {
       m_directories.push_back(".");
     }

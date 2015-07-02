@@ -290,14 +290,14 @@ bool WINinternal::initBase(const NVPWindow::ContextFlags* cflags, NVPWindow* sou
             if(!__glewDebugMessageCallbackARB)
             {
                 __glewDebugMessageCallbackARB = (PFNGLDEBUGMESSAGECALLBACKARBPROC)wglGetProcAddress("glDebugMessageCallbackARB");
-                __glewDebugMessageControlARB =  (PFNGLDEBUGMESSAGECONTROLARBPROC)wglGetProcAddress("glDebugMessageControlARB");
+                __glewDebugMessageControlARB  = (PFNGLDEBUGMESSAGECONTROLARBPROC) wglGetProcAddress("glDebugMessageControlARB");
             }
             if(__glewDebugMessageCallbackARB)
             {
+                glEnable(GL_DEBUG_OUTPUT);
+                glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS_ARB);
+                glDebugMessageControlARB(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, NULL, GL_TRUE);
                 glDebugMessageCallbackARB(myOpenGLCallback, sourcewindow);
-                glDebugMessageControlARB(GL_DONT_CARE, GL_DONT_CARE, GL_DEBUG_SEVERITY_HIGH_ARB, 0, NULL, GL_TRUE);
-                // Added to prevent useless warnings when 'length' of glBufferAddressRangeNV is too big...
-                glDebugMessageControlARB(GL_DEBUG_SOURCE_API_ARB, GL_DEBUG_TYPE_OTHER_ARB, GL_DEBUG_SEVERITY_MEDIUM_ARB, 0, NULL, GL_FALSE);
             }
 #endif
         }

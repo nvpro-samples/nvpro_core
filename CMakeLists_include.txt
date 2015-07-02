@@ -124,6 +124,12 @@ else(UNIX)
   endif(APPLE)
 endif(UNIX)
 
+
+if (MSVC90)
+  include_directories(${BASE_DIRECTORY}/shared_external/stdint_old_msvc)
+endif(MSVC90)
+
+
 # Macro for adding files close to the executable
 macro(_copy_files_to_target target thefiles)
     if(WIN32)
@@ -342,6 +348,21 @@ macro(_add_package_OpenCL)
      Message(STATUS "--> NOT using package OpenCL") 
  endif()
 endmacro()
+
+#####################################################################################
+# 
+#
+set(TINYTHREADPP_DIRECTORY ${BASE_DIRECTORY}/shared_sources/tinythreadpp)
+
+macro(_add_package_tinythreadpp)
+  Message(STATUS "--> using package TinyThread++")
+  include_directories(${TINYTHREADPP_DIRECTORY}/src)
+  set(PROJECT_TINYTHREADPP ${TINYTHREADPP_DIRECTORY}/src/fast_mutex.h ${TINYTHREADPP_DIRECTORY}/src/tinythread.h ${TINYTHREADPP_DIRECTORY}/src/tinythread.cpp)
+
+  LIST(APPEND PACKAGE_SOURCE_FILES
+        ${PROJECT_TINYTHREADPP}
+        )
+endmacro(_add_package_tinythreadpp)
 
 #####################################################################################
 #
