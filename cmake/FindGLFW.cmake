@@ -70,6 +70,7 @@ if (${CMAKE_HOST_UNIX})
             /usr/local/lib
             /sw/lib
             /opt/local/lib
+            /usr/lib/x86_64-linux-gnu
             NO_DEFAULT_PATH
             DOC "The GLFW library")
 endif ()

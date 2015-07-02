@@ -809,6 +809,13 @@ void NVPWindow::makeContextCurrent()
 {
     wglMakeCurrent(m_internal->m_hDC,m_internal->m_hRC);
 }
+
+void NVPWindow::makeContextNonCurrent()
+{
+    wglMakeCurrent(0,0);
+}
+
+
 void NVPWindow::swapInterval(int i)
 {
     wglSwapIntervalEXT(i);
