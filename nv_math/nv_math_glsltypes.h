@@ -15,28 +15,28 @@
 #ifndef NV_SHADER_TYPES_H
 #define NV_SHADER_TYPES_H
 
-#include <platform.h>
+#include <NvFoundation.h>
 #include "nv_math_types.h"
 
 namespace nv_math {
 
 #if defined(__amd64__) || defined(__x86_64__) || defined(_M_X64) || defined(__AMD64__)
   // Matrices, must align to 4 vector (16 bytes)
-  NVP_ALIGN_V(16, typedef mat4f mat4);
+  NV_ALIGN(16, typedef mat4f mat4);
 
   // vectors, 4-tuples and 3-tuples must align to 16 bytes
   //  2-vectors must align to 8 bytes
-  NVP_ALIGN_V(16, typedef vec4f vec4 );
-  NVP_ALIGN_V(16, typedef vec3f vec3 );
-  NVP_ALIGN_V(8 , typedef vec2f vec2 );
+  NV_ALIGN(16, typedef vec4f vec4 );
+  NV_ALIGN(16, typedef vec3f vec3 );
+  NV_ALIGN(8 , typedef vec2f vec2 );
 
-  NVP_ALIGN_V(16, typedef vec4i ivec4 );
-  NVP_ALIGN_V(16, typedef vec3i ivec3 );
-  NVP_ALIGN_V(8 , typedef vec2i ivec2 );
+  NV_ALIGN(16, typedef vec4i ivec4 );
+  NV_ALIGN(16, typedef vec3i ivec3 );
+  NV_ALIGN(8 , typedef vec2i ivec2 );
 
-  NVP_ALIGN_V(16, typedef vec4ui uvec4 );
-  NVP_ALIGN_V(16, typedef vec3ui uvec3 );
-  NVP_ALIGN_V(8,  typedef vec2ui uvec2 );
+  NV_ALIGN(16, typedef vec4ui uvec4 );
+  NV_ALIGN(16, typedef vec3ui uvec3 );
+  NV_ALIGN(8,  typedef vec2ui uvec2 );
 #else
   // Matrices, must align to 4 vector (16 bytes)
   typedef  mat4f mat4;
