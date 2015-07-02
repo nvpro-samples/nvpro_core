@@ -53,6 +53,10 @@ source_group("nv_helpers_gl" FILES ${NVHELPERSGL_SOURCE})
 source_group("noise" FILES ${NOISE_SOURCE})
 source_group("main" FILES ${MAIN_SOURCE})
 
+if(MSVC)
+  add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+endif(MSVC)
+
 add_library(shared_sources STATIC 
   ${OPENGLTEXT}
   ${TRACEDISPLAY}

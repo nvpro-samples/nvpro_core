@@ -238,7 +238,9 @@ namespace nv_helpers_gl
 #endif
 
     bool vsyncstate = true;
+    unsigned int intervalSeconds = 2;
     unsigned int frameLimit = 0;
+    unsigned int timerLimit = 0;
     const char* dumpatexit = NULL;
 
     for (int i = 0; i < argc; i++){
@@ -253,6 +255,14 @@ namespace nv_helpers_gl
       }
       if (strcmp(argv[i],"-frames")==0 && i+1<argc){
         frameLimit = atoi(argv[i+1]);
+        i++;
+      }
+      if (strcmp(argv[i],"-timerprints")==0 && i+1<argc){
+        timerLimit = atoi(argv[i+1]);
+        i++;
+      }
+      if (strcmp(argv[i],"-timerinterval")==0 && i+1<argc){
+        intervalSeconds = atoi(argv[i+1]);
         i++;
       }
       if (strcmp(argv[i],"-bmpatexit")==0 && i+1<argc){
@@ -312,7 +322,7 @@ namespace nv_helpers_gl
         
         std::string stats;
         {
-          Profiler::FrameHelper helper(m_profiler,sysGetTime(), 2.0, stats);
+          Profiler::FrameHelper helper(m_profiler,sysGetTime(), float(intervalSeconds), stats);
           {
             NV_PROFILE_SECTION("Frame");
             think(sysGetTime() - timeStart);
@@ -324,14 +334,22 @@ namespace nv_helpers_gl
           }
         }
         if (m_profilerPrint && !stats.empty()){
-          fprintf(stdout,"%s\n",stats.c_str());
+          if (!timerLimit || timerLimit == 1){
+            fprintf(stdout,"%s\n",stats.c_str());
+          }
+          if (timerLimit == 1){
+            frameLimit = 1;
+          }
+          if (timerLimit){
+            timerLimit--;
+          }
         }
 
         frames++;
 
         double timeCurrent = sysGetTime();
         double timeDelta = timeCurrent - timeBegin;
-        if (timeDelta > 2.0 || lastVsync != m_vsync){
+        if (timeDelta > double(intervalSeconds) || lastVsync != m_vsync || frameLimit==1){
           std::ostringstream combined; 
 
           if (lastVsync != m_vsync){
@@ -340,8 +358,11 @@ namespace nv_helpers_gl
 
           if (m_timeInTitle) {
             combined << title << ": " << (timeDelta*1000.0/(frames)) << " [ms]" << (m_vsync ? " (vsync on - V for toggle)" : "");
-
             setTitle(combined.str().c_str());
+          }
+
+          if (frameLimit==1){
+            fprintf(stdout,"frametime: %f ms\n", (timeDelta*1000.0/(frames)));
           }
 
           frames = 0;

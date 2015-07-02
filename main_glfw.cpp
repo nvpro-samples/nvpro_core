@@ -380,6 +380,11 @@ void NVPWindow::makeContextCurrent()
   glfwMakeContextCurrent((GLFWwindow*)m_internal);
 }
 
+void NVPWindow::makeContextNonCurrent()
+{
+  glfwMakeContextCurrent(0);
+}
+
 void NVPWindow::swapBuffers()
 {
   glfwSwapBuffers((GLFWwindow*)m_internal);
