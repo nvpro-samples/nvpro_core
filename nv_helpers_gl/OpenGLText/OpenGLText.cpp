@@ -29,12 +29,18 @@
         ...
         oglText.endString(); // will render the whole at once
 */
+//#define USE_INSTANCED_ARRAYS
+#ifdef USE_INSTANCED_ARRAYS
+#   define USEFONTMETRICASUBO // I have a bug, here...
+#endif
+#define NV_REPORT_COMPILE_ERRORS
 
 #pragma warning(disable:4244) // dble to float conversion warning
 
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
+#include <assert.h>
 
 #ifdef WIN32
 #include <direct.h>
@@ -53,7 +59,6 @@
 #else
     #include <GL/glew.h>
 #endif
-#define GL(f) gl##f
 
 #include "OpenGLText.h"
 #include "tga.h"
@@ -69,6 +74,9 @@ struct TextBackupState
 {
     struct vtxAttribData {
         GLvoid* ptr;
+#ifdef USE_INSTANCED_ARRAYS
+        int     divisor;
+#endif
         int     enabled;
         int     size;
         int     type;
@@ -82,30 +90,33 @@ struct TextBackupState
     } }
     void backup()
     {
-        GL(GetIntegerv(GL_POLYGON_MODE, (GLint*)mode));
-        cull = GL(IsEnabled(GL_CULL_FACE));
-        //GL(GetIntegerv(GL_CULL_FACE_MODE, (GLint*)&));
-        stenciltest = GL(IsEnabled(GL_STENCIL_TEST));
-        GL(GetIntegerv(GL_STENCIL_VALUE_MASK, (GLint*)&stencilmask));
-        depthtest = GL(IsEnabled(GL_DEPTH_TEST));
-        GL(GetIntegerv(GL_DEPTH_WRITEMASK, (GLint*)&depthmask));
-        blend = GL(IsEnabled(GL_BLEND));
-        GL(GetIntegerv(GL_BLEND_SRC, (GLint*)&sfactor));
-        GL(GetIntegerv(GL_BLEND_DST, (GLint*)&dfactor));
-        GL(GetIntegerv(GL_COLOR_WRITEMASK, (GLint*)&red));
-        primrestart = GL(IsEnabled(GL_PRIMITIVE_RESTART));
-        GL(GetIntegerv(GL_PRIMITIVE_RESTART_INDEX, (GLint*)&primrestartid));
-        GL(GetIntegerv(GL_MAX_VERTEX_ATTRIBS, &maxVtxAttribs));
+        glGetIntegerv(GL_POLYGON_MODE, (GLint*)mode);
+        cull = glIsEnabled(GL_CULL_FACE);
+        //glGetIntegerv(GL_CULL_FACE_MODE, (GLint*)&);
+        stenciltest = glIsEnabled(GL_STENCIL_TEST);
+        glGetIntegerv(GL_STENCIL_VALUE_MASK, (GLint*)&stencilmask);
+        depthtest = glIsEnabled(GL_DEPTH_TEST);
+        glGetIntegerv(GL_DEPTH_WRITEMASK, (GLint*)&depthmask);
+        blend = glIsEnabled(GL_BLEND);
+        glGetIntegerv(GL_BLEND_SRC, (GLint*)&sfactor);
+        glGetIntegerv(GL_BLEND_DST, (GLint*)&dfactor);
+        glGetIntegerv(GL_COLOR_WRITEMASK, (GLint*)&red);
+        primrestart = glIsEnabled(GL_PRIMITIVE_RESTART);
+        glGetIntegerv(GL_PRIMITIVE_RESTART_INDEX, (GLint*)&primrestartid);
+        glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &maxVtxAttribs);
         attribs = (vtxAttribData*)malloc(sizeof(vtxAttribData)*maxVtxAttribs);
         for(int i=0; i<maxVtxAttribs; i++)
         {
-            GL(GetVertexAttribiv(i, GL_VERTEX_ATTRIB_ARRAY_ENABLED, &(attribs[i].enabled)));
-            GL(GetVertexAttribiv(i, GL_VERTEX_ATTRIB_ARRAY_SIZE, &(attribs[i].size)));
-            GL(GetVertexAttribiv(i, GL_VERTEX_ATTRIB_ARRAY_TYPE, &(attribs[i].type)));
-            GL(GetVertexAttribiv(i, GL_VERTEX_ATTRIB_ARRAY_NORMALIZED, &(attribs[i].normalized)));
-            GL(GetVertexAttribiv(i, GL_VERTEX_ATTRIB_ARRAY_STRIDE, &(attribs[i].stride)));
-            GL(GetVertexAttribiv(i, GL_VERTEX_ATTRIB_ARRAY_BUFFER_BINDING, &(attribs[i].bufferBinding)));
-            GL(GetVertexAttribPointerv(i, GL_VERTEX_ATTRIB_ARRAY_POINTER, &(attribs[i].ptr)));
+#ifdef USE_INSTANCED_ARRAYS
+            glGetVertexAttribiv(i, GL_VERTEX_ATTRIB_ARRAY_DIVISOR, &(attribs[i].divisor));
+#endif
+            glGetVertexAttribiv(i, GL_VERTEX_ATTRIB_ARRAY_ENABLED, &(attribs[i].enabled));
+            glGetVertexAttribiv(i, GL_VERTEX_ATTRIB_ARRAY_SIZE, &(attribs[i].size));
+            glGetVertexAttribiv(i, GL_VERTEX_ATTRIB_ARRAY_TYPE, &(attribs[i].type));
+            glGetVertexAttribiv(i, GL_VERTEX_ATTRIB_ARRAY_NORMALIZED, &(attribs[i].normalized));
+            glGetVertexAttribiv(i, GL_VERTEX_ATTRIB_ARRAY_STRIDE, &(attribs[i].stride));
+            glGetVertexAttribiv(i, GL_VERTEX_ATTRIB_ARRAY_BUFFER_BINDING, &(attribs[i].bufferBinding));
+            glGetVertexAttribPointerv(i, GL_VERTEX_ATTRIB_ARRAY_POINTER, &(attribs[i].ptr));
         }
         valid = true;
     }
@@ -113,52 +124,55 @@ struct TextBackupState
     {
         if(!valid)
             return;
-        GL(PolygonMode(GL_FRONT_AND_BACK, mode[0]));
-        //GL(PolygonMode(GL_BACK, mode[1])); deprecated in Core GL !!!!!!
-        if(cull) GL(Enable(GL_CULL_FACE));
-        else     GL(Disable(GL_CULL_FACE));
-        if(stenciltest) GL(Enable(GL_STENCIL_TEST));
-        else            GL(Disable(GL_STENCIL_TEST));
-        GL(StencilMask( stencilmask ));
-        if(depthtest)   GL(Enable(GL_DEPTH_TEST));
-        else            GL(Disable(GL_DEPTH_TEST));
-        GL(DepthMask( depthmask ));
-        if(blend)       GL(Enable(GL_BLEND));
-        else            GL(Disable(GL_BLEND));
-        GL(BlendFunc(sfactor, dfactor));
-        GL(ColorMask( red,green,blue,alpha ));
-        GL(PrimitiveRestartIndex(primrestartid));
-        if(primrestart) GL(Enable(GL_PRIMITIVE_RESTART));
-        else            GL(Disable(GL_PRIMITIVE_RESTART));
+        glPolygonMode(GL_FRONT_AND_BACK, mode[0]);
+        //glPolygonMode(GL_BACK, mode[1]); deprecated in Core GL !!!!!!
+        if(cull) glEnable(GL_CULL_FACE);
+        else     glDisable(GL_CULL_FACE);
+        if(stenciltest) glEnable(GL_STENCIL_TEST);
+        else            glDisable(GL_STENCIL_TEST);
+        glStencilMask( stencilmask );
+        if(depthtest)   glEnable(GL_DEPTH_TEST);
+        else            glDisable(GL_DEPTH_TEST);
+        glDepthMask( depthmask );
+        if(blend)       glEnable(GL_BLEND);
+        else            glDisable(GL_BLEND);
+        glBlendFunc(sfactor, dfactor);
+        glColorMask( red,green,blue,alpha );
+        glPrimitiveRestartIndex(primrestartid);
+        if(primrestart) glEnable(GL_PRIMITIVE_RESTART);
+        else            glDisable(GL_PRIMITIVE_RESTART);
         for(int i=0; i<maxVtxAttribs; i++)
         {
             if(attribs[i].enabled)
-                GL(EnableVertexAttribArray(i));
+                glEnableVertexAttribArray(i);
             else
-                GL(DisableVertexAttribArray(i));
-            GL(BindBuffer(GL_ARRAY_BUFFER, attribs[i].bufferBinding));
-            GL(VertexAttribPointer(i, attribs[i].size, attribs[i].type, attribs[i].normalized, attribs[i].stride, attribs[i].ptr));
+                glDisableVertexAttribArray(i);
+            glBindBuffer(GL_ARRAY_BUFFER, attribs[i].bufferBinding);
+            glVertexAttribPointer(i, attribs[i].size, attribs[i].type, attribs[i].normalized, attribs[i].stride, attribs[i].ptr);
+#ifdef USE_INSTANCED_ARRAYS
+            glVertexAttribDivisor(i, attribs[i].divisor);
+#endif
         }
-        GL(BindBuffer(GL_ARRAY_BUFFER, 0));
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
         // TODO: texture
     }
     void setStates()
     {
         // fill mode always
-        GL(PolygonMode(GL_FRONT_AND_BACK, GL_FILL));
-        GL(Disable( GL_CULL_FACE ));
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        glDisable( GL_CULL_FACE );
         // Stencil / Depth buffer and test disabled
-        GL(Disable(GL_STENCIL_TEST));
-        GL(StencilMask( 0 ));
-        GL(Disable(GL_DEPTH_TEST));
-        GL(DepthMask( GL_FALSE ));
+        glDisable(GL_STENCIL_TEST);
+        glStencilMask( 0 );
+        glDisable(GL_DEPTH_TEST);
+        glDepthMask( GL_FALSE );
         // Blend on for alpha
-        GL(Enable(GL_BLEND));
-        GL(BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         // Color active
-        GL(ColorMask( GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE ));
-        GL(PrimitiveRestartIndex(-1));
-        GL(Enable(GL_PRIMITIVE_RESTART));
+        glColorMask( GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE );
+        glPrimitiveRestartIndex(-1);
+        glEnable(GL_PRIMITIVE_RESTART);
     }
     bool    valid;
     int     maxVtxAttribs;
@@ -189,11 +203,14 @@ OpenGLText::OpenGLText()
     m_widgetProgram         = 0;
     m_vShader               = 0;
     m_fShader               = 0;
-    m_ebo                   = 0;
     m_vbo                   = 0;
-    m_ebosz                 = 0;
+#ifdef USEFONTMETRICASUBO
+    m_boGlyphTexOffset      = 0;
+    m_GlyphTexOffset        = 0;
+#endif
     m_vbosz                 = 0;
     m_canvasVar             = 0;
+    m_color                 = 0;
     m_fontTex               = 0;
     m_vertexDepth           = 1.f;
     m_indexOffset           = 0;
@@ -219,27 +236,27 @@ inline GLuint OpenGLText::CompileGLSLShader( GLenum target, const char* shader)
 {
     GLuint object;
 
-    object = GL(CreateShader( target));
+    object = glCreateShader( target);
 
     if (!object)
         return object;
 
-    GL(ShaderSource( object, 1, &shader, NULL));
+    glShaderSource( object, 1, &shader, NULL);
 
-    GL(CompileShader(object));
+    glCompileShader(object);
 
     // check if shader compiled
     GLint compiled = 0;
-    GL(GetShaderiv(object, GL_COMPILE_STATUS, &compiled));
+    glGetShaderiv(object, GL_COMPILE_STATUS, &compiled);
 
     if (!compiled)
     {
 #ifdef NV_REPORT_COMPILE_ERRORS
         char temp[256] = "";
-        GL(GetShaderInfoLog( object, 256, NULL, temp));
+        glGetShaderInfoLog( object, 256, NULL, temp);
         fprintf( stderr, "Compile failed:\n%s\n", temp);
 #endif
-        GL(DeleteShader( object));
+        glDeleteShader( object);
         return 0;
     }
 
@@ -249,29 +266,30 @@ inline GLuint OpenGLText::CompileGLSLShader( GLenum target, const char* shader)
 // Create a program composed of vertex and fragment shaders.
 inline GLuint OpenGLText::LinkGLSLProgram( GLuint vertexShader, GLuint fragmentShader)
 {
-    GLuint program = GL(CreateProgram());
-    GL(AttachShader(program, vertexShader));
-    GL(AttachShader(program, fragmentShader));
-    GL(LinkProgram(program));
+    GLuint program = glCreateProgram();
+    glAttachShader(program, vertexShader);
+    glAttachShader(program, fragmentShader);
+    glLinkProgram(program);
 
 #ifdef NV_REPORT_COMPILE_ERRORS
     // Get error log.
     GLint charsWritten, infoLogLength;
-    GL(GetProgramiv(program, GL_INFO_LOG_LENGTH, &infoLogLength));
+    glGetProgramiv(program, GL_INFO_LOG_LENGTH, &infoLogLength);
 
     char * infoLog = new char[infoLogLength];
-    GL(GetProgramInfoLog(program, infoLogLength, &charsWritten, infoLog));
-    printf(infoLog);
+    glGetProgramInfoLog(program, infoLogLength, &charsWritten, infoLog);
+    if((infoLogLength > 0)&&(infoLog[0] != '\0'))
+        fprintf( stderr, "Link failed:\n%s\n", infoLog);
     delete [] infoLog;
 #endif
 
     // Test linker result.
     GLint linkSucceed = GL_FALSE;
-    GL(GetProgramiv(program, GL_LINK_STATUS, &linkSucceed));
+    glGetProgramiv(program, GL_LINK_STATUS, &linkSucceed);
     
     if (linkSucceed == GL_FALSE)
     {
-        GL(DeleteProgram(program));
+        glDeleteProgram(program);
         return 0;
     }
 
@@ -281,38 +299,111 @@ inline GLuint OpenGLText::LinkGLSLProgram( GLuint vertexShader, GLuint fragmentS
 ///////////////////////////////////////////////////////////////////////////////////////
 //
 //
-char const* OpenGLText::cWidgetVSSource2 = {
-    "#version 120\n\
+#ifdef USE_INSTANCED_ARRAYS
+char* OpenGLText::cWidgetVSSource2 = {
+    "#version 140\n\
+    uniform vec4 canvas; \n"
+#ifdef USEFONTMETRICASUBO
+    "layout(std140) uniform GlyphTexOffset { \n\
+        vec4 glyphTexOffset[256]; // Bugged !!\n\
+    };\n"
+    "uniform vec4 glyphTexOffset2[256]; // Working\n"
+#else
+   "in vec4 TexCoord;\n"
+#endif
+   "in vec4 Position;\n"
+   "in int Glyph;\n\
+    out vec2 vsTC;\n\
+\n\
+    void main()\n\
+    {\n\
+        int id = gl_VertexID % 6;\n\
+        float x = Position.x;\n\
+        float y = Position.y;\n\
+        float w = Position[2];\n\
+        float h = Position[3];\n\
+        vec4 p = vec4(x,y,0,1);\n\
+        switch(id) {\n\
+        case 0: break;\n\
+        case 3:\n\
+        case 1: p.x += w; break;\n\
+        case 5:\n\
+        case 2: p.y += h; break;\n\
+        case 4: p.x += w; p.y += h; break; \n\
+        }\n"
+#ifdef USEFONTMETRICASUBO
+       "int g = int(Glyph);\n\
+        x = glyphTexOffset2[g].x;\n\
+        y = glyphTexOffset2[g].y;\n\
+        w = glyphTexOffset2[g].z;\n\
+        h = glyphTexOffset2[g].w;\n"
+#else
+       "x = TexCoord.x;\n\
+        y = TexCoord.y;\n\
+        w = TexCoord[2];\n\
+        h = TexCoord[3];\n"
+#endif
+       "vec2 tc = vec2(x,y);\n\
+        switch(id) {\n\
+        case 0: break;\n\
+        case 3:\n\
+        case 1: tc.x += w; break;\n\
+        case 5:\n\
+        case 2: tc.y += h; break;\n\
+        case 4: tc.x += w; tc.y += h; break; \n\
+        }\n\
+        gl_Position = vec4( ((p.x / canvas.x)*canvas.z*2.0 - 1.0), \n\
+                            ((p.y / canvas.y)*2.0 - 1.0), 0, 1.0); \n\
+        vsTC    = tc; \n\
+    }\n\
+    "};
+
+char* OpenGLText::cWidgetFSSource2 = {
+    "#version 140\n\
+    uniform vec4 color; \n\
+    uniform sampler2D fontTex;\n\
+    in vec2 vsTC;\n\
+    out vec4 fragColor;\n\
+\n\
+    void main()\n\
+    {\n\
+        float distance = (texture2D( fontTex, vsTC.xy ).x); \n\
+        fragColor.rgb = color.rgb; \n\
+        fragColor.a = color.a * distance;\n\
+    }\n\
+    "};
+#else
+char* OpenGLText::cWidgetVSSource2 = {
+    "#version 140\n\
     uniform vec4 canvas; \n\
 \n\
     in vec4 Position;\n\
     in vec4 TexCoord;\n\
-    in vec4 Color;\n\
+    out vec2 vsTC;\n\
 \n\
     void main()\n\
     {\n\
         gl_Position = vec4( (((Position.x) / canvas.x)*canvas.z*2.0 - 1.0), \n\
                    (((Position.y) / canvas.y)*2.0 - 1.0), 0, 1.0); \n\
-        gl_TexCoord[0] = TexCoord; \n\
-        gl_TexCoord[1] = Color; \n\
+        vsTC = TexCoord.xy; \n\
     }\n\
     "};
 
-char const* OpenGLText::cWidgetFSSource2 = {
-    "#version 120\n\
+char* OpenGLText::cWidgetFSSource2 = {
+    "#version 140\n\
+    uniform vec4 color; \n\
     uniform sampler2D fontTex;\n\
+    in vec2 vsTC;\n\
+    out vec4 fragColor;\n\
 \n\
     void main()\n\
     {\n\
-        vec2 texUV = gl_TexCoord[0].xy; \n\
-        vec4 color; \n\
-        float distance = (texture2D( fontTex, texUV.xy ).x); \n\
-        color = gl_TexCoord[1];\n\
-        color.a *= distance;\n\
-        gl_FragColor = color; \n\
+        float distance = (texture2D( fontTex, vsTC.xy ).x); \n\
+        fragColor.rgb = color.rgb; \n\
+        fragColor.a = color.a * distance;\n\
     }\n\
     "};
-
+#endif
 ///////////////////////////////////////////////////////////////////////////////////////
 //
 //
@@ -343,18 +434,18 @@ bool OpenGLText::init(unsigned char *imageData, FileHeader *glyphInfos_, int w, 
     allocated = false;
 
     if(m_fontTex == 0)
-        GL(GenTextures( 1, &m_fontTex ));
-    GL(ActiveTexture( GL_TEXTURE0 ));
-    GL(BindTexture( GL_TEXTURE_2D, m_fontTex ));
-    GL(TexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
-    GL(TexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
-    GL(TexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
-    GL(TexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
+        glGenTextures( 1, &m_fontTex );
+    glActiveTexture( GL_TEXTURE0 );
+    glBindTexture( GL_TEXTURE_2D, m_fontTex );
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     GLenum extFmt = GL_RED;
-    GL(TexImage2D(GL_TEXTURE_2D, 0, extFmt, glyphInfos->texwidth, glyphInfos->texheight, 0, extFmt, GL_UNSIGNED_BYTE, imageData));
-    GLenum err = GL(GetError());
+    glTexImage2D(GL_TEXTURE_2D, 0, extFmt, glyphInfos->texwidth, glyphInfos->texheight, 0, extFmt, GL_UNSIGNED_BYTE, imageData);
+    GLenum err = glGetError();
 
-    GL(BindTexture( GL_TEXTURE_2D, 0 ));
+    glBindTexture( GL_TEXTURE_2D, 0 );
     return init(w,h);
 }
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -389,13 +480,13 @@ bool OpenGLText::init(const char * fontName, int w, int h)
             int h = fontTGA->m_nImageHeight;
 
             if(m_fontTex == 0)
-                GL(GenTextures( 1, &m_fontTex ));
-            GL(ActiveTexture( GL_TEXTURE0 ));
-            GL(BindTexture( GL_TEXTURE_2D, m_fontTex ));
-            GL(TexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
-            GL(TexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
-            GL(TexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
-            GL(TexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
+                glGenTextures( 1, &m_fontTex );
+            glActiveTexture( GL_TEXTURE0 );
+            glBindTexture( GL_TEXTURE_2D, m_fontTex );
+            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
             GLenum extFmt;
             switch(fontTGA->m_texFormat)
             {
@@ -409,10 +500,10 @@ bool OpenGLText::init(const char * fontName, int w, int h)
                 extFmt = GL_LUMINANCE;
                 break;
             }
-            GL(TexImage2D(GL_TEXTURE_2D, 0, extFmt, u, h, 0, extFmt, GL_UNSIGNED_BYTE, fontTGA->m_nImageData));
-            GLenum err = GL(GetError());
+            glTexImage2D(GL_TEXTURE_2D, 0, extFmt, u, h, 0, extFmt, GL_UNSIGNED_BYTE, fontTGA->m_nImageData);
+            GLenum err = glGetError();
 
-            GL(BindTexture( GL_TEXTURE_2D, 0 ));
+            glBindTexture( GL_TEXTURE_2D, 0 );
         }
         delete fontTGA;
     }
@@ -425,45 +516,6 @@ bool OpenGLText::init(int w, int h)
     m_canvas.ratio = 1.0;
     if (m_widgetProgram == 0)
     {
-        //#if defined(NV_WINDOWS)
-        //#define GET_PROC_ADDRESS(name)          GL(GetProcAddress(name))
-        //#elif defined(NV_MACINTOSH_OSX)
-        //#define GET_PROC_ADDRESS(name)          dlsym(RTLD_NEXT, name)
-        //#elif defined(NV_LINUX)
-        //#define GET_PROC_ADDRESS(name)          glXGetProcAddressARB((GLubyte *) name)
-        //#endif
-        //#define INITGL(n)\
-        //    if(!gl##n)\
-        //    {\
-        //    gl##n = (PFN_##n)GET_PROC_ADDRESS("gl" #n);\
-        //    if(!gl##n) {\
-        //    PRINTF(("ERROR>> App queried " #n " - unsupported by driver\n"));\
-        //            return;\
-        //        }\
-        //    }
-        //INITGL(CreateShader);
-        //INITGL(ShaderSource);
-        //INITGL(CompileShader);
-        //INITGL(GetShaderiv);
-        //INITGL(DeleteShader);
-        //INITGL(CreateProgram);
-        //INITGL(AttachShader);
-        //INITGL(LinkProgram);
-        //INITGL(GetProgramiv);
-        //INITGL(GetProgramInfoLog);
-        //INITGL(UseProgram);
-        //INITGL(GetUniformLocation);
-        //INITGL(GetAttribLocation);
-        //INITGL(Uniform4fv);
-        //INITGL(Uniform4f);
-        //INITGL(Uniform1i);
-        //INITGL(ActiveTexture);
-        //INITGL(PrimitiveRestartIndex);
-        //INITGL(EnableVertexAttribArray);
-        //INITGL(DisableVertexAttribArray);
-        //INITGL(VertexAttribPointer);
-        //INITGL(BindBuffer);
-
         m_vShader = CompileGLSLShader( GL_VERTEX_SHADER, cWidgetVSSource2);
         if (!m_vShader) 
             fprintf(stderr, "Vertex shader compile failed\n");
@@ -476,59 +528,48 @@ bool OpenGLText::init(int w, int h)
         m_widgetProgram = LinkGLSLProgram( m_vShader, m_fShader );
         //CHECKGLERRORS();
 
-        GLint fontTexLoc = GL(GetUniformLocation(m_widgetProgram, "fontTex"));
-        m_canvasVar     = GL(GetUniformLocation( m_widgetProgram, "canvas" ));
-        GL(UseProgram(m_widgetProgram));
+        GLint fontTexLoc = glGetUniformLocation(m_widgetProgram, "fontTex");
+        m_canvasVar      = glGetUniformLocation( m_widgetProgram, "canvas" );
+        m_color          = glGetUniformLocation( m_widgetProgram, "color" );
+
+        glProgramUniform1i(m_widgetProgram, fontTexLoc, 0); //Texture unit 0 is for font Tex.
+
+        glGenBuffers(1, &m_vbo);
+#ifdef USEFONTMETRICASUBO
+        // Upload the font metric in a UBO
+        float *tcs = new float[256*4];
+        for(int i=0; i<256; i++)
         {
-            GL(Uniform1i(fontTexLoc, 0)); //Texture unit 0 is for font Tex.
+            tcs[(4*i)+0] = glyphInfos->glyphs[i].norm.u;
+            tcs[(4*i)+1] = glyphInfos->glyphs[i].norm.v;
+            tcs[(4*i)+2] = glyphInfos->glyphs[i].norm.width;
+            tcs[(4*i)+3] = glyphInfos->glyphs[i].norm.height;
         }
-        GL(UseProgram(0));
-
-        locTc  = GL(GetAttribLocation( m_widgetProgram, "TexCoord" ));
-        locCol = GL(GetAttribLocation( m_widgetProgram, "Color" ));
-        locPos = GL(GetAttribLocation( m_widgetProgram, "Position" ));
-
+        
+        glGenBuffers(1, &m_boGlyphTexOffset);
+        glNamedBufferData(m_boGlyphTexOffset, 256*4*sizeof(float), tcs, GL_STATIC_DRAW);
+        // BUG HERE...
+        m_GlyphTexOffset = glGetUniformBlockIndex(m_widgetProgram, "GlyphTexOffset");
+        // we must bind this block index to our own number... yeah... let's take the same
+        // http://www.opengl.org/sdk/docs/man4/xhtml/glUniformBlockBinding.xml
+        glUniformBlockBinding(m_widgetProgram, m_GlyphTexOffset, m_GlyphTexOffset);
+        GLint blockSize; // for debug purpose...
+        glGetActiveUniformBlockiv(m_widgetProgram, m_GlyphTexOffset, GL_UNIFORM_BLOCK_DATA_SIZE, &blockSize);
+        //assert(blockSize == 256*4*sizeof(float));
+        glBindBufferBase( GL_UNIFORM_BUFFER, m_GlyphTexOffset, m_boGlyphTexOffset );
+        // This one is working
+        int glyphTexOffset2 = glGetUniformLocation( m_widgetProgram, "glyphTexOffset2" );
+        glProgramUniform4fv(m_widgetProgram, glyphTexOffset2, 256, tcs);
+        delete [] tcs;
+#else
+        locTc  = glGetAttribLocation( m_widgetProgram, "TexCoord" );
+#endif
+#ifdef USE_INSTANCED_ARRAYS
+        locGlyph = glGetAttribLocation( m_widgetProgram, "Glyph" );
+#endif
+        locPos = glGetAttribLocation( m_widgetProgram, "Position" );
     }
-    GL(GenBuffers(2, &m_ebo/*followed by m_vbo*/));
     return true;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////
-//
-//
-void OpenGLText::pushIndex( int vi )
-{
-    if ((int) m_indices.size() == m_indexOffset)
-        m_indices.push_back( vi );
-    else if ((int) m_indices.size() <= m_indexOffset)
-    {
-        m_indices.resize( m_indexOffset );
-        m_indices[m_indexOffset] = vi;
-    }
-    else
-        m_indices[m_indexOffset] = vi;
-    m_indexOffset++;
-}
-
-
-///////////////////////////////////////////////////////////////////////////////////////
-//
-//
-void OpenGLText::beginStrip()
-{
-    //if (m_indices.size() > 0)
-    //{
-    //    pushIndex( m_vertices.size());
-    //}
-}
-
-///////////////////////////////////////////////////////////////////////////////////////
-//
-//
-void OpenGLText::endStrip()
-{
-    //pushIndex( m_vertices.size() - 1 );
-    pushIndex( - 1 );
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -536,7 +577,6 @@ void OpenGLText::endStrip()
 //
 void OpenGLText::pushVertex( Vertex* v )
 {
-    pushIndex( (unsigned int)m_vertices.size() );
     m_vertices.push_back( *v );
 }
 
@@ -556,48 +596,60 @@ void OpenGLText::endString()
     if(!m_vertices.empty())
     {
         bs.setStates();
-        GL(BindBuffer( GL_ARRAY_BUFFER, m_vbo ));
-        GL(BindBuffer( GL_ELEMENT_ARRAY_BUFFER, m_ebo ));
+        glBindBuffer( GL_ARRAY_BUFFER, m_vbo );
         // Note: we could also downsize the buffer if the size is really smaller than the one currently allocated
         // this could be done after few iterations, if we see that the size if still smaller than the allocation...
         if(m_vbosz < m_vertices.size())
         {
-            GL(BufferData(GL_ARRAY_BUFFER, m_vertices.size()*sizeof(Vertex), &(m_vertices.front()), GL_STREAM_DRAW));
+            glBufferData(GL_ARRAY_BUFFER, m_vertices.size()*sizeof(Vertex), &(m_vertices.front()), GL_STREAM_DRAW);
             m_vbosz = m_vertices.size();
         } else
-            GL(BufferSubData(GL_ARRAY_BUFFER, 0, m_vertices.size()*sizeof(Vertex), &(m_vertices.front())));
-        if(m_ebosz < m_indices.size())
-        {
-            GL(BufferData(GL_ELEMENT_ARRAY_BUFFER, m_indices.size()*sizeof(unsigned int), &(m_indices.front()), GL_STREAM_DRAW));
-            m_ebosz = m_indices.size();
-        } else
-            GL(BufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, m_indices.size()*sizeof(unsigned int), &(m_indices.front())));
-        GL(EnableVertexAttribArray( locPos ));
-        GL(EnableVertexAttribArray( locTc ));
-        GL(EnableVertexAttribArray( locCol ));
+            glBufferSubData(GL_ARRAY_BUFFER, 0, m_vertices.size()*sizeof(Vertex), &(m_vertices.front()));
 
         static Vertex* pVtxOffset = NULL;
-        GL(VertexAttribPointer( locPos, 4, GL_FLOAT, false, sizeof(Vertex), pVtxOffset->pos ));
-        GL(VertexAttribPointer( locTc , 4, GL_FLOAT, false, sizeof(Vertex), pVtxOffset->tc ));
-        GL(VertexAttribPointer( locCol, 4, GL_FLOAT, false, sizeof(Vertex), pVtxOffset->color ));
+        glEnableVertexAttribArray( locPos );
+        glVertexAttribPointer( locPos, 4, GL_FLOAT, false, sizeof(Vertex), pVtxOffset->pos );
+#ifndef USEFONTMETRICASUBO
+        glEnableVertexAttribArray( locTc );
+        glVertexAttribPointer( locTc , 4, GL_FLOAT, false, sizeof(Vertex), pVtxOffset->tc );
+#endif
 
-        //GL(ActiveTexture( GL_TEXTURE0 ));
-        GL(BindTexture(GL_TEXTURE_2D, m_fontTex));
+#ifdef USE_INSTANCED_ARRAYS
+        glEnableVertexAttribArray( locGlyph );
+        glVertexAttribIPointer(locGlyph, 1, GL_INT, sizeof(Vertex), &pVtxOffset->iattr );
 
-        GL(UseProgram( m_widgetProgram ));
-        GL(Uniform4f( m_canvasVar, m_canvas.w, m_canvas.h, m_canvas.ratio, 0 ));
+        glVertexAttribDivisor(locPos, 6);
+#ifndef USEFONTMETRICASUBO
+        glVertexAttribDivisor(locTc, 6);
+#endif
+        glVertexAttribDivisor(locGlyph, 6);
+#endif
 
-        GL(DrawElements( GL_TRIANGLE_STRIP, m_indexOffset, GL_UNSIGNED_INT, NULL));
+        //glActiveTexture( GL_TEXTURE0 );
+        glBindTexture(GL_TEXTURE_2D, m_fontTex);
 
-        GL(UseProgram( 0 ));
+        glUseProgram( m_widgetProgram );
+        glUniform4f( m_canvasVar, m_canvas.w, m_canvas.h, m_canvas.ratio, 0 );
+
+#ifdef USE_INSTANCED_ARRAYS
+        glDrawArraysInstanced( GL_TRIANGLES, 0, 6, m_vbosz*6);
+#else
+        glDrawArrays( GL_TRIANGLES, 0, m_vbosz);
+#endif
+
+        glUseProgram( 0 );
 
         // switch vertex attribs back off
-        GL(DisableVertexAttribArray( locPos ));
-        GL(DisableVertexAttribArray( locTc ));
-        GL(DisableVertexAttribArray( locCol ));
-        //CHECKGLERRORS();
+        glDisableVertexAttribArray( locPos );
+#ifndef USEFONTMETRICASUBO
+        glDisableVertexAttribArray( locTc );
+#endif
+#ifdef USE_INSTANCED_ARRAYS
+        glDisableVertexAttribArray( locGlyph );
+#endif
+        GLenum err = glGetError();
+        //assert(err == 0);
         m_vertices.resize(0);
-        m_indices.resize(0);
     }
 }
 
@@ -606,6 +658,8 @@ void OpenGLText::endString()
 //
 void OpenGLText::stringSize(const char *text, float *sz)
 {
+    if(!glyphInfos)
+        return;
     int h = glyphInfos->pix.ascent + glyphInfos->pix.descent + glyphInfos->pix.linegap;
     float lPosX = 0+1;
     float lPosY = 0 ;
@@ -657,6 +711,8 @@ float OpenGLText::drawString( int x, int y, const char * text, int nbLines, unsi
 //
 float OpenGLText::drawString( int x, int y, const char * text, int nbLines, float * color4f)
 {
+    if(!glyphInfos)
+        return 0;
     int h = glyphInfos->pix.ascent + glyphInfos->pix.descent + glyphInfos->pix.linegap;
     float usedHeight = 0;
     float lPosX = x+1;
@@ -669,10 +725,8 @@ float OpenGLText::drawString( int x, int y, const char * text, int nbLines, floa
     float lLinePosY = lPosY;
     const char* c = text;
     Vertex v;
-    v.color[0] = color4f[0];
-    v.color[1] = color4f[1];
-    v.color[2] = color4f[2];
-    v.color[3] = color4f[3];
+
+    glProgramUniform4fv(m_widgetProgram, m_color, 1, color4f);
  
     m_vertexDepth = 1.0;
     while (*c != '\0')
@@ -693,12 +747,33 @@ float OpenGLText::drawString( int x, int y, const char * text, int nbLines, floa
             GlyphInfo &g = glyphInfos->glyphs[*c];
             int pX = lPosX + g.pix.offX;
             int pY = lPosY - g.pix.height - g.pix.offY;
-            beginStrip();
-                v.xyuv( pX ,             pY,                  g.norm.u,            g.norm.v);           pushVertex(&v);
-                v.xyuv( pX ,             pY + g.pix.height,    g.norm.u,            g.norm.v+g.norm.height);  pushVertex(&v);
-                v.xyuv( pX + g.pix.width, pY,                  g.norm.u+g.norm.width,    g.norm.v);           pushVertex(&v);
-                v.xyuv( pX + g.pix.width, pY + g.pix.height,    g.norm.u+g.norm.width,    g.norm.v+g.norm.height);  pushVertex(&v);
-            endStrip();
+#ifdef USE_INSTANCED_ARRAYS
+            v.setPos( pX ,             pY,                  g.pix.width,     g.pix.height);
+            v.setTC ( g.norm.u,        g.norm.v,            g.norm.width,    g.norm.height);
+            // to find back the Texture coords in atlas
+            v.iattr = (*c);
+            pushVertex(&v);
+#else
+
+            v.setPos( pX ,                   pY,                     0,1);
+            v.setTC ( g.norm.u,              g.norm.v,               0,0);
+            pushVertex(&v);
+            v.setPos( pX + g.pix.width ,     pY,                     0,1);
+            v.setTC ( g.norm.u+g.norm.width, g.norm.v,               0,0);  
+            pushVertex(&v);
+            v.setPos( pX               ,     pY + g.pix.height,      0,1);
+            v.setTC ( g.norm.u,              g.norm.v+g.norm.height, 0,0);  
+            pushVertex(&v);
+            v.setPos( pX + g.pix.width ,     pY,                     0,1);
+            v.setTC ( g.norm.u+g.norm.width, g.norm.v,               0,0);  
+            pushVertex(&v);
+            v.setPos( pX + g.pix.width,      pY + g.pix.height,      0,1);
+            v.setTC ( g.norm.u+g.norm.width, g.norm.v+g.norm.height, 0,0);           
+            pushVertex(&v);
+            v.setPos( pX,                    pY + g.pix.height,      0,1);
+            v.setTC ( g.norm.u,              g.norm.v+g.norm.height, 0,0);  
+            pushVertex(&v);
+#endif
             lPosX += g.pix.advance;
             lPosY += 0;
         }
