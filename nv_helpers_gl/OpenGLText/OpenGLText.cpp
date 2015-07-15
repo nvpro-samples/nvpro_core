@@ -29,6 +29,8 @@
         ...
         oglText.endString(); // will render the whole at once
 */
+// Canceled for now: I do see weird issue that I need to solve...
+// - color uniform not properly applied (alpha...)
 //#define USE_INSTANCED_ARRAYS
 #ifdef USE_INSTANCED_ARRAYS
 #   define USEFONTMETRICASUBO // I have a bug, here...
@@ -435,17 +437,13 @@ bool OpenGLText::init(unsigned char *imageData, FileHeader *glyphInfos_, int w, 
 
     if(m_fontTex == 0)
         glGenTextures( 1, &m_fontTex );
-    glActiveTexture( GL_TEXTURE0 );
-    glBindTexture( GL_TEXTURE_2D, m_fontTex );
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     GLenum extFmt = GL_RED;
-    glTexImage2D(GL_TEXTURE_2D, 0, extFmt, glyphInfos->texwidth, glyphInfos->texheight, 0, extFmt, GL_UNSIGNED_BYTE, imageData);
+    glTextureImage2DEXT(m_fontTex, GL_TEXTURE_2D, 0, extFmt, glyphInfos->texwidth, glyphInfos->texheight, 0, extFmt, GL_UNSIGNED_BYTE, imageData);
+    glTextureParameterf(m_fontTex, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTextureParameterf(m_fontTex, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTextureParameterf(m_fontTex, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTextureParameterf(m_fontTex, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     GLenum err = glGetError();
-
-    glBindTexture( GL_TEXTURE_2D, 0 );
     return init(w,h);
 }
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -481,12 +479,6 @@ bool OpenGLText::init(const char * fontName, int w, int h)
 
             if(m_fontTex == 0)
                 glGenTextures( 1, &m_fontTex );
-            glActiveTexture( GL_TEXTURE0 );
-            glBindTexture( GL_TEXTURE_2D, m_fontTex );
-            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
             GLenum extFmt;
             switch(fontTGA->m_texFormat)
             {
@@ -500,10 +492,12 @@ bool OpenGLText::init(const char * fontName, int w, int h)
                 extFmt = GL_LUMINANCE;
                 break;
             }
-            glTexImage2D(GL_TEXTURE_2D, 0, extFmt, u, h, 0, extFmt, GL_UNSIGNED_BYTE, fontTGA->m_nImageData);
+            glTextureImage2DEXT(m_fontTex, GL_TEXTURE_2D, 0, extFmt, u, h, 0, extFmt, GL_UNSIGNED_BYTE, fontTGA->m_nImageData);
+            glTextureParameterf(m_fontTex, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTextureParameterf(m_fontTex, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            glTextureParameterf(m_fontTex, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            glTextureParameterf(m_fontTex, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
             GLenum err = glGetError();
-
-            glBindTexture( GL_TEXTURE_2D, 0 );
         }
         delete fontTGA;
     }
@@ -528,7 +522,7 @@ bool OpenGLText::init(int w, int h)
         m_widgetProgram = LinkGLSLProgram( m_vShader, m_fShader );
         //CHECKGLERRORS();
 
-        GLint fontTexLoc = glGetUniformLocation(m_widgetProgram, "fontTex");
+        GLint fontTexLoc = glGetUniformLocation( m_widgetProgram, "fontTex");
         m_canvasVar      = glGetUniformLocation( m_widgetProgram, "canvas" );
         m_color          = glGetUniformLocation( m_widgetProgram, "color" );
 
@@ -596,40 +590,43 @@ void OpenGLText::endString()
     if(!m_vertices.empty())
     {
         bs.setStates();
-        glBindBuffer( GL_ARRAY_BUFFER, m_vbo );
         // Note: we could also downsize the buffer if the size is really smaller than the one currently allocated
         // this could be done after few iterations, if we see that the size if still smaller than the allocation...
         if(m_vbosz < m_vertices.size())
         {
-            glBufferData(GL_ARRAY_BUFFER, m_vertices.size()*sizeof(Vertex), &(m_vertices.front()), GL_STREAM_DRAW);
+            glBindBuffer( GL_ARRAY_BUFFER, m_vbo ); // ??!?!? otherewize it crashes
+            glNamedBufferData(m_vbo, m_vertices.size()*sizeof(Vertex), &(m_vertices.front()), GL_STREAM_DRAW);
+            glBindBuffer( GL_ARRAY_BUFFER, 0 );
             m_vbosz = m_vertices.size();
         } else
-            glBufferSubData(GL_ARRAY_BUFFER, 0, m_vertices.size()*sizeof(Vertex), &(m_vertices.front()));
-
+            glNamedBufferSubData(m_vbo, 0, m_vertices.size()*sizeof(Vertex), &(m_vertices.front()));
         static Vertex* pVtxOffset = NULL;
+        glVertexAttribFormat(locPos , 4, GL_FLOAT, GL_FALSE, (GLuint)pVtxOffset->pos);
+        glVertexAttribBinding(locPos, 1);
+#ifndef USEFONTMETRICASUBO
+        glVertexAttribFormat(locTc , 4, GL_FLOAT, GL_FALSE, (GLuint)pVtxOffset->tc);
+        glVertexAttribBinding(locTc, 1);
+#endif
+#ifdef USE_INSTANCED_ARRAYS
+        glVertexAttribIFormat(locGlyph, 1, GL_INT, (GLuint)&pVtxOffset->iattr);
+        glVertexAttribBinding(locGlyph, 1);
+        glVertexBindingDivisor(1, 6);
+#endif
+        // bind the VBO to the buffer binding #0
+        glBindVertexBuffer(1, m_vbo, 0, sizeof(Vertex));
+        // enable attributes to use
         glEnableVertexAttribArray( locPos );
-        glVertexAttribPointer( locPos, 4, GL_FLOAT, false, sizeof(Vertex), pVtxOffset->pos );
 #ifndef USEFONTMETRICASUBO
         glEnableVertexAttribArray( locTc );
-        glVertexAttribPointer( locTc , 4, GL_FLOAT, false, sizeof(Vertex), pVtxOffset->tc );
 #endif
-
 #ifdef USE_INSTANCED_ARRAYS
         glEnableVertexAttribArray( locGlyph );
-        glVertexAttribIPointer(locGlyph, 1, GL_INT, sizeof(Vertex), &pVtxOffset->iattr );
-
-        glVertexAttribDivisor(locPos, 6);
-#ifndef USEFONTMETRICASUBO
-        glVertexAttribDivisor(locTc, 6);
-#endif
-        glVertexAttribDivisor(locGlyph, 6);
 #endif
 
-        //glActiveTexture( GL_TEXTURE0 );
-        glBindTexture(GL_TEXTURE_2D, m_fontTex);
+        glBindTextureUnit(0, m_fontTex);
 
         glUseProgram( m_widgetProgram );
-        glUniform4f( m_canvasVar, m_canvas.w, m_canvas.h, m_canvas.ratio, 0 );
+        glProgramUniform4f( m_widgetProgram, m_canvasVar, m_canvas.w, m_canvas.h, m_canvas.ratio, 0 );
 
 #ifdef USE_INSTANCED_ARRAYS
         glDrawArraysInstanced( GL_TRIANGLES, 0, 6, m_vbosz*6);
