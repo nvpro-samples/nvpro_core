@@ -29,13 +29,19 @@
         ...
         oglText.endString(); // will render the whole at once
 */
-// Canceled for now: I do see weird issue that I need to solve...
-// - color uniform not properly applied (alpha...)
+//#define USE_QUADS
 //#define USE_INSTANCED_ARRAYS
-#ifdef USE_INSTANCED_ARRAYS
-#   define USEFONTMETRICASUBO // I have a bug, here...
-#endif
 #define NV_REPORT_COMPILE_ERRORS
+#ifdef USE_QUADS
+#   define TOPOLOGY_PRIM GL_QUADS
+#   define PRIMNUMBER 4
+#else
+#   define TOPOLOGY_PRIM GL_TRIANGLES
+#   define PRIMNUMBER 6
+#endif
+#ifdef USE_INSTANCED_ARRAYS
+#   define USE_FONT_METRIC_AS_TBO // I have a bug, here...
+#endif
 
 #pragma warning(disable:4244) // dble to float conversion warning
 
@@ -66,6 +72,129 @@
 #include "tga.h"
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
+#endif
+
+///////////////////////////////////////////////////////////////////////////////////////
+//
+//
+#ifdef USE_INSTANCED_ARRAYS
+char* OpenGLText::cWidgetVSSource2 = {
+   "#version 140\n\
+    uniform vec4 canvas; \n"
+#ifdef USE_FONT_METRIC_AS_TBO
+   "uniform samplerBuffer glyphTexOffset;\n"
+#else
+   "in vec4 TexCoord;\n"
+#endif
+   "in vec4 Position;\n"
+   "in int Glyph;\n\
+    out vec2 vsTC;\n\
+\n\
+    void main()\n\
+    {\n"
+#ifdef USE_QUADS
+       "int id = gl_VertexID & 3;\n"
+#else
+       "int id = gl_VertexID % 6;\n"
+#endif
+       "float x = Position.x;\n\
+        float y = Position.y;\n\
+        float w = Position.z;\n\
+        float h = Position.w;\n\
+        vec4 p = vec4(x,y,0,1);\n"
+#ifdef USE_QUADS
+       "if((id) == 1)       { p.x += w; }\n"
+       "else if((id) == 2)  { p.x += w; p.y += h; }\n"
+       "else if((id) == 3)  { p.y += h; }\n"
+#else
+       "switch(id) {\n\
+        case 0: break;\n\
+        case 3:\n\
+        case 1: p.x += w; break;\n\
+        case 5:\n\
+        case 2: p.y += h; break;\n\
+        case 4: p.x += w; p.y += h; break; \n\
+        }\n"
+#endif
+#ifdef USE_FONT_METRIC_AS_TBO
+       "int g = int(Glyph);\n\
+        vec4 ginfo = texelFetch(glyphTexOffset, g);\n\
+        x = ginfo.x;\n\
+        y = ginfo.y;\n\
+        w = ginfo.z;\n\
+        h = ginfo.w;\n"
+#else
+       "x = TexCoord.x;\n\
+        y = TexCoord.y;\n\
+        w = TexCoord.z;\n\
+        h = TexCoord.w;\n"
+#endif
+       "vec2 tc = vec2(x,y);\n"
+#ifdef USE_QUADS
+       "if((id) == 1)       { tc.x += w; }\n"
+       "else if((id) == 2)  { tc.x += w; tc.y += h; }\n"
+       "else if((id) == 3)  { tc.y += h; }\n"
+#else
+       "switch(id) {\n\
+        case 0: break;\n\
+        case 3:\n\
+        case 1: tc.x += w; break;\n\
+        case 5:\n\
+        case 2: tc.y += h; break;\n\
+        case 4: tc.x += w; tc.y += h; break; \n\
+        }\n"
+#endif
+       "gl_Position = vec4( ((p.x / canvas.x)*canvas.z*2.0 - 1.0), \n\
+                            ((p.y / canvas.y)*2.0 - 1.0), 0, 1.0); \n\
+        vsTC    = tc; \n\
+    }\n\
+    "};
+
+char* OpenGLText::cWidgetFSSource2 = {
+    "#version 140\n\
+    uniform vec4 color; \n\
+    uniform sampler2D fontTex;\n\
+    in vec2 vsTC;\n\
+    out vec4 fragColor;\n\
+\n\
+    void main()\n\
+    {\n\
+        float distance = (texture2D( fontTex, vsTC.xy ).x); \n\
+        fragColor.rgb = color.rgb; \n\
+        fragColor.a = color.a * distance;\n\
+    }\n\
+    "};
+#else
+char* OpenGLText::cWidgetVSSource2 = {
+    "#version 140\n\
+    uniform vec4 canvas; \n\
+\n\
+    in vec4 Position;\n\
+    in vec4 TexCoord;\n\
+    out vec2 vsTC;\n\
+\n\
+    void main()\n\
+    {\n\
+        gl_Position = vec4( (((Position.x) / canvas.x)*canvas.z*2.0 - 1.0), \n\
+                   (((Position.y) / canvas.y)*2.0 - 1.0), 0, 1.0); \n\
+        vsTC = TexCoord.xy; \n\
+    }\n\
+    "};
+
+char* OpenGLText::cWidgetFSSource2 = {
+    "#version 140\n\
+    uniform vec4 color; \n\
+    uniform sampler2D fontTex;\n\
+    in vec2 vsTC;\n\
+    out vec4 fragColor;\n\
+\n\
+    void main()\n\
+    {\n\
+        float distance = (texture2D( fontTex, vsTC.xy ).x); \n\
+        fragColor.rgb = color.rgb; \n\
+        fragColor.a = color.a * distance;\n\
+    }\n\
+    "};
 #endif
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -206,7 +335,7 @@ OpenGLText::OpenGLText()
     m_vShader               = 0;
     m_fShader               = 0;
     m_vbo                   = 0;
-#ifdef USEFONTMETRICASUBO
+#ifdef USE_FONT_METRIC_AS_TBO
     m_boGlyphTexOffset      = 0;
     m_GlyphTexOffset        = 0;
 #endif
@@ -298,114 +427,6 @@ inline GLuint OpenGLText::LinkGLSLProgram( GLuint vertexShader, GLuint fragmentS
     return program;
 }
 
-///////////////////////////////////////////////////////////////////////////////////////
-//
-//
-#ifdef USE_INSTANCED_ARRAYS
-char* OpenGLText::cWidgetVSSource2 = {
-    "#version 140\n\
-    uniform vec4 canvas; \n"
-#ifdef USEFONTMETRICASUBO
-    "layout(std140) uniform GlyphTexOffset { \n\
-        vec4 glyphTexOffset[256]; // Bugged !!\n\
-    };\n"
-    "uniform vec4 glyphTexOffset2[256]; // Working\n"
-#else
-   "in vec4 TexCoord;\n"
-#endif
-   "in vec4 Position;\n"
-   "in int Glyph;\n\
-    out vec2 vsTC;\n\
-\n\
-    void main()\n\
-    {\n\
-        int id = gl_VertexID % 6;\n\
-        float x = Position.x;\n\
-        float y = Position.y;\n\
-        float w = Position[2];\n\
-        float h = Position[3];\n\
-        vec4 p = vec4(x,y,0,1);\n\
-        switch(id) {\n\
-        case 0: break;\n\
-        case 3:\n\
-        case 1: p.x += w; break;\n\
-        case 5:\n\
-        case 2: p.y += h; break;\n\
-        case 4: p.x += w; p.y += h; break; \n\
-        }\n"
-#ifdef USEFONTMETRICASUBO
-       "int g = int(Glyph);\n\
-        x = glyphTexOffset2[g].x;\n\
-        y = glyphTexOffset2[g].y;\n\
-        w = glyphTexOffset2[g].z;\n\
-        h = glyphTexOffset2[g].w;\n"
-#else
-       "x = TexCoord.x;\n\
-        y = TexCoord.y;\n\
-        w = TexCoord[2];\n\
-        h = TexCoord[3];\n"
-#endif
-       "vec2 tc = vec2(x,y);\n\
-        switch(id) {\n\
-        case 0: break;\n\
-        case 3:\n\
-        case 1: tc.x += w; break;\n\
-        case 5:\n\
-        case 2: tc.y += h; break;\n\
-        case 4: tc.x += w; tc.y += h; break; \n\
-        }\n\
-        gl_Position = vec4( ((p.x / canvas.x)*canvas.z*2.0 - 1.0), \n\
-                            ((p.y / canvas.y)*2.0 - 1.0), 0, 1.0); \n\
-        vsTC    = tc; \n\
-    }\n\
-    "};
-
-char* OpenGLText::cWidgetFSSource2 = {
-    "#version 140\n\
-    uniform vec4 color; \n\
-    uniform sampler2D fontTex;\n\
-    in vec2 vsTC;\n\
-    out vec4 fragColor;\n\
-\n\
-    void main()\n\
-    {\n\
-        float distance = (texture2D( fontTex, vsTC.xy ).x); \n\
-        fragColor.rgb = color.rgb; \n\
-        fragColor.a = color.a * distance;\n\
-    }\n\
-    "};
-#else
-char* OpenGLText::cWidgetVSSource2 = {
-    "#version 140\n\
-    uniform vec4 canvas; \n\
-\n\
-    in vec4 Position;\n\
-    in vec4 TexCoord;\n\
-    out vec2 vsTC;\n\
-\n\
-    void main()\n\
-    {\n\
-        gl_Position = vec4( (((Position.x) / canvas.x)*canvas.z*2.0 - 1.0), \n\
-                   (((Position.y) / canvas.y)*2.0 - 1.0), 0, 1.0); \n\
-        vsTC = TexCoord.xy; \n\
-    }\n\
-    "};
-
-char* OpenGLText::cWidgetFSSource2 = {
-    "#version 140\n\
-    uniform vec4 color; \n\
-    uniform sampler2D fontTex;\n\
-    in vec2 vsTC;\n\
-    out vec4 fragColor;\n\
-\n\
-    void main()\n\
-    {\n\
-        float distance = (texture2D( fontTex, vsTC.xy ).x); \n\
-        fragColor.rgb = color.rgb; \n\
-        fragColor.a = color.a * distance;\n\
-    }\n\
-    "};
-#endif
 ///////////////////////////////////////////////////////////////////////////////////////
 //
 //
@@ -529,8 +550,8 @@ bool OpenGLText::init(int w, int h)
         glProgramUniform1i(m_widgetProgram, fontTexLoc, 0); //Texture unit 0 is for font Tex.
 
         glGenBuffers(1, &m_vbo);
-#ifdef USEFONTMETRICASUBO
-        // Upload the font metric in a UBO
+#ifdef USE_FONT_METRIC_AS_TBO
+        // Upload the font metric in a TBO
         float *tcs = new float[256*4];
         for(int i=0; i<256; i++)
         {
@@ -540,20 +561,13 @@ bool OpenGLText::init(int w, int h)
             tcs[(4*i)+3] = glyphInfos->glyphs[i].norm.height;
         }
         
-        glGenBuffers(1, &m_boGlyphTexOffset);
-        glNamedBufferData(m_boGlyphTexOffset, 256*4*sizeof(float), tcs, GL_STATIC_DRAW);
-        // BUG HERE...
-        m_GlyphTexOffset = glGetUniformBlockIndex(m_widgetProgram, "GlyphTexOffset");
-        // we must bind this block index to our own number... yeah... let's take the same
-        // http://www.opengl.org/sdk/docs/man4/xhtml/glUniformBlockBinding.xml
-        glUniformBlockBinding(m_widgetProgram, m_GlyphTexOffset, m_GlyphTexOffset);
-        GLint blockSize; // for debug purpose...
-        glGetActiveUniformBlockiv(m_widgetProgram, m_GlyphTexOffset, GL_UNIFORM_BLOCK_DATA_SIZE, &blockSize);
-        //assert(blockSize == 256*4*sizeof(float));
-        glBindBufferBase( GL_UNIFORM_BUFFER, m_GlyphTexOffset, m_boGlyphTexOffset );
-        // This one is working
-        int glyphTexOffset2 = glGetUniformLocation( m_widgetProgram, "glyphTexOffset2" );
-        glProgramUniform4fv(m_widgetProgram, glyphTexOffset2, 256, tcs);
+        GLenum err = glGetError();
+        m_locGlyphTexOffset = glGetUniformLocation( m_widgetProgram, "glyphTexOffset" );
+        glProgramUniform1i(m_widgetProgram, m_locGlyphTexOffset, 1);
+        err = glGetError();
+        glGenBuffers( 1, &m_boGlyphTexOffset);
+        glBindBuffer(GL_TEXTURE_BUFFER, m_boGlyphTexOffset);
+        glBufferData(GL_TEXTURE_BUFFER, 256*4*sizeof(float), tcs, GL_STATIC_DRAW);
         delete [] tcs;
 #else
         locTc  = glGetAttribLocation( m_widgetProgram, "TexCoord" );
@@ -600,51 +614,72 @@ void OpenGLText::endString()
             m_vbosz = m_vertices.size();
         } else
             glNamedBufferSubData(m_vbo, 0, m_vertices.size()*sizeof(Vertex), &(m_vertices.front()));
+        //
+        // Vertex attribute format definition
+        //
         static Vertex* pVtxOffset = NULL;
         glVertexAttribFormat(locPos , 4, GL_FLOAT, GL_FALSE, (GLuint)pVtxOffset->pos);
         glVertexAttribBinding(locPos, 1);
-#ifndef USEFONTMETRICASUBO
+#ifndef USE_FONT_METRIC_AS_TBO
         glVertexAttribFormat(locTc , 4, GL_FLOAT, GL_FALSE, (GLuint)pVtxOffset->tc);
         glVertexAttribBinding(locTc, 1);
 #endif
 #ifdef USE_INSTANCED_ARRAYS
         glVertexAttribIFormat(locGlyph, 1, GL_INT, (GLuint)&pVtxOffset->iattr);
         glVertexAttribBinding(locGlyph, 1);
-        glVertexBindingDivisor(1, 6);
+        //
+        // Divisor for instancing case
+        //
+        glVertexBindingDivisor(1, PRIMNUMBER);
 #endif
+        //
         // bind the VBO to the buffer binding #0
+        //
         glBindVertexBuffer(1, m_vbo, 0, sizeof(Vertex));
+        //
         // enable attributes to use
+        //
         glEnableVertexAttribArray( locPos );
-#ifndef USEFONTMETRICASUBO
+#ifndef USE_FONT_METRIC_AS_TBO
         glEnableVertexAttribArray( locTc );
 #endif
 #ifdef USE_INSTANCED_ARRAYS
         glEnableVertexAttribArray( locGlyph );
+        //
+        // Textures/TBO for the fonts and metric
+        //
+#ifdef USE_FONT_METRIC_AS_TBO
+        glActiveTexture(GL_TEXTURE1);
+        glTexBuffer(GL_TEXTURE_BUFFER, GL_RGBA32F, m_boGlyphTexOffset);
 #endif
-
-        glBindTextureUnit(0, m_fontTex);
-
+#endif
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, m_fontTex);
+        //
+        // activate the program
+        //
         glUseProgram( m_widgetProgram );
         glProgramUniform4f( m_widgetProgram, m_canvasVar, m_canvas.w, m_canvas.h, m_canvas.ratio, 0 );
-
+        //
+        // Draw
+        //
 #ifdef USE_INSTANCED_ARRAYS
-        glDrawArraysInstanced( GL_TRIANGLES, 0, 6, m_vbosz*6);
+        glDrawArraysInstanced( TOPOLOGY_PRIM, 0, PRIMNUMBER, m_vbosz*PRIMNUMBER);
 #else
-        glDrawArrays( GL_TRIANGLES, 0, m_vbosz);
+        glDrawArrays( TOPOLOGY_PRIM, 0, m_vbosz);
 #endif
 
         glUseProgram( 0 );
 
         // switch vertex attribs back off
         glDisableVertexAttribArray( locPos );
-#ifndef USEFONTMETRICASUBO
+#ifndef USE_FONT_METRIC_AS_TBO
         glDisableVertexAttribArray( locTc );
 #endif
 #ifdef USE_INSTANCED_ARRAYS
         glDisableVertexAttribArray( locGlyph );
 #endif
-        GLenum err = glGetError();
+        //GLenum err = glGetError();
         //assert(err == 0);
         m_vertices.resize(0);
     }
@@ -751,7 +786,20 @@ float OpenGLText::drawString( int x, int y, const char * text, int nbLines, floa
             v.iattr = (*c);
             pushVertex(&v);
 #else
-
+#ifdef USE_QUADS
+            v.setPos( pX ,                   pY,                     0,1);
+            v.setTC ( g.norm.u,              g.norm.v,               0,0);
+            pushVertex(&v);
+            v.setPos( pX + g.pix.width ,     pY,                     0,1);
+            v.setTC ( g.norm.u+g.norm.width, g.norm.v,               0,0);  
+            pushVertex(&v);
+            v.setPos( pX + g.pix.width,      pY + g.pix.height,      0,1);
+            v.setTC ( g.norm.u+g.norm.width, g.norm.v+g.norm.height, 0,0);           
+            pushVertex(&v);
+            v.setPos( pX               ,     pY + g.pix.height,      0,1);
+            v.setTC ( g.norm.u,              g.norm.v+g.norm.height, 0,0);  
+            pushVertex(&v);
+#else
             v.setPos( pX ,                   pY,                     0,1);
             v.setTC ( g.norm.u,              g.norm.v,               0,0);
             pushVertex(&v);
@@ -770,6 +818,7 @@ float OpenGLText::drawString( int x, int y, const char * text, int nbLines, floa
             v.setPos( pX,                    pY + g.pix.height,      0,1);
             v.setTC ( g.norm.u,              g.norm.v+g.norm.height, 0,0);  
             pushVertex(&v);
+#endif
 #endif
             lPosX += g.pix.advance;
             lPosY += 0;
