@@ -45,7 +45,7 @@ struct TimeSampler
         bNonStopRendering = true;
         renderCnt = 1;
         timing_counter = 0;
-        maxTimeSamples = 10;
+        maxTimeSamples = 60;
         frameDT = 1.0/60.0;
         frameFPS = 0;
         timeSamplingFreq = 0.1;
@@ -65,6 +65,14 @@ struct TimeSampler
         int totalSamples;
         totalSamples = (bContinueToRender || bNonStopRendering) ? maxTimeSamples : timing_counter;
 
+        // avoid extreme situations
+	    #define MINDT (1.0/2000.0)
+	    if(frameDT < MINDT)
+        {
+	    	frameDT = MINDT;
+            totalSamples = timing_counter;
+        }
+
         if((timing_counter >= totalSamples) && (totalSamples > 0))
         {
             timing_counter = 0;
@@ -80,7 +88,7 @@ struct TimeSampler
 			//	frameDT = MAXDT;
             frameFPS = (int)(1.0/frameDT);
             // update the amount of samples to average, depending on the speed of the scene
-            maxTimeSamples = (int)(0.1/(frameDT));
+            maxTimeSamples = (int)(0.15/(frameDT));
             if(maxTimeSamples == 0)
                 maxTimeSamples = 10; // just to avoid 0...
             //else if(maxTimeSamples > 200)
