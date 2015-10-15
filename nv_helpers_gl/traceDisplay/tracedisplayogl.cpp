@@ -126,8 +126,8 @@ GLuint COGLTraceDisplay::m_vbo = 0;
 float   CTraceDisplay::s_edge_color[4] = {0.9f,0.7f,0.7f,0.8f};
 float   CTraceDisplay::s_grid_color[4] = {0.8f,0.8f,0.8f,0.8f};
 
-float   CTraceDisplay::s_fill_color0[4] = {1.0f,0.0f,0.0f,0.6f};
-float   CTraceDisplay::s_fill_color1[4] = {1.0f,0.0f,0.0f,0.6f};
+float   CTraceDisplay::s_fill_color0[4] = {1.0f,0.0f,0.0f,0.3f};
+float   CTraceDisplay::s_fill_color1[4] = {1.0f,0.0f,0.0f,0.3f};
 
 
 int     CTraceDisplay::s_cNbColors = 24;
@@ -512,7 +512,7 @@ void COGLTraceDisplay::DisplayLineStream(int textOnlyForId)
             if(i>1)
             {
                 vec2f dir = p0 - p1;
-                normalize(dir);
+                dir = normalize(dir);
                 dir = vec2f(-dir.y, dir.x);
                 dir *= m_line_thickness;
                 vec2f pp1 = p - dir;
