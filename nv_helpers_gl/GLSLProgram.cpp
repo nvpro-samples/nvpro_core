@@ -98,6 +98,9 @@ GLSLProgram::compileProgramFromFiles(const char *vFilename,  const char *gFilena
 {
     char *vsource = readTextFile(vFilename);
     char *gsource = 0;
+	if (mProg) {
+		glDeleteProgram(mProg);
+	}
     if (gFilename) {
         gsource = readTextFile(gFilename);
     }
@@ -324,7 +327,10 @@ GLSLProgram::compileProgram(const char *vsource, const char *gsource, const char
             bErrors = true;
         }
         else
+        {
             glAttachShader(mProg, vertexShader);
+            glDeleteShader(vertexShader);
+        }
     }
     // NOTE: had some issues using include paths with https://www.opengl.org/registry/specs/ARB/shading_language_include.txt
     glShaderSource(fragmentShader, 1, &fsource, 0);
@@ -338,7 +344,10 @@ GLSLProgram::compileProgram(const char *vsource, const char *gsource, const char
         bErrors = true;
     }
     else
+    {
         glAttachShader(mProg, fragmentShader);
+        glDeleteShader(fragmentShader);
+    }
     if (gsource) {
         GLuint geomShader = glCreateShader(GL_GEOMETRY_SHADER);
         // NOTE: had some issues using include paths with https://www.opengl.org/registry/specs/ARB/shading_language_include.txt
@@ -353,7 +362,10 @@ GLSLProgram::compileProgram(const char *vsource, const char *gsource, const char
             bErrors = true;
         }
         else
+        {
             glAttachShader(mProg, geomShader);
+            glDeleteShader(geomShader);
+        }
 
         //glProgramParameteri(mProg, GL_GEOMETRY_INPUT_TYPE, gsInput);
         //glProgramParameteri(mProg, GL_GEOMETRY_OUTPUT_TYPE, gsOutput); 
