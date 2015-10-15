@@ -172,7 +172,7 @@ bool WindowInertiaCamera::init()
     // Graphs initialization
     //
     COGLTraceDisplay::Init(m_winSz[0], m_winSz[1]);
-    m_traceDisp.Position((float)(m_winSz[0]-100-10),(float)(m_winSz[1]-50-10), 100.0f, 50.0f);
+    m_traceDisp.Position((float)(m_winSz[0]-100-10),(float)(m_winSz[1]-100-10), 100.0f, 100);
     m_traceDisp.Clear();
     m_trace.init((int)50, "time");
     for(int i=0; i<50; i++)
@@ -185,12 +185,13 @@ bool WindowInertiaCamera::init()
     m_traceDisp.setTitle("timing");
     m_traceDisp.setValueString("%.2fms");
     m_traceDisp.BackgroundColor(0.0f, 0.2f, 0.0f, 0.7f);
+    m_traceDisp.DrawBack(false);
     m_traceDisp.DrawText(true);
     m_traceDisp.SetTextDrawColumn(true);
     m_traceDisp.SetDrawDoubleColumn(false);
     m_traceDisp.setStaticLabel(true);
     m_traceDisp.setFillGraph(true);
-    m_traceDisp.setLineThickness(1.0);
+    m_traceDisp.setLineThickness(2.0);
     m_traceDisp.setSmoothLine(1);
     m_traceDisp.setNameColorIdx(0);
     m_traceDisp.setValueColorIdx(-1);
@@ -482,7 +483,7 @@ void WindowInertiaCamera::reshape(int w, int h)
     m_oglTextBig.changeCanvas(w,h);
     m_traceDisp.changeSize(w,h);
     m_traceDisp.changeCanvas(w,h);
-    m_traceDisp.Position((float)(w-100-10),(float)(h-50-10), 100.0f, 50.0f);
+    m_traceDisp.Position((float)(w-100-10),(float)(h-100-10), 100.0f, 100.0f);
     COGLTraceDisplay::changeSize(w,h);
 #endif
     //
