@@ -56,6 +56,16 @@ source_group("main" FILES ${MAIN_SOURCE})
 if(MSVC)
   add_definitions(-D_CRT_SECURE_NO_WARNINGS)
 endif(MSVC)
+if(SUPPORT_NVTOOLSEXT)
+  include_directories(
+      ${BASE_DIRECTORY}/shared_external/NSight
+  )
+  LIST(APPEND PACKAGE_SOURCE_FILES 
+    ${BASE_DIRECTORY}/shared_external/NSight/NSightEvents.h
+    ${BASE_DIRECTORY}/shared_external/NSight/nvToolsExt.h
+  )
+  add_definitions(-DSUPPORT_NVTOOLSEXT)
+endif()
 
 add_library(shared_sources STATIC 
   ${OPENGLTEXT}
