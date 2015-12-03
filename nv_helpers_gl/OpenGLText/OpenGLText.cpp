@@ -618,14 +618,14 @@ void OpenGLText::endString()
         // Vertex attribute format definition
         //
         static Vertex* pVtxOffset = NULL;
-        glVertexAttribFormat(locPos , 4, GL_FLOAT, GL_FALSE, (GLuint)pVtxOffset->pos);
+        glVertexAttribFormat(locPos , 4, GL_FLOAT, GL_FALSE, (GLuint)((char*)pVtxOffset->pos - (char*)pVtxOffset));
         glVertexAttribBinding(locPos, 1);
 #ifndef USE_FONT_METRIC_AS_TBO
-        glVertexAttribFormat(locTc , 4, GL_FLOAT, GL_FALSE, (GLuint)pVtxOffset->tc);
+        glVertexAttribFormat(locTc , 4, GL_FLOAT, GL_FALSE, (GLuint)((char*)pVtxOffset->tc - (char*)pVtxOffset));
         glVertexAttribBinding(locTc, 1);
 #endif
 #ifdef USE_INSTANCED_ARRAYS
-        glVertexAttribIFormat(locGlyph, 1, GL_INT, (GLuint)&pVtxOffset->iattr);
+        glVertexAttribIFormat(locGlyph, 1, GL_INT, (GLuint)((char*)&pVtxOffset->iattr - (char*)pVtxOffset));
         glVertexAttribBinding(locGlyph, 1);
         //
         // Divisor for instancing case
