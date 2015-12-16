@@ -26,6 +26,8 @@
 */ //--------------------------------------------------------------------
 #include "nv_math/nv_math.h"
 
+#include <cmath>
+
 using namespace nv_math;
 
 //-----------------------------------------------------------------------------
@@ -97,6 +99,10 @@ struct InertiaCamera
         p += dv2;
         po = p-o;
         float l2 = po.norm();
+
+        // protect against gimbal lock
+        if (std::fabs(dot(po/l2, vec3f(0,1,0))) > 0.99) return;
+
         l = l2 - l;
         p -= (l/l2) * (po);
         eyePos = p;
