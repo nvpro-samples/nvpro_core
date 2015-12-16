@@ -100,14 +100,15 @@ struct InertiaCamera
         po = p-o;
         float l2 = po.norm();
 
+        if(bPan)
+            focusPos += dv2;
+
         // protect against gimbal lock
         if (std::fabs(dot(po/l2, vec3f(0,1,0))) > 0.99) return;
 
         l = l2 - l;
         p -= (l/l2) * (po);
         eyePos = p;
-        if(bPan)
-            focusPos += dv2;
     }
     //------------------------------------------------------------------------------
     // 
