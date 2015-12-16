@@ -498,12 +498,10 @@ void WindowInertiaCamera::reshape(int w, int h)
     //
     // Let's validate again the base of resource management to make sure things keep consistent
     //
-    int W = getWidth();
-    int H = getHeight();
 
-    glViewport(0, 0, W, H);
+    glViewport(0, 0, w, h);
 
-    float r = (float)getWidth() / (float)getHeight();
+    float r = (float)w / (float)h;
     m_projection = perspective(m_fov, r, m_near, m_far);
 }
 #endif //WINDOWINERTIACAMERA_EXTERN
