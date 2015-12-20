@@ -5,13 +5,39 @@ unset(OPTIX_ROOT_DIR CACHE)
 unset(OPTIX_LIB CACHE)
 unset(OPTIX_FOUND CACHE)
 
-find_path( OPTIX_ROOT_DIR optix.1.dll
-  ${OPTIX_LOCATION}
-  $ENV{OPTIX_LOCATION}
-  ${PROJECT_SOURCE_DIR}/shared_optix
-  ${PROJECT_SOURCE_DIR}/../shared_optix
-  ${PROJECT_SOURCE_DIR}/../../shared_optix
-)
+macro ( folder_list result curdir)
+  FILE(GLOB children RELATIVE ${curdir} ${curdir}/*)
+  SET(dirlist "")
+  foreach ( child ${children})
+    IF(IS_DIRECTORY ${curdir}/${child})
+        LIST(APPEND dirlist ${child})
+    ENDIF()
+  ENDFOREACH()
+  SET(${result} ${dirlist})
+ENDMACRO()
+
+macro(_find_version_path targetVersion targetPath rootName searchList )
+  unset ( targetVersion )
+  unset ( targetPath )
+  SET ( bestver "0.0.0" )
+  SET ( bestpath "" )
+  foreach ( basedir ${searchList} )
+    folder_list ( dirList ${basedir} )	
+	foreach ( checkdir ${dirList} ) 	 
+	  string ( REGEX MATCH "${rootName}.([0-9]+).([0-9]+).([0-9]+)(.*)$" result "${checkdir}" )
+	  if ( "${result}" STREQUAL "${checkdir}" )
+	     # found a path with versioning 
+	     SET ( ver "${CMAKE_MATCH_1}.${CMAKE_MATCH_2}.${CMAKE_MATCH_3}" )
+	     if ( ver GREATER bestver )
+		    SET ( bestver ${ver} )
+			SET ( bestpath "${basedir}/${checkdir}" )
+		 endif ()
+	  endif()	  
+	endforeach ()		
+  endforeach ()  
+  SET ( ${targetVersion} "${bestver}" )
+  SET ( ${targetPath} "${bestpath}" )
+endmacro()
 
 macro(_find_files targetVar incDir dllName dllName64 folder)
   unset ( fileList )
@@ -38,13 +64,25 @@ macro(_find_files targetVar incDir dllName dllName64 folder)
   # message ( "File list: ${${targetVar}}" )		#-- debugging
 endmacro()
 
-if(OPTIX_ROOT_DIR)
+set ( OPTIX_LOCATION "testing")
+
+ # Locate OptiX by version
+set ( SEARCH_PATHS
+  ${OPTIX_LOCATION}
+  $ENV{OPTIX_LOCATION}  
+  ${PROJECT_SOURCE_DIR}/../shared_optix 
+)
+
+_find_version_path ( OPTIX_VERSION OPTIX_ROOT_DIR "Optix" "${SEARCH_PATHS}" )
+message ( STATUS "OptiX version: ${OPTIX_VERSION}")
+
+
+if (OPTIX_ROOT_DIR)
 
 	#-------- Locate DLLS
-	_find_files( OPTIX_DLL OPTIX_ROOT_DIR "cudart64_42_9.dll" "cudart64_42_9.dll" "")
-    _find_files( OPTIX_DLL OPTIX_ROOT_DIR "optix.1.dll" "optix.1.dll" "")
-    _find_files( OPTIX_DLL OPTIX_ROOT_DIR "optixu.1.dll" "optixu.1.dll" "")
-	_find_files( OPTIX_DLL OPTIX_ROOT_DIR "optix_prime.1.dll" "optix_prime.1.dll" "")
+    _find_files( OPTIX_DLL OPTIX_ROOT_DIR "lib/optix.1.dll" "lib64/optix.1.dll" "")
+    _find_files( OPTIX_DLL OPTIX_ROOT_DIR "lib/optixu.1.dll" "lib64/optixu.1.dll" "")
+	_find_files( OPTIX_DLL OPTIX_ROOT_DIR "lib/optix_prime.1.dll" "lib64/optix_prime.1.dll" "")
     if(NOT OPTIX_DLL)
       message(STATUS "setting OPTIX_DLL to ${OPTIX_DLL}" )
     endif()
@@ -87,3 +125,4 @@ find_package_handle_standard_args(OPTIX DEFAULT_MSG
 )
 
 mark_as_advanced( OPTIX_FOUND )
+
