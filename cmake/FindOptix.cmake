@@ -1,9 +1,14 @@
 # Try to find OptiX project dll/so and headers
 #
+
+# outputs
 unset(OPTIX_DLL CACHE)
-unset(OPTIX_ROOT_DIR CACHE)
 unset(OPTIX_LIB CACHE)
 unset(OPTIX_FOUND CACHE)
+unset(OPTIX_INCLUDE_DIR CACHE)
+
+# search path, can be overridden by user
+set ( OPTIX_LOCATION "${PROJECT_SOURCE_DIR}/../shared_optix" CACHE PATH "Path to OptiX install" )
 
 macro ( folder_list result curdir substring )
   FILE(GLOB children RELATIVE ${curdir} ${curdir}/*${substring}*)
@@ -64,15 +69,11 @@ macro(_find_files targetVar incDir dllName dllName64 folder)
   # message ( "File list: ${${targetVar}}" )		#-- debugging
 endmacro()
 
-set ( OPTIX_LOCATION "testing" )
-
  # Locate OptiX by version
 set ( SEARCH_PATHS
   ${OPTIX_LOCATION}
   $ENV{OPTIX_LOCATION}  
-  ${PROJECT_SOURCE_DIR}/../shared_optix 
 )
-
 if (WIN32) 
   _find_version_path ( OPTIX_VERSION OPTIX_ROOT_DIR "Optix" "${SEARCH_PATHS}" "win64" )
 endif()
@@ -80,6 +81,14 @@ if (UNIX)
   _find_version_path ( OPTIX_VERSION OPTIX_ROOT_DIR "Optix" "${SEARCH_PATHS}" "linux64" )
 endif()
 message ( STATUS "OptiX version: ${OPTIX_VERSION}")
+
+if (NOT OPTIX_ROOT_DIR )
+  # Locate by version failed. Handle user override for OPTIX_LOCATION.
+  find_path( OPTIX_INCLUDE_DIR optix.h ${OPTIX_LOCATION}/include )
+  if ( OPTIX_INCLUDE_DIR )
+    set (OPTIX_ROOT_DIR ${OPTIX_INCLUDE_DIR}/../ )
+  endif()
+endif()
 
 
 if (OPTIX_ROOT_DIR)
@@ -131,7 +140,7 @@ include(FindPackageHandleStandardArgs)
 
 SET(OPTIX_DLL ${OPTIX_DLL} CACHE PATH "path")
 SET(OPTIX_LIB ${OPTIX_LIB} CACHE PATH "path")
-SET(OPTIX_INCLUDE_DIR "${OPTIX_ROOT_DIR}/include")
+SET(OPTIX_INCLUDE_DIR "${OPTIX_ROOT_DIR}/include" CACHE PATH "path")
 
 find_package_handle_standard_args(OPTIX DEFAULT_MSG
     OPTIX_INCLUDE_DIR
