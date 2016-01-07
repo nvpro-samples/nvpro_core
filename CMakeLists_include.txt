@@ -33,6 +33,15 @@ set(EXECUTABLE_OUTPUT_PATH
     "Directory where executables will be stored"
 )
 
+# Set the default build to Release.  Note this doesn't do anything for the VS
+# default build target.
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE "Release" CACHE STRING
+      "Choose the type of build, options are: Debug Release RelWithDebInfo MinSizeRel."
+      FORCE)
+endif(NOT CMAKE_BUILD_TYPE)
+
+
 #####################################################################################
 function(_make_relative FROM TO OUT)
   #message(STATUS "FROM = ${FROM}")
