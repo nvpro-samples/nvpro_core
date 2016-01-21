@@ -664,9 +664,9 @@ void OpenGLText::endString()
         // Draw
         //
 #ifdef USE_INSTANCED_ARRAYS
-        glDrawArraysInstanced( TOPOLOGY_PRIM, 0, PRIMNUMBER, m_vbosz*PRIMNUMBER);
+        glDrawArraysInstanced( TOPOLOGY_PRIM, 0, PRIMNUMBER, m_vertices.size()*PRIMNUMBER);
 #else
-        glDrawArrays( TOPOLOGY_PRIM, 0, m_vbosz);
+        glDrawArrays( TOPOLOGY_PRIM, 0, m_vertices.size());
 #endif
 
         glUseProgram( 0 );
