@@ -72,6 +72,9 @@ endmacro()
  # Locate OptiX by version
 set ( SEARCH_PATHS
   ${OPTIX_LOCATION}
+  ${PROJECT_SOURCE_DIR}/shared_optix
+  ${PROJECT_SOURCE_DIR}/../shared_optix
+  ${PROJECT_SOURCE_DIR}/../../shared_optix
   $ENV{OPTIX_LOCATION}  
 )
 if (WIN32) 
