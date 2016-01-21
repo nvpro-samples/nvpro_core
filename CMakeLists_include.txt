@@ -402,6 +402,13 @@ if(GLFW_FOUND AND USE_GLFW)
   LIST(APPEND PLATFORM_LIBRARIES ${GLFW_LIBRARY})
   add_definitions(-DUSE_GLFW)
 endif()
+  
+  
+ ####################################################################################
+ # XF86
+ if(UNIX AND NOT USE_GLFW)
+ LIST(APPEND PLATFORM_LIBRARIES "Xxf86vm")
+endif()
 
 #####################################################################################
 # NSight
