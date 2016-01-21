@@ -35,7 +35,7 @@
 #define NVP_ALIGN_BEGIN   NV_ALIGN_PREFIX
 #define NVP_ALIGN_END     NV_ALIGN_SUFFIX
 
-#if defined(__GNUC__) && __GNUC__ >= 3 && __GNUC_MINOR__ >= 4
+#if defined(__GNUC__) && (__GNUC__ > 3 || (__GNUC__ >= 3 && __GNUC_MINOR__ >= 4))
 
   #define NVP_NOOP(...)
   #define NVP_BARRIER()       __sync_synchronize()
