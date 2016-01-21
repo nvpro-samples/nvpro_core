@@ -26,7 +26,25 @@
 #ifndef NV_PROFILER_INCLUDED
 #define NV_PROFILER_INCLUDED
 
+#ifndef NV_PROFILER_SUPPORTS_OPENGL
+#define NV_PROFILER_SUPPORTS_OPENGL 1
+#endif
+
+#if NV_PROFILER_SUPPORTS_OPENGL
+#if USE_GLEXTWRAPPER
+#include <glextwrapper/glextwrapper.h>
+/*
+glGenQueries
+glDeleteQueries
+glQueryCounter
+glFlush
+glGetQueryObjectiv
+*/
+#else
 #include <GL/glew.h>
+#endif
+#endif
+
 #include <stdio.h>
 #include <vector>
 #include <string>
@@ -105,9 +123,12 @@ namespace nv_helpers_gl
 
     void print(std::string &stats);
 
-  private:
+    unsigned int getAveragedFrames();
+    bool         getAveragedValues(const char* name, double& cpuTimer, double& gpuTimer);
+
     double  getMicroSeconds();
-    
+
+  private:
     Slot    beginSection( const char* name, GPUInterface* gpuif);
     void    endSection  ( Slot slot);
     void    grow(unsigned int newsize);
@@ -124,7 +145,9 @@ namespace nv_helpers_gl
       nvtxRangeId_t m_nvrange;
 #endif
       GPUInterface* gpuif;
+#if NV_PROFILER_SUPPORTS_OPENGL
       GLuint        queries[FRAME_DELAY * 2];
+#endif
       double        deltas[FRAME_DELAY];
 
       double      numTimes;
@@ -171,7 +194,7 @@ namespace nv_helpers_gl
 
   inline Profiler::Slot Profiler::beginSection( const char* name, GPUInterface* gpuif )
   {
-    GLuint queryFrame = m_numFrames % FRAME_DELAY;
+    unsigned int queryFrame = m_numFrames % FRAME_DELAY;
     Slot slot = m_frameEntries++;
     if (slot >= m_entries.size()){
       grow((unsigned int)(m_entries.size() * 2));
@@ -218,9 +241,11 @@ namespace nv_helpers_gl
     if (gpuif){
       gpuif->TimerSetup( getTimerIdx(slot,queryFrame,true) );
     }
+#if NV_PROFILER_SUPPORTS_OPENGL
     else{
       glQueryCounter(m_entries[slot].queries[queryFrame],GL_TIMESTAMP);
     }
+#endif
     
     m_entries[slot].deltas[queryFrame] = -getMicroSeconds();
 
@@ -229,18 +254,20 @@ namespace nv_helpers_gl
 
   inline void Profiler::endSection( Slot slot )
   {
-    GLuint queryFrame = m_numFrames % FRAME_DELAY;
+    unsigned int queryFrame = m_numFrames % FRAME_DELAY;
 
     m_entries[slot].deltas[queryFrame] += getMicroSeconds();
     if (m_entries[slot].gpuif){
       m_entries[slot].gpuif->TimerSetup( getTimerIdx(slot,queryFrame,false) );
     }
+#if NV_PROFILER_SUPPORTS_OPENGL
     else{
       glQueryCounter(m_entries[slot].queries[queryFrame + FRAME_DELAY],GL_TIMESTAMP);
 #if NV_TIMER_FLUSH
       glFlush();
 #endif
     }
+#endif
 
 
 #ifdef SUPPORT_NVTOOLSEXT
