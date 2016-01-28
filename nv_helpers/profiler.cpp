@@ -27,6 +27,7 @@
 #include <assert.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
 
 #ifdef _WIN32
 #ifndef NOMINMAX
@@ -39,7 +40,7 @@
 
 //////////////////////////////////////////////////////////////////////////
 
-namespace nv_helpers_gl
+namespace nv_helpers
 {
 
   Profiler::Profiler()
@@ -48,6 +49,7 @@ namespace nv_helpers_gl
     , m_resetDelay(0)
     , m_frequency(1)
     , m_level(0)
+    , m_defaultGPUIF(0)
   {
 
   }
@@ -82,31 +84,17 @@ namespace nv_helpers_gl
 
         if (entry.splitter) continue;
 
-        int available = 0;
+        int available = 1;
         unsigned int queryFrame = (m_numFrames + 1) % FRAME_DELAY;
         if (entry.gpuif){
           available = !!entry.gpuif->TimerAvailable(getTimerIdx(Slot(i), queryFrame, false));
         }
-#if NV_PROFILER_SUPPORTS_OPENGL
-        else{
-          glGetQueryObjectiv(entry.queries[queryFrame + FRAME_DELAY], GL_QUERY_RESULT_AVAILABLE,&available);
-        }
-#endif
 
         if (available) {
           unsigned long long gpuNano = 0;
           if (entry.gpuif){
             gpuNano = entry.gpuif->TimerResult( getTimerIdx(Slot(i), queryFrame, true), getTimerIdx(Slot(i), queryFrame, false) );
           }
-#if NV_PROFILER_SUPPORTS_OPENGL
-          else{
-            GLuint64 beginTime;
-            GLuint64 endTime;
-            glGetQueryObjectui64v(entry.queries[queryFrame], GL_QUERY_RESULT,&beginTime);
-            glGetQueryObjectui64v(entry.queries[queryFrame + FRAME_DELAY], GL_QUERY_RESULT,&endTime);
-            gpuNano = endTime - beginTime;
-          }
-#endif
           // nanoseconds to microseconds
           double gpu = double(gpuNano) / 1000.0;
           entry.gpuTimes += gpu;
@@ -128,9 +116,6 @@ namespace nv_helpers_gl
     m_entries.resize(newsize);
     for (size_t i = oldsize; i < newsize; i++){
       Entry &entry = m_entries[i];
-#if NV_PROFILER_SUPPORTS_OPENGL
-      glGenQueries(2 * FRAME_DELAY, &entry.queries[0]);
-#endif
       entry.name = NULL;
       entry.gpuif = NULL;
     }
@@ -155,9 +140,6 @@ namespace nv_helpers_gl
   {
     for (size_t i = 0; i < m_entries.size(); i++){
       Entry &entry = m_entries[i];
-#if NV_PROFILER_SUPPORTS_OPENGL
-      glDeleteQueries(2 * FRAME_DELAY, &entry.queries[0]);
-#endif
       entry.name = NULL;
     }
   }
@@ -264,7 +246,7 @@ namespace nv_helpers_gl
         if (otherentry.splitter && otherentry.level <= entry.level) break;
       }
 
-      const char* gpuname = entry.gpuif ? entry.gpuif->TimerTypeName() : "GL ";
+      const char* gpuname = entry.gpuif ? entry.gpuif->TimerTypeName() : "N/A";
 
       if (found){
         stats += format("%sTimer %s;\t %s %6d; CPU %6d; (microseconds, accumulated loop)\n",&spaces[level], entry.name, gpuname, (unsigned int)(gpu), (unsigned int)(cpu));
@@ -275,13 +257,13 @@ namespace nv_helpers_gl
     }
   }
 
-  unsigned int Profiler::getAveragedFrames()
+  unsigned int Profiler::getAveragedFrames() const
   {
     if (m_entries.empty()) return 0;
     return m_entries[0].numTimes;
   }
 
-  double Profiler::getMicroSeconds()
+  double Profiler::getMicroSeconds() const
   {
 #ifdef _WIN32
     LARGE_INTEGER time;

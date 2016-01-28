@@ -26,7 +26,7 @@
 #ifndef NV_PROJECTBASE_INCLUDED
 #define NV_PROJECTBASE_INCLUDED
 
-#include "profiler.hpp"
+#include "profilertimersgl.hpp"
 #include <string.h> // for memset
 #include <main.h>
 
@@ -37,9 +37,9 @@
 
 
 #if NV_SUPPORT_PROFILE
-#define NV_PROFILE_SECTION(name)            nv_helpers_gl::Profiler::Section _tempTimer(m_profiler ,name)
-#define NV_PROFILE_SECTION_EX(name, gpui)   nv_helpers_gl::Profiler::Section _tempTimer(m_profiler, name, &gpui)
-#define NV_PROFILE_SPLIT()         m_profiler.accumulationSplit()
+#define NV_PROFILE_SECTION(name)            nv_helpers::Profiler::Section _tempTimer(m_profiler ,name, &m_gltimers)
+#define NV_PROFILE_SECTION_EX(name, gpui)   nv_helpers::Profiler::Section _tempTimer(m_profiler, name, gpui)
+#define NV_PROFILE_SPLIT()                  m_profiler.accumulationSplit()
 #else
 #define NV_PROFILE_SECTION(name)
 #define NV_PROFILE_SPLIT()
@@ -114,7 +114,8 @@ namespace nv_helpers_gl
     //void display() { } // leave empty, we call redraw ourselves in think
 
     Window        m_window;
-    Profiler      m_profiler;
+    nv_helpers::Profiler            m_profiler;
+    nv_helpers_gl::ProfilerTimersGL m_gltimers;
     bool          m_profilerPrint;
     bool          m_timeInTitle;
     bool          m_singleThreaded;

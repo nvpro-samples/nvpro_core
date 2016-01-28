@@ -294,6 +294,8 @@ namespace nv_helpers_gl
     m_window.m_viewsize[1] = height;
 
     m_profiler.init();
+    m_gltimers.init(m_profiler.getRequiredTimers());
+    m_profiler.setDefaultGPUInterface(&m_gltimers);
 
     bool Run = begin();
     m_active = true;
@@ -322,7 +324,7 @@ namespace nv_helpers_gl
         
         std::string stats;
         {
-          Profiler::FrameHelper helper(m_profiler,sysGetTime(), float(intervalSeconds), stats);
+          nv_helpers::Profiler::FrameHelper helper(m_profiler,sysGetTime(), float(intervalSeconds), stats);
           {
             NV_PROFILE_SECTION("Frame");
             think(sysGetTime() - timeStart);
@@ -383,6 +385,9 @@ namespace nv_helpers_gl
 
     end();
     m_active = false;
+
+    m_profiler.deinit();
+    m_gltimers.deinit();
 
     return Run ? EXIT_SUCCESS : EXIT_FAILURE;
   }

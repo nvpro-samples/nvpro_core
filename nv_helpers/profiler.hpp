@@ -26,32 +26,10 @@
 #ifndef NV_PROFILER_INCLUDED
 #define NV_PROFILER_INCLUDED
 
-#ifndef NV_PROFILER_SUPPORTS_OPENGL
-#define NV_PROFILER_SUPPORTS_OPENGL 1
-#endif
-
-#if NV_PROFILER_SUPPORTS_OPENGL
-#if USE_GLEXTWRAPPER
-#include <glextwrapper/glextwrapper.h>
-/*
-glGenQueries
-glDeleteQueries
-glQueryCounter
-glFlush
-glGetQueryObjectiv
-*/
-#else
-#include <GL/glew.h>
-#endif
-#endif
 
 #include <stdio.h>
 #include <vector>
 #include <string>
-
-#ifndef NV_TIMER_FLUSH
-#define NV_TIMER_FLUSH 0
-#endif
 
 #ifdef SUPPORT_NVTOOLSEXT
 #include <stdint.h>
@@ -59,7 +37,7 @@ glGetQueryObjectiv
 #include <nvToolsExt.h>
 #endif
 
-namespace nv_helpers_gl
+namespace nv_helpers
 {
   class Profiler {
   public:
@@ -84,6 +62,9 @@ namespace nv_helpers_gl
       std::string &m_stats;
     };
 
+
+    // The interface must be able to provide getRequiredTimers() many timers
+    // prior being used first time.
     class GPUInterface {
     public:
       virtual const char* TimerTypeName () = 0 ;
@@ -91,7 +72,7 @@ namespace nv_helpers_gl
       virtual void    TimerSetup     ( TimerIdx idx ) = 0;
       virtual unsigned long long  TimerResult( TimerIdx idxBegin
                                              , TimerIdx idxEnd ) = 0;
-      virtual void    TimerGrow      ( unsigned int timers) = 0;
+      virtual void    TimerEnsureSize( unsigned int timers) = 0;
     };
 
     class Section {
@@ -110,7 +91,7 @@ namespace nv_helpers_gl
       Profiler&   m_profiler;
     };
 
-    unsigned int getRequiredTimers();
+    unsigned int getRequiredTimers() const;
 
     void reset(int delay = CONFIG_DELAY);
     void accumulationSplit();
@@ -123,19 +104,26 @@ namespace nv_helpers_gl
 
     void print(std::string &stats);
 
-    unsigned int getAveragedFrames();
+    unsigned int getAveragedFrames() const;
     bool         getAveragedValues(const char* name, double& cpuTimer, double& gpuTimer);
 
-    double  getMicroSeconds();
+    double  getMicroSeconds() const;
+
+    void setDefaultGPUInterface(GPUInterface *gpuif){
+      m_defaultGPUIF = gpuif;
+      if(gpuif){
+        gpuif->TimerEnsureSize( getRequiredTimers() );
+      }
+    }
 
   private:
     Slot    beginSection( const char* name, GPUInterface* gpuif);
     void    endSection  ( Slot slot);
     void    grow(unsigned int newsize);
 
-    static inline Profiler::TimerIdx getTimerIdx(nv_helpers_gl::Profiler::Slot idx, int queryFrame, bool begin)
+    static inline TimerIdx getTimerIdx(Slot idx, int queryFrame, bool begin)
     {
-      return idx * (nv_helpers_gl::Profiler::FRAME_DELAY * 2) + queryFrame + (begin ? 0 : nv_helpers_gl::Profiler::FRAME_DELAY);
+      return idx * (FRAME_DELAY * 2) + queryFrame + (begin ? 0 : FRAME_DELAY);
     }
 
     struct Entry {
@@ -145,9 +133,6 @@ namespace nv_helpers_gl
       nvtxRangeId_t m_nvrange;
 #endif
       GPUInterface* gpuif;
-#if NV_PROFILER_SUPPORTS_OPENGL
-      GLuint        queries[FRAME_DELAY * 2];
-#endif
       double        deltas[FRAME_DELAY];
 
       double      numTimes;
@@ -166,6 +151,7 @@ namespace nv_helpers_gl
     unsigned int        m_lastEntries;
     std::vector<Entry>  m_entries;
     double              m_lastPrint;
+    GPUInterface*       m_defaultGPUIF;
 
 
   };
@@ -173,7 +159,7 @@ namespace nv_helpers_gl
 
 //////////////////////////////////////////////////////////////////////////
 
-namespace nv_helpers_gl
+namespace nv_helpers
 {
   
   inline void Profiler::accumulationSplit()
@@ -187,20 +173,21 @@ namespace nv_helpers_gl
     m_entries[slot].splitter = true;
   }
 
-  inline unsigned int Profiler::getRequiredTimers()
+  inline unsigned int Profiler::getRequiredTimers() const
   {
     return (unsigned int)(m_entries.size() * FRAME_DELAY * 2);
   }
 
-  inline Profiler::Slot Profiler::beginSection( const char* name, GPUInterface* gpuif )
+  inline Profiler::Slot Profiler::beginSection( const char* name, GPUInterface* gpuifProvided )
   {
+    GPUInterface* gpuif = gpuifProvided ? gpuifProvided : m_defaultGPUIF;
     unsigned int queryFrame = m_numFrames % FRAME_DELAY;
     Slot slot = m_frameEntries++;
     if (slot >= m_entries.size()){
       grow((unsigned int)(m_entries.size() * 2));
-      if (gpuif){
-        gpuif->TimerGrow( getRequiredTimers() );
-      }
+    }
+    if (gpuif){
+      gpuif->TimerEnsureSize( getRequiredTimers() );
     }
  
     if (m_entries[slot].name != name ||
@@ -241,11 +228,6 @@ namespace nv_helpers_gl
     if (gpuif){
       gpuif->TimerSetup( getTimerIdx(slot,queryFrame,true) );
     }
-#if NV_PROFILER_SUPPORTS_OPENGL
-    else{
-      glQueryCounter(m_entries[slot].queries[queryFrame],GL_TIMESTAMP);
-    }
-#endif
     
     m_entries[slot].deltas[queryFrame] = -getMicroSeconds();
 
@@ -260,15 +242,6 @@ namespace nv_helpers_gl
     if (m_entries[slot].gpuif){
       m_entries[slot].gpuif->TimerSetup( getTimerIdx(slot,queryFrame,false) );
     }
-#if NV_PROFILER_SUPPORTS_OPENGL
-    else{
-      glQueryCounter(m_entries[slot].queries[queryFrame + FRAME_DELAY],GL_TIMESTAMP);
-#if NV_TIMER_FLUSH
-      glFlush();
-#endif
-    }
-#endif
-
 
 #ifdef SUPPORT_NVTOOLSEXT
     nvtxRangePop();
