@@ -42,6 +42,8 @@
 #include <windowsx.h>
 #include "resources.h"
 
+extern "C" { _declspec(dllexport) DWORD NvOptimusEnablement = 0x00000001; }
+
 HINSTANCE   g_hInstance = 0;
 LPSTR       g_lpCmdLine;
 int         g_nCmdShow;
