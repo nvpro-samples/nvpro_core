@@ -8,6 +8,7 @@
 #include <string>
 #include <deque>
 #include <assert.h>
+#include<stdint.h>
 
 #if defined(MACOS)
 #include <OpenGL/gl.h>
@@ -21,41 +22,41 @@
 namespace nv_dds
 {
     // surface description flags
-    const unsigned long DDSF_CAPS           = 0x00000001l;
-    const unsigned long DDSF_HEIGHT         = 0x00000002l;
-    const unsigned long DDSF_WIDTH          = 0x00000004l;
-    const unsigned long DDSF_PITCH          = 0x00000008l;
-    const unsigned long DDSF_PIXELFORMAT    = 0x00001000l;
-    const unsigned long DDSF_MIPMAPCOUNT    = 0x00020000l;
-    const unsigned long DDSF_LINEARSIZE     = 0x00080000l;
-    const unsigned long DDSF_DEPTH          = 0x00800000l;
+    const uint32_t DDSF_CAPS           = 0x00000001l;
+    const uint32_t DDSF_HEIGHT         = 0x00000002l;
+    const uint32_t DDSF_WIDTH          = 0x00000004l;
+    const uint32_t DDSF_PITCH          = 0x00000008l;
+    const uint32_t DDSF_PIXELFORMAT    = 0x00001000l;
+    const uint32_t DDSF_MIPMAPCOUNT    = 0x00020000l;
+    const uint32_t DDSF_LINEARSIZE     = 0x00080000l;
+    const uint32_t DDSF_DEPTH          = 0x00800000l;
 
     // pixel format flags
-    const unsigned long DDSF_ALPHAPIXELS    = 0x00000001l;
-    const unsigned long DDSF_FOURCC         = 0x00000004l;
-    const unsigned long DDSF_RGB            = 0x00000040l;
-    const unsigned long DDSF_RGBA           = 0x00000041l;
+    const uint32_t DDSF_ALPHAPIXELS    = 0x00000001l;
+    const uint32_t DDSF_FOURCC         = 0x00000004l;
+    const uint32_t DDSF_RGB            = 0x00000040l;
+    const uint32_t DDSF_RGBA           = 0x00000041l;
 
     // dwCaps1 flags
-    const unsigned long DDSF_COMPLEX         = 0x00000008l;
-    const unsigned long DDSF_TEXTURE         = 0x00001000l;
-    const unsigned long DDSF_MIPMAP          = 0x00400000l;
+    const uint32_t DDSF_COMPLEX         = 0x00000008l;
+    const uint32_t DDSF_TEXTURE         = 0x00001000l;
+    const uint32_t DDSF_MIPMAP          = 0x00400000l;
 
     // dwCaps2 flags
-    const unsigned long DDSF_CUBEMAP         = 0x00000200l;
-    const unsigned long DDSF_CUBEMAP_POSITIVEX  = 0x00000400l;
-    const unsigned long DDSF_CUBEMAP_NEGATIVEX  = 0x00000800l;
-    const unsigned long DDSF_CUBEMAP_POSITIVEY  = 0x00001000l;
-    const unsigned long DDSF_CUBEMAP_NEGATIVEY  = 0x00002000l;
-    const unsigned long DDSF_CUBEMAP_POSITIVEZ  = 0x00004000l;
-    const unsigned long DDSF_CUBEMAP_NEGATIVEZ  = 0x00008000l;
-    const unsigned long DDSF_CUBEMAP_ALL_FACES  = 0x0000FC00l;
-    const unsigned long DDSF_VOLUME          = 0x00200000l;
+    const uint32_t DDSF_CUBEMAP         = 0x00000200l;
+    const uint32_t DDSF_CUBEMAP_POSITIVEX  = 0x00000400l;
+    const uint32_t DDSF_CUBEMAP_NEGATIVEX  = 0x00000800l;
+    const uint32_t DDSF_CUBEMAP_POSITIVEY  = 0x00001000l;
+    const uint32_t DDSF_CUBEMAP_NEGATIVEY  = 0x00002000l;
+    const uint32_t DDSF_CUBEMAP_POSITIVEZ  = 0x00004000l;
+    const uint32_t DDSF_CUBEMAP_NEGATIVEZ  = 0x00008000l;
+    const uint32_t DDSF_CUBEMAP_ALL_FACES  = 0x0000FC00l;
+    const uint32_t DDSF_VOLUME          = 0x00200000l;
 
     // compressed texture types
-    const unsigned long FOURCC_DXT1 = 0x31545844l; //(MAKEFOURCC('D','X','T','1'))
-    const unsigned long FOURCC_DXT3 = 0x33545844l; //(MAKEFOURCC('D','X','T','3'))
-    const unsigned long FOURCC_DXT5 = 0x35545844l; //(MAKEFOURCC('D','X','T','5'))
+    const uint32_t FOURCC_DXT1 = 0x31545844l; //(MAKEFOURCC('D','X','T','1'))
+    const uint32_t FOURCC_DXT3 = 0x33545844l; //(MAKEFOURCC('D','X','T','3'))
+    const uint32_t FOURCC_DXT5 = 0x35545844l; //(MAKEFOURCC('D','X','T','5'))
 
     struct DXTColBlock
     {
@@ -80,30 +81,30 @@ namespace nv_dds
 
     struct DDS_PIXELFORMAT
     {
-        unsigned long dwSize;
-        unsigned long dwFlags;
-        unsigned long dwFourCC;
-        unsigned long dwRGBBitCount;
-        unsigned long dwRBitMask;
-        unsigned long dwGBitMask;
-        unsigned long dwBBitMask;
-        unsigned long dwABitMask;
+        uint32_t dwSize;
+        uint32_t dwFlags;
+        uint32_t dwFourCC;
+        uint32_t dwRGBBitCount;
+        uint32_t dwRBitMask;
+        uint32_t dwGBitMask;
+        uint32_t dwBBitMask;
+        uint32_t dwABitMask;
     };
 
     struct DDS_HEADER
     {
-        unsigned long dwSize;
-        unsigned long dwFlags;
-        unsigned long dwHeight;
-        unsigned long dwWidth;
-        unsigned long dwPitchOrLinearSize;
-        unsigned long dwDepth;
-        unsigned long dwMipMapCount;
-        unsigned long dwReserved1[11];
+        uint32_t dwSize;
+        uint32_t dwFlags;
+        uint32_t dwHeight;
+        uint32_t dwWidth;
+        uint32_t dwPitchOrLinearSize;
+        uint32_t dwDepth;
+        uint32_t dwMipMapCount;
+        uint32_t dwReserved1[11];
         DDS_PIXELFORMAT ddspf;
-        unsigned long dwCaps1;
-        unsigned long dwCaps2;
-        unsigned long dwReserved2[3];
+        uint32_t dwCaps1;
+        uint32_t dwCaps2;
+        uint32_t dwReserved2[3];
     };
 
     typedef enum TextureType

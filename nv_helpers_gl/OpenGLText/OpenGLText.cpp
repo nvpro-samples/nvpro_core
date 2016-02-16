@@ -606,14 +606,14 @@ void OpenGLText::endString()
         bs.setStates();
         // Note: we could also downsize the buffer if the size is really smaller than the one currently allocated
         // this could be done after few iterations, if we see that the size if still smaller than the allocation...
-        if(m_vbosz < m_vertices.size())
-        {
+        //if(m_vbosz < m_vertices.size())
+        //{
             glBindBuffer( GL_ARRAY_BUFFER, m_vbo ); // ??!?!? otherewize it crashes
             glNamedBufferData(m_vbo, m_vertices.size()*sizeof(Vertex), &(m_vertices.front()), GL_STREAM_DRAW);
             glBindBuffer( GL_ARRAY_BUFFER, 0 );
             m_vbosz = m_vertices.size();
-        } else
-            glNamedBufferSubData(m_vbo, 0, m_vertices.size()*sizeof(Vertex), &(m_vertices.front()));
+        //} else
+        //    glNamedBufferSubData(m_vbo, 0, m_vertices.size()*sizeof(Vertex), &(m_vertices.front()));
         //
         // Vertex attribute format definition
         //

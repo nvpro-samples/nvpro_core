@@ -73,14 +73,15 @@ namespace nv_helpers
       virtual unsigned long long  TimerResult( TimerIdx idxBegin
                                              , TimerIdx idxEnd ) = 0;
       virtual void    TimerEnsureSize( unsigned int timers) = 0;
+      virtual void    TimerFlush() = 0;
     };
 
     class Section {
     public:
-      Section(Profiler& profiler, const char* name, GPUInterface* gpuif = 0)
+      Section(Profiler& profiler, const char* name, GPUInterface* gpuif = 0, bool flush=false)
         : m_profiler(profiler)
       {
-        m_slot = profiler.beginSection(name, gpuif);
+        m_slot = profiler.beginSection(name, gpuif, flush);
       }
       ~Section() {
         m_profiler.endSection(m_slot);
@@ -117,7 +118,7 @@ namespace nv_helpers
     }
 
   private:
-    Slot    beginSection( const char* name, GPUInterface* gpuif);
+    Slot    beginSection( const char* name, GPUInterface* gpuif, bool flush);
     void    endSection  ( Slot slot);
     void    grow(unsigned int newsize);
 
@@ -133,6 +134,7 @@ namespace nv_helpers
       nvtxRangeId_t m_nvrange;
 #endif
       GPUInterface* gpuif;
+      bool          flush;
       double        deltas[FRAME_DELAY];
 
       double      numTimes;
@@ -178,7 +180,7 @@ namespace nv_helpers
     return (unsigned int)(m_entries.size() * FRAME_DELAY * 2);
   }
 
-  inline Profiler::Slot Profiler::beginSection( const char* name, GPUInterface* gpuifProvided )
+  inline Profiler::Slot Profiler::beginSection( const char* name, GPUInterface* gpuifProvided, bool flush )
   {
     GPUInterface* gpuif = gpuifProvided ? gpuifProvided : m_defaultGPUIF;
     unsigned int queryFrame = m_numFrames % FRAME_DELAY;
@@ -199,6 +201,7 @@ namespace nv_helpers
     }
 
     int level = m_level++;
+    m_entries[slot].flush = flush;
     m_entries[slot].level = level;
     m_entries[slot].splitter = false;
 
@@ -225,11 +228,11 @@ namespace nv_helpers
     }
 #endif
 
+    m_entries[slot].deltas[queryFrame] = -getMicroSeconds();
+
     if (gpuif){
       gpuif->TimerSetup( getTimerIdx(slot,queryFrame,true) );
     }
-    
-    m_entries[slot].deltas[queryFrame] = -getMicroSeconds();
 
     return slot;
   }
@@ -237,11 +240,16 @@ namespace nv_helpers
   inline void Profiler::endSection( Slot slot )
   {
     unsigned int queryFrame = m_numFrames % FRAME_DELAY;
+    Entry& entry = m_entries[slot];
 
-    m_entries[slot].deltas[queryFrame] += getMicroSeconds();
-    if (m_entries[slot].gpuif){
-      m_entries[slot].gpuif->TimerSetup( getTimerIdx(slot,queryFrame,false) );
+    if (entry.gpuif){
+      entry.gpuif->TimerSetup( getTimerIdx(slot,queryFrame,false) );
+      if (entry.flush){
+        entry.gpuif->TimerFlush();
+      }
     }
+
+    entry.deltas[queryFrame] += getMicroSeconds();
 
 #ifdef SUPPORT_NVTOOLSEXT
     nvtxRangePop();

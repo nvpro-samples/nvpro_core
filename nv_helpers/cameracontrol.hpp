@@ -25,7 +25,7 @@ namespace nv_helpers
     CameraControl()
       : m_lastButtonFlags(0)
       , m_lastWheel(0)
-      , m_senseWheelZoom(0.05f)
+      , m_senseWheelZoom(0.05f/120.0f)
       , m_senseZoom(0.001f)
       , m_senseRotate((nv_pi*0.5f)/256.0f)
       , m_sensePan(1.0f)
@@ -78,17 +78,32 @@ namespace nv_helpers
       }
 
       if (m_zooming || m_zoomingWheel){
-
         float dist = 
           m_zooming ? -(nv_math::dot( mouse - m_startZoom ,nv_math::vec2f(-1,1)) * m_sceneDimension * m_senseZoom) 
           : (float(wheel - m_startZoomWheel) * m_sceneDimension * m_senseWheelZoom);
 
         if (m_zoomingWheel){
+          m_startZoomOrtho = m_sceneOrthoZoom;
           m_startMatrix = m_viewMatrix;
         }
 
         if (m_sceneOrtho){
-          m_sceneOrthoZoom = std::max(0.0001f,m_startZoomOrtho - (dist));
+          float newzoom = m_startZoomOrtho - (dist);
+          if (m_zoomingWheel){
+            if (newzoom < 0){
+              m_sceneOrthoZoom *= 0.5;
+            }
+            else if (m_sceneOrthoZoom < abs(dist)){
+              m_sceneOrthoZoom *= 2.0;
+            }
+            else{
+              m_sceneOrthoZoom = newzoom;
+            }
+          }
+          else{
+            m_sceneOrthoZoom = newzoom;
+          }
+          m_sceneOrthoZoom = std::max(0.0001f,m_sceneOrthoZoom);
         }
         else{
           nv_math::mat4f delta = nv_math::translation_mat4(nv_math::vec3f(0,0,dist * 2.0f));
@@ -131,16 +146,16 @@ namespace nv_helpers
     bool        m_sceneOrtho;
     float       m_sceneOrthoZoom;
     float       m_sceneDimension;
-    nv_math::vec3f   m_sceneOrbit;
 
+    nv_math::vec3f   m_sceneOrbit;
     nv_math::mat4f   m_viewMatrix;
 
-  private:
     float       m_senseWheelZoom;
     float       m_senseZoom;
     float       m_senseRotate;
     float       m_sensePan;
 
+  private:
     bool        m_zooming;
     bool        m_zoomingWheel;
     bool        m_panning;

@@ -160,6 +160,7 @@
 #   include <crtdbg.h>
 #endif
 
+#include<iostream>
 #include <string.h>
 #if defined(WIN32)
 #  include <windows.h>
@@ -316,6 +317,8 @@ void CDDSImage::create_textureCubemap(unsigned int format, unsigned int componen
 bool CDDSImage::load(string filename, bool flipImage)
 {
     assert(filename.length() != 0);
+
+    std::cout << "File name has length" << std::endl;
     
     // clear any previously loaded images
     clear();
@@ -325,6 +328,8 @@ bool CDDSImage::load(string filename, bool flipImage)
     if (fp == NULL)
         return false;
 
+    std::cout << "Found a file" << std::endl;
+
     // read in file marker, make sure its a DDS file
     char filecode[4];
     fread(filecode, 1, 4, fp);
@@ -333,6 +338,8 @@ bool CDDSImage::load(string filename, bool flipImage)
         fclose(fp);
         return false;
     }
+
+    std::cout << "Its a DDS file" << std::endl;
 
     // read in DDS header
     DDS_HEADER ddsh;
@@ -355,12 +362,15 @@ bool CDDSImage::load(string filename, bool flipImage)
     m_type = TextureFlat;
 
     // check if image is a cubemap
-    if (ddsh.dwCaps2 & DDSF_CUBEMAP)
+    if (ddsh.dwCaps2 & DDSF_CUBEMAP){
         m_type = TextureCubemap;
+    }
 
     // check if image is a volume texture
-    if ((ddsh.dwCaps2 & DDSF_VOLUME) && (ddsh.dwDepth > 0))
+    if ((ddsh.dwCaps2 & DDSF_VOLUME) && (ddsh.dwDepth > 0)){
         m_type = Texture3D;
+    }
+
 
     // figure out what the image format is
     if (ddsh.ddspf.dwFlags & DDSF_FOURCC) 
@@ -389,25 +399,26 @@ bool CDDSImage::load(string filename, bool flipImage)
     }
     else if (ddsh.ddspf.dwFlags == DDSF_RGBA && ddsh.ddspf.dwRGBBitCount == 32)
     {
+
         m_format = GL_BGRA_EXT; 
         m_components = 4;
         m_internal_format = comps2internalfmt(m_components);
     }
     else if (ddsh.ddspf.dwFlags == DDSF_RGB  && ddsh.ddspf.dwRGBBitCount == 32)
     {
-        m_format = GL_BGRA_EXT; 
+        m_format = GL_BGRA_EXT;
         m_components = 4;
         m_internal_format = comps2internalfmt(m_components);
     }
     else if (ddsh.ddspf.dwFlags == DDSF_RGB  && ddsh.ddspf.dwRGBBitCount == 24)
     {
-        m_format = GL_BGR_EXT; 
+        m_format = GL_BGR_EXT;
         m_components = 3;
         m_internal_format = comps2internalfmt(m_components);
     }
 	else if (ddsh.ddspf.dwRGBBitCount == 8)
 	{
-		m_format = GL_LUMINANCE; 
+        m_format = GL_LUMINANCE;
 		m_components = 1;
         m_internal_format = comps2internalfmt(m_components);
 	}
@@ -1061,8 +1072,8 @@ void CDDSImage::flip_dxt5_alpha(DXT5AlphaBlock *block)
 {
     unsigned char gBits[4][4];
     
-    const unsigned long mask = 0x00000007;          // bits = 00 00 01 11
-    unsigned long bits = 0;
+    const uint32_t mask = 0x00000007;          // bits = 00 00 01 11
+    uint32_t bits = 0;
     memcpy(&bits, &block->row[0], sizeof(unsigned char) * 3);
 
     gBits[0][0] = (unsigned char)(bits & mask);
@@ -1103,7 +1114,7 @@ void CDDSImage::flip_dxt5_alpha(DXT5AlphaBlock *block)
     // clear existing alpha bits
     memset(block->row, 0, sizeof(unsigned char) * 6);
 
-    unsigned long *pBits = ((unsigned long*) &(block->row[0]));
+    uint32_t *pBits = ((uint32_t*) &(block->row[0]));
 
     *pBits = *pBits | (gBits[3][0] << 0);
     *pBits = *pBits | (gBits[3][1] << 3);
@@ -1115,7 +1126,7 @@ void CDDSImage::flip_dxt5_alpha(DXT5AlphaBlock *block)
     *pBits = *pBits | (gBits[2][2] << 18);
     *pBits = *pBits | (gBits[2][3] << 21);
 
-    pBits = ((unsigned long*) &(block->row[3]));
+    pBits = ((uint32_t*) &(block->row[3]));
 
     *pBits = *pBits | (gBits[1][0] << 0);
     *pBits = *pBits | (gBits[1][1] << 3);

@@ -87,5 +87,10 @@ namespace nv_helpers_gl
     m_queries.clear();
   }
 
+  void ProfilerTimersGL::TimerFlush()
+  {
+    glFlush();
+  }
+
 }
 

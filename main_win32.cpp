@@ -207,6 +207,11 @@ bool WINinternal::initBase(const NVPWindow::ContextFlags* cflags, NVPWindow* sou
     pfd.cDepthBits = settings.depth;
     pfd.cStencilBits = settings.stencil;
 
+    if( settings.stereo )
+    {
+      pfd.dwFlags |= PFD_STEREO;
+    }
+
     if(settings.MSAA > 1)
     {
         m_hDC = GetDC(m_hWndDummy);

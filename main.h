@@ -277,9 +277,10 @@ public:
     bool        robust;
     bool        core;
     bool        forward;
+    bool        stereo;
     NVPWindow*  share;
 
-    ContextFlags(int _major=4, int _minor=3, bool _core=false, int _MSAA=0, int _depth=24, int _stencil=8,bool _debug=false, bool _robust=false, bool _forward=false, NVPWindow* _share=0)
+    ContextFlags(int _major=4, int _minor=3, bool _core=false, int _MSAA=0, int _depth=24, int _stencil=8,bool _debug=false, bool _robust=false, bool _forward=false, bool _stereo=false, NVPWindow* _share=0)
     {
       major = _major;
       minor = _minor;
@@ -290,6 +291,7 @@ public:
       debug = _debug;
       robust = _robust;
       forward = _forward;
+      stereo = _stereo;
       share = _share;
     }
 

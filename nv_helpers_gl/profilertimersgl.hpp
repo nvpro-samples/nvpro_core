@@ -57,6 +57,7 @@ namespace nv_helpers_gl
     virtual unsigned long long  TimerResult(  nv_helpers::Profiler::TimerIdx idxBegin,
                                               nv_helpers::Profiler::TimerIdx idxEnd );
     virtual void        TimerEnsureSize( unsigned int timers);
+    virtual void        TimerFlush();
 
     void init(unsigned int timers);
     void deinit();

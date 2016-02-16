@@ -271,20 +271,11 @@ namespace nv_helpers_gl
       }
     }
 
-    ContextFlags flags;
-    flags.major = Major;
-    flags.minor = Minor;
-    flags.robust = 0;
-    flags.core  = 0;
-#ifdef NDEBUG
-    flags.debug = 0;
-#else
-    flags.debug = 1;
-#endif
-    flags.share = NULL;
+    m_cflags.major = Major;
+    m_cflags.minor = Minor;
 
-    if (!activate(width,height,title.c_str(), &flags)){
-      printf("Could not create GL context: %d.%d\n",flags.major,flags.minor);
+    if (!activate(width,height,title.c_str(), &m_cflags)){
+      printf("Could not create GL context: %d.%d\n",m_cflags.major,m_cflags.minor);
       return EXIT_FAILURE;
     }
 

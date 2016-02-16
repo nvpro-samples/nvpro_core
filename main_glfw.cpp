@@ -239,7 +239,7 @@ static void mouse_wheel_callback(GLFWwindow* win,double x, double y)
 {
   NVPWindow* window = (NVPWindow*)glfwGetWindowUserPointer(win);
 
-  int iy = int(y);
+  int iy = int(y) * 120;  // compatibility with main_win32
 
   window->mousewheel(iy);
 

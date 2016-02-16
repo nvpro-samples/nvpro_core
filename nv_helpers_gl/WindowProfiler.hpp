@@ -30,20 +30,9 @@
 #include <string.h> // for memset
 #include <main.h>
 
-// enable the NV_PROFILE_SECTION(name) macro, or turn it to a noop
-#ifndef NV_SUPPORT_PROFILE
-#define NV_SUPPORT_PROFILE 1
-#endif
-
-
-#if NV_SUPPORT_PROFILE
-#define NV_PROFILE_SECTION(name)            nv_helpers::Profiler::Section _tempTimer(m_profiler ,name, &m_gltimers)
-#define NV_PROFILE_SECTION_EX(name, gpui)   nv_helpers::Profiler::Section _tempTimer(m_profiler, name, gpui)
-#define NV_PROFILE_SPLIT()                  m_profiler.accumulationSplit()
-#else
-#define NV_PROFILE_SECTION(name)
-#define NV_PROFILE_SPLIT()
-#endif
+#define NV_PROFILE_SECTION(name)                    nv_helpers::Profiler::Section _tempTimer(m_profiler ,name, &m_gltimers)
+#define NV_PROFILE_SECTION_EX(name, gpui, flush)    nv_helpers::Profiler::Section _tempTimer(m_profiler, name, gpui, flush)
+#define NV_PROFILE_SPLIT()                          m_profiler.accumulationSplit()
 
 namespace nv_helpers_gl
 {
@@ -89,6 +78,15 @@ namespace nv_helpers_gl
       , m_timeInTitle(true)
     {
       m_debugFilter = GL_DEBUG_SEVERITY_MEDIUM;
+
+      m_cflags.robust = false;
+      m_cflags.core   = false;
+#ifdef NDEBUG
+      m_cflags.debug  = false;
+#else
+      m_cflags.debug  = true;
+#endif
+      m_cflags.share  = NULL;
     }
 
     virtual bool begin() { return false; }
@@ -121,6 +119,8 @@ namespace nv_helpers_gl
     bool          m_singleThreaded;
     bool          m_doSwap;
     bool          m_active;
+
+    ContextFlags  m_cflags;
 
     void vsync(bool state);
     void waitEvents();
