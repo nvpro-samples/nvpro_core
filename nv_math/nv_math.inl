@@ -559,7 +559,7 @@ inline vector3<T> mult(const vector3<T>& v, const matrix4<T>& M)
 }
 
 template<class T>
-inline matrix4<T> & add(const matrix4<T>& A, const matrix4<T>& B)
+inline matrix4<T> add(const matrix4<T>& A, const matrix4<T>& B)
 {
     matrix4<T> C;
     C.a00 = A.a00 + B.a00;
@@ -582,7 +582,7 @@ inline matrix4<T> & add(const matrix4<T>& A, const matrix4<T>& B)
 }
 
 template<class T>
-inline matrix3<T> & add(const matrix3<T>& A, const matrix3<T>& B)
+inline matrix3<T> add(const matrix3<T>& A, const matrix3<T>& B)
 {
     matrix3<T> C;
     C.a00 = A.a00 + B.a00;
