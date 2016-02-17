@@ -116,10 +116,15 @@ endif()
 if (VULKANSDK_ROOT_DIR)
 
   if (WIN32) 
+	if(ARCH STREQUAL "x86")
+		set(_vk_bin_folder "bin32")
+	else()
+		set(_vk_bin_folder "bin")
+	endif()
 	  #-------- Locate LIBS
-    _find_files( VULKAN_LIB VULKANSDK_ROOT_DIR "bin/vulkan-1.lib" "bin/vulkan-1.lib" "")
-    _find_files( VULKANSTATIC_LIB VULKANSDK_ROOT_DIR "bin/VKstatic.1.lib" "bin/VKstatic.1.lib" "")
-    _find_files( GLSLANGVALIDATOR VULKANSDK_ROOT_DIR "bin/glslangValidator.exe" "bin/glslangValidator.exe" "")
+    _find_files( VULKAN_LIB VULKANSDK_ROOT_DIR "${_vk_bin_folder}/vulkan-1.lib" "${_vk_bin_folder}/vulkan-1.lib" "")
+    _find_files( VULKANSTATIC_LIB VULKANSDK_ROOT_DIR "${_vk_bin_folder}/VKstatic.1.lib" "${_vk_bin_folder}/VKstatic.1.lib" "")
+    _find_files( GLSLANGVALIDATOR VULKANSDK_ROOT_DIR "${_vk_bin_folder}/glslangValidator.exe" "${_vk_bin_folder}/glslangValidator.exe" "")
   endif(WIN32)
 
   if (UNIX)
