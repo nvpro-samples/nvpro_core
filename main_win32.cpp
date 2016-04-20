@@ -966,7 +966,7 @@ void NVPWindow::sysDeinit()
 
 }
 
-
+static bool s_isConsole = false;
 static std::string s_path;
 
 std::string NVPWindow::sysExePath()
@@ -980,6 +980,8 @@ using namespace std;
 
 void NVPWindow::sysVisibleConsole()
 {
+  if (s_isConsole) return;
+
   int hConHandle;
   long lStdHandle;
 
@@ -1108,6 +1110,7 @@ private:
 
 
 //------------------------------------------------------------------------------
+
 int WINAPI WinMain( HINSTANCE hInstance,
                     HINSTANCE hPrevInstance,
                     LPSTR     lpCmdLine,
@@ -1173,6 +1176,15 @@ int WINAPI WinMain( HINSTANCE hInstance,
     _CrtDumpMemoryLeaks();
 #endif
     return (int)uMsg.wParam;
+}
+
+int main(int argc, char **argv)
+{
+  HINSTANCE hinstance = GetModuleHandle(NULL);
+  s_isConsole = true;
+
+  WinMain(hinstance, NULL, NULL, 1);
+  return 0;
 }
 
 //------------------------------------------------------------------------------
