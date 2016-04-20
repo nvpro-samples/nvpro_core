@@ -402,11 +402,14 @@ bool NVPWindow::isOpen()
 
 #ifdef WIN32
 static const WORD MAX_CONSOLE_LINES = 500;
+static bool s_isConsole = false;
 
 using namespace std;
 
 void NVPWindow::sysVisibleConsole()
 {
+  if (s_isConsole) return;
+
   int hConHandle;
   long lStdHandle;
 
@@ -589,6 +592,20 @@ int main(int argc, const char **argv)
 
     return 0;
 }
+
+#ifdef WIN32
+
+int main(int argc, char **argv)
+{
+  HINSTANCE hinstance = GetModuleHandle(NULL);
+  s_isConsole = true;
+
+  WinMain(hinstance, NULL, NULL, 1);
+  return 0;
+}
+
+#endif
+
 //------------------------------------------------------------------------------
 // 
 //------------------------------------------------------------------------------
