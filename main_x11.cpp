@@ -51,6 +51,7 @@
 #include<sys/timeb.h>
 
 Display *g_dpy = 0;
+PFNGLXSWAPINTERVALEXTPROC g_glXSwapIntervalEXT = 0;
 
 std::vector<NVPWindow*> g_windows;
 
@@ -245,16 +246,22 @@ bool WINinternal::initBase(const NVPWindow::ContextFlags *cflags, NVPWindow *sou
         printf("Error making glx context current.\n");
         return false;
     }
+            
+    GLenum glewErr = glewInit();
 
-   GLenum glewErr = glewInit();
+    if(GLEW_OK != glewErr){
+        printf("Error initialising glew: %s.\n",glewGetErrorString(glewErr));
+        return false;
+    }
+    
+    g_glXSwapIntervalEXT = (PFNGLXSWAPINTERVALEXTPROC)glXGetProcAddressARB((const GLubyte *) "glXSwapIntervalEXT");
+    
+    if (!g_glXSwapIntervalEXT)
+    {
+        printf("glXSwapIntervalEXT is NULL\n");
+    }
 
-   if(GLEW_OK != glewErr){
-       printf("Error initialising glew: %s.\n",glewGetErrorString(glewErr));
-       return false;
-   }
-
-
-   return true;
+    return true;
 }
 
 static int getKeyMods(XEvent &evt){
@@ -803,7 +810,8 @@ void NVPWindow::makeContextNonCurrent(){
 
 void NVPWindow::swapInterval(int i){
     //do nothing.
-    glXSwapIntervalEXT(m_internal->m_dpy,m_internal->m_window,i);
+    if (g_glXSwapIntervalEXT)
+        g_glXSwapIntervalEXT(m_internal->m_dpy,m_internal->m_window,i);
 }
 
 
