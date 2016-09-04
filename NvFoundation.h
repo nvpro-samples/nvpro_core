@@ -220,6 +220,19 @@ DLL export macros
 #endif
 
 /**
+API export macros
+*/
+#if !defined(NV_API_EXPORT)
+#    if defined(NV_VC)
+#        define NV_API_EXPORT __declspec(dllexport)
+#    elif defined(NV_GNUC) || defined(NV_GHS)
+#        define NV_API_EXPORT __attribute__((visibility("default")))
+#    else
+#        define NV_API_EXPORT
+#    endif
+#endif
+
+/**
 Calling convention
 */
 #ifndef NV_CALL_CONV
