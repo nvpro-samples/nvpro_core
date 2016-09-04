@@ -66,10 +66,12 @@ static int attrListDbl[] = {
     GLX_DEPTH_SIZE,16,0
 };
 
- 
-static bool ctxErrorOccurred;
 static int ctxErrorHandler(Display *dpy, XErrorEvent *evt){
-    ctxErrorOccurred = true;
+    char error_str[256] = {};
+    XGetErrorText(dpy, evt->error_code, error_str, sizeof(error_str));
+    
+    printf("X Error: %s\n", error_str);
+    
     return 0;
 }
 
@@ -222,9 +224,9 @@ bool WINinternal::initBase(const NVPWindow::ContextFlags *cflags, NVPWindow *sou
     glXCreateContextAttribsARB  = (glXCreateContextAttribsARBProc) glXGetProcAddressARB((const GLubyte *) "glXCreateContextAttribsARB");
 
  
-    ctxErrorOccurred = false;
-    int (*oldHandler)(Display *, XErrorEvent*) = XSetErrorHandler(&ctxErrorHandler);
 
+    XSetErrorHandler(&ctxErrorHandler);
+    
     int contextattribs[] = {
         GLX_CONTEXT_MAJOR_VERSION_ARB, settings.major,
         GLX_CONTEXT_MINOR_VERSION_ARB, settings.minor,
@@ -232,22 +234,23 @@ bool WINinternal::initBase(const NVPWindow::ContextFlags *cflags, NVPWindow *sou
         0
     }; 
 
-   
     m_glx_context = glXCreateContextAttribsARB(m_dpy,m_glx_fb_config,0,True,contextattribs);
-
-
-    XSetErrorHandler(oldHandler);
-
-
+    
+    if(!m_glx_context){
+        printf("Error making glx context: returned context is NULL\n");
+        return false;   
+    }
 
     if(!glXMakeCurrent(m_dpy,m_window,m_glx_context)){
         printf("Error making glx context current.\n");
+        return false;
     }
 
    GLenum glewErr = glewInit();
 
    if(GLEW_OK != glewErr){
-    printf("Error initialising glew: %s.\n",glewGetErrorString(glewErr));
+       printf("Error initialising glew: %s.\n",glewGetErrorString(glewErr));
+       return false;
    }
 
 
