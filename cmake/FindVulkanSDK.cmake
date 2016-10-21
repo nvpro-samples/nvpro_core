@@ -90,13 +90,8 @@ if (UNIX)
     message ( STATUS "VulkanSDK search paths: ${SEARCH_PATHS}")
   #_find_version_path ( VULKANSDK_VERSION VULKANSDK_ROOT_DIR "${SEARCH_PATHS}" )
   
-  find_path(VULKANSDK_ROOT_DIR NAMES vulkan/vulkan.h HINTS "$ENV{VULKAN_SDK}/include")
-  find_library(VULKAN_LIB NAMES vulkan HINTS "$ENV{VULKAN_SDK}/lib")
-  
-  Message(STATUS "Vulkan Include : ${VULKANSDK_ROOT_DIR}")
-  Message(STATUS "Vulkan Library : ${VULKAN_LIB}")
-  
-
+  find_path(VULKANSDK_ROOT_DIR NAMES include/vulkan/vulkan.h HINTS "/usr" "$ENV{VULKAN_SDK}")
+  find_library(VULKAN_LIB NAMES vulkan HINTS "/usr/lib" "$ENV{VULKAN_SDK}/lib")
   
 endif()
 message ( STATUS "VulkanSDK version: ${VULKANSDK_VERSION}")
@@ -155,6 +150,10 @@ include(FindPackageHandleStandardArgs)
 SET(VULKAN_LIB ${VULKAN_LIB} CACHE PATH "path")
 SET(VULKANSTATIC_LIB ${VULKANSTATIC_LIB} CACHE PATH "path")
 SET(VULKANSDK_INCLUDE_DIR "${VULKANSDK_ROOT_DIR}/include" CACHE PATH "path")
+
+Message(STATUS "Vulkan Root : ${VULKANSDK_ROOT_DIR}")
+Message(STATUS "Vulkan include : ${VULKANSDK_INCLUDE_DIR}")
+Message(STATUS "Vulkan Library : ${VULKAN_LIB}")
 
 find_package_handle_standard_args(VULKANSDK DEFAULT_MSG
     VULKANSDK_INCLUDE_DIR
