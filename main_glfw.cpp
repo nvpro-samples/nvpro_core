@@ -641,7 +641,7 @@ void nvprintf2(va_list &vlist, const char * fmt, int level)
         if(fmt2) free(fmt2);
         fmt2 = (char*)malloc(fmt2_sz);
     }
-    char *prefix = "";
+    const char *prefix = "";
     switch(level)
     {
     case LOGLEVEL_WARNING:
