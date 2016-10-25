@@ -275,449 +275,136 @@ static int getKeyMods(XEvent &evt){
     return mods;
 }
 
-static int translateKey(XEvent &evt){
-
-    if(evt.type != KeyPress && evt.type != KeyRelease) return 0;
+static int translateKey(XEvent &evt, bool &printableKey)
+{
+    printableKey = false;
+    if(evt.type != KeyPress && evt.type != KeyRelease) 
+        return 0;
 
     unsigned int key = evt.xkey.keycode;
 
-
     KeySym ksym = XLookupKeysym(&evt.xkey,0);
 
-
-    switch(ksym){
-
+    printableKey = false;
+    switch(ksym)
+    {
         /*
             XLib has separate key symbols for left and right
             verions of mod keys. 
         */
-        case XK_Shift_L:
-            return NVPWindow::KEY_LEFT_SHIFT;
-        break;
-
-        case XK_Shift_R:
-            return NVPWindow::KEY_RIGHT_SHIFT;
-        break;
-
-        case XK_Control_L:
-            return NVPWindow::KEY_LEFT_CONTROL;
-        break;
-
-        case XK_Control_R:
-            return NVPWindow::KEY_RIGHT_CONTROL;
-        break;
-
-        case XK_Alt_L:
-            return NVPWindow::KEY_LEFT_ALT;
-        break;
-
-        case XK_Alt_R:
-            return NVPWindow::KEY_RIGHT_ALT;
-        break;
-
-        case XK_Return:
-            return NVPWindow::KEY_ENTER;
-        break;
-
-        case XK_Escape:
-            return NVPWindow::KEY_ESCAPE;
-        break;
-
-        case XK_Tab:
-            return NVPWindow::KEY_TAB;
-        break;
-
-        case XK_BackSpace:
-            return NVPWindow::KEY_BACKSPACE;
-        break;
-
-        case XK_Home:
-            return NVPWindow::KEY_HOME;
-        break;
-
-        case XK_End:
-            return NVPWindow::KEY_END;
-        break;
-
-        case XK_Prior:
-            return NVPWindow::KEY_PAGE_UP;
-        break;
-
-        case XK_Next:
-            return NVPWindow::KEY_PAGE_DOWN;
-        break;
-
-        case XK_Insert:
-            return NVPWindow::KEY_INSERT;
-        break;
-
-        case XK_Delete:
-            return NVPWindow::KEY_DELETE;
-        break;
-
-        case XK_Left:
-            return NVPWindow::KEY_LEFT;
-        break;
-
-        case XK_Right:
-            return NVPWindow::KEY_RIGHT;
-        break;
-
-        case XK_Up:
-            return NVPWindow::KEY_UP;
-        break;
-
-        case XK_Down:
-            return NVPWindow::KEY_DOWN;
-        break;
-
-        case XK_F1:
-            return NVPWindow::KEY_F1;
-        break;
-
-        case XK_F2:
-            return NVPWindow::KEY_F2;
-        break;
-
-        case XK_F3:
-            return NVPWindow::KEY_F3;
-        break;
-
-        case XK_F4:
-            return NVPWindow::KEY_F4;
-        break;
-
-        case XK_F5:
-            return NVPWindow::KEY_F5;
-        break;
-
-        case XK_F6:
-            return NVPWindow::KEY_F6;
-        break;
-
-        case XK_F7:
-            return NVPWindow::KEY_F7;
-        break;
-
-        case XK_F8:
-            return NVPWindow::KEY_F8;
-        break;
-
-        case XK_F9:
-            return NVPWindow::KEY_F9;
-        break;
-
-        case XK_F10:
-            return NVPWindow::KEY_F10;
-        break;
-
-       case XK_F11:
-            return NVPWindow::KEY_F11;
-        break;
-
-       case XK_F12:
-            return NVPWindow::KEY_F12;
-        break;
-
-       case XK_F13:
-            return NVPWindow::KEY_F13;
-        break;
-
-       case XK_F14:
-            return NVPWindow::KEY_F14;
-        break;
-
-       case XK_F15:
-            return NVPWindow::KEY_F15;
-        break;
-
-       case XK_F16:
-            return NVPWindow::KEY_F16;
-        break;
-
-       case XK_F17:
-            return NVPWindow::KEY_F17;
-        break;
-
-       case XK_F18:
-            return NVPWindow::KEY_F18;
-        break;
-
-       case XK_F19:
-            return NVPWindow::KEY_F19;
-        break;
-
-       case XK_F20:
-            return NVPWindow::KEY_F20;
-        break;
-
-        case XK_Num_Lock:
-            return NVPWindow::KEY_NUM_LOCK;
-        break;
-
-        case XK_Caps_Lock:
-            return NVPWindow::KEY_CAPS_LOCK;
-        break;
-
-        case XK_Scroll_Lock:
-            return NVPWindow::KEY_SCROLL_LOCK;
-        break;
-
-        case XK_Pause:
-            return NVPWindow::KEY_PAUSE;
-        break;
-
-        case XK_KP_0:
-            return NVPWindow::KEY_KP_0;
-        break;
-
-        case XK_KP_1:
-            return NVPWindow::KEY_KP_1;
-        break;
-
-        case XK_KP_2:
-            return NVPWindow::KEY_KP_2;
-        break;
-
-        case XK_KP_3:
-            return NVPWindow::KEY_KP_3;
-        break;
-
-        case XK_KP_4:
-            return NVPWindow::KEY_KP_4;
-        break;
-
-        case XK_KP_5:
-            return NVPWindow::KEY_KP_5;
-        break;
-
-        case XK_KP_6:
-            return NVPWindow::KEY_KP_6;
-        break;
-
-        case XK_KP_7:
-            return NVPWindow::KEY_KP_7;
-        break;
-
-        case XK_KP_8:
-            return NVPWindow::KEY_KP_8;
-        break;
-
-        case XK_KP_9:
-            return NVPWindow::KEY_KP_9;
-        break;
-
-        case XK_KP_Divide:
-            return NVPWindow::KEY_KP_DIVIDE;
-        break;
-
-        case XK_KP_Multiply:
-            return NVPWindow::KEY_KP_MULTIPLY;
-        break;
-
-        case XK_KP_Subtract:
-            return NVPWindow::KEY_KP_SUBTRACT;
-        break;
-
-        case XK_KP_Add:
-            return NVPWindow::KEY_KP_ADD;
-        break;
-
-        case XK_KP_Decimal:
-            return NVPWindow::KEY_KP_DECIMAL;
-        break;
-
-        case XK_space:
-            return NVPWindow::KEY_SPACE;
-        break;
-
-        case XK_0:
-            return NVPWindow::KEY_0;
-        break;
-
-       case XK_1:
-            return NVPWindow::KEY_1;
-        break;
-
-       case XK_2:
-            return NVPWindow::KEY_2;
-        break;
-
-       case XK_3:
-            return NVPWindow::KEY_3;
-        break;
-
-       case XK_4:
-            return NVPWindow::KEY_4;
-        break;
-
-       case XK_5:
-            return NVPWindow::KEY_5;
-        break;
-
-       case XK_6:
-            return NVPWindow::KEY_6;
-        break;
-
-       case XK_7:
-            return NVPWindow::KEY_7;
-        break;
-
-       case XK_8:
-            return NVPWindow::KEY_8;
-        break;
-
-       case XK_9:
-            return NVPWindow::KEY_9;
-        break;
-
-        case XK_a:
-            return NVPWindow::KEY_A;
-        break;
-
-       case XK_b:
-            return NVPWindow::KEY_B;
-        break;
-
-       case XK_c:
-            return NVPWindow::KEY_C;
-        break;
-
-       case XK_d:
-            return NVPWindow::KEY_D;
-        break;
-
-       case XK_e:
-            return NVPWindow::KEY_E;
-        break;
-
-       case XK_f:
-            return NVPWindow::KEY_F;
-        break;
-
-       case XK_g:
-            return NVPWindow::KEY_G;
-        break;
-
-       case XK_h:
-            return NVPWindow::KEY_H;
-        break;
-
-       case XK_i:
-            return NVPWindow::KEY_I;
-        break;
-
-       case XK_j:
-            return NVPWindow::KEY_J;
-        break;
-
-       case XK_k:
-            return NVPWindow::KEY_K;
-        break;
-
-       case XK_l:
-            return NVPWindow::KEY_L;
-        break;
-
-       case XK_m:
-            return NVPWindow::KEY_M;
-        break;
-
-       case XK_n:
-            return NVPWindow::KEY_N;
-        break;
-
-       case XK_o:
-            return NVPWindow::KEY_O;
-        break;
-
-       case XK_p:
-            return NVPWindow::KEY_P;
-        break;
-
-       case XK_q:
-            return NVPWindow::KEY_Q;
-        break;
-
-       case XK_r:
-            return NVPWindow::KEY_R;
-        break;
-
-       case XK_s:
-            return NVPWindow::KEY_S;
-        break;
-
-       case XK_t:
-            return NVPWindow::KEY_T;
-        break;
-
-       case XK_u:
-            return NVPWindow::KEY_U;
-        break;
-
-       case XK_v:
-            return NVPWindow::KEY_V;
-        break;
-
-       case XK_w:
-            return NVPWindow::KEY_W;
-        break;
-
-       case XK_x:
-            return NVPWindow::KEY_X;
-        break;
-
-       case XK_y:
-            return NVPWindow::KEY_Y;
-        break;
-
-       case XK_z:
-            return NVPWindow::KEY_Z;
-        break;
-
-        case XK_minus:
-            return NVPWindow::KEY_MINUS;
-        break;
-
-        case XK_equal:
-            return NVPWindow::KEY_EQUAL;
-        break;
-
-        case XK_bracketleft:
-            return NVPWindow::KEY_LEFT_BRACKET;
-        break;
-
-        case XK_bracketright:
-            return NVPWindow::KEY_RIGHT_BRACKET;
-        break;
-
-        case XK_backslash:
-            return NVPWindow::KEY_BACKSLASH;
-        break;
-
-        case XK_semicolon:
-            return NVPWindow::KEY_SEMICOLON;
-        break;
-
-        case XK_comma:
-            return NVPWindow::KEY_COMMA;
-        break;
-
-        case XK_period:
-            return NVPWindow::KEY_PERIOD;
-        break;
-
-
-        default:
-        break;
+        case XK_Shift_L:      return NVPWindow::KEY_LEFT_SHIFT;
+        case XK_Shift_R:      return NVPWindow::KEY_RIGHT_SHIFT;
+        case XK_Control_L:    return NVPWindow::KEY_LEFT_CONTROL;
+        case XK_Control_R:    return NVPWindow::KEY_RIGHT_CONTROL;
+        case XK_Alt_L:        return NVPWindow::KEY_LEFT_ALT;
+        case XK_Alt_R:        return NVPWindow::KEY_RIGHT_ALT;
+        case XK_Return:       return NVPWindow::KEY_ENTER;
+        case XK_Escape:       return NVPWindow::KEY_ESCAPE;
+        case XK_Tab:          return NVPWindow::KEY_TAB;
+        case XK_BackSpace:    return NVPWindow::KEY_BACKSPACE;
+        case XK_Home:         return NVPWindow::KEY_HOME;
+        case XK_End:          return NVPWindow::KEY_END;
+        case XK_Prior:        return NVPWindow::KEY_PAGE_UP;
+        case XK_Next:         return NVPWindow::KEY_PAGE_DOWN;
+        case XK_Insert:       return NVPWindow::KEY_INSERT;
+        case XK_Delete:       return NVPWindow::KEY_DELETE;
+        case XK_Left:         return NVPWindow::KEY_LEFT;
+        case XK_Right:        return NVPWindow::KEY_RIGHT;
+        case XK_Up:           return NVPWindow::KEY_UP;
+        case XK_Down:         return NVPWindow::KEY_DOWN;
+        case XK_F1:           return NVPWindow::KEY_F1;
+        case XK_F2:           return NVPWindow::KEY_F2;
+        case XK_F3:           return NVPWindow::KEY_F3;
+        case XK_F4:           return NVPWindow::KEY_F4;
+        case XK_F5:           return NVPWindow::KEY_F5;
+        case XK_F6:           return NVPWindow::KEY_F6;
+        case XK_F7:           return NVPWindow::KEY_F7;
+        case XK_F8:           return NVPWindow::KEY_F8;
+        case XK_F9:           return NVPWindow::KEY_F9;
+        case XK_F10:          return NVPWindow::KEY_F10;
+        case XK_F11:          return NVPWindow::KEY_F11;
+        case XK_F12:          return NVPWindow::KEY_F12;
+        case XK_F13:          return NVPWindow::KEY_F13;
+        case XK_F14:          return NVPWindow::KEY_F14;
+        case XK_F15:          return NVPWindow::KEY_F15;
+        case XK_F16:          return NVPWindow::KEY_F16;
+        case XK_F17:          return NVPWindow::KEY_F17;
+        case XK_F18:          return NVPWindow::KEY_F18;
+        case XK_F19:          return NVPWindow::KEY_F19;
+        case XK_F20:          return NVPWindow::KEY_F20;
+        case XK_Num_Lock:     return NVPWindow::KEY_NUM_LOCK;
+        case XK_Caps_Lock:    return NVPWindow::KEY_CAPS_LOCK;
+        case XK_Scroll_Lock:  return NVPWindow::KEY_SCROLL_LOCK;
+        case XK_Pause:        return NVPWindow::KEY_PAUSE;
+        // Numeric Keypad
+        case XK_KP_0:         return NVPWindow::KEY_KP_0;
+        case XK_KP_1:         return NVPWindow::KEY_KP_1;
+        case XK_KP_2:         return NVPWindow::KEY_KP_2;
+        case XK_KP_3:         return NVPWindow::KEY_KP_3;
+        case XK_KP_4:         return NVPWindow::KEY_KP_4;
+        case XK_KP_5:         return NVPWindow::KEY_KP_5;
+        case XK_KP_6:         return NVPWindow::KEY_KP_6;
+        case XK_KP_7:         return NVPWindow::KEY_KP_7;
+        case XK_KP_8:         return NVPWindow::KEY_KP_8;
+        case XK_KP_9:         return NVPWindow::KEY_KP_9;
+        case XK_KP_Divide:    return NVPWindow::KEY_KP_DIVIDE;
+        case XK_KP_Multiply:  return NVPWindow::KEY_KP_MULTIPLY;
+        case XK_KP_Subtract:  return NVPWindow::KEY_KP_SUBTRACT;
+        case XK_KP_Add:       return NVPWindow::KEY_KP_ADD;
+        case XK_KP_Decimal:   return NVPWindow::KEY_KP_DECIMAL;
+        case XK_space:        return NVPWindow::KEY_SPACE;
     }
-
-
-
-    /**************/
-
-
-
+    //
+    // Now processing printable keys
+    //
+    printableKey = true;
+    switch(ksym)
+    {
+        case XK_0:            return NVPWindow::KEY_0;
+        case XK_1:            return NVPWindow::KEY_1;
+        case XK_2:            return NVPWindow::KEY_2;
+        case XK_3:            return NVPWindow::KEY_3;
+        case XK_4:            return NVPWindow::KEY_4;
+        case XK_5:            return NVPWindow::KEY_5;
+        case XK_6:            return NVPWindow::KEY_6;
+        case XK_7:            return NVPWindow::KEY_7;
+        case XK_8:            return NVPWindow::KEY_8;
+        case XK_9:            return NVPWindow::KEY_9;
+        case XK_a:            return 'a';//NVPWindow::KEY_A;
+        case XK_b:            return 'b';//NVPWindow::KEY_B;
+        case XK_c:            return 'c';//NVPWindow::KEY_C;
+        case XK_d:            return 'd';//NVPWindow::KEY_D;
+        case XK_e:            return 'e';//NVPWindow::KEY_E;
+        case XK_f:            return 'f';//NVPWindow::KEY_F;
+        case XK_g:            return 'g';//NVPWindow::KEY_G;
+        case XK_h:            return 'h';//NVPWindow::KEY_H;
+        case XK_i:            return 'i';//NVPWindow::KEY_I;
+        case XK_j:            return 'j';//NVPWindow::KEY_J;
+        case XK_k:            return 'k';//NVPWindow::KEY_K;
+        case XK_l:            return 'l';//NVPWindow::KEY_L;
+        case XK_m:            return 'm';//NVPWindow::KEY_M;
+        case XK_n:            return 'n';//NVPWindow::KEY_N;
+        case XK_o:            return 'o';//NVPWindow::KEY_O;
+        case XK_p:            return 'p';//NVPWindow::KEY_P;
+        case XK_q:            return 'q';//NVPWindow::KEY_Q;
+        case XK_r:            return 'r';//NVPWindow::KEY_R;
+        case XK_s:            return 's';//NVPWindow::KEY_S;
+        case XK_t:            return 't';//NVPWindow::KEY_T;
+        case XK_u:            return 'u';//NVPWindow::KEY_U;
+        case XK_v:            return 'v';//NVPWindow::KEY_V;
+        case XK_w:            return 'w';//NVPWindow::KEY_W;
+        case XK_x:            return 'x';//NVPWindow::KEY_X;
+        case XK_y:            return 'y';//NVPWindow::KEY_Y;
+        case XK_z:            return 'z';//NVPWindow::KEY_Z;
+        case XK_minus:        return NVPWindow::KEY_MINUS;
+        case XK_equal:        return NVPWindow::KEY_EQUAL;
+        case XK_bracketleft:  return NVPWindow::KEY_LEFT_BRACKET;
+        case XK_bracketright: return NVPWindow::KEY_RIGHT_BRACKET;
+        case XK_backslash:    return NVPWindow::KEY_BACKSLASH;
+        case XK_semicolon:    return NVPWindow::KEY_SEMICOLON;
+        case XK_comma:        return NVPWindow::KEY_COMMA;
+        case XK_period:       return NVPWindow::KEY_PERIOD;
+    }
     return NVPWindow::KEY_UNKNOWN;
 }
 
@@ -817,15 +504,20 @@ bool NVPWindow::sysPollEvents(bool bLoop){
 
 
 
-    for(uint32_t i=0;i<g_windows.size();++i){
-
+    for(uint32_t i=0;i<g_windows.size();++i)
+    {
         NVPWindow *pWin = g_windows[i];
-         
-        while(XPending(pWin->m_internal->m_dpy) > 0){
-
+        if(pWin->m_renderCnt > 0)
+        {
+            pWin->m_renderCnt--;
+            pWin->display();
+        }
+        while(XPending(pWin->m_internal->m_dpy) > 0)
+        {
             XNextEvent(pWin->m_internal->m_dpy,&event);
 
-            switch(event.type){
+            switch(event.type)
+            {
                 case Expose:
                 break;
 
@@ -843,9 +535,8 @@ bool NVPWindow::sysPollEvents(bool bLoop){
 
            
 
-                case ButtonPress:{
-
-        
+                case ButtonPress:
+                {
                     if((event.xbutton.button == Button1) ){
                         pWin->setCurMouse(event.xbutton.x,event.xbutton.y);
                         pWin->mouse(NVPWindow::MOUSE_BUTTON_LEFT,NVPWindow::BUTTON_PRESS,pWin->getMods(),pWin->getCurX(),pWin->getCurY());
@@ -882,14 +573,11 @@ bool NVPWindow::sysPollEvents(bool bLoop){
                     if((event.xbutton.button == Button5)){
                         pWin->mousewheel(mouseWheelScale);
                     }
+                }
+                break;
 
-
-                }break;
-
-                case ButtonRelease:{
-
-                  
-
+                case ButtonRelease:
+                {
                     if((event.xbutton.button ) == Button1){
                         pWin->setCurMouse(event.xbutton.x,event.xbutton.y);
                         pWin->mouse(NVPWindow::MOUSE_BUTTON_LEFT,NVPWindow::BUTTON_RELEASE,pWin->getMods(),pWin->getCurX(),pWin->getCurY());
@@ -907,62 +595,57 @@ bool NVPWindow::sysPollEvents(bool bLoop){
                         pWin->mouse(NVPWindow::MOUSE_BUTTON_MIDDLE,NVPWindow::BUTTON_RELEASE,pWin->getMods(),pWin->getCurX(),pWin->getCurY());
                         break;
                     }
-
-                  
-
-              
-                   
-
-                }break;
+                }
+                break;
 
                 case MotionNotify:
                         pWin->setCurMouse(event.xmotion.x,event.xmotion.y);
                         pWin->motion(pWin->getCurX(),pWin->getCurY());
-               break;
+                break;
 
-                case KeyPress:{
-
-                    int translatedKeyCode = translateKey(event);
+                case KeyPress:
+                {
+                    bool printableKey;
+                    int translatedKeyCode = translateKey(event, printableKey);
                     if(translatedKeyCode == NVPWindow::KEY_UNKNOWN) break;
 
                     pWin->setMods(getKeyMods(event));
-
-                    pWin->keyboard((NVPWindow::KeyCode)translatedKeyCode,NVPWindow::BUTTON_PRESS,pWin->getMods(),pWin->getCurX(),pWin->getCurY());
+                    if(printableKey)
+                        pWin->keyboardchar((NVPWindow::KeyCode)translatedKeyCode, pWin->getMods(),pWin->getCurX(),pWin->getCurY());
+                    else
+                        pWin->keyboard((NVPWindow::KeyCode)translatedKeyCode,NVPWindow::BUTTON_PRESS,pWin->getMods(),pWin->getCurX(),pWin->getCurY());
               
-              }break;
+                }
+                break;
 
-                case KeyRelease:{
-
-                    int translatedKeyCode = translateKey(event);
+                case KeyRelease:
+                {
+                    bool printableKey;
+                    int translatedKeyCode = translateKey(event, printableKey);
                     if(translatedKeyCode == NVPWindow::KEY_UNKNOWN) break;
 
                     pWin->setMods(getKeyMods(event));
+                    if(printableKey)
+                        pWin->keyboardchar((NVPWindow::KeyCode)translatedKeyCode, pWin->getMods(),pWin->getCurX(),pWin->getCurY());
+                    else
+                        pWin->keyboard((NVPWindow::KeyCode)translatedKeyCode,NVPWindow::BUTTON_RELEASE,pWin->getMods(),pWin->getCurX(),pWin->getCurY());
 
-                    pWin->keyboard((NVPWindow::KeyCode)translatedKeyCode,NVPWindow::BUTTON_RELEASE,pWin->getMods(),pWin->getCurX(),pWin->getCurY());
 
-
-                }break;
-
-               
-
+                }
+                break;
                 case ClientMessage:
-                    if(strcmp(XGetAtomName(pWin->m_internal->m_dpy,event.xclient.message_type),"WM_PROTOCOLS") == 0){
+                    if(strcmp(XGetAtomName(pWin->m_internal->m_dpy,event.xclient.message_type),"WM_PROTOCOLS") == 0)
+                    {
                         pWin->shutdown();
                         done = True;
                     }
-                 break;
-
-            
-            }
-        }
-        XSync(pWin->m_internal->m_dpy,True);
-        }
-
-   }while(!done && bLoop);
-
-
+                break;
+            } // switch()
+        } // While
+     XSync(pWin->m_internal->m_dpy,True);
+     } // for()
+   } while(!done && bLoop);
    return !done;
-
 }
 
 static int stringInExtensionString(const char *string, const char *exts){
