@@ -28,11 +28,15 @@
 #define GLX_GLXEXT_PROTOTYPES
 
 #include<GL/glew.h>
-
-#include<GL/gl.h>
+// glxew.h crashes at runtime. Known issue online in forums
+//#include<GL/glxew.h>
+// instead, use this. But make sure you have the latest include: 
+// https://www.opengl.org/registry/api/GL/glxext.h
 #include<GL/glx.h>
 #include<GL/glxext.h>
-#include<GL/glu.h>
+
+//#include<GL/gl.h>
+//#include<GL/glu.h>
 
 #include<X11/Xlib.h>
 #include<X11/Xatom.h>
@@ -56,7 +60,7 @@ std::vector<NVPWindow*> g_windows;
 
 XEvent uMsg;
 
-typedef GLXContext(*glXCreateContextAttribsARBProc)(Display *,GLXFBConfig, GLXContext,Bool, const int*);
+typedef GLXContext(*glXCreateContextAttribsARBProc)(Display *,GLXFBConfig, GLXContext,Bool, const int*);        
 
 static int attrListDbl[] = {
     GLX_RGBA,GLX_DOUBLEBUFFER,
@@ -71,13 +75,13 @@ static bool ctxErrorOccurred;
 static int ctxErrorHandler(Display *dpy, XErrorEvent *evt){
     ctxErrorOccurred = true;
     return 0;
-}
+}       
 
 //------------------------------------------------------------------------------
 // Debug Callback
 //------------------------------------------------------------------------------
 
-//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------        
 #ifdef _DEBUG
 static void APIENTRY myOpenGLCallback(  GLenum source,
                         GLenum type,
@@ -86,7 +90,7 @@ static void APIENTRY myOpenGLCallback(  GLenum source,
                         GLsizei length,
                         const GLchar* message,
                         const GLvoid* userParam)
-{
+{       
 
   NVPWindow* window = (NVPWindow*)userParam;
 
@@ -104,7 +108,7 @@ static void APIENTRY myOpenGLCallback(  GLenum source,
   {
   
     //static std::map<GLuint, bool> ignoreMap;
-    //if(ignoreMap[id] == true)
+    //if(ignoreMap[id] == true) 
     //    return;
     char *strSource = "0";
     char *strType = strSource;
@@ -122,7 +126,7 @@ static void APIENTRY myOpenGLCallback(  GLenum source,
     case GL_DEBUG_SOURCE_THIRD_PARTY_ARB:
         strSource = "3RD PARTY";
         break;
-    case GL_DEBUG_SOURCE_APPLICATION_ARB:
+    case GL_DEBUG_SOURCE_APPLICATION_ARB:       
         strSource = "APP";
         break;
     case GL_DEBUG_SOURCE_OTHER_ARB:
@@ -140,7 +144,7 @@ static void APIENTRY myOpenGLCallback(  GLenum source,
     case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR_ARB:
         strType = "Undefined";
         break;
-    case GL_DEBUG_TYPE_PORTABILITY_ARB:
+    case GL_DEBUG_TYPE_PORTABILITY_ARB: 
         strType = "Portability";
         break;
     case GL_DEBUG_TYPE_PERFORMANCE_ARB:
@@ -156,7 +160,7 @@ static void APIENTRY myOpenGLCallback(  GLenum source,
         LOGE("ARB_debug : %s High - %s - %s : %s\n", window->m_debugTitle.c_str(), strSource, strType, message);
         break;
     case GL_DEBUG_SEVERITY_MEDIUM_ARB:
-        LOGW("ARB_debug : %s Medium - %s - %s : %s\n", window->m_debugTitle.c_str(), strSource, strType, message);
+        LOGW("ARB_debug : %s Medium - %s - %s : %s\n", window->m_debugTitle.c_str(), strSource, strType, messag e);
         break;
     case GL_DEBUG_SEVERITY_LOW_ARB:
         LOGI("ARB_debug : %s Low - %s - %s : %s\n", window->m_debugTitle.c_str(), strSource, strType, message);
@@ -174,7 +178,7 @@ void checkGL( char* msg )
     GLenum errCode;
     //const GLubyte* errString;
     errCode = glGetError();
-    if (errCode != GL_NO_ERROR) {
+    if (errCode != GL_NO_ERROR) {       
         //printf ( "%s, ERROR: %s\n", msg, gluErrorString(errCode) );
         LOGE("%s, ERROR: 0x%x\n", msg, errCode );
     }
@@ -186,7 +190,7 @@ struct WINinternal{
     int m_screen;
     GLXContext m_glx_context;
     GLXFBConfig m_glx_fb_config;
-    Display *m_dpy;
+    Display *m_dpy;     
     Window m_window;
     XVisualInfo *m_visual;
     XF86VidModeModeInfo m_mode;
@@ -228,7 +232,7 @@ bool WINinternal::initBase(const NVPWindow::ContextFlags *cflags, NVPWindow *sou
     int contextattribs[] = {
         GLX_CONTEXT_MAJOR_VERSION_ARB, settings.major,
         GLX_CONTEXT_MINOR_VERSION_ARB, settings.minor,
-        GLX_CONTEXT_PROFILE_MASK_ARB, settings.core?GLX_CONTEXT_CORE_PROFILE_BIT_ARB:GLX_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB,
+        GLX_CONTEXT_PROFILE_MASK_ARB, settings.core ? GLX_CONTEXT_CORE_PROFILE_BIT_ARB : GLX_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB,
         0
     }; 
 
