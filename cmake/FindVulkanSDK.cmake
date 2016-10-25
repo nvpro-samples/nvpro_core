@@ -110,28 +110,19 @@ endif()
 
 if (VULKANSDK_ROOT_DIR)
 
+  set(EXESUFFIX)
+  set(_vk_bin_folder "bin")
   if (WIN32) 
-	if(ARCH STREQUAL "x86")
-		set(_vk_bin_folder "bin32")
-	else()
-		set(_vk_bin_folder "bin")
-	endif()
-	  #-------- Locate LIBS
+    if(ARCH STREQUAL "x86")
+      set(_vk_bin_folder "bin32")
+    endif()
+    #-------- Locate LIBS
     _find_files( VULKAN_LIB VULKANSDK_ROOT_DIR "${_vk_bin_folder}/vulkan-1.lib" "${_vk_bin_folder}/vulkan-1.lib" "")
     _find_files( VULKANSTATIC_LIB VULKANSDK_ROOT_DIR "${_vk_bin_folder}/VKstatic.1.lib" "${_vk_bin_folder}/VKstatic.1.lib" "")
-    _find_files( GLSLANGVALIDATOR VULKANSDK_ROOT_DIR "${_vk_bin_folder}/glslangValidator.exe" "${_vk_bin_folder}/glslangValidator.exe" "")
   endif(WIN32)
-
-  if (UNIX)
-  
-  if (VULKANSDK_ROOT_DIR)
-  Message("Using system for vulkan sdk. ")
-  endif()
-  
-  endif(UNIX)
-
-	#-------- Locate HEADERS
-	_find_files( VULKANSDK_HEADERS VULKANSDK_ROOT_DIR "vulkan.h" "vulkan.h" "include/vulkan/" )
+  _find_files( GLSLANGVALIDATOR VULKANSDK_ROOT_DIR "${_vk_bin_folder}/glslangValidator${EXESUFFIX}" "${_vk_bin_folder}/glslangValidator${EXESUFFIX}" "")
+  #-------- Locate HEADERS
+  _find_files( VULKANSDK_HEADERS VULKANSDK_ROOT_DIR "vulkan.h" "vulkan.h" "include/vulkan/" )
 
   if(VULKAN_LIB)
 	  set( VULKANSDK_FOUND "YES" )      
