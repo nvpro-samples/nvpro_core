@@ -545,13 +545,13 @@ bool NVPWindow::sysPollEvents(bool bLoop){
 
                     if((event.xbutton.button == Button2) ){
                         pWin->setCurMouse(event.xbutton.x,event.xbutton.y);
-                        pWin->mouse(NVPWindow::MOUSE_BUTTON_RIGHT,NVPWindow::BUTTON_PRESS,pWin->getMods(),pWin->getCurX(),pWin->getCurY());
+                        pWin->mouse(NVPWindow::MOUSE_BUTTON_MIDDLE,NVPWindow::BUTTON_PRESS,pWin->getMods(),pWin->getCurX(),pWin->getCurY());
                         break;
                     }else
 
                     if((event.xbutton.button == Button3) ){
                         pWin->setCurMouse(event.xbutton.x,event.xbutton.y);
-                        pWin->mouse(NVPWindow::MOUSE_BUTTON_MIDDLE,NVPWindow::BUTTON_PRESS,pWin->getMods(),pWin->getCurX(),pWin->getCurY());
+                        pWin->mouse(NVPWindow::MOUSE_BUTTON_RIGHT,NVPWindow::BUTTON_PRESS,pWin->getMods(),pWin->getCurX(),pWin->getCurY());
                         break;
                     }
 
