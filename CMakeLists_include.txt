@@ -119,7 +119,7 @@ endmacro(_add_project_definitions)
 #####################################################################################
 if(UNIX) 
   set(OS "linux")
-  add_definitions(-DLINUX)
+  add_definitions(-DLINUX -g -std=c++11)
 else(UNIX)
   if(APPLE)
   else(APPLE)
@@ -458,11 +458,16 @@ if(GLFW_FOUND AND USE_GLFW)
 endif()
   
   
- ####################################################################################
- # XF86
- if(UNIX AND NOT USE_GLFW)
+####################################################################################
+# XF86
+if(UNIX AND NOT USE_GLFW)
  LIST(APPEND PLATFORM_LIBRARIES "Xxf86vm")
 endif()
+
+if(UNIX)
+ LIST(APPEND PLATFORM_LIBRARIES dl pthread)
+endif()
+
 
 #####################################################################################
 # NSight
