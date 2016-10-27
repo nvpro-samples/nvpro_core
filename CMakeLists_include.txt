@@ -176,13 +176,13 @@ if(USE_GLFW)
   endif()
 endif()
 #####################################################################################
-# Optional UI using Windows MFC
+# Zlib
 #
 macro(_add_package_ZLIB)
   if(EXISTS ${BASE_DIRECTORY}/shared_external/zlib)
     set(ZLIB_ROOT ${BASE_DIRECTORY}/shared_external/zlib)
   endif()
-  Message(STATUS "--> using package ZLIB")
+  Message(STATUS "--> using package ZLIB")# (${ZLIB_ROOT})")
   find_package(ZLIB)
   if(ZLIB_FOUND)
       include_directories(${ZLIB_INCLUDE_DIR})
