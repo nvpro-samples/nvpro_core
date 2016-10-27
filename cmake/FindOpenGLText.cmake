@@ -10,8 +10,8 @@ find_path( OPENGLTEXT_PATH OpenGLText.h
   $ENV{OPENGLTEXT_LOCATION}
   ${GITPROJECTS_LOCATION}/OpenGLText
   $ENV{GITPROJECTS_LOCATION}/OpenGLText
-  ${PROJECT_SOURCE_DIR}/../shared_external/OpenGLText
   ${PROJECT_SOURCE_DIR}/shared_external/OpenGLText
+  ${PROJECT_SOURCE_DIR}/../shared_external/OpenGLText
 )
 
 set( OPENGLTEXT_FOUND "NO" )

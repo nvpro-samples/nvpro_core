@@ -7,11 +7,11 @@ unset(SVCMFCUI_FOUND CACHE)
 find_path( SVCMFCUI_INCLUDE_DIR ISvcUI.h
   ${SVCMFCUI_LOCATION}/include
   $ENV{SVCMFCUI_LOCATION}/include
-  ${GITPROJECTS_LOCATION}/SvcMFCUI/include
   $ENV{GITPROJECTS_LOCATION}/SvcMFCUI/include
+  ${PROJECT_SOURCE_DIR}/shared_external/SvcMFCUI/include
   ${PROJECT_SOURCE_DIR}/../shared_external/SvcMFCUI/include
   ${PROJECT_SOURCE_DIR}/../../shared_external/SvcMFCUI/include
-  ${PROJECT_SOURCE_DIR}/shared_external/SvcMFCUI/include
+  ${GITPROJECTS_LOCATION}/SvcMFCUI/include
   ${SVCMFCUI_LOCATION}
   $ENV{SVCMFCUI_LOCATION}
 )
