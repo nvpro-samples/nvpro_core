@@ -52,7 +52,13 @@ It means that you must clone this repository prior to trying samples.
 # shared_external folder
 The samples do rely on few external tools in order to compile. You can find them [here](https://github.com/nvpro-samples/shared_external)
 
-
+# Third Party 
+Shared_sources contains code from some open-source projects, and references them within the files accordingly
+* g-truc ogl-samples framework https://github.com/g-truc/ogl-samples (MIT)
+* GLEW http://glew.sourceforge.net/ (Modified BSD or MIT)
+* TinyThread++ http://tinythreadpp.bitsnbites.eu/ (zlib/libpng)
+* Noise http://staffwww.itn.liu.se/~stegu/aqsis/aqsis-newnoise/
+* Mersenne Twister, MTrand class by Richard J. Wagner (BSD 3-Clause)
 
 
 
