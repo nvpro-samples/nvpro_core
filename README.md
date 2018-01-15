@@ -57,7 +57,7 @@ Shared_sources contains code from some open-source projects, and references them
 * g-truc ogl-samples framework https://github.com/g-truc/ogl-samples (MIT)
 * GLEW http://glew.sourceforge.net/ (Modified BSD or MIT)
 * TinyThread++ http://tinythreadpp.bitsnbites.eu/ (zlib/libpng)
-* Noise http://staffwww.itn.liu.se/~stegu/aqsis/aqsis-newnoise/
+* Noise http://staffwww.itn.liu.se/~stegu/aqsis/aqsis-newnoise/ (public domain)
 * Mersenne Twister, MTrand class by Richard J. Wagner (BSD 3-Clause)
 
 
