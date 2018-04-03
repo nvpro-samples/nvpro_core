@@ -98,13 +98,13 @@ if (OPTIX_ROOT_DIR)
 
   if (WIN32) 
 	  #-------- Locate DLLS
-    _find_files( OPTIX_DLL OPTIX_ROOT_DIR "lib/optix.1.dll" "lib64/optix.1.dll" "")
-    _find_files( OPTIX_DLL OPTIX_ROOT_DIR "lib/optixu.1.dll" "lib64/optixu.1.dll" "")
-	  _find_files( OPTIX_DLL OPTIX_ROOT_DIR "lib/optix_prime.1.dll" "lib64/optix_prime.1.dll" "")
+          _find_files( OPTIX_DLL OPTIX_ROOT_DIR "bin/optix.1.dll"       "bin64/optix.1.dll" "")
+          _find_files( OPTIX_DLL OPTIX_ROOT_DIR "bin/optixu.1.dll"      "bin64/optixu.1.dll" "")
+	  _find_files( OPTIX_DLL OPTIX_ROOT_DIR "bin/optix_prime.1.dll" "bin64/optix_prime.1.dll" "")
 	  
 	  #-------- Locate LIBS
-    _find_files( OPTIX_LIB OPTIX_ROOT_DIR "lib/optix.1.lib" "lib64/optix.1.lib" "")
-    _find_files( OPTIX_LIB OPTIX_ROOT_DIR "lib/optixu.1.lib" "lib64/optixu.1.lib" "")
+          _find_files( OPTIX_LIB OPTIX_ROOT_DIR "lib/optix.1.lib"       "lib64/optix.1.lib" "")
+          _find_files( OPTIX_LIB OPTIX_ROOT_DIR "lib/optixu.1.lib"      "lib64/optixu.1.lib" "")
 	  _find_files( OPTIX_LIB OPTIX_ROOT_DIR "lib/optix_prime.1.lib" "lib64/optix_prime.1.lib" "")
     if(NOT OPTIX_LIB)
       message(STATUS "setting OPTIX_LIB to ${OPTIX_LIB}" )
