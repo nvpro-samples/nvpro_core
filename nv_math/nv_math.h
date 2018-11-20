@@ -1,23 +1,30 @@
-/*********************************************************************NVMH4****
-File:  nv_math.h
+/* Copyright (c) 2002-2018, NVIDIA CORPORATION. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *  * Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *  * Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *  * Neither the name of NVIDIA CORPORATION nor the names of its
+ *    contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+ * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 
-Copyright NVIDIA Corporation 2002
-TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THIS SOFTWARE IS PROVIDED
-*AS IS* AND NVIDIA AND ITS SUPPLIERS DISCLAIM ALL WARRANTIES, EITHER EXPRESS
-OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, IMPLIED WARRANTIES OF MERCHANTABILITY
-AND FITNESS FOR A PARTICULAR PURPOSE.  IN NO EVENT SHALL NVIDIA OR ITS SUPPLIERS
-BE LIABLE FOR ANY SPECIAL, INCIDENTAL, INDIRECT, OR CONSEQUENTIAL DAMAGES
-WHATSOEVER (INCLUDING, WITHOUT LIMITATION, DAMAGES FOR LOSS OF BUSINESS PROFITS,
-BUSINESS INTERRUPTION, LOSS OF BUSINESS INFORMATION, OR ANY OTHER PECUNIARY LOSS)
-ARISING OUT OF THE USE OF OR INABILITY TO USE THIS SOFTWARE, EVEN IF NVIDIA HAS
-BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
-
-
-
-Comments:
-
-
-******************************************************************************/
 #ifndef _nv_math_h_
 #define _nv_math_h_
 
@@ -237,6 +244,7 @@ template<class T>  matrix4<T> transpose(const matrix4<T> & A);
 // Computes B = inverse(A)
 //       -1
 //  B = A
+template<class T>  matrix4<T> invert(const matrix4<T> & A, bool& valid);
 template<class T>  matrix4<T> invert(const matrix4<T> & A);
 template<class T>  matrix3<T> invert(const matrix3<T> & A);
 
@@ -276,7 +284,7 @@ template<class T>  matrix3<T> & tangent_basis(const vector3<T> & v0,const vector
 #ifdef USEOPTIX
 #pragma message("**WARNING** nv_math.h : Canceling the lerp() function here : already declared in OptiX")
 #else
-template<class T>  T lerp(const T a, const T b);
+template<class T>  T lerp(const T t, const T a, const T b);
 
 template<class T>  vector3<T> lerp(const T & t, const vector3<T> & u, const vector3<T> & v);
 template<class T>  vector4<T> lerp(const T & t, const vector4<T> & u, const vector4<T> & v);
@@ -287,7 +295,7 @@ template<class T>  T nv_min(const T & lambda, const T & n);
 
 template<class T>  T nv_max(const T & lambda, const T & n);
 
-template<class T>  T nv_clamp(const T min, const T max);
+template<class T>  T nv_clamp(const T u, const T min, const T max);
 
 template<class T>  T nv_random();
 
@@ -319,6 +327,7 @@ template<class T>  T ffast_cos(const T x);
 
 // determinant
 template<class T> T det(const matrix3<T> & A);
+template<class T> T det(const matrix4<T> & A);
 
 template<class T>  void nv_is_valid(const vector3<T>& v);
 template<class T>  void nv_is_valid(T lambda);

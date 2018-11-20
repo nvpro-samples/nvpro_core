@@ -1,46 +1,59 @@
 set(VERSION "1.3.3")
-
-set(SUPPORT_NVTOOLSEXT OFF CACHE BOOL "Use NSight for custom markers")
-if(WIN32)
-  SET( MEMORY_LEAKS_CHECK OFF CACHE BOOL "Check for Memory leaks" )
-  SET(USE_GLFW OFF CACHE BOOL "Use GLFW instead of our own simple Window management")
-else(WIN32)
-  SET(USE_GLFW ON CACHE BOOL "Use GLFW instead of our own simple Window management")
-endif(WIN32)
-
-SET(RESOURCE_DIRECTORY "${BASE_DIRECTORY}/shared_sources/resources")
-add_definitions(-DRESOURCE_DIRECTORY="${RESOURCE_DIRECTORY}/")
-
-Message(STATUS "BASE_DIRECTORY = ${BASE_DIRECTORY}")
-Message(STATUS "CMAKE_CURRENT_SOURCE_DIR = ${CMAKE_CURRENT_SOURCE_DIR}")
-
-# Specify the list of directories to search for cmake modules.
-set(CMAKE_MODULE_PATH
-    ${BASE_DIRECTORY}/shared_sources/cmake
-)
-
-set( CMAKE_FIND_ROOT_PATH "")
-
-if( CMAKE_SIZEOF_VOID_P EQUAL 8 )
-  set (ARCH "x64" CACHE STRING "CPU Architecture")
-else ()
-  set (ARCH "x86" CACHE STRING "CPU Architecture")
+if(POLICY CMP0074)
+  cmake_policy(SET CMP0074 NEW)
 endif()
 
-set(EXECUTABLE_OUTPUT_PATH
-    ${BASE_DIRECTORY}/bin_${ARCH}
-    CACHE PATH
-    "Directory where executables will be stored"
-)
+set(SUPPORT_SOCKETS OFF CACHE BOOL "add a socket protocol so samples can be controled remotely")
+set(SUPPORT_NVTOOLSEXT OFF CACHE BOOL "Use NSight for custom markers")
+
+if(WIN32)
+  SET( MEMORY_LEAKS_CHECK OFF CACHE BOOL "Check for Memory leaks" )
+endif(WIN32)
+
+set(RESOURCE_DIRECTORY "${BASE_DIRECTORY}/shared_sources/resources")
+add_definitions(-DRESOURCE_DIRECTORY="${RESOURCE_DIRECTORY}/")
+
+include_directories(${BASE_DIRECTORY}/shared_sources)
+include_directories(${BASE_DIRECTORY}/shared_external)
+
+message(STATUS "BASE_DIRECTORY = ${BASE_DIRECTORY}")
+message(STATUS "CMAKE_CURRENT_SOURCE_DIR = ${CMAKE_CURRENT_SOURCE_DIR}")
+
+# Specify the list of directories to search for cmake modules.
+set(CMAKE_MODULE_PATH ${BASE_DIRECTORY}/shared_sources/cmake)
+set(CMAKE_FIND_ROOT_PATH "")
+
+if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+  set(ARCH "x64" CACHE STRING "CPU Architecture")
+else ()
+  set(ARCH "x86" CACHE STRING "CPU Architecture")
+endif()
+
+set(LIBRARY_OUTPUT_PATH ${BASE_DIRECTORY}/bin_${ARCH} CACHE PATH "Directory where libraries will be stored")
+set(EXECUTABLE_OUTPUT_PATH ${BASE_DIRECTORY}/bin_${ARCH} CACHE PATH "Directory where executables will be stored")
 
 # Set the default build to Release.  Note this doesn't do anything for the VS
 # default build target.
 if(NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE "Release" CACHE STRING
-      "Choose the type of build, options are: Debug Release RelWithDebInfo MinSizeRel."
-      FORCE)
-endif(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build, options are: Debug Release RelWithDebInfo MinSizeRel." FORCE)
+endif()
 
+if(ADD_SUBDIR_BELOW)
+  if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/shared_sources/CMakeLists_include.txt)
+    # if the resource of downloaded meshes is local, keep this one. Otherwise, use the common one
+    if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/downloaded_resources)
+      SET(DOWNLOAD_TARGET_DIR "${BASE_DIRECTORY}/downloaded_resources")
+    else()
+      SET(DOWNLOAD_TARGET_DIR "${BASE_DIRECTORY}/../downloaded_resources")
+    endif()
+  elseif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../../shared_sources)
+    SET(DOWNLOAD_TARGET_DIR "${BASE_DIRECTORY}/downloaded_resources")
+  else()
+    SET(DOWNLOAD_TARGET_DIR "${BASE_DIRECTORY}/downloaded_resources")
+  endif()
+else()
+  SET(DOWNLOAD_TARGET_DIR "${BASE_DIRECTORY}/downloaded_resources")
+endif()
 
 #####################################################################################
 function(_make_relative FROM TO OUT)
@@ -102,24 +115,61 @@ function(_make_relative FROM TO OUT)
 endfunction()
 
 macro(_add_project_definitions name)
+  if(CUDA_TOOLKIT_ROOT_DIR)
+    string(REPLACE "\\" "/" CUDA_TOOLKIT_ROOT_DIR ${CUDA_TOOLKIT_ROOT_DIR})
+  endif()
+  if(VULKANSDK_LOCATION)
+    string(REPLACE "\\" "/" VULKANSDK_LOCATION ${VULKANSDK_LOCATION})
+  endif()
+  if(CMAKE_INSTALL_PREFIX)
+    string(REPLACE "\\" "/" CMAKE_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX})
+  endif()
   if(MSVC)
     _make_relative("${EXECUTABLE_OUTPUT_PATH}/config" "${CMAKE_CURRENT_SOURCE_DIR}" TOPROJECT)
   else()
     _make_relative("${EXECUTABLE_OUTPUT_PATH}" "${CMAKE_CURRENT_SOURCE_DIR}" TOPROJECT)
   endif()
   
-  #message(STATUS "${TOPROJECT}")
-  
   add_definitions(-DPROJECT_RELDIRECTORY="${TOPROJECT}/")
   add_definitions(-DPROJECT_ABSDIRECTORY="${CMAKE_CURRENT_SOURCE_DIR}/")
-  add_definitions(-DPROJECT_NAME="${name}")  
+  add_definitions(-DPROJECT_NAME="${name}")
+  add_definitions(-DPROJECT_DOWNLOAD_ABSDIRECTORY="${DOWNLOAD_TARGET_DIR}/")
   
+  if (SUPPORT_NVTOOLSEXT)
+    add_definitions(-DSUPPORT_NVTOOLSEXT)
+    # add the package if we checked SUPPORT_NVTOOLSEXT in cmake
+    _add_package_NSight()
+  endif(SUPPORT_NVTOOLSEXT)
 endmacro(_add_project_definitions)
+
+#####################################################################################
+
+macro(_set_subsystem_console exename)
+  if(WIN32)
+     set_target_properties(${exename} PROPERTIES LINK_FLAGS_DEBUG "/SUBSYSTEM:CONSOLE")
+     target_compile_definitions(${exename} PRIVATE $<$<CONFIG:Debug>:"_CONSOLE")
+     set_target_properties(${exename} PROPERTIES LINK_FLAGS_RELWITHDEBINFO "/SUBSYSTEM:CONSOLE")
+     target_compile_definitions(${exename} PRIVATE $<$<CONFIG:RelWithDebInfo>: "_CONSOLE")
+     set_target_properties(${exename} PROPERTIES LINK_FLAGS_RELEASE "/SUBSYSTEM:CONSOLE")
+     target_compile_definitions(${exename} PRIVATE $<$<CONFIG:Release>: "_CONSOLE")
+     set_target_properties(${exename} PROPERTIES LINK_FLAGS_MINSIZEREL "/SUBSYSTEM:CONSOLE")
+     target_compile_definitions(${exename} PRIVATE $<$<CONFIG:MinSizeRel>: "_CONSOLE")
+  endif(WIN32)
+endmacro(_set_subsystem_console)
+
+macro(_set_subsystem_windows exename)
+  if(WIN32)
+     set_target_properties(${exename} PROPERTIES LINK_FLAGS_DEBUG "/SUBSYSTEM:WINDOWS")
+     set_target_properties(${exename} PROPERTIES LINK_FLAGS_RELWITHDEBINFO "/SUBSYSTEM:WINDOWS")
+     set_target_properties(${exename} PROPERTIES LINK_FLAGS_RELEASE "/SUBSYSTEM:WINDOWS")
+     set_target_properties(${exename} PROPERTIES LINK_FLAGS_MINSIZEREL "/SUBSYSTEM:WINDOWS")
+  endif(WIN32)
+endmacro(_set_subsystem_windows)
 
 #####################################################################################
 if(UNIX) 
   set(OS "linux")
-  add_definitions(-DLINUX -g -std=c++11)
+  add_definitions(-DLINUX)
 else(UNIX)
   if(APPLE)
   else(APPLE)
@@ -132,11 +182,6 @@ else(UNIX)
     endif(WIN32)
   endif(APPLE)
 endif(UNIX)
-
-
-if (MSVC90)
-  include_directories(${BASE_DIRECTORY}/shared_external/stdint_old_msvc)
-endif(MSVC90)
 
 
 # Macro for adding files close to the executable
@@ -156,33 +201,62 @@ macro(_copy_files_to_target target thefiles)
     endif()
 endmacro()
 
+# Macro for adding files close to the executable
+macro(_copy_file_to_target target thefile folder)
+  if(WIN32)
+    if(EXISTS "${thefile}")
+      add_custom_command(
+        TARGET ${target} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory
+          "$<TARGET_FILE_DIR:${target}>/${folder}"
+          VERBATIM
+      )
+      add_custom_command(
+        TARGET ${target} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+          ${thefile}
+          "$<TARGET_FILE_DIR:${target}>/${folder}"
+          VERBATIM
+      )
+    endif()
+  endif()
+endmacro()
 
-# ===============> OpenGL
-find_package(OpenGL)
-# ===============> GLEW
-if (NOT APPLE)
-  find_package(GLEW REQUIRED)
-  if(NOT GLEW_FOUND)
-    message(WARNING "Try to set GLEW_LOCATION")
-  else()
-    include_directories(${GLEW_INCLUDE_DIR} )
-  endif()
-endif()
-# ===============> GLFW
-if(USE_GLFW)
-  find_package(GLFW)
-  if(GLFW_FOUND AND USE_GLFW)
-    include_directories(${GLFW_INCLUDE_DIR} )
-  endif()
-endif()
 #####################################################################################
-# Zlib
+# Optional OpenGL package
+#
+macro(_add_package_OpenGL)
+  find_package(OpenGL)  
+  if(OPENGL_FOUND)
+      Message(STATUS "--> using package OpenGL")
+      get_directory_property(hasParent PARENT_DIRECTORY)
+      if(hasParent)
+        set( USING_OPENGL "YES" PARENT_SCOPE) # PARENT_SCOPE important to have this variable passed to parent. Here we want to notify that something used the OpenGL package
+      else()
+        set( USING_OPENGL "YES")
+      endif()
+      add_definitions(-DUSEOPENGL)
+ else(OPENGL_FOUND)
+     Message(STATUS "--> NOT using package OpenGL")
+ endif(OPENGL_FOUND)
+endmacro(_add_package_OpenGL)
+# this macro is needed for the samples to add this package, although not needed
+# this happens when the shared_sources library was built with these stuff in it
+# so many samples can share the same library for many purposes
+macro(_optional_package_OpenGL)
+  if(USING_OPENGL)
+    _add_package_OpenGL()
+  endif(USING_OPENGL)
+endmacro(_optional_package_OpenGL)
+
+#####################################################################################
+# Optional ZLIB
 #
 macro(_add_package_ZLIB)
   if(EXISTS ${BASE_DIRECTORY}/shared_external/zlib)
     set(ZLIB_ROOT ${BASE_DIRECTORY}/shared_external/zlib)
   endif()
-  Message(STATUS "--> using package ZLIB")# (${ZLIB_ROOT})")
+  Message(STATUS "--> using package ZLIB")
   find_package(ZLIB)
   if(ZLIB_FOUND)
       include_directories(${ZLIB_INCLUDE_DIR})
@@ -196,29 +270,57 @@ macro(_add_package_ZLIB)
     add_definitions(-DNOGZLIB)
   endif()
 endmacro()
+# this macro is needed for the samples to add this package, although not needed
+# this happens when the shared_sources library was built with these stuff in it
+# so many samples can share the same library for many purposes
+macro(_optional_package_ZLIB)
+  if(ZLIB_FOUND)
+    _add_package_ZLIB()
+  endif(ZLIB_FOUND)
+endmacro(_optional_package_ZLIB)
+
 #####################################################################################
-# Optional UI using Windows MFC
+# ImGUI
 #
-macro(_add_package_MFCUI)
-  if(UNIX)
-    Message(STATUS "--> package SvcMFCUI not available under Unix")
-  else(UNIX)
-    find_package(SvcMFCUI)
-    Message(STATUS "--> using package SvcMFCUI")
-    if(SVCMFCUI_FOUND)
-        add_definitions(-DUSESVCUI)
-        include_directories(${SVCMFCUI_INCLUDE_DIR})
-        LIST(APPEND PACKAGE_SOURCE_FILES
-          ${SVCMFCUI_HEADERS}
-          #SvcMFCUI.h
-          )
-        source_group(SvcMFCUI FILES  
-          ${SVCMFCUI_HEADERS}
-          #SvcMFCUI.h
-        )
-   endif()
-  endif(UNIX)
+macro(_add_package_ImGUI)
+  Message(STATUS "--> using package ImGUI")
+
+  set(IMGUI_PATH "${BASE_DIRECTORY}/shared_sources/imgui")
+
+  get_directory_property(hasParent PARENT_DIRECTORY)
+  if(hasParent)
+    set(USING_IMGUI "YES" PARENT_SCOPE) # PARENT_SCOPE important to have this variable passed to parent. Here we want to notify that something used the Vulkan package
+  else()
+    set(USING_IMGUI "YES")
+  endif()
+
+  add_definitions(-DUSEIMGUI)
+  include_directories(${IMGUI_PATH})
+
+  set(IMGUI_H ${IMGUI_PATH}/imconfig.h ${IMGUI_PATH}/imgui.h ${IMGUI_PATH}/imgui_internal.h ${IMGUI_PATH}/imgui_helper.h)
+  set(IMGUI_CPP ${IMGUI_PATH}/imgui.cpp ${IMGUI_PATH}/imgui_draw.cpp ${IMGUI_PATH}/imgui_helper.cpp)
+
+  if(USING_OPENGL)
+    list(APPEND IMGUI_H ${IMGUI_PATH}/imgui_impl_gl.h)
+    list(APPEND IMGUI_CPP ${IMGUI_PATH}/imgui_impl_gl.cpp)
+  endif()
+  if(USING_VULKANSDK)
+    list(APPEND IMGUI_H ${IMGUI_PATH}/imgui_impl_vk.h)
+    list(APPEND IMGUI_CPP ${IMGUI_PATH}/imgui_impl_vk.cpp)
+  endif()
+
+  source_group("imgui" FILES ${IMGUI_H} ${IMGUI_CPP})
+  list(APPEND PACKAGE_SOURCE_FILES ${IMGUI_H} ${IMGUI_CPP})
 endmacro()
+# this macro is needed for the samples to add this package, although not needed
+# this happens when the shared_sources library was built with these stuff in it
+# so many samples can share the same library for many purposes
+macro(_optional_package_ImGUI)
+  if(USING_IMGUI)
+    _add_package_ImGUI()
+  endif(USING_IMGUI)
+endmacro(_optional_package_ImGUI)
+
 #####################################################################################
 # AntTweakBar UI
 #
@@ -238,6 +340,15 @@ macro(_add_package_AntTweakBar)
     )
   endif()
 endmacro()
+# this macro is needed for the samples to add this package, although not needed
+# this happens when the shared_sources library was built with these stuff in it
+# so many samples can share the same library for many purposes
+macro(_optional_package_AntTweakBar)
+  if(ANTTWEAKBAR_FOUND)
+    _add_package_AntTweakBar()
+  endif(ANTTWEAKBAR_FOUND)
+endmacro(_optional_package_AntTweakBar)
+
 #####################################################################################
 # OculusSDK package
 #
@@ -251,6 +362,15 @@ macro(_add_package_OculusSDK)
     LIST(APPEND LIBRARIES_DEBUG ${OCULUSSDK_LIBS_DEBUG})
   endif()
 endmacro()
+# this macro is needed for the samples to add this package, although not needed
+# this happens when the shared_sources library was built with these stuff in it
+# so many samples can share the same library for many purposes
+macro(_optional_package_OculusSDK)
+  if(OCULUSSDK_FOUND)
+    _add_package_OculusSDK()
+  endif(OCULUSSDK_FOUND)
+endmacro(_optional_package_OculusSDK)
+
 #####################################################################################
 # OpenVRSDK package
 #
@@ -264,59 +384,65 @@ macro(_add_package_OpenVRSDK)
     LIST(APPEND LIBRARIES_DEBUG ${OPENVRSDK_LIBS})
   endif()
 endmacro()
+# this macro is needed for the samples to add this package, although not needed
+# this happens when the shared_sources library was built with these stuff in it
+# so many samples can share the same library for many purposes
+macro(_optional_package_OpenVRSDK)
+  if(OPENVRSDK_FOUND)
+    _add_package_OpenVRSDK()
+  endif(OPENVRSDK_FOUND)
+endmacro(_optional_package_OpenVRSDK)
+
 #####################################################################################
-# nvFx package
+# package for Sockets: to allow UDP/TCP IP connections
 #
-macro(_add_package_nvFx)
-  Message(STATUS "--> using package nvFX")
-  find_package(nvFx)
-  if(NVFX_FOUND)
-    add_definitions(-DUSE_NVFX)
-    LIST(APPEND LIBRARIES_OPTIMIZED ${NVFX_LIBRARIES} ${NVFX_LIBRARIES_GL} )
-    LIST(APPEND LIBRARIES_DEBUG ${NVFX_LIBRARIES} ${NVFX_LIBRARIES_GL} )
-    LIST(APPEND PACKAGE_SOURCE_FILES ${NVFX_HEADERS})
-    source_group(nvFX FILES ${NVFX_HEADERS})
+macro(_add_package_Sockets)
+  _add_package_CThread()
+  Message(STATUS "--> using package Sockets")
+  set(SOCKETS_PATH "${BASE_DIRECTORY}/shared_sources/nv_sockets")
+  get_directory_property(hasParent PARENT_DIRECTORY)
+  if(hasParent)
+    set( USING_SOCKETS "YES" PARENT_SCOPE) # PARENT_SCOPE important to have this variable passed to parent. Here we want to notify that something used the Vulkan package
+  else()
+    set( USING_SOCKETS "YES")
   endif()
-endmacro()
-#####################################################################################
-#
-macro(_add_package_OpenGLText)
-  # commented: this is a small external tool that we can make local (in shared_sources), for now
-  #if(NOT OPENGLTEXT_FOUND)
-  #  find_package(OpenGLText)
-  #endif()
-  set( OPENGLTEXT_FOUND "YES" )
-  Message(STATUS "--> using package OpenGLText")
-  if(OPENGLTEXT_FOUND)
-    if(NOT OPENGLTEXT_PATH)
-        set(OPENGLTEXT_PATH "${BASE_DIRECTORY}/shared_sources/nv_helpers_gl/OpenGLText")
-        # in the library shared_source
-        set(OPENGLTEXT_CPP 
-          ""
-          #"${BASE_DIRECTORY}/shared_sources/nv_helpers_gl/OpenGLText/OpenGLText.cpp"
-        )
-        set(OPENGLTEXT_H "${BASE_DIRECTORY}/shared_sources/nv_helpers_gl/OpenGLText/OpenGLText.h")
-    endif()
-    add_definitions(-DUSEOPENGLTEXT)
-    set(OGLTEXT
-      #now in the shared_source library
-      #${BASE_DIRECTORY}/shared_sources/nv_helpers_gl/traceDisplay/tracedisplayogl.cpp
-      ${BASE_DIRECTORY}/shared_sources/nv_helpers_gl/traceDisplay/tracedisplay.h
-      ${BASE_DIRECTORY}/shared_sources/nv_helpers_gl/traceDisplay/trace.h
-      ${BASE_DIRECTORY}/shared_sources/nv_helpers_gl/OpenGLText/arial_10.h
-      ${BASE_DIRECTORY}/shared_sources/nv_helpers_gl/OpenGLText/arial_10_bitmap.h
-      ${BASE_DIRECTORY}/shared_sources/nv_helpers_gl/OpenGLText/baub_16.h
-      ${BASE_DIRECTORY}/shared_sources/nv_helpers_gl/OpenGLText/baub_16_bitmap.h
-      ${OPENGLTEXT_CPP}
-      ${OPENGLTEXT_H}
-    )
-    source_group(OpenGLText FILES ${OGLTEXT})
-    LIST(APPEND PACKAGE_SOURCE_FILES ${OGLTEXT}) 
-    include_directories(${OPENGLTEXT_PATH})
-    include_directories(${BASE_DIRECTORY}/shared_sources/nv_helpers_gl/OpenGLText)
-    include_directories(${BASE_DIRECTORY}/shared_sources/nv_helpers_gl/traceDisplay)
-  endif()
-endmacro()
+  add_definitions(-DUSESOCKETS)
+  set(SOCKETS_H
+    ${SOCKETS_PATH}/socketClient.h
+    ${SOCKETS_PATH}/socketSampleMessages.h
+    ${SOCKETS_PATH}/socketServer.h
+  )
+  set(SOCKETS_CPP
+    ${SOCKETS_PATH}/socketClient.cpp
+    ${SOCKETS_PATH}/socketServer.cpp
+    ${SOCKETS_PATH}/socketSampleMessages.cpp
+  )
+  source_group(Sockets FILES ${SOCKETS_H})
+if(WIN32)
+  LIST(APPEND LIBRARIES_OPTIMIZED ws2_32 )
+  LIST(APPEND LIBRARIES_DEBUG ws2_32 )
+  #TODO: for Linux and Android, too !
+endif()
+  LIST(APPEND PACKAGE_SOURCE_FILES ${SOCKETS_H} )
+  include_directories(${SOCKETS_PATH})
+endmacro(_add_package_Sockets)
+# optional add of this package in the shared lib
+macro(_optional_package_Sockets)
+  if(USING_SOCKETS)
+    _add_package_Sockets()
+  source_group(Sockets FILES ${SOCKETS_CPP})
+  LIST(APPEND PACKAGE_SOURCE_FILES ${SOCKETS_CPP} )
+  endif(USING_SOCKETS)
+endmacro(_optional_package_Sockets)
+# this macro is needed for the samples to add this package, although not needed
+# this happens when the shared_sources library was built with these stuff in it
+# so many samples can share the same library for many purposes
+macro(_optional_package_Sockets)
+  if(USING_SOCKETS)
+    _add_package_Sockets()
+  endif(USING_SOCKETS)
+endmacro(_optional_package_Sockets)
+
 #####################################################################################
 # Optional OptiX package
 #
@@ -326,31 +452,166 @@ macro(_add_package_Optix)
       Message(STATUS "--> using package OptiX")
       add_definitions(-DUSEOPTIX)
       include_directories(${OPTIX_INCLUDE_DIR})
-    LIST(APPEND LIBRARIES_OPTIMIZED ${OPTIX_LIB} )
+      LIST(APPEND LIBRARIES_OPTIMIZED ${OPTIX_LIB} )
       LIST(APPEND LIBRARIES_DEBUG ${OPTIX_LIB} )
       LIST(APPEND PACKAGE_SOURCE_FILES ${OPTIX_HEADERS} )
       source_group(OPTIX FILES  ${OPTIX_HEADERS} )
+      set( USING_OPTIX "YES")
  else()
      Message(STATUS "--> NOT using package OptiX")
  endif()
 endmacro()
+# this macro is needed for the samples to add this package, although not needed
+# this happens when the shared_sources library was built with these stuff in it
+# so many samples can share the same library for many purposes
+macro(_optional_package_Optix)
+  if(OPTIX_FOUND)
+    _add_package_Optix()
+  endif(OPTIX_FOUND)
+endmacro(_optional_package_Optix)
+
 #####################################################################################
 # Optional VulkanSDK package
 #
 macro(_add_package_VulkanSDK)
   find_package(VulkanSDK)  
   if(VULKANSDK_FOUND)
-      Message(STATUS "--> using package VulkanSDK")
+      Message(STATUS "--> using package VulkanSDK (version ${VULKANSDK_VERSION})")
+      get_directory_property(hasParent PARENT_DIRECTORY)
+      if(hasParent)
+        set( USING_VULKANSDK "YES" PARENT_SCOPE) # PARENT_SCOPE important to have this variable passed to parent. Here we want to notify that something used the Vulkan package
+      else()
+        set( USING_VULKANSDK "YES")
+      endif()
       add_definitions(-DUSEVULKANSDK)
       include_directories(${VULKANSDK_INCLUDE_DIR})
-    LIST(APPEND LIBRARIES_OPTIMIZED ${VULKAN_LIB} )
+      LIST(APPEND LIBRARIES_OPTIMIZED ${VULKAN_LIB} )
       LIST(APPEND LIBRARIES_DEBUG ${VULKAN_LIB} )
       LIST(APPEND PACKAGE_SOURCE_FILES ${VULKANSDK_HEADERS} )
-      source_group(OPTIX FILES  ${VULKANSDK_HEADERS} )
+      source_group(VULKANSDK FILES  ${VULKANSDK_HEADERS} )
  else()
      Message(STATUS "--> NOT using package VulkanSDK")
  endif()
 endmacro()
+# this macro is needed for the samples to add this package, although not needed
+# this happens when the shared_sources library was built with these stuff in it
+# so many samples can share the same library for many purposes
+macro(_optional_package_VulkanSDK)
+  if(USING_VULKANSDK)
+    _add_package_VulkanSDK()
+  endif(USING_VULKANSDK)
+endmacro(_optional_package_VulkanSDK)
+
+#####################################################################################
+# Optional ShaderC package
+#
+macro(_add_package_ShaderC)
+  find_package(VulkanSDK)  
+  if(VULKANSDK_FOUND AND (VULKANSDK_SHADERC_LIB OR NVSHADERC_LIB))
+      Message(STATUS "--> using package ShaderC")
+      
+      add_definitions(-DUSESHADERC)
+      if (NVSHADERC_LIB)
+        Message(STATUS "--> using NVShaderC LIB")
+        add_definitions(-DUSENVSHADERC)
+      endif()
+      
+      # shaderc_wrapper is only needed for win32
+      if(WIN32)
+        #add_subdirectory adds the CMakeLists.txt that is inside the directory
+        if(NOT USING_SHADERC)
+          add_subdirectory(${BASE_DIRECTORY}/shared_sources/shaderc_wrapper ${CMAKE_BINARY_DIR}/shaderc_wrapper)
+        endif()
+        if(hasParent)
+          set( USING_SHADERC "YES" PARENT_SCOPE)
+        else()
+          set( USING_SHADERC "YES")
+        endif()
+        LIST(APPEND LIBRARIES_OPTIMIZED shaderc_wrapper)
+        LIST(APPEND LIBRARIES_DEBUG shaderc_wrapper)
+      else()
+        if (NVSHADERC_LIB)
+          LIST(APPEND LIBRARIES_OPTIMIZED ${NVSHADERC_LIB})
+          LIST(APPEND LIBRARIES_DEBUG ${NVSHADERC_LIB})
+        else()
+          LIST(APPEND LIBRARIES_OPTIMIZED ${VULKANSDK_SHADERC_LIB})
+          LIST(APPEND LIBRARIES_DEBUG ${VULKANSDK_SHADERC_LIB})
+        endif()
+      endif()
+
+  else()
+      Message(STATUS "--> NOT using package ShaderC")
+  endif() 
+endmacro(_add_package_ShaderC)
+# this macro is needed for the samples to add this package, although not needed
+# this happens when the shared_sources library was built with these stuff in it
+# so many samples can share the same library for many purposes
+macro(_optional_package_ShaderC)
+  if(USING_SHADERC)
+    _add_package_ShaderC()
+  endif(USING_SHADERC)
+endmacro(_optional_package_ShaderC)
+
+#####################################################################################
+# Optional DirectX11 package
+#
+macro(_add_package_DirectX11)
+  find_package(DirectX11)  
+  if(DX11SDK_FOUND)
+      Message(STATUS "--> using package DirectX 11")
+      get_directory_property(hasParent PARENT_DIRECTORY)
+      if(hasParent)
+        set( USING_DIRECTX11 "YES" PARENT_SCOPE) # PARENT_SCOPE important to have this variable passed to parent. Here we want to notify that something used the DX11 package
+      else()
+        set( USING_DIRECTX11 "YES")
+      endif()
+      add_definitions(-DUSEDIRECTX11)
+      include_directories(${DX11SDK_INCLUDE_DIR})
+      LIST(APPEND LIBRARIES_OPTIMIZED ${DX11SDK_D3D_LIBRARIES})
+      LIST(APPEND LIBRARIES_DEBUG ${DX11SDK_D3D_LIBRARIES})
+ else()
+     Message(STATUS "--> NOT using package DirectX11")
+ endif()
+endmacro()
+# this macro is needed for the samples to add this package, although not needed
+# this happens when the shared_sources library was built with these stuff in it
+# so many samples can share the same library for many purposes
+macro(_optional_package_DirectX11)
+  if(USING_DIRECTX11)
+    _add_package_DirectX11()
+  endif(USING_DIRECTX11)
+endmacro(_optional_package_DirectX11)
+
+#####################################################################################
+# Optional DirectX12 package
+#
+macro(_add_package_DirectX12)
+  find_package(DirectX12)  
+  if(DX12SDK_FOUND)
+      Message(STATUS "--> using package DirectX 12")
+      get_directory_property(hasParent PARENT_DIRECTORY)
+      if(hasParent)
+        set( USING_DIRECTX12 "YES" PARENT_SCOPE) # PARENT_SCOPE important to have this variable passed to parent. Here we want to notify that something used the DX12 package
+      else()
+        set( USING_DIRECTX12 "YES")
+      endif()
+      add_definitions(-DUSEDIRECTX12)
+      include_directories(${DX12SDK_INCLUDE_DIR})
+      LIST(APPEND LIBRARIES_OPTIMIZED ${DX12SDK_D3D_LIBRARIES})
+      LIST(APPEND LIBRARIES_DEBUG ${DX12SDK_D3D_LIBRARIES})
+ else()
+     Message(STATUS "--> NOT using package DirectX12")
+ endif()
+endmacro()
+# this macro is needed for the samples to add this package, although not needed
+# this happens when the shared_sources library was built with these stuff in it
+# so many samples can share the same library for many purposes
+macro(_optional_package_DirectX12)
+  if(USING_DIRECTX12)
+    _add_package_DirectX12()
+  endif(USING_DIRECTX12)
+endmacro(_optional_package_DirectX12)
+
 #####################################################################################
 # Optional FT-IZB package
 #
@@ -368,30 +629,63 @@ macro(_add_package_Ftizb)
      Message(STATUS "--> NOT using package OptiX") 
  endif()
 endmacro()
+# this macro is needed for the samples to add this package, although not needed
+# this happens when the shared_sources library was built with these stuff in it
+# so many samples can share the same library for many purposes
+macro(_optional_package_Ftizb)
+  if(USING_FTIZB)
+    _add_package_Ftizb()
+  endif(USING_FTIZB)
+endmacro(_optional_package_Ftizb)
+
 #####################################################################################
 # Optional CUDA package
-# WARNING: also used for OpenCL at this point. Rather clunky but
-# CUDA contains OpenCL stuff...
+# see https://cmake.org/cmake/help/v3.3/module/FindCUDA.html
 #
 macro(_add_package_Cuda)
-  find_package(CUDA)  
+  find_package(CUDA QUIET)
   if(CUDA_FOUND)
-      Message(STATUS "--> using package CUDA")
+      add_definitions("-DCUDA_PATH=R\"(${CUDA_TOOLKIT_ROOT_DIR})\"")
+      Message(STATUS "--> using package CUDA (${CUDA_VERSION})")
       add_definitions(-DUSECUDA)
-      include_directories(${CUDA_INCLUDE_DIR})
-      LIST(APPEND LIBRARIES_OPTIMIZED ${CUDA_LIB} )
-      LIST(APPEND LIBRARIES_DEBUG ${CUDA_LIB} )
-      LIST(APPEND PACKAGE_SOURCE_FILES ${CUDA_HEADERS} )    
-      source_group(CUDA FILES ${CUDA_HEADERS} )  
+      include_directories(${CUDA_INCLUDE_DIRS})
+      LIST(APPEND LIBRARIES_OPTIMIZED ${CUDA_LIBRARIES} )
+      # STRANGE: default CUDA package finder from cmake doesn't give anything to find cuda.lib
+      if(WIN32)
+        if((ARCH STREQUAL "x86"))
+          LIST(APPEND LIBRARIES_DEBUG "${CUDA_TOOLKIT_ROOT_DIR}/lib/Win32/cuda.lib" )
+          LIST(APPEND LIBRARIES_DEBUG "${CUDA_TOOLKIT_ROOT_DIR}/lib/Win32/cudart.lib" )
+          LIST(APPEND LIBRARIES_OPTIMIZED "${CUDA_TOOLKIT_ROOT_DIR}/lib/Win32/cuda.lib" )
+          LIST(APPEND LIBRARIES_OPTIMIZED "${CUDA_TOOLKIT_ROOT_DIR}/lib/Win32/cudart.lib" )
+        else()
+          LIST(APPEND LIBRARIES_DEBUG "${CUDA_TOOLKIT_ROOT_DIR}/lib/x64/cuda.lib" )
+          LIST(APPEND LIBRARIES_DEBUG "${CUDA_TOOLKIT_ROOT_DIR}/lib/x64/cudart.lib" )
+          LIST(APPEND LIBRARIES_DEBUG "${CUDA_TOOLKIT_ROOT_DIR}/lib/x64/nvrtc.lib" )
+          LIST(APPEND LIBRARIES_OPTIMIZED "${CUDA_TOOLKIT_ROOT_DIR}/lib/x64/cuda.lib" )
+          LIST(APPEND LIBRARIES_OPTIMIZED "${CUDA_TOOLKIT_ROOT_DIR}/lib/x64/cudart.lib" )
+          LIST(APPEND LIBRARIES_OPTIMIZED "${CUDA_TOOLKIT_ROOT_DIR}/lib/x64/nvrtc.lib" )
+        endif()
+      endif()
+      #LIST(APPEND PACKAGE_SOURCE_FILES ${CUDA_HEADERS} ) Not available anymore with cmake 3.3... we might have to list them by hand
+      # source_group(CUDA FILES ${CUDA_HEADERS} )  Not available anymore with cmake 3.3
  else()
      Message(STATUS "--> NOT using package CUDA") 
  endif()
 endmacro()
+# this macro is needed for the samples to add this package, although not needed
+# this happens when the shared_sources library was built with these stuff in it
+# so many samples can share the same library for many purposes
+macro(_optional_package_Cuda)
+  if(CUDA_FOUND)
+    _add_package_Cuda()
+  endif(CUDA_FOUND)
+endmacro(_optional_package_Cuda)
+
 #####################################################################################
 # Optional OpenCL package
 #
 macro(_add_package_OpenCL)
-  find_package(OpenCL)  
+  find_package(OpenCL QUIET)  
   if(OpenCL_FOUND)
       Message(STATUS "--> using package OpenCL : ${OpenCL_LIBRARIES}")
       add_definitions(-DUSEOPENCL)
@@ -411,63 +705,14 @@ macro(_add_package_OpenCL)
      Message(STATUS "--> NOT using package OpenCL") 
  endif()
 endmacro()
-
-#####################################################################################
-# 
-#
-set(TINYTHREADPP_DIRECTORY ${BASE_DIRECTORY}/shared_sources/tinythreadpp)
-
-macro(_add_package_tinythreadpp)
-  Message(STATUS "--> using package TinyThread++")
-  include_directories(${TINYTHREADPP_DIRECTORY}/src)
-  set(PROJECT_TINYTHREADPP ${TINYTHREADPP_DIRECTORY}/src/fast_mutex.h ${TINYTHREADPP_DIRECTORY}/src/tinythread.h ${TINYTHREADPP_DIRECTORY}/src/tinythread.cpp)
-
-  LIST(APPEND PACKAGE_SOURCE_FILES
-        ${PROJECT_TINYTHREADPP}
-        )
-endmacro(_add_package_tinythreadpp)
-
-#####################################################################################
-#
-set(PLATFORM_LIBRARIES
-    ${OPENGL_LIBRARY}
-)
-set(COMMON_SOURCE_FILES)
-LIST(APPEND COMMON_SOURCE_FILES
-    ${BASE_DIRECTORY}/shared_sources/resources.h
-    ${BASE_DIRECTORY}/shared_sources/resources.rc
-)
-
-#####################################################################################
-# Glew : source or lib
-if(GLEW_SOURCE)
-  message(STATUS "found Glew source code. Using it instead of library")
-  add_definitions(-DGLEW_STATIC)
-else()
-    message(STATUS "using GLEW library")
-    LIST(APPEND PLATFORM_LIBRARIES ${GLEW_LIBRARY})
-endif()
-add_definitions(-DGLEW_NO_GLU)
-
-#####################################################################################
-# GLFW library
-if(GLFW_FOUND AND USE_GLFW)
-  message(STATUS "using GLFW library ${GLFW_LIBRARY}")
-  LIST(APPEND PLATFORM_LIBRARIES ${GLFW_LIBRARY})
-  add_definitions(-DUSE_GLFW)
-endif()
-  
-  
-####################################################################################
-# XF86
-if(UNIX AND NOT USE_GLFW)
- LIST(APPEND PLATFORM_LIBRARIES "Xxf86vm")
-endif()
-
-if(UNIX)
- LIST(APPEND PLATFORM_LIBRARIES dl pthread)
-endif()
-
+# this macro is needed for the samples to add this package, although not needed
+# this happens when the shared_sources library was built with these stuff in it
+# so many samples can share the same library for many purposes
+macro(_optional_package_OpenCL)
+  if(OpenCL_FOUND)
+    _add_package_OpenCL()
+  endif(OpenCL_FOUND)
+endmacro(_optional_package_OpenCL)
 
 #####################################################################################
 # NSight
@@ -475,6 +720,7 @@ endif()
 # still need the include directory when no use of NSIGHT: for empty #defines
 macro(_add_package_NSight)
   Message(STATUS "--> using package NSight")
+  set(USING_NSIGHT)
   include_directories(
       ${BASE_DIRECTORY}/shared_external/NSight
   )
@@ -483,7 +729,7 @@ macro(_add_package_NSight)
         ${BASE_DIRECTORY}/shared_external/NSight
     )
     LIST(APPEND PACKAGE_SOURCE_FILES 
-      ${BASE_DIRECTORY}/shared_external/NSight/NSightEvents.h
+      ${BASE_DIRECTORY}/shared_sources/nv_helpers/nsightevents.h
       ${BASE_DIRECTORY}/shared_external/NSight/nvToolsExt.h
     )
     add_definitions(-DSUPPORT_NVTOOLSEXT)
@@ -498,6 +744,55 @@ macro(_add_package_NSight)
     LIST(APPEND LIBRARIES_DEBUG ${NSIGHT_LIB})
   endif()
 endmacro()
+# this macro is needed for the samples to add this package, although not needed
+# this happens when the shared_sources library was built with these stuff in it
+# so many samples can share the same library for many purposes
+macro(_optional_package_NSight)
+  if(USING_NSIGHT)
+    _add_package_NSight()
+  endif(USING_NSIGHT)
+endmacro(_optional_package_NSight)
+
+
+#####################################################################################
+# Generate PTX files
+# NVCUDA_COMPILE_PTX( SOURCES file1.cu file2.cu TARGET_PATH <path where ptxs should be stored> GENERATED_FILES ptx_sources NVCC_OPTIONS -arch=sm_20)
+# Generates ptx files for the given source files. ptx_sources will contain the list of generated files.
+function(NVCUDA_COMPILE_PTX)
+  set(options "")
+  set(oneValueArgs TARGET_PATH GENERATED_FILES)
+  set(multiValueArgs NVCC_OPTIONS SOURCES)
+  CMAKE_PARSE_ARGUMENTS(NVCUDA_COMPILE_PTX "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+  
+Message(STATUS "NVCUDA_COMPILE_PTX ${options} ${oneValueArgs} ${multiValueArgs} ")
+
+  # Match the bitness of the ptx to the bitness of the application
+  set( MACHINE "--machine=32" )
+  if( CMAKE_SIZEOF_VOID_P EQUAL 8)
+    set( MACHINE "--machine=64" )
+  endif()
+  
+  # Custom build rule to generate ptx files from cuda files
+  FOREACH( input ${NVCUDA_COMPILE_PTX_SOURCES} )
+    get_filename_component( input_we ${input} NAME_WE )
+    
+    # generate the *.ptx files inside "ptx" folder inside the executable's output directory.
+    set( output "${NVCUDA_COMPILE_PTX_TARGET_PATH}/${input_we}.ptx" )
+    LIST( APPEND PTX_FILES  ${output} )
+    
+    message(STATUS "${CUDA_NVCC_EXECUTABLE} ${MACHINE} --ptx ${NVCUDA_COMPILE_PTX_NVCC_OPTIONS} ${input} -o ${output} WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}")
+    
+    add_custom_command(
+      OUTPUT  ${output}
+      DEPENDS ${input}
+      COMMAND ${CUDA_NVCC_EXECUTABLE} ${MACHINE} --ptx ${NVCUDA_COMPILE_PTX_NVCC_OPTIONS} ${input} -o ${output} WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+      COMMAND ${CMAKE_COMMAND} -E echo ${NVCUDA_COMPILE_PTX_TARGET_PATH}
+      COMMAND ${CMAKE_COMMAND} -E copy ${output} "${NVCUDA_COMPILE_PTX_TARGET_PATH}/${input_we}.ptx"
+    )
+  ENDFOREACH( )
+  
+  set(${NVCUDA_COMPILE_PTX_GENERATED_FILES} ${PTX_FILES} PARENT_SCOPE)
+endfunction()
 
 #####################################################################################
 # Macro that copies various binaries that need to be close to the exe files
@@ -506,48 +801,44 @@ macro(_copy_binaries_to_target _PROJNAME)
 
   if(SUPPORT_NVTOOLSEXT)
     _copy_files_to_target( ${_PROJNAME} "${NSIGHT_DLL}")
-    install(FILES "${NSIGHT_DLL}" DESTINATION bin)
-    install(FILES "${NSIGHT_DLL}" DESTINATION bin_debug)
+    install(FILES ${NSIGHT_DLL} CONFIGURATIONS Release DESTINATION bin_${ARCH})
+    install(FILES ${NSIGHT_DLL} CONFIGURATIONS Debug DESTINATION bin_${ARCH}_debug)
   endif()
 
   if(NOT UNIX)
     if(ZLIB_FOUND)
       _copy_files_to_target( ${_PROJNAME} "${ZLIB_BIN}")
-      install(FILES "${ZLIB_BIN}" DESTINATION bin)
-      install(FILES "${ZLIB_BIN}" DESTINATION bin_debug)
+      install(FILES ${ZLIB_BIN} CONFIGURATIONS Release DESTINATION bin_${ARCH})
+      install(FILES ${ZLIB_BIN} CONFIGURATIONS Debug DESTINATION bin_${ARCH}_debug)
     endif()
 
     if(SVCMFCUI_FOUND)
         _copy_files_to_target( ${_PROJNAME} "${SVCMFCUI_DLL}")
-        install(FILES "${SVCMFCUI_DLL}" DESTINATION bin)
+        install(FILES ${SVCMFCUI_DLL} CONFIGURATIONS Release DESTINATION bin_${ARCH})
         if(SVCMFCUID_DLL)
           _copy_files_to_target( ${_PROJNAME} "${SVCMFCUID_DLL}")
-          install(FILES "${SVCMFCUID_DLL}" DESTINATION bin_debug)
+          install(FILES ${SVCMFCUID_DLL} CONFIGURATIONS Debug DESTINATION bin_${ARCH}_debug)
         endif()
    endif()
   endif()
   if(ANTTWEAKBAR_FOUND)
     _copy_files_to_target( ${_PROJNAME} "${ANTTWEAKBAR_DLL}")
-    install(FILES "${ANTTWEAKBAR_DLL}" DESTINATION bin)
-    install(FILES "${ANTTWEAKBAR_DLL}" DESTINATION bin_debug)
+    install(FILES ${ANTTWEAKBAR_DLL} CONFIGURATIONS Release DESTINATION bin_${ARCH})
+    install(FILES ${ANTTWEAKBAR_DLL} CONFIGURATIONS Debug DESTINATION bin_${ARCH}_debug)
   endif()
   if(OPTIX_FOUND)
     _copy_files_to_target( ${_PROJNAME} "${OPTIX_DLL}")
-    install(FILES "${OPTIX_DLL}" DESTINATION bin)
-    install(FILES "${OPTIX_DLL}" DESTINATION bin_debug)
+    install(FILES ${OPTIX_DLL} CONFIGURATIONS Release DESTINATION bin_${ARCH})
+    install(FILES ${OPTIX_DLL} CONFIGURATIONS Debug DESTINATION bin_${ARCH}_debug)
   endif()
   if(OPENCL_DLL)
     _copy_files_to_target( ${_PROJNAME} "${OPENCL_DLL}")
-    install(FILES "${OPENCL_DLL}" DESTINATION bin)
-    install(FILES "${OPENCL_DLL}" DESTINATION bin_debug)
+    install(FILES ${OPENCL_DLL} CONFIGURATIONS Release DESTINATION bin_${ARCH})
+    install(FILES ${OPENCL_DLL} CONFIGURATIONS Debug DESTINATION bin_${ARCH}_debug)
   endif()
-  install(TARGETS ${_PROJNAME} DESTINATION bin CONFIGURATIONS Release)
-  install(TARGETS ${_PROJNAME} DESTINATION bin_debug CONFIGURATIONS Debug)
+  install(TARGETS ${_PROJNAME} CONFIGURATIONS Release DESTINATION bin_${ARCH})
+  install(TARGETS ${_PROJNAME} CONFIGURATIONS Debug DESTINATION bin_${ARCH}_debug)
 endmacro()
-
-include_directories(
-    ${BASE_DIRECTORY}/shared_sources
-)
 
 #####################################################################################
 # Macro to download a file from a URL
@@ -560,10 +851,8 @@ macro(_download_file _URL _TARGET _FORCE)
     Message(STATUS "model ${_TARGET} already loaded...")
   endif()
 endmacro()
-#
 # example: _download_files("${FILELIST}"  "http://..." "${BASE_DIRECTORY}/shared_external/..." ${MODELS_DOWNLOAD_FORCE} )
-#
-macro(_download_files _FILELIST _URL _TARGET _FORCE )
+macro(_download_files _FILELIST _URL _TARGET _FORCE FILELISTOUT)
   foreach(_FILE ${_FILELIST})
     if(${_FORCE} OR (NOT EXISTS "${_TARGET}/${_FILE}"))
       Message(STATUS "*******************************************")
@@ -571,8 +860,9 @@ macro(_download_files _FILELIST _URL _TARGET _FORCE )
       Message(STATUS "*******************************************")
       file(DOWNLOAD ${_URL}/${_FILE} ${_TARGET}/${_FILE} SHOW_PROGRESS)
     else()
-      Message(STATUS "model ${_FILE} already loaded...")
+      Message(STATUS "model ${_FILE} already downloaded...")
     endif()
+    LIST(APPEND ${FILELISTOUT} ${_TARGET}/${_FILE})
   endforeach(_FILE)
 endmacro()
 
@@ -581,10 +871,11 @@ endmacro()
 # _SOURCE can be more than one file (.vert + .frag)
 # _OUTPUT is the .spv file, resulting from the linkage
 #
-macro(_compile_GLSL _SOURCE _OUTPUT SOURCE_LIST)
+macro(_compile_GLSL _SOURCE _OUTPUT SOURCE_LIST OUTPUT_LIST)
   LIST(APPEND ${SOURCE_LIST} ${_SOURCE})
-  Message(STATUS "${GLSLANGVALIDATOR} -o ${_OUTPUT} -V ${_SOURCE}")
-  Message(STATUS "${_OUTPUT} : ${_SOURCE}")
+  LIST(APPEND ${OUTPUT_LIST} ${_OUTPUT})
+  #Message(STATUS "${GLSLANGVALIDATOR} -o ${_OUTPUT} -V ${_SOURCE}")
+  #Message(STATUS "${_OUTPUT} : ${_SOURCE}")
   if(GLSLANGVALIDATOR)
     add_custom_command(
       OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/${_OUTPUT}
@@ -596,4 +887,76 @@ macro(_compile_GLSL _SOURCE _OUTPUT SOURCE_LIST)
   else(GLSLANGVALIDATOR)
     MESSAGE(WARNING "could not find GLSLANGVALIDATOR to compile shaders")
   endif(GLSLANGVALIDATOR)
+endmacro()
+
+#####################################################################################
+# This is the rest of the cmake code that the project needs to call
+# used by the samples via _add_shared_sources_lib and by shared_sources
+#
+macro(_process_shared_cmake_code)
+  
+  SET(PLATFORM_LIBRARIES)
+  
+  if (USING_DIRECTX11)
+    LIST(APPEND PLATFORM_LIBRARIES ${DX11SDK_D3D_LIBRARIES})
+  endif()
+  
+  if (USING_DIRECTX12)
+    LIST(APPEND PLATFORM_LIBRARIES ${DX12SDK_D3D_LIBRARIES})
+  endif()
+  
+  if (USING_OPENGL)
+    LIST(APPEND PLATFORM_LIBRARIES ${OPENGL_LIBRARY})
+  endif()
+  
+  if (USING_VULKANSDK)
+    LIST(APPEND PLATFORM_LIBRARIES ${VULKAN_LIB})
+  endif()
+  
+  set(COMMON_SOURCE_FILES)
+  LIST(APPEND COMMON_SOURCE_FILES
+      ${BASE_DIRECTORY}/shared_sources/resources.h
+      ${BASE_DIRECTORY}/shared_sources/resources.rc
+  )
+   
+  if(UNIX)
+    LIST(APPEND PLATFORM_LIBRARIES "Xxf86vm")
+  endif()
+endmacro(_process_shared_cmake_code)
+
+#####################################################################################
+# This is the rest of the cmake code that the samples needs to call in order
+# - to add the shared_sources library (needed by any sample)
+# - this part will also setup a directory where to find some downloaded resources
+# - add optional packages
+# - and will then call another shared cmake macro : _process_shared_cmake_code
+#
+macro(_add_shared_sources_lib)
+  #-----------------------------------------------------------------------------------
+  #  now we have added some packages, we can guess more
+  # on what is needed overall for the shared library
+  if(ADD_SUBDIR_BELOW)
+    if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/shared_sources/CMakeLists_include.txt)
+      add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/shared_sources ${CMAKE_BINARY_DIR}/shared_sources)
+    elseif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../../shared_sources)
+      add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../shared_sources ${CMAKE_BINARY_DIR}/shared_sources)
+    else()
+      add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../shared_sources ${CMAKE_BINARY_DIR}/shared_sources)
+    endif()
+  endif()
+  #-----------------------------------------------------------------------------------
+  # optional packages we don't need, but might be needed by other samples
+  Message(STATUS " Packages needed for shared_sources lib compat:")
+  if(USING_OPENGL OR NOT OPENGL_FOUND)
+    _optional_package_OpenGL()
+  endif()
+  if(USING_VULKANSDK OR NOT VULKANSDK_FOUND)
+    _optional_package_VulkanSDK()
+  endif()
+  # if socket system required in samples, add the package
+  if(SUPPORT_SOCKETS)
+    _add_package_Sockets()
+  endif()
+  # finish with another part (also used by cname for the shared_sources)
+  _process_shared_cmake_code()
 endmacro()

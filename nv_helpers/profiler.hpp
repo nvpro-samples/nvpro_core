@@ -1,27 +1,29 @@
-/*-----------------------------------------------------------------------
-  Copyright (c) 2014, NVIDIA. All rights reserved.
-
-  Redistribution and use in source and binary forms, with or without
-  modification, are permitted provided that the following conditions
-  are met:
-   * Redistributions of source code must retain the above copyright
-     notice, this list of conditions and the following disclaimer.
-   * Neither the name of its contributors may be used to endorse 
-     or promote products derived from this software without specific
-     prior written permission.
-
-  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
-  EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-  PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
-  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-  PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
-  OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
------------------------------------------------------------------------*/
+/* Copyright (c) 2014-2018, NVIDIA CORPORATION. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *  * Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *  * Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *  * Neither the name of NVIDIA CORPORATION nor the names of its
+ *    contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+ * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 
 #ifndef NV_PROFILER_INCLUDED
 #define NV_PROFILER_INCLUDED
@@ -34,15 +36,15 @@
 #ifdef SUPPORT_NVTOOLSEXT
 #include <stdint.h>
 #define NVTX_STDINT_TYPES_ALREADY_DEFINED
-#include <nvToolsExt.h>
+#    include "NSight/nvToolsExt.h"
 #endif
 
 namespace nv_helpers
 {
   class Profiler {
   public:
-    static const int CONFIG_DELAY = 16;
-    static const int FRAME_DELAY  = 8;
+    static const int CONFIG_DELAY = 8;
+    static const int FRAME_DELAY  = 4;
     static const int START_SECTIONS = 64;
     static const int START_TIMERS   = START_SECTIONS * FRAME_DELAY * 2;
 
@@ -62,6 +64,14 @@ namespace nv_helpers
       std::string &m_stats;
     };
 
+    class Clock {
+    public:
+      Clock();
+      double getMicroSeconds() const;
+    private:
+      double  m_frequency;
+    };
+
 
     // The interface must be able to provide getRequiredTimers() many timers
     // prior being used first time.
@@ -69,27 +79,33 @@ namespace nv_helpers
     public:
       virtual const char* TimerTypeName () = 0 ;
       virtual bool    TimerAvailable ( TimerIdx idx ) = 0;
-      virtual void    TimerSetup     ( TimerIdx idx ) = 0;
       virtual unsigned long long  TimerResult( TimerIdx idxBegin
                                              , TimerIdx idxEnd ) = 0;
       virtual void    TimerEnsureSize( unsigned int timers) = 0;
-      virtual void    TimerFlush() = 0;
+      // optional usage to flush per section
+      virtual void    TimerFlush() {};
+
+      // one of either mechanisms must be implemented
+      virtual void    TimerSetup(TimerIdx idx) {};
+      // if the api supports streams, queues, cmdbuffers etc. wrap preferred payload here
+      virtual void    TimerSetup(TimerIdx idx, void* payload) {};
     };
 
     class Section {
     public:
-      Section(Profiler& profiler, const char* name, GPUInterface* gpuif = 0, bool flush=false)
-        : m_profiler(profiler)
+      Section(Profiler& profiler, const char* name, GPUInterface* gpuif = 0, bool flush = false, void* payload = nullptr)
+        : m_profiler(profiler), m_payload(payload)
       {
-        m_slot = profiler.beginSection(name, gpuif, flush);
+        m_slot = profiler.beginSection(name, gpuif, flush, payload);
       }
       ~Section() {
-        m_profiler.endSection(m_slot);
+        m_profiler.endSection(m_slot, m_payload);
       }
 
     private:
       Slot        m_slot;
       Profiler&   m_profiler;
+      void*       m_payload;
     };
 
     unsigned int getRequiredTimers() const;
@@ -105,10 +121,12 @@ namespace nv_helpers
 
     void print(std::string &stats);
 
-    unsigned int getAveragedFrames() const;
+    unsigned int getAveragedFrames(const char* name=NULL) const;
     bool         getAveragedValues(const char* name, double& cpuTimer, double& gpuTimer);
 
-    double  getMicroSeconds() const;
+    double  getMicroSeconds() const {
+      return m_clock.getMicroSeconds();
+    }
 
     void setDefaultGPUInterface(GPUInterface *gpuif){
       m_defaultGPUIF = gpuif;
@@ -117,14 +135,22 @@ namespace nv_helpers
       }
     }
 
+    static inline bool isTimerIdxBegin( TimerIdx idx ){
+      return idx % 2 == 0;
+    }
+    static inline Slot getTimerIdxSlot( TimerIdx idx )
+    {
+      return idx / (FRAME_DELAY * 2);
+    }
+
+    Slot    beginSection(const char* name, GPUInterface* gpuif, bool flush, void* cmd);
+    void    endSection(Slot slot, void* cmd);
   private:
-    Slot    beginSection( const char* name, GPUInterface* gpuif, bool flush);
-    void    endSection  ( Slot slot);
     void    grow(unsigned int newsize);
 
     static inline TimerIdx getTimerIdx(Slot idx, int queryFrame, bool begin)
     {
-      return idx * (FRAME_DELAY * 2) + queryFrame + (begin ? 0 : FRAME_DELAY);
+      return idx * (FRAME_DELAY * 2) + queryFrame * 2 + (begin ? 0 : 1);
     }
 
     struct Entry {
@@ -137,15 +163,15 @@ namespace nv_helpers
       bool          flush;
       double        deltas[FRAME_DELAY];
 
-      double      numTimes;
-      double      gpuTimes;
-      double      cpuTimes;
+      unsigned int  numTimes;
+      double        gpuTimes;
+      double        cpuTimes;
 
       bool        splitter;
       bool        accumulated;
     };
 
-    double              m_frequency;
+    Clock               m_clock;
     unsigned int        m_numFrames;
     int                 m_level;
     int                 m_resetDelay;
@@ -180,7 +206,7 @@ namespace nv_helpers
     return (unsigned int)(m_entries.size() * FRAME_DELAY * 2);
   }
 
-  inline Profiler::Slot Profiler::beginSection( const char* name, GPUInterface* gpuifProvided, bool flush )
+  inline Profiler::Slot Profiler::beginSection( const char* name, GPUInterface* gpuifProvided, bool flush, void* payload )
   {
     GPUInterface* gpuif = gpuifProvided ? gpuifProvided : m_defaultGPUIF;
     unsigned int queryFrame = m_numFrames % FRAME_DELAY;
@@ -231,19 +257,29 @@ namespace nv_helpers
     m_entries[slot].deltas[queryFrame] = -getMicroSeconds();
 
     if (gpuif){
-      gpuif->TimerSetup( getTimerIdx(slot,queryFrame,true) );
+      if (payload) {
+        gpuif->TimerSetup(getTimerIdx(slot, queryFrame, true), payload);
+      }
+      else {
+        gpuif->TimerSetup(getTimerIdx(slot, queryFrame, true));
+      }
     }
 
     return slot;
   }
 
-  inline void Profiler::endSection( Slot slot )
+  inline void Profiler::endSection( Slot slot, void* payload)
   {
     unsigned int queryFrame = m_numFrames % FRAME_DELAY;
     Entry& entry = m_entries[slot];
 
     if (entry.gpuif){
-      entry.gpuif->TimerSetup( getTimerIdx(slot,queryFrame,false) );
+      if (payload) {
+        entry.gpuif->TimerSetup(getTimerIdx(slot, queryFrame, false), payload);
+      }
+      else {
+        entry.gpuif->TimerSetup(getTimerIdx(slot, queryFrame, false));
+      }
       if (entry.flush){
         entry.gpuif->TimerFlush();
       }

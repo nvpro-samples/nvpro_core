@@ -1,34 +1,41 @@
 /*-----------------------------------------------------------------------
-    Copyright (c) 2013, NVIDIA. All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions
-    are met:
-     * Redistributions of source code must retain the above copyright
-       notice, this list of conditions and the following disclaimer.
-     * Neither the name of its contributors may be used to endorse 
-       or promote products derived from this software without specific
-       prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
-    EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-    IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-    PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
-    CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-    EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-    PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-    PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
-    OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-    feedback to tlorach@nvidia.com (Tristan Lorach)
+ * Copyright (c) 2018, NVIDIA CORPORATION. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *  * Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *  * Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *  * Neither the name of NVIDIA CORPORATION nor the names of its
+ *    contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+ * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */ //--------------------------------------------------------------------
 
-#include <GL/glew.h>
-#include <GL/wglew.h>
+#include <windows.h>
+#include <windowsx.h>
+#include "resources.h"
 
+#define DECL_WININTERNAL
 #include "main.h"
+
+#ifdef USESOCKETS
+#include "socketSampleMessages.h"
+#endif
 
 #include <stdio.h>
 #include <fcntl.h>
@@ -38,282 +45,95 @@
 #include <algorithm>
 #include <string>
 
-#include <windows.h>
-#include <windowsx.h>
-#include "resources.h"
-
 extern "C" { _declspec(dllexport) DWORD NvOptimusEnablement = 0x00000001; }
 
 HINSTANCE   g_hInstance = 0;
-LPSTR       g_lpCmdLine;
 int         g_nCmdShow;
 
 std::vector<NVPWindow *> g_windows;
 
 MSG  uMsg;
 
-struct WINinternal 
+LRESULT CALLBACK WindowProc( HWND   m_hWnd, 
+                             UINT   msg, 
+                             WPARAM wParam, 
+                             LPARAM lParam );
+
+//------------------------------------------------------------------------------
+// creation of generic window's internal info
+//------------------------------------------------------------------------------
+WINinternal* newWINinternal(NVPWindow *win)
 {
-  NVPWindow * m_win;
-  HDC   m_hDC;
-  HGLRC m_hRC;
-  HWND  m_hWnd;
-  HWND  m_hWndDummy;
-  bool  m_iconified;
-  bool  m_visible;
-
-  WINinternal (NVPWindow *win)
-    : m_win(win)
-    , m_hDC(NULL)
-    , m_hRC(NULL)
-    , m_hWnd(NULL)
-    , m_hWndDummy(NULL)
-    , m_iconified(false)
-    , m_visible(true)
-  {
-
-  }
-
-  bool create(const char* title, int width, int height);
-  bool initBase(const NVPWindow::ContextFlags * cflags, NVPWindow* sourcewindow);
-};
-
-
+    return new WINinternal(win);
+}
 //------------------------------------------------------------------------------
-// Toggles
+// destruction generic to win32
+// put here because it can be shared between any API (OpenGL, Vulkan...)
 //------------------------------------------------------------------------------
-
-//------------------------------------------------------------------------------
-#ifdef _DEBUG
-static void APIENTRY myOpenGLCallback(  GLenum source,
-                        GLenum type,
-                        GLuint id,
-                        GLenum severity,
-                        GLsizei length,
-                        const GLchar* message,
-                        const GLvoid* userParam)
+void WINinternal::terminate()
 {
-
-  NVPWindow* window = (NVPWindow*)userParam;
-
-  GLenum filter = window->m_debugFilter;
-  GLenum severitycmp = severity;
-  // minor fixup for filtering so notification becomes lowest priority
-  if (GL_DEBUG_SEVERITY_NOTIFICATION == filter){
-    filter = GL_DEBUG_SEVERITY_LOW_ARB+1;
-  }
-  if (GL_DEBUG_SEVERITY_NOTIFICATION == severitycmp){
-    severitycmp = GL_DEBUG_SEVERITY_LOW_ARB+1;
-  }
-
-  if (!filter|| severitycmp <= filter )
-  {
-  
-    //static std::map<GLuint, bool> ignoreMap;
-    //if(ignoreMap[id] == true)
-    //    return;
-    char *strSource = "0";
-    char *strType = strSource;
-    switch(source)
-    {
-    case GL_DEBUG_SOURCE_API_ARB:
-        strSource = "API";
-        break;
-    case GL_DEBUG_SOURCE_WINDOW_SYSTEM_ARB:
-        strSource = "WINDOWS";
-        break;
-    case GL_DEBUG_SOURCE_SHADER_COMPILER_ARB:
-        strSource = "SHADER COMP.";
-        break;
-    case GL_DEBUG_SOURCE_THIRD_PARTY_ARB:
-        strSource = "3RD PARTY";
-        break;
-    case GL_DEBUG_SOURCE_APPLICATION_ARB:
-        strSource = "APP";
-        break;
-    case GL_DEBUG_SOURCE_OTHER_ARB:
-        strSource = "OTHER";
-        break;
+    if (m_hWndDummy) {
+      DestroyWindow(m_hWndDummy);
     }
-    switch(type)
+    m_hWndDummy = NULL;
+
+    if( m_hDC != NULL )
     {
-    case GL_DEBUG_TYPE_ERROR_ARB:
-        strType = "ERROR";
-        break;
-    case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR_ARB:
-        strType = "Deprecated";
-        break;
-    case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR_ARB:
-        strType = "Undefined";
-        break;
-    case GL_DEBUG_TYPE_PORTABILITY_ARB:
-        strType = "Portability";
-        break;
-    case GL_DEBUG_TYPE_PERFORMANCE_ARB:
-        strType = "Performance";
-        break;
-    case GL_DEBUG_TYPE_OTHER_ARB:
-        strType = "Other";
-        break;
+      ReleaseDC(m_hWnd, m_hDC);
+      m_hDC = NULL;
     }
-    switch(severity)
-    {
-    case GL_DEBUG_SEVERITY_HIGH_ARB:
-        LOGE("ARB_debug : %s High - %s - %s : %s\n", window->m_debugTitle.c_str(), strSource, strType, message);
-        break;
-    case GL_DEBUG_SEVERITY_MEDIUM_ARB:
-        LOGW("ARB_debug : %s Medium - %s - %s : %s\n", window->m_debugTitle.c_str(), strSource, strType, message);
-        break;
-    case GL_DEBUG_SEVERITY_LOW_ARB:
-        LOGI("ARB_debug : %s Low - %s - %s : %s\n", window->m_debugTitle.c_str(), strSource, strType, message);
-        break;
-    default:
-        //LOGI("ARB_debug : comment - %s - %s : %s\n", strSource, strType, message);
-        break;
-    }
-  }
+    m_hWnd = NULL;
+}
+//------------------------------------------------------------------------------
+// creation is generic to win32
+// put here because it can be shared between any API (OpenGL, Vulkan...)
+//------------------------------------------------------------------------------
+bool WINinternal::create(const char* title, int width, int height, int xPos, int yPos, int inSamples)
+{
+  WNDCLASSEX winClass;
+
+  winClass.lpszClassName = "MY_WINDOWS_CLASS";
+  winClass.cbSize        = sizeof(WNDCLASSEX);
+  winClass.style         = CS_HREDRAW | CS_VREDRAW | CS_OWNDC | CS_DBLCLKS;
+  winClass.lpfnWndProc   = WindowProc;
+  winClass.hInstance     = g_hInstance;
+  winClass.hIcon           = LoadIcon(g_hInstance, (LPCTSTR)IDI_OPENGL_ICON);
+  winClass.hIconSm       = LoadIcon(g_hInstance, (LPCTSTR)IDI_OPENGL_ICON);
+  winClass.hCursor       = LoadCursor(NULL, IDC_ARROW);
+  winClass.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
+  winClass.lpszMenuName  = NULL;
+  winClass.cbClsExtra    = 0;
+  winClass.cbWndExtra    = 0;
+
+  if(!RegisterClassEx(&winClass) )
+    return false;
+
+  DWORD style = WS_CLIPSIBLINGS | WS_CLIPCHILDREN | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SIZEBOX;
+  DWORD styleEx = WS_EX_APPWINDOW | WS_EX_WINDOWEDGE;
+
+  RECT rect = { 0, 0, width, height };
+  AdjustWindowRectEx(&rect, style,
+    FALSE, styleEx);
+
+  m_hWnd = CreateWindowEx( styleEx, "MY_WINDOWS_CLASS",
+    title ? title : "Viewer",
+    style, xPos, yPos, rect.right - rect.left, rect.bottom - rect.top, NULL, NULL, 
+    g_hInstance, (LPVOID)NULL );
+  winClass.lpszClassName = "DUMMY";
+  winClass.lpfnWndProc   = DefWindowProc;
+  if(!RegisterClassEx(&winClass) )
+    return false;
+  m_hWndDummy = CreateWindowEx( NULL, "DUMMY",
+    "Dummy",
+    WS_OVERLAPPEDWINDOW, xPos, yPos, 10, 10, NULL, NULL,
+    g_hInstance, NULL );
+
+  if( m_hWnd == NULL )
+    return false;
+
+  return true;
 }
 
-//------------------------------------------------------------------------------
-void checkGL( char* msg )
-{
-	GLenum errCode;
-	//const GLubyte* errString;
-	errCode = glGetError();
-	if (errCode != GL_NO_ERROR) {
-		//printf ( "%s, ERROR: %s\n", msg, gluErrorString(errCode) );
-        LOGE("%s, ERROR: 0x%x\n", msg, errCode );
-	}
-}
-#endif
-//------------------------------------------------------------------------------
-bool WINinternal::initBase(const NVPWindow::ContextFlags* cflags, NVPWindow* sourcewindow)
-{
-    GLuint PixelFormat;
-    
-    NVPWindow::ContextFlags  settings;
-    if (cflags){
-      settings = *cflags;
-    }
-
-    PIXELFORMATDESCRIPTOR pfd;
-    memset(&pfd, 0, sizeof(PIXELFORMATDESCRIPTOR));
-
-    pfd.nSize      = sizeof(PIXELFORMATDESCRIPTOR);
-    pfd.nVersion   = 1;
-    pfd.dwFlags    = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
-    pfd.iPixelType = PFD_TYPE_RGBA;
-    pfd.cColorBits = 32;
-    pfd.cDepthBits = settings.depth;
-    pfd.cStencilBits = settings.stencil;
-
-    if( settings.stereo )
-    {
-      pfd.dwFlags |= PFD_STEREO;
-    }
-
-    if(settings.MSAA > 1)
-    {
-        m_hDC = GetDC(m_hWndDummy);
-        PixelFormat = ChoosePixelFormat( m_hDC, &pfd );
-        SetPixelFormat( m_hDC, PixelFormat, &pfd);
-        m_hRC = wglCreateContext( m_hDC );
-        wglMakeCurrent( m_hDC, m_hRC );
-        glewInit();
-        ReleaseDC(m_hWndDummy, m_hDC);
-        m_hDC = GetDC( m_hWnd );
-        int attri[] = {
-			WGL_DRAW_TO_WINDOW_ARB, true,
-	        WGL_PIXEL_TYPE_ARB, WGL_TYPE_RGBA_ARB,
-		    WGL_SUPPORT_OPENGL_ARB, true,
-			WGL_ACCELERATION_ARB, WGL_FULL_ACCELERATION_ARB,
-	        WGL_DOUBLE_BUFFER_ARB, true,
-	        WGL_DEPTH_BITS_ARB, settings.depth,
-	        WGL_STENCIL_BITS_ARB, settings.stencil,
-            WGL_SAMPLE_BUFFERS_ARB, 1,
-			WGL_SAMPLES_ARB,
-			settings.MSAA,
-            0,0
-        };
-        GLuint nfmts;
-        int fmt;
-	    if(!wglChoosePixelFormatARB( m_hDC, attri, NULL, 1, &fmt, &nfmts )){
-            wglDeleteContext(m_hRC);
-            return false;
-        }
-        wglDeleteContext(m_hRC);
-        DestroyWindow(m_hWndDummy);
-        m_hWndDummy = NULL;
-        if(!SetPixelFormat( m_hDC, fmt, &pfd))
-            return false;
-    } else {
-        m_hDC = GetDC( m_hWnd );
-        PixelFormat = ChoosePixelFormat( m_hDC, &pfd );
-        SetPixelFormat( m_hDC, PixelFormat, &pfd);
-    }
-    m_hRC = wglCreateContext( m_hDC );
-    wglMakeCurrent( m_hDC, m_hRC );
-    // calling glewinit NOW because the inside glew, there is mistake to fix...
-    // This is the joy of using Core. The query glGetString(GL_EXTENSIONS) is deprecated from the Core profile.
-    // You need to use glGetStringi(GL_EXTENSIONS, <index>) instead. Sounds like a "bug" in GLEW.
-    glewInit();
-#define GLCOMPAT
-    if(!wglCreateContextAttribsARB)
-        wglCreateContextAttribsARB = (PFNWGLCREATECONTEXTATTRIBSARBPROC)wglGetProcAddress("wglCreateContextAttribsARB");
-    if(wglCreateContextAttribsARB)
-    {
-        HGLRC hRC = NULL;
-        std::vector<int> attribList;
-        #define ADDATTRIB(a,b) { attribList.push_back(a); attribList.push_back(b); }
-        int maj= settings.major;
-        int min= settings.minor;
-        ADDATTRIB(WGL_CONTEXT_MAJOR_VERSION_ARB, maj)
-        ADDATTRIB(WGL_CONTEXT_MINOR_VERSION_ARB, min)
-        if(settings.core)
-            ADDATTRIB(WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB)
-        else
-            ADDATTRIB(WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB)
-        int ctxtflags = 0;
-        if(settings.debug)
-            ctxtflags |= WGL_CONTEXT_DEBUG_BIT_ARB;
-        if(settings.robust)
-            ctxtflags |= WGL_CONTEXT_ROBUST_ACCESS_BIT_ARB;
-        if(settings.forward) // use it if you want errors when compat options still used
-            ctxtflags |= WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB;
-        ADDATTRIB(WGL_CONTEXT_FLAGS_ARB, ctxtflags);
-        ADDATTRIB(0, 0)
-        int *p = &(attribList[0]);
-        if (!(hRC = wglCreateContextAttribsARB(m_hDC, 0, p )))
-        {
-            LOGE("wglCreateContextAttribsARB() failed for OpenGL context.\n");
-            return false;
-        }
-        if (!wglMakeCurrent(m_hDC, hRC)) { 
-            LOGE("wglMakeCurrent() failed for OpenGL context.\n"); 
-        } else {
-            wglDeleteContext( m_hRC );
-            m_hRC = hRC;
-#ifdef _DEBUG
-            if(!__glewDebugMessageCallbackARB)
-            {
-                __glewDebugMessageCallbackARB = (PFNGLDEBUGMESSAGECALLBACKARBPROC)wglGetProcAddress("glDebugMessageCallbackARB");
-                __glewDebugMessageControlARB  = (PFNGLDEBUGMESSAGECONTROLARBPROC) wglGetProcAddress("glDebugMessageControlARB");
-            }
-            if(__glewDebugMessageCallbackARB)
-            {
-                glEnable(GL_DEBUG_OUTPUT);
-                glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS_ARB);
-                glDebugMessageControlARB(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, NULL, GL_TRUE);
-                glDebugMessageCallbackARB(myOpenGLCallback, sourcewindow);
-            }
-#endif
-        }
-    }
-    glewInit();
-    LOGOK("Loaded Glew\n");
-    LOGOK("initialized OpenGL basis\n");
-    return true;
-}
 
 static int getKeyMods()
 {
@@ -576,15 +396,16 @@ LRESULT CALLBACK WindowProc( HWND   m_hWnd,
     if(!bRes) switch( msg )
     {
         case WM_ACTIVATE:
-            if(pWin->m_internal)
+            if(pWin && pWin->m_internal)
                 pWin->m_internal->m_iconified = HIWORD(wParam) ? true : false;
             break;
         case WM_SHOWWINDOW:
-            if(pWin->m_internal)
+            if(pWin && pWin->m_internal)
                 pWin->m_internal->m_visible = wParam ? true : false;
             break;
         case WM_PAINT:
-            pWin->postRedisplay();
+            if(pWin)
+                pWin->postRedisplay();
             break;
 
         case WM_KEYDOWN:
@@ -665,15 +486,29 @@ LRESULT CALLBACK WindowProc( HWND   m_hWnd,
             pWin->motion(pWin->getCurX(), pWin->getCurY());
             break;
         case WM_SIZE:
-            pWin->setWinSz(LOWORD(lParam), HIWORD(lParam));
-            pWin->reshape(LOWORD(lParam), HIWORD(lParam));
+            if (lParam == 0) { // Zero size window is minimized fully
+              if (pWin->m_internal) {
+                pWin->m_internal->m_iconified = true;
+              }
+            } else {
+              pWin->setWinSz(LOWORD(lParam), HIWORD(lParam));
+              if (pWin->m_internal) {
+                pWin->m_internal->m_iconified = false;
+                pWin->m_internal->reshape(LOWORD(lParam), HIWORD(lParam));
+              }
+              pWin->reshape(LOWORD(lParam), HIWORD(lParam));
+            }
             break;
         case WM_CLOSE:
-            pWin->shutdown();
+            if (pWin) {
+                pWin->shutdown();
+            }
             PostQuitMessage(0);
             break;
         case WM_DESTROY:
-            pWin->shutdown();
+            if (pWin) {
+                pWin->shutdown();
+            }
             PostQuitMessage(0);
             break;
         default:
@@ -682,98 +517,86 @@ LRESULT CALLBACK WindowProc( HWND   m_hWnd,
     return DefWindowProc( m_hWnd, msg, wParam, lParam );
 }
 //------------------------------------------------------------------------------
-bool WINinternal::create(const char* title, int width, int height)
+
+
+bool NVPWindow::activateInternal(int width, int height, int posX, int posY, const char* title, const ContextFlagsBase* cflags, struct WINinternal* internal)
 {
-  WNDCLASSEX winClass;
+  m_winSz[0] = width;
+  m_winSz[1] = height;
+  m_internal = internal;
 
-  winClass.lpszClassName = "MY_WINDOWS_CLASS";
-  winClass.cbSize        = sizeof(WNDCLASSEX);
-  winClass.style         = CS_HREDRAW | CS_VREDRAW | CS_OWNDC | CS_DBLCLKS;
-  winClass.lpfnWndProc   = WindowProc;
-  winClass.hInstance     = g_hInstance;
-  winClass.hIcon           = LoadIcon(g_hInstance, (LPCTSTR)IDI_OPENGL_ICON);
-  winClass.hIconSm       = LoadIcon(g_hInstance, (LPCTSTR)IDI_OPENGL_ICON);
-  winClass.hCursor       = LoadCursor(NULL, IDC_ARROW);
-  winClass.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
-  winClass.lpszMenuName  = NULL;
-  winClass.cbClsExtra    = 0;
-  winClass.cbWndExtra    = 0;
+  m_debugTitle = title ? title : "Sample";
 
-  if(!RegisterClassEx(&winClass) )
-    return false;
+  if (m_internal->create(m_debugTitle.c_str(), width, height, posX, posY))
+  {
+    // Keep track of the windows
+    g_windows.push_back(this);
+    SetWindowLongPtr(m_internal->m_hWnd, GWLP_USERDATA, g_windows.size() - 1);
+    UpdateWindow(m_internal->m_hWnd);
+    if (m_internal->initBase(cflags, this)) {
+      m_deviceName = m_internal->m_deviceName;
 
-  DWORD style = WS_CLIPSIBLINGS | WS_CLIPCHILDREN | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SIZEBOX;
-  DWORD styleEx = WS_EX_APPWINDOW | WS_EX_WINDOWEDGE;
-
-  RECT rect = { 0, 0, width, height };
-  AdjustWindowRectEx(&rect, style,
-    FALSE, styleEx);
-
-  m_hWnd = CreateWindowEx( styleEx, "MY_WINDOWS_CLASS",
-    title ? title : "Viewer",
-    style, 0, 0, rect.right - rect.left, rect.bottom - rect.top, NULL, NULL, 
-    g_hInstance, (LPVOID)NULL );
-  winClass.lpszClassName = "DUMMY";
-  winClass.lpfnWndProc   = DefWindowProc;
-  if(!RegisterClassEx(&winClass) )
-    return false;
-  m_hWndDummy = CreateWindowEx( NULL, "DUMMY",
-    "Dummy",
-    WS_OVERLAPPEDWINDOW, 0, 0, 10, 10, NULL, NULL, 
-    g_hInstance, NULL );
-
-  if( m_hWnd == NULL )
-    return false;
-
-  return true;
-}
-
-bool NVPWindow::activate(int width, int height, const char* title, const ContextFlags* cflags, int invisible)
-{
-  // FIXME invisibile handling!
-  return create(title,cflags,width,height);
-}
-
-void NVPWindow::deactivate()
-{
-  // FIXME should remove from g_windows
-}
-
-bool NVPWindow::create(const char* title, const ContextFlags* cflags, int width, int height)
-{
-    m_winSz[0] = width;
-    m_winSz[1] = height;
-    
-    m_internal = new WINinternal(this);
-    
-    m_debugTitle = title ? title:"Sample";
-
-    if (m_internal->create(m_debugTitle.c_str(), width,height))
-    {
-      // Keep track of the windows
-      g_windows.push_back(this);
-      SetWindowLongPtr(m_internal->m_hWnd, GWLP_USERDATA, g_windows.size()-1 );
-      UpdateWindow( m_internal->m_hWnd );
-      // Initialize the very base of OpenGL
-      if(m_internal->initBase(cflags, this))
-        if(init()){
-          // showwindow will trigger resize/paint events, that must not be called prior
-          // sample init
-          ShowWindow( m_internal->m_hWnd, g_nCmdShow );
-          return true;
-        }
+      if (init()) {
+        // showwindow will trigger resize/paint events, that must not be called prior
+        // sample init
+        ShowWindow(m_internal->m_hWnd, g_nCmdShow);
+        return true;
+      }
     }
+  }
 
-    
-
-    delete m_internal;
-    m_internal = NULL;
-
-    return false;
+  delete m_internal;
+  m_internal = NULL;
+  
+  return false;
 }
+
+
+bool NVPWindow::activate(WindowApi api, int width, int height, const char* title, const ContextFlagsBase* cflags, int posX, int posY)
+{
+  if (api != WINDOW_API_NONE) {
+    assert(cflags != nullptr);
+  }
+
+  m_api = api;
+
+  switch (api) {
+#if defined(USEOPENGL)
+  case WINDOW_API_OPENGL:
+    return activateInternal(width, height, posX, posY, title, cflags, newWINinternalGL(this));
+#endif
+#if defined(USEVULKANSDK)
+  case WINDOW_API_VULKAN:
+    return activateInternal(width, height, posX, posY, title, cflags, newWINinternalVK(this));
+#endif
+#if defined(USEDIRECTX11)
+  case WINDOW_API_DX11:
+    return activateInternal(width, height, posX, posY, title, cflags, newWINinternalDX11(this));
+#endif
+#if defined(USEDIRECTX12)
+  case WINDOW_API_DX12:
+    return activateInternal(width, height, posX, posY, title, cflags, newWINinternalDX12(this));
+#endif
+  case WINDOW_API_NONE:
+  default:
+    return activateInternal(width, height, posX, posY, title, cflags, newWINinternal(this));
+  }
+
+  return false;
+}
+
+//////////////////////////////////////////////////////////////////////////
 
 //---------------------------------------------------------------------------
 // Post a QUIT
+//---------------------------------------------------------------------------
+
+void NVPWindow::postRedisplay(int n/*=1*/)
+{
+  m_renderCnt = n;
+}
+
+
 void NVPWindow::postQuit()
 {
     PostQuitMessage(0);
@@ -781,9 +604,18 @@ void NVPWindow::postQuit()
 
 void NVPWindow::swapBuffers()
 {
-    SwapBuffers( m_internal->m_hDC );
+    m_internal->swapBuffers();
 }
 
+void NVPWindow::swapPrepare()
+{
+    m_internal->swapPrepare();
+}
+
+void NVPWindow::display()
+{
+    m_internal->display();
+}
 
 void NVPWindow::setTitle( const char* title )
 {
@@ -811,21 +643,100 @@ bool NVPWindow::isOpen()
   return m_internal->m_visible && !m_internal->m_iconified;
 }
 
-
-void NVPWindow::makeContextCurrent()
-{
-    wglMakeCurrent(m_internal->m_hDC,m_internal->m_hRC);
-}
-
-void NVPWindow::makeContextNonCurrent()
-{
-    wglMakeCurrent(0,0);
-}
-
-
 void NVPWindow::swapInterval(int i)
 {
-    wglSwapIntervalEXT(i);
+    m_internal->swapInterval(i);
+}
+
+void NVPWindow::windowPos(int x, int y, int w, int h)
+{
+    SetWindowPos(m_internal->m_hWnd, NULL, x,y,w,h, 0);
+}
+
+void NVPWindow::fullScreen(bool bYes)
+{
+    HWND window = m_internal->m_hWnd;
+
+    if(!window)
+        return;
+
+    if(bYes)
+    {
+        if(!m_isFullScreen)
+        {
+            // if not fullscreen save old rect
+            GetWindowRect(window, &m_internal->m_windowedRect);
+        }
+
+        // remove border and caption from window
+        LONG_PTR windowStyle = GetWindowLongPtr(window, GWL_STYLE);
+        windowStyle &= ~WS_BORDER;
+        windowStyle &= ~WS_CAPTION;
+        windowStyle &= ~WS_SIZEBOX;
+        SetWindowLongPtr(window, GWL_STYLE, windowStyle);
+
+        // get monitor for window
+        HMONITOR    windowMonitor = MonitorFromWindow(window, MONITOR_DEFAULTTOPRIMARY);
+        MONITORINFO monitorInfo;
+        monitorInfo.cbSize = sizeof(MONITORINFO);
+        GetMonitorInfo(windowMonitor, &monitorInfo);
+
+        // make window screen/monitor sized and always on top
+        int x = monitorInfo.rcMonitor.left;
+        int y = monitorInfo.rcMonitor.top;
+        int w = monitorInfo.rcMonitor.right - x;
+        int h = monitorInfo.rcMonitor.bottom - y;
+        SetWindowPos(window, HWND_TOPMOST, x, y, w, h, SWP_SHOWWINDOW);
+
+        m_isFullScreen = true;
+    }
+    else
+    {
+        LONG_PTR windowStyle = GetWindowLongPtr(window, GWL_STYLE);
+        // put back border and caption
+        windowStyle |= WS_BORDER | WS_CAPTION | WS_SIZEBOX;
+        SetWindowLongPtr(window, GWL_STYLE, windowStyle);
+        // reset window to old rect and not always on top
+        int x = m_internal->m_windowedRect.left;
+        int y = m_internal->m_windowedRect.top;
+        int w = m_internal->m_windowedRect.right - x;
+        int h = m_internal->m_windowedRect.bottom - y;
+        SetWindowPos(window, HWND_NOTOPMOST, x, y, w, h, SWP_SHOWWINDOW);
+
+        m_isFullScreen = false;
+    }
+}
+
+void NVPWindow::screenshot(int idx, int x, int y, int w, int h)
+{
+    char filename[300];
+    sprintf(filename, "screenshot_%d.bmp", idx);
+    if(w == 0)
+    {
+        x = 0;
+        y = 0;
+        w = m_winSz[0];
+        h = m_winSz[1];
+    }
+    std::vector<unsigned char> data;
+    data.resize( w * h * 4);
+    m_internal->screenshot(idx >=0 ? filename:NULL, x,y, w,h, &data[0]);
+    // send the image through Socket
+    postscreenshot(&data[0], data.size(), w,h);
+}
+
+void NVPWindow::postscreenshot(unsigned char* data, size_t sz, int w, int h)
+{
+#ifdef USESOCKETS
+    ::postScreenshot(data, sz, w,h);
+#endif
+}
+
+void NVPWindow::postTiming(float ms, int fps, const char *details)
+{
+#ifdef USESOCKETS
+    ::postTiming(ms, fps, details);
+#endif
 }
 
 //---------------------------------------------------------------------------
@@ -834,6 +745,11 @@ bool NVPWindow::sysPollEvents(bool bLoop)
 {
     bool bContinue;
     do {
+#ifdef USESOCKETS
+		// check the stack of messages from remote connection, first
+        processRemoteMessages();
+#endif
+
         if( PeekMessage( &uMsg, NULL, 0, 0, PM_REMOVE ) )
         { 
             TranslateMessage( &uMsg );
@@ -841,7 +757,7 @@ bool NVPWindow::sysPollEvents(bool bLoop)
         }
         else 
         {
-            for(int i=0; i<g_windows.size(); i++)
+            for(size_t i=0; i<g_windows.size(); i++)
             {
                 NVPWindow *pWin = g_windows[i];
                 if(pWin->m_renderCnt > 0)
@@ -851,89 +767,25 @@ bool NVPWindow::sysPollEvents(bool bLoop)
                 }
             }
         }
+
         bContinue = uMsg.message != WM_QUIT;
     } while( bContinue && bLoop );
     return bContinue;
 }
 
-// from GLFW 3.0
-static int stringInExtensionString(const char* string, const char* exts)
+#ifdef USEOPENGL
+int NVPWindow::sysExtensionSupportedGL(const char* name)
 {
-  const GLubyte* extensions = (const GLubyte*) exts;
-  const GLubyte* start;
-  GLubyte* where;
-  GLubyte* terminator;
-
-  // It takes a bit of care to be fool-proof about parsing the
-  // OpenGL extensions string. Don't be fooled by sub-strings,
-  // etc.
-  start = extensions;
-  for (;;)
-  {
-    where = (GLubyte*) strstr((const char*) start, string);
-    if (!where)
-      return GL_FALSE;
-
-    terminator = where + strlen(string);
-    if (where == start || *(where - 1) == ' ')
-    {
-      if (*terminator == ' ' || *terminator == '\0')
-        break;
-    }
-
-    start = terminator;
-  }
-
-  return GL_TRUE;
-}
-
-int NVPWindow::sysExtensionSupported( const char* name )
-{
-  // we are not using the glew query, as glew will only report
-  // those extension it knows about, not what the actual driver may support
-
-  int i;
-  GLint count;
-
-  // Check if extension is in the modern OpenGL extensions string list
-  // This should be safe to use since GL 3.0 is around for a long time :)
-
-  glGetIntegerv(GL_NUM_EXTENSIONS, &count);
-
-  for (i = 0;  i < count;  i++)
-  {
-    const char* en = (const char*) glGetStringi(GL_EXTENSIONS, i);
-    if (!en)
-    {
-      return GL_FALSE;
-    }
-
-    if (strcmp(en, name) == 0)
-      return GL_TRUE;
-  }
-
-  // Check platform specifc gets
-
-  const char* exts = NULL;
   NVPWindow* win = g_windows[0];
-
-  if (WGLEW_ARB_extensions_string){
-    exts = wglGetExtensionsStringARB(win->m_internal->m_hDC);
-  }
-  if (!exts && WGLEW_EXT_extensions_string){
-    exts = wglGetExtensionsStringEXT();
-  }
-  if (!exts) {
-    return FALSE;
-  }
-  
-  return stringInExtensionString(name,exts);
+  return win->extensionSupportedGL(name);
 }
 
-NVPWindow::NVPproc NVPWindow::sysGetProcAddress( const char* name )
+void* NVPWindow::sysGetProcAddressGL(const char* name)
 {
-    return (NVPWindow::NVPproc)wglGetProcAddress(name);
+  NVPWindow* win = g_windows[0];
+  return win->getProcAddressGL(name);
 }
+#endif
 
 void NVPWindow::sysWaitEvents()
 {
@@ -977,60 +829,6 @@ std::string NVPWindow::sysExePath()
 static const WORD MAX_CONSOLE_LINES = 500;
 
 using namespace std;
-
-void NVPWindow::sysVisibleConsole()
-{
-  if (s_isConsole) return;
-
-  int hConHandle;
-  HANDLE lStdHandle;
-
-  CONSOLE_SCREEN_BUFFER_INFO coninfo;
-
-  FILE *fp;
-
-  // allocate a console for this app
-  AllocConsole();
-
-  // set the screen buffer to be big enough to let us scroll text
-  GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE),
-    &coninfo);
-
-  coninfo.dwSize.Y = MAX_CONSOLE_LINES;
-  SetConsoleScreenBufferSize(GetStdHandle(STD_OUTPUT_HANDLE),
-    coninfo.dwSize);
-
-  // redirect unbuffered STDOUT to the console
-  lStdHandle = GetStdHandle(STD_OUTPUT_HANDLE);
-  hConHandle = _open_osfhandle((intptr_t)lStdHandle, _O_TEXT);
-  fp = _fdopen( hConHandle, "w" );
-
-  *stdout = *fp;
-
-  setvbuf( stdout, NULL, _IONBF, 0 );
-  // redirect unbuffered STDIN to the console
-  lStdHandle = GetStdHandle(STD_INPUT_HANDLE);
-  hConHandle = _open_osfhandle((intptr_t)lStdHandle, _O_TEXT);
-  fp = _fdopen( hConHandle, "r" );
-
-  *stdin = *fp;
-
-  setvbuf( stdin, NULL, _IONBF, 0 );
-  // redirect unbuffered STDERR to the console
-  lStdHandle = GetStdHandle(STD_ERROR_HANDLE);
-  hConHandle = _open_osfhandle((intptr_t)lStdHandle, _O_TEXT);
-  fp = _fdopen( hConHandle, "w" );
-
-  *stderr = *fp;
-
-  setvbuf( stderr, NULL, _IONBF, 0 );
-
-  // make cout, wcout, cin, wcin, wcerr, cerr, wclog and clog
-
-  // point to console as well
-
-  ios::sync_with_stdio();
-}
 
 // http://www.codeguru.com/cpp/w-p/win32/article.php/c1427/A-Simple-Win32-CommandLine-Parser.htm
 class CmdLineArgs : public std::vector<char*>
@@ -1116,8 +914,10 @@ int WINAPI WinMain( HINSTANCE hInstance,
                     LPSTR     lpCmdLine,
                     int       nCmdShow )
 {
+
+    nvprintSetCallback(sample_print);
+
     g_hInstance = hInstance;
-    g_lpCmdLine = lpCmdLine;
     g_nCmdShow = nCmdShow;
 
     memset(&uMsg,0,sizeof(uMsg));
@@ -1147,7 +947,13 @@ int WINAPI WinMain( HINSTANCE hInstance,
     _CrtSetDbgFlag ( _CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF); 
     _CrtSetReportMode ( _CRT_ERROR, _CRTDBG_MODE_DEBUG|_CRTDBG_MODE_WNDW);
 #endif
-    //
+#ifdef USESOCKETS
+	//
+	// Socket init if needed
+	//
+	startSocketServer(1056);
+#endif
+	//
     // relay the "main" to the sample
     // the sample will create the window(s)
     //
@@ -1157,17 +963,19 @@ int WINAPI WinMain( HINSTANCE hInstance,
     //
     // Terminate
     //
-    for(int i=0; i<g_windows.size(); i++)
+    for(size_t i=0; i<g_windows.size(); i++)
     {
       NVPWindow *pWin = g_windows[i];
       pWin->shutdown();
       if (pWin->m_internal){
-        if( pWin->m_internal->m_hRC != NULL )
-        {
-          ReleaseDC( pWin->m_internal->m_hWnd, pWin->m_internal->m_hDC );
-          pWin->m_internal->m_hDC = NULL;
-        }
+        pWin->m_internal->terminate();
+        // BUG
+        // this crashes for some reason
+        // dx11, vk do context cleanup in terminate,
+        // which works, but the delete crashes
+      #if 0
         delete pWin->m_internal;
+      #endif
       }
     }
     UnregisterClass( "MY_WINDOWS_CLASS", g_hInstance );
@@ -1175,7 +983,13 @@ int WINAPI WinMain( HINSTANCE hInstance,
 #ifdef MEMORY_LEAKS_CHECK
     _CrtDumpMemoryLeaks();
 #endif
-    return (int)uMsg.wParam;
+#ifdef USESOCKETS
+	//
+	// terminate sockets if used
+	//
+	endSocketServer();
+#endif
+	return (int)uMsg.wParam;
 }
 
 int main(int argc, char **argv)
@@ -1187,88 +1001,3 @@ int main(int argc, char **argv)
   return 0;
 }
 
-//------------------------------------------------------------------------------
-// 
-//------------------------------------------------------------------------------
-static size_t fmt2_sz    = 0;
-static char *fmt2 = NULL;
-static FILE *fd = NULL;
-static bool bLogReady = false;
-static bool bPrintLogging = true;
-static int  printLevel = -1; // <0 mean no level prefix
-void nvprintSetLevel(int l)
-{
-    printLevel = l;
-}
-int nvprintGetLevel()
-{
-    return printLevel;
-}
-void nvprintSetLogging(bool b)
-{
-    bPrintLogging = b;
-}
-void nvprintf2(va_list &vlist, const char * fmt, int level)
-{
-    if(bPrintLogging == false)
-        return;
-    if(fmt2_sz == 0) {
-        fmt2_sz = 1024;
-        fmt2 = (char*)malloc(fmt2_sz);
-    }
-    while((vsnprintf(fmt2, fmt2_sz, fmt, vlist)) < 0) // means there wasn't anough room
-    {
-        fmt2_sz *= 2;
-        if(fmt2) free(fmt2);
-        fmt2 = (char*)malloc(fmt2_sz);
-    }
-    //char *prefix = "";
-    //switch(level)
-    //{
-    //case LOGLEVEL_WARNING:
-    //    prefix = "LOG *WARNING* >> ";
-    //    break;
-    //case LOGLEVEL_ERROR:
-    //    prefix = "LOG **ERROR** >> ";
-    //    break;
-    //case LOGLEVEL_OK:
-    //    prefix = "LOG !OK! >> ";
-    //    break;
-    //case LOGLEVEL_INFO:
-    //default:
-    //    break;
-    //}
-#ifdef WIN32
-    //OutputDebugStringA(prefix);
-    OutputDebugStringA(fmt2);
-#ifdef _DEBUG
-    if(bLogReady == false)
-    {
-        fd = fopen("Log.txt", "w");
-        bLogReady = true;
-    }
-    if(fd)
-    {
-        //fprintf(fd, prefix);
-        fprintf(fd, fmt2);
-    }
-#endif
-#endif
-    sample_print(level, fmt2);
-    //::printf(prefix);
-    ::printf(fmt2);
-}
-void nvprintf(const char * fmt, ...)
-{
-//    int r = 0;
-    va_list  vlist;
-    va_start(vlist, fmt);
-    nvprintf2(vlist, fmt, printLevel);
-}
-void nvprintfLevel(int level, const char * fmt, ...)
-{
-    va_list  vlist;
-    va_start(vlist, fmt);
-    nvprintf2(vlist, fmt, level);
-}
-//------------------------------------------------------------------------------

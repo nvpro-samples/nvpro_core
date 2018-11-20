@@ -7,8 +7,7 @@ unset(OPTIX_LIB CACHE)
 unset(OPTIX_FOUND CACHE)
 unset(OPTIX_INCLUDE_DIR CACHE)
 
-# search path, can be overridden by user
-set ( OPTIX_LOCATION "${PROJECT_SOURCE_DIR}/../shared_optix" CACHE PATH "Path to OptiX install" )
+# OPTIX_LOCATION can be setup to search versions somewhere else
 
 macro ( folder_list result curdir substring )
   FILE(GLOB children RELATIVE ${curdir} ${curdir}/*${substring}*)
@@ -21,20 +20,22 @@ macro ( folder_list result curdir substring )
   SET(${result} ${dirlist})
 ENDMACRO()
 
-macro(_find_version_path targetVersion targetPath rootName searchList platform )
+macro(_find_version_path targetVersion targetPath rootName searchList )
   unset ( targetVersion )
   unset ( targetPath )
   SET ( bestver "0.0.0" )
   SET ( bestpath "" )
   foreach ( basedir ${searchList} )
-    folder_list ( dirList ${basedir} ${platform} )	
+    folder_list ( dirList ${basedir} ${rootName} )
 	  foreach ( checkdir ${dirList} ) 	 
-	    string ( REGEX MATCH "${rootName}.([0-9]+).([0-9]+).([0-9]+)(.*)$" result "${checkdir}" )
+	    string ( REGEX MATCH "${rootName}(.*)([0-9]+).([0-9]+).([0-9]+)(.*)$" result "${checkdir}" )
 	    if ( "${result}" STREQUAL "${checkdir}" )
 	       # found a path with versioning 
-	       SET ( ver "${CMAKE_MATCH_1}.${CMAKE_MATCH_2}.${CMAKE_MATCH_3}" )
+	       SET ( ver "${CMAKE_MATCH_2}.${CMAKE_MATCH_3}.${CMAKE_MATCH_4}" )
 	       if ( ver GREATER bestver )
 	  	    SET ( bestver ${ver} )
+          SET ( bestmajorver ${CMAKE_MATCH_2})
+          SET ( bestminorver ${CMAKE_MATCH_3})
 	  		SET ( bestpath "${basedir}/${checkdir}" )
 	  	 endif ()
 	    endif()	  
@@ -69,42 +70,56 @@ macro(_find_files targetVar incDir dllName dllName64 folder)
   # message ( "File list: ${${targetVar}}" )		#-- debugging
 endmacro()
 
- # Locate OptiX by version
-set ( SEARCH_PATHS
-  ${OPTIX_LOCATION}
-  ${PROJECT_SOURCE_DIR}/shared_optix
-  ${PROJECT_SOURCE_DIR}/../shared_optix
-  ${PROJECT_SOURCE_DIR}/../../shared_optix
-  $ENV{OPTIX_LOCATION}  
-)
-if (WIN32) 
-  _find_version_path ( OPTIX_VERSION OPTIX_ROOT_DIR "Optix" "${SEARCH_PATHS}" "win64" )
-endif()
-if (UNIX)
-  _find_version_path ( OPTIX_VERSION OPTIX_ROOT_DIR "Optix" "${SEARCH_PATHS}" "linux64" )
-endif()
-message ( STATUS "OptiX version: ${OPTIX_VERSION}")
-
-if (NOT OPTIX_ROOT_DIR )
+if (DEFINED OPTIX_LOCATION OR DEFINED ENV{OPTIX_LOCATION} )
+  Message(STATUS "using OPTIX_LOCATION (${OPTIX_LOCATION})...")
+  if(NOT DEFINED OPTIX_LOCATION)
+    if(DEFINED ENV{OPTIX_LOCATION})
+      set(OPTIX_LOCATION $ENV{OPTIX_LOCATION})
+    endif()
+  endif()
   # Locate by version failed. Handle user override for OPTIX_LOCATION.
+  string ( REGEX MATCH ".*([0-9]+).([0-9]+).([0-9]+)(.*)$" result "${OPTIX_LOCATION}" )
+  if ( "${result}" STREQUAL "${OPTIX_LOCATION}" )
+    SET ( bestver "${CMAKE_MATCH_1}.${CMAKE_MATCH_2}.${CMAKE_MATCH_3}" )
+    SET ( bestmajorver ${CMAKE_MATCH_1})
+    SET ( bestminorver ${CMAKE_MATCH_2})
+    Message(STATUS "found version ${bestver}")
+  else()
+    Message(WARNING "Could NOT extract the version from OptiX folder : ${result}")
+  endif()
   find_path( OPTIX_INCLUDE_DIR optix.h ${OPTIX_LOCATION}/include )
   if ( OPTIX_INCLUDE_DIR )
     set (OPTIX_ROOT_DIR ${OPTIX_INCLUDE_DIR}/../ )
   endif()
 endif()
+if(NOT DEFINED OPTIX_ROOT_DIR)
+ # Locate OptiX by version
+ set ( SEARCH_PATHS
+  $ENV{OPTIX_LOCATION}
+  ${OPTIX_LOCATION}
+  ${PROJECT_SOURCE_DIR}/../LocalPackages/Optix
+  ${PROJECT_SOURCE_DIR}/../../LocalPackages/Optix
+  ${PROJECT_SOURCE_DIR}/../../../LocalPackages/Optix
+  C:/ProgramData/NVIDIA\ Corporation
 
+ )
+ 
+ _find_version_path ( OPTIX_VERSION OPTIX_ROOT_DIR "OptiX" "${SEARCH_PATHS}" )
+ 
+ message ( STATUS "OptiX version: ${OPTIX_VERSION}")
+endif()
 
 if (OPTIX_ROOT_DIR)
 
   if (WIN32) 
 	  #-------- Locate DLLS
-          _find_files( OPTIX_DLL OPTIX_ROOT_DIR "bin/optix.1.dll"       "bin64/optix.1.dll" "")
-          _find_files( OPTIX_DLL OPTIX_ROOT_DIR "bin/optixu.1.dll"      "bin64/optixu.1.dll" "")
-	  _find_files( OPTIX_DLL OPTIX_ROOT_DIR "bin/optix_prime.1.dll" "bin64/optix_prime.1.dll" "")
+    _find_files( OPTIX_DLL OPTIX_ROOT_DIR "lib/optix.${bestmajorver}${bestminorver}.dll" "bin64/optix.${bestmajorver}${bestminorver}.dll" "")
+    _find_files( OPTIX_DLL OPTIX_ROOT_DIR "lib/optixu.1.dll" "bin64/optixu.1.dll" "")
+	  _find_files( OPTIX_DLL OPTIX_ROOT_DIR "lib/optix_prime.1.dll" "bin64/optix_prime.1.dll" "")
 	  
 	  #-------- Locate LIBS
-          _find_files( OPTIX_LIB OPTIX_ROOT_DIR "lib/optix.1.lib"       "lib64/optix.1.lib" "")
-          _find_files( OPTIX_LIB OPTIX_ROOT_DIR "lib/optixu.1.lib"      "lib64/optixu.1.lib" "")
+    _find_files( OPTIX_LIB OPTIX_ROOT_DIR "lib/optix.${bestmajorver}${bestminorver}.lib" "lib64/optix.${bestmajorver}${bestminorver}.lib" "")
+    _find_files( OPTIX_LIB OPTIX_ROOT_DIR "lib/optixu.1.lib" "lib64/optixu.1.lib" "")
 	  _find_files( OPTIX_LIB OPTIX_ROOT_DIR "lib/optix_prime.1.lib" "lib64/optix_prime.1.lib" "")
     if(NOT OPTIX_LIB)
       message(STATUS "setting OPTIX_LIB to ${OPTIX_LIB}" )
@@ -144,6 +159,8 @@ include(FindPackageHandleStandardArgs)
 SET(OPTIX_DLL ${OPTIX_DLL} CACHE PATH "path")
 SET(OPTIX_LIB ${OPTIX_LIB} CACHE PATH "path")
 SET(OPTIX_INCLUDE_DIR "${OPTIX_ROOT_DIR}/include" CACHE PATH "path")
+add_definitions("-DOPTIX_PATH=R\"(${OPTIX_ROOT_DIR})\"")
+add_definitions("-DOPTIX_VERSION_STR=\"${OPTIX_VERSION}\"")
 
 find_package_handle_standard_args(OPTIX DEFAULT_MSG
     OPTIX_INCLUDE_DIR

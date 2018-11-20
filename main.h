@@ -1,42 +1,36 @@
 /*-----------------------------------------------------------------------
-    Copyright (c) 2013, NVIDIA. All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions
-    are met:
-     * Redistributions of source code must retain the above copyright
-       notice, this list of conditions and the following disclaimer.
-     * Neither the name of its contributors may be used to endorse 
-       or promote products derived from this software without specific
-       prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
-    EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-    IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-    PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
-    CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-    EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-    PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-    PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
-    OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-    feedback to tlorach@nvidia.com (Tristan Lorach)
+ * Copyright (c) 2018, NVIDIA CORPORATION. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *  * Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *  * Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *  * Neither the name of NVIDIA CORPORATION nor the names of its
+ *    contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+ * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */ //--------------------------------------------------------------------
+
 #ifndef __MAIN_H__
 #define __MAIN_H__
 #pragma warning(disable:4996) // preventing snprintf >> _snprintf_s
 
 #include "platform.h"
-
-
-// trick for pragma message so we can write:
-// #pragma message(__FILE__"("S__LINE__"): blah")
-#define S__(x) #x
-#define S_(x) S__(x)
-#define S__LINE__ S_(__LINE__)
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <vector>
@@ -63,14 +57,50 @@
         #define malloc(x) MALLOC_DBG(x)
         #define new DEBUG_NEW
     #endif
+
+    #define VK_USE_PLATFORM_WIN32_KHR
+
+#ifdef USEDIRECTX11
+  #include <d3d11.h>
+  #include <nv_helpers_dx11/window_dx11.hpp>
+#endif
+#ifdef USEDIRECTX12
+  #include <d3d12.h>
+  #include <dxgi1_5.h>
+  #include <D3Dcompiler.h>
+  #include <nv_helpers_dx12/window_dx12.hpp>
+  #include <nv_helpers_dx12/swapchain_dx12.hpp>
+#endif
+
+#endif // WIN32
+
+#ifdef USEVULKANSDK
+  #include <nv_helpers_vk/window_vk.hpp>
+#endif
+
+
+
+#ifdef LINUX
+
+#ifdef USEOPENGL
+  #include <GL/gl.h>
+  #include <GL/glx.h>
+  #include <GL/glxext.h>
+  #include <GL/glu.h>
+#endif
+
+#include <X11/Xlib.h>
+#include <X11/Xatom.h>
+#include <X11/keysym.h>
+#include <X11/extensions/xf86vmode.h>
+
 #endif
 
 #ifdef SUPPORT_NVTOOLSEXT
-#include "NSightEvents.h"
+#include "nv_helpers/nsightevents.h"
 #else
-// Note: they are defined inside "NSightEvents.h"
+// Note: they are defined inside "nsightevents.h"
 // but let's define them again here as empty defines for the case when NSIGHT is not needed at all
-// (NSightEvents.h also does this test but here we avoid including the file NSightEvents.h)
 #	define NX_RANGE int
 #	define NX_MARK(name)
 #	define NX_RANGESTART(name) 0
@@ -83,22 +113,13 @@
 #	define NXPROFILEFUNCCOL2(name, c, a)
 #endif
 
-#   define  LOGLEVEL_INFO 0
-#   define  LOGLEVEL_WARNING 1
-#   define  LOGLEVEL_ERROR 2
-#   define  LOGLEVEL_OK 7
-#   define  LOGI(...)  { nvprintfLevel(0, __VA_ARGS__); }
-#   define  LOGW(...)  { nvprintfLevel(1, __VA_ARGS__); }
-#   define  LOGE(...)  { nvprintfLevel(2, __FILE__ "(" S__LINE__ "): **ERROR**:\n" __VA_ARGS__ ); }
-#   define  LOGOK(...)  { nvprintfLevel(7, __VA_ARGS__); }
+#include <nv_helpers/nvprint.hpp>
 
-#if _MSC_VER
-    #define snprintf _snprintf
-#endif
 //----------------- to be declared in the code of the sample: so the sample can decide how to display messages
 class NVPWindow
 {
 public:
+
   // these are taken from GLFW3 and should be kept in a matching state
 
   enum ButtonAction {
@@ -263,13 +284,37 @@ public:
     KMOD_SUPER            = 0x0008,
   };
 
-  typedef struct WINinternal* WINhandle;
-  typedef void (*NVPproc)(void);
+  //////////////////////////////////////////////////////////////////////////
 
+
+  enum WindowApi {
+    WINDOW_API_NONE,
+#ifdef USEOPENGL
+    WINDOW_API_OPENGL,
+#endif
+#ifdef USEVULKANSDK
+    WINDOW_API_VULKAN,
+#endif
+#ifdef USEDIRECTX11
+    WINDOW_API_DX11,
+#endif
+#ifdef USEDIRECTX12
+    WINDOW_API_DX12,
+#endif
+  };
+
+  typedef void ContextFlagsBase;
+  typedef struct WINinternal* WINhandle;
+
+
+#ifdef USEOPENGL
   // OpenGL specific
-  struct ContextFlags {
+  // do we want to add RGB+A # of bits (Android) ?
+  struct ContextFlagsGL {
     int         major;
     int         minor;
+    int         device;
+
     int         MSAA;
     int         depth;
     int         stencil;
@@ -280,7 +325,10 @@ public:
     bool        stereo;
     NVPWindow*  share;
 
-    ContextFlags(int _major=4, int _minor=3, bool _core=false, int _MSAA=0, int _depth=24, int _stencil=8,bool _debug=false, bool _robust=false, bool _forward=false, bool _stereo=false, NVPWindow* _share=0)
+    ContextFlagsGL(int _major=4, int _minor=3, 
+      bool _core=false, int _MSAA=0, int _depth=24, int _stencil=8,
+      bool _debug=false, bool _robust=false, 
+      bool _forward=false, bool _stereo=false, NVPWindow* _share=0)
     {
       major = _major;
       minor = _minor;
@@ -293,13 +341,40 @@ public:
       forward = _forward;
       stereo = _stereo;
       share = _share;
+      device = 0;
     }
-
   };
+#endif
+
+#ifdef USEVULKANSDK
+  typedef nv_helpers_vk::BasicContextInfo ContextFlagsVK;
+
+  // if you want to handle the device and swapchain creation yourself
+  // pass a nullptr as ContextFlags and instead us createSurfaceVK
+#endif
+
+#ifdef USEDIRECTX11
+  struct ContextFlagsDX11 {
+    D3D_FEATURE_LEVEL         level;
+  };
+#endif
+
+#ifdef USEDIRECTX12
+  #ifndef D3D12_SWAP_CHAIN_SIZE
+  #define D3D12_SWAP_CHAIN_SIZE 2
+  #endif
+  struct ContextFlagsDX12 {
+    D3D_FEATURE_LEVEL         level;
+  };
+#endif
+
+  std::string   m_deviceName;
+
   unsigned int  m_debugFilter;
   std::string   m_debugTitle;
 
   WINhandle     m_internal;
+  WindowApi     m_api;
   
   int         m_renderCnt;
   int         m_curX;
@@ -307,11 +382,13 @@ public:
   int         m_wheel;
   int         m_winSz[2];
   int         m_mods;
+  bool        m_isFullScreen;
 
   NVPWindow()
     : m_renderCnt(1)
     , m_internal(0)
     , m_debugFilter(0)
+    , m_isFullScreen(false)
   {
 
   }
@@ -327,33 +404,59 @@ public:
   inline void         setCurMouse(int x, int y) { m_curX = x; m_curY = y; }
   inline int          getCurX() { return m_curX; }
   inline int          getCurY() { return m_curY; }
+  inline bool         isFullScreen() { return m_isFullScreen; }
 
 
-  // activate and deactivate are not thread-safe, need to be wrapped in mutex if called from multiple threads
-  // invisible windows will not have any active callbacks, nor will they be affected by sysEvents
-  bool activate(int width, int height, const char* title, const ContextFlags* flags, int invisible=0);
-  void deactivate();
-  // compatibility hack
-  bool create(const char* title=NULL, const ContextFlags* cflags=0, int width=1024, int height=768);
+  // Set the swapchain type that a window
+  // should implicitly create. Requires appropriate
+  // ContextFlags to be provided as well.
+  // After window activation you can query details 
+  // via "getBasicWindowAPI".
+  bool activate(WindowApi api, int width, int height, const char* title, const ContextFlagsBase* cflags, int posX=0, int posY=0);
 
   void setTitle(const char* title);
 
   void maximize();
   void restore();
   void minimize();
+  void windowPos(int x, int y, int w, int h);
 
-  void postRedisplay(int n=1) { m_renderCnt=n; }
-
+  void postRedisplay(int n = 1);
   void postQuit();
 
-  void makeContextCurrent();
-  void makeContextNonCurrent();
+  void swapPrepare();
   void swapBuffers();
   void swapInterval(int i);
 
   bool isOpen();
 
+#ifdef USEOPENGL
+  void makeContextCurrentGL();
+  void makeContextNonCurrentGL();
+  void* getProcAddressGL(const char* name);
+  int   extensionSupportedGL(const char* name);
+#endif
+
+#ifdef USEVULKANSDK
+  // if ContextFlags was non-null, retrieve the context and swapchain information
+  const nv_helpers_vk::BasicWindow*   getBasicWindowVK();
+
+  // if ContextFlags was null, use this function to create a surface. Useful for fine-grained control over device and swapchain creation.
+  VkResult                            createSurfaceVK(VkInstance instance, const VkAllocationCallbacks *allocator, VkSurfaceKHR* surface);
+#endif
+
+#ifdef USEDIRECTX11
+  const nv_helpers_dx11::BasicWindow* getBasicWindowDX11();
+#endif
+
+#ifdef USEDIRECTX12
+  const nv_helpers_dx12::BasicWindow*   getBasicWindowDX12();
+#endif
+
+
+  //
   // from NVPWindow
+  //
   virtual bool init() { return true; }
   virtual void shutdown() {}
   virtual void reshape(int w, int h) { }
@@ -362,7 +465,23 @@ public:
   virtual void mouse(MouseButton button, ButtonAction action, int mods, int x, int y) {}
   virtual void keyboard(KeyCode key, ButtonAction action, int mods, int x, int y) {}
   virtual void keyboardchar(unsigned char key, int mods, int x, int y) {}
-  virtual void display() {}
+  virtual void display();
+
+
+  //
+  // added for remote Socket system, must be implemented by the sample
+  //
+  virtual void continuousRefresh(bool bYes) {}  // up to the sample
+  virtual void timingRequest() {}      // up to the sample
+  virtual void setArg(char token, int arg0, int arg1, int arg2, int arg3) {}
+  virtual void setArg(char token, float arg0, float arg1, float arg2, float arg3) {}
+  //
+  // added for remote socket system, implemented by main
+  //
+  void fullScreen(bool bYes);
+  void screenshot(int idx, int x, int y, int w, int h);
+  void postTiming(float ms, int fps, const char *details = NULL);
+  void postscreenshot(unsigned char* data, size_t sz, int w, int h);
 
   //////////////////////////////////////////////////////////////////////////
   // system related
@@ -373,31 +492,118 @@ public:
   static bool     sysPollEvents(bool bLoop);
   static void     sysWaitEvents();
 
-  static NVPproc  sysGetProcAddress(const char* name);
-  static int      sysExtensionSupported(const char* name);
   static double   sysGetTime(); // in seconds
   static void     sysSleep( double seconds );
 
-  static void     sysVisibleConsole();
-
   static std::string sysExePath();
+
+#ifdef USEOPENGL
+  // uses first created window
+  static void*    sysGetProcAddressGL(const char* name);
+  static int      sysExtensionSupportedGL(const char* name);
+#endif
+
+#ifdef USEVULKANSDK
+  static const char** sysGetRequiredSurfaceExtensionsVK(uint32_t &numExtensions);
+#endif
+
+  ////////////////////////////////////////////////////////////////////////////
+  //
+private:
+  bool activateInternal(int width, int height, int xpos, int ypos, const char* title, const ContextFlagsBase* cflags, struct WINinternal* internal);
+
 
 };
 
 extern int  sample_main(int argc, const char**argv);
 
 // sample-specific implementation, called by nvprintfLevel. For example to redirect the message to a specific window or part of the viewport
-extern void sample_print(int level, const char * fmt2);
-
-extern void checkGL( char* msg );
-
-// sample-specific implementation, called by nvprintf*. For example to redirect the message to a specific window or part of the viewport
 extern void sample_print(int level, const char * fmt);
 
-void nvprintf(const char * fmt, ...);
-void nvprintfLevel(int level, const char * fmt, ...);
-void nvprintSetLevel(int l);
-int  nvprintGetLevel();
-void nvprintSetLogging(bool b);
+
+//------------------------------------------------------------------------------
+// INTERNAL use from within main_xxx.cpp and wininternal...
+// Win Internal contains stuff specific to win32 or Linux etc. It depends
+// (so, linux will have a different one)
+// But doesn't contain anything related to Vulkan,OpenGL or D3D
+//------------------------------------------------------------------------------
+#ifdef DECL_WININTERNAL
+struct WINinternal
+{
+  NVPWindow * m_win;
+  std::string m_deviceName;
+
+#pragma message ("Compiling WINinternal...")
+  
+
+#ifdef WIN32
+  HDC   m_hDC;
+  HWND  m_hWnd;
+  HWND  m_hWndDummy;
+  // is used to store the windows position and size when switching to fullscreen
+  // when switching back to windowed mode, the stored rect is applied again
+  RECT  m_windowedRect;
+#else
+  int m_screen;
+  GLXContext m_glx_context;
+  GLXFBConfig m_glx_fb_config;
+  Display *m_dpy;
+  Window m_window;
+  XVisualInfo *m_visual;
+  XF86VidModeModeInfo m_mode;
+  XSetWindowAttributes winAttributes;
+#endif
+
+  bool  m_iconified;
+  bool  m_visible;
+
+  WINinternal (NVPWindow *win)
+    : m_win(win)
+#ifdef WIN32
+    , m_hDC(NULL)
+    , m_hWnd(NULL)
+    , m_hWndDummy(NULL)
+#endif
+#ifdef LINUX
+    , m_dpy(NULL)
+    , m_visual(NULL)
+    , m_screen(0)
+#endif
+    , m_iconified(false)
+    , m_visible(true)
+  { }
+
+  virtual ~WINinternal() {}
+
+  virtual bool create(const char* title, int width, int height, int xPos, int yPos, int inSamples = 0);
+  virtual void terminate();
+  virtual bool initBase(const NVPWindow::ContextFlagsBase* cflags, NVPWindow* sourcewindow) { return true; }
+  virtual void reshape(int w, int h) { }
+
+  virtual void swapPrepare()        { }
+  virtual void swapInterval(int i)  { }
+  virtual void swapBuffers()        { }
+  virtual void display()            { }
+
+  virtual void screenshot(const char* filename, int x, int y, int width, int height, unsigned char* data) { assert(!"Not implemented!"); }
+};
+
+#ifdef USEVULKANSDK
+extern WINinternal* newWINinternalVK(NVPWindow *win);
+#endif
+#ifdef USEOPENGL
+extern WINinternal* newWINinternalGL(NVPWindow *win);
+#endif
+#ifdef USEDIRECTX11
+extern WINinternal* newWINinternalDX11(NVPWindow *win);
+#endif
+#ifdef USEDIRECTX12
+extern WINinternal* newWINinternalDX12(NVPWindow *win);
+#endif
+
+extern WINinternal* newWINinternal(NVPWindow *win);
+
+
+#endif
 
 #endif

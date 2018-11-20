@@ -8,6 +8,8 @@ find_path( ANTTWEAKBAR_INCLUDE_DIR AntTweakBar.h
   ${PROJECT_SOURCE_DIR}/shared_external/AntTweakBar/include
   ${PROJECT_SOURCE_DIR}/../shared_external/AntTweakBar/include
   ${PROJECT_SOURCE_DIR}/../../shared_external/AntTweakBar/include
+  ${PROJECT_SOURCE_DIR}/../../../shared_external/AntTweakBar/include
+  ${PROJECT_SOURCE_DIR}/../../../../shared_external/AntTweakBar/include
   ${ANTTWEAKBAR_LOCATION}/include
   $ENV{ANTTWEAKBAR_LOCATION}/include
 )

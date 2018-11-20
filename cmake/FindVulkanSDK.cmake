@@ -6,7 +6,8 @@ unset(VULKAN_LIB CACHE)
 unset(VULKANSTATIC_LIB CACHE)
 unset(VULKANSDK_FOUND CACHE)
 unset(VULKANSDK_INCLUDE_DIR CACHE)
-
+unset(VULKANSDK_SHADERC_LIB CACHE)
+# -------------------------------------------------------------------
 macro ( folder_list result curdir )
   FILE(GLOB children RELATIVE ${curdir} ${curdir}/*)
   SET(dirlist "")
@@ -17,9 +18,8 @@ macro ( folder_list result curdir )
   ENDFOREACH()
   SET(${result} ${dirlist})
 ENDMACRO()
-
+# -------------------------------------------------------------------
 macro(_check_version_on_folder checkdir bestver bestvernumeric bestpath)
-  #Message(STATUS "checkdir: ${checkdir}" )
   string ( REGEX MATCH ".*([0-9]+).([0-9]+).([0-9]+).([0-9]+)" result "${checkdir}" )
   if ( "${result}" STREQUAL "${checkdir}" )
      # found a path with versioning 
@@ -32,7 +32,7 @@ macro(_check_version_on_folder checkdir bestver bestvernumeric bestpath)
    endif ()
   endif()   
 endmacro()
-
+# -------------------------------------------------------------------
 macro(_find_version_path targetVersion targetPath searchList )
   unset ( targetVersion )
   unset ( targetPath )
@@ -40,17 +40,18 @@ macro(_find_version_path targetVersion targetPath searchList )
   SET ( bestpath "" )
   SET ( bestvernumeric "0000" )
   
+  Message(STATUS "searchList: ${searchList}" )
   foreach ( basedir ${searchList} )
-    folder_list ( dirList ${basedir} )  
-    #Message(STATUS "dirList: ${dirList}" )
-    foreach ( checkdir ${dirList} )
-      _check_version_on_folder(checkdir bestver bestvernumeric bestpath)
-    endforeach ()   
+    folder_list ( dirList ${basedir} )	
+    Message(STATUS "dirList: ${dirList}" )
+	  foreach ( checkdir ${dirList} )
+      _check_version_on_folder(${checkdir} bestver bestvernumeric bestpath)
+	  endforeach ()		
   endforeach ()  
   SET ( ${targetVersion} "${bestver}" )
   SET ( ${targetPath} "${bestpath}" )
 endmacro()
-
+# -------------------------------------------------------------------
 macro(_find_files targetVar incDir dllName dllName64 folder)
   unset ( targetVar )
   unset ( fileList )
@@ -76,17 +77,16 @@ macro(_find_files targetVar incDir dllName dllName64 folder)
   endif()
   list(APPEND ${targetVar} ${fileList} )  
 
-  # message ( "File list: ${${targetVar}}" )    #-- debugging
+  # message ( "File list: ${${targetVar}}" )		#-- debugging
 endmacro()
-
+# -------------------------------------------------------------------
 # Locate VULKANSDK by version
+STRING(REGEX REPLACE "\\\\" "/" VULKANSDK_LOCATION "${VULKANSDK_LOCATION}") 
+
 set ( SEARCH_PATHS
   "${VULKANSDK_LOCATION}" # this could be set to C:\VulkanSDK Best version will be taken
-  # in the case where we'd like to include Vulkan minimal stuff to our sample framework:
-  #${PROJECT_SOURCE_DIR}/shared_external/vulkan
-  #${PROJECT_SOURCE_DIR}/../shared_external/vulkan
-  #${PROJECT_SOURCE_DIR}/../../shared_external/vulkan
 )
+
 if (WIN32) 
   _find_version_path ( VULKANSDK_VERSION VULKANSDK_ROOT_DIR "${SEARCH_PATHS}" )
 endif()
@@ -99,9 +99,6 @@ if (UNIX)
   
   Message(STATUS "Vulkan Include : ${VULKANSDK_ROOT_DIR}")
   Message(STATUS "Vulkan Library : ${VULKAN_LIB}")
-  
-
-  
 endif()
 #
 #------- no overridden place to look at so let's use VK_SDK_PATH
@@ -124,20 +121,22 @@ endif()
 if (VULKANSDK_ROOT_DIR)
 
   if (WIN32) 
-    #-------- Locate LIBS
+	  #-------- Locate LIBS
     _find_files( VULKAN_LIB VULKANSDK_ROOT_DIR "Lib/vulkan-1.lib" "Lib/vulkan-1.lib" "")
     _find_files( VULKANSTATIC_LIB VULKANSDK_ROOT_DIR "Lib/VKstatic.1.lib" "Lib/VKstatic.1.lib" "")
+    _find_files( VULKANSDK_SHADERC_LIB VULKANSDK_ROOT_DIR "Lib/shaderc_combined.lib" "Lib/shaderc_combined.lib" "")
     unset(GLSLANGVALIDATOR)
     _find_files( GLSLANGVALIDATOR VULKANSDK_ROOT_DIR "bin/glslangValidator.exe" "bin/glslangValidator.exe" "")
+    
   endif(WIN32)
 
   if (UNIX)
     unset(VULKAN_LIB)
     _find_files(VULKAN_LIB VULKANSDK_ROOT_DIR "lib/libvulkan.so" "lib/libvulkan.so" "")
     _find_files(VULKANSTATIC_LIB VULKANSDK_ROOT_DIR "lib/libvulkan.so" "lib/libvulkan.so" "")
+    _find_files(VULKANSDK_SHADERC_LIB VULKANSDK_ROOT_DIR "lib/libshaderc_combined.so" "lib/libshaderc_combined.so" "")
     unset(GLSLANGVALIDATOR)
     _find_files(GLSLANGVALIDATOR VULKANSDK_ROOT_DIR "bin/glslangValidator" "bin/glslangValidator" "")
-    
  
 #  if (VULKANSDK_ROOT_DIR)
 #  Message("Using system for vulkan sdk.")
@@ -145,11 +144,11 @@ if (VULKANSDK_ROOT_DIR)
   
   endif(UNIX)
 
-  #-------- Locate HEADERS
-  _find_files( VULKANSDK_HEADERS VULKANSDK_ROOT_DIR "vulkan.h" "vulkan.h" "include/vulkan/" )
+	#-------- Locate HEADERS
+	_find_files( VULKANSDK_HEADERS VULKANSDK_ROOT_DIR "vulkan.h" "vulkan.h" "include/vulkan/" )
 
   if(VULKAN_LIB)
-    set( VULKANSDK_FOUND "YES" )      
+	  set( VULKANSDK_FOUND "YES" )      
   endif(VULKAN_LIB)
 else(VULKANSDK_ROOT_DIR)
 
@@ -165,6 +164,7 @@ include(FindPackageHandleStandardArgs)
 SET(VULKAN_LIB ${VULKAN_LIB} CACHE PATH "path")
 SET(VULKANSTATIC_LIB ${VULKANSTATIC_LIB} CACHE PATH "path")
 SET(VULKANSDK_INCLUDE_DIR "${VULKANSDK_ROOT_DIR}/include" CACHE PATH "path")
+SET(VULKANSDK_SHADERC_LIB ${VULKANSDK_SHADERC_LIB} CACHE PATH "path")
 
 find_package_handle_standard_args(VULKANSDK DEFAULT_MSG
     VULKANSDK_INCLUDE_DIR

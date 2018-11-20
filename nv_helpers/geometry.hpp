@@ -1,12 +1,28 @@
-/*
- * Copyright 1993-2014 NVIDIA Corporation.  All rights reserved.
+/* Copyright (c) 2014-2018, NVIDIA CORPORATION. All rights reserved.
  *
- * Please refer to the NVIDIA end user license agreement (EULA) associated
- * with this source code for terms and conditions that govern your use of
- * this software. Any use, reproduction, disclosure, or distribution of
- * this software and related documentation outside the terms of the EULA
- * is strictly prohibited.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *  * Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *  * Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *  * Neither the name of NVIDIA CORPORATION nor the names of its
+ *    contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
  *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+ * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #ifndef NV_GEOMETRY_INCLUDED
@@ -336,6 +352,92 @@ namespace nv_helpers{
         add(*this,nv_math::mat4f(1),w,h);
       }
     };
+
+    template <class TVertex>
+    class RandomMengerSponge : public Mesh<TVertex> {
+    public:
+      static void add(Mesh<TVertex>& geo, const nv_math::mat4f& mat, int w, int h, int d, int level=3, float probability=-1.f)
+      {
+        struct Cube {
+          nv_math::vec3f m_topLeftFront;
+          float m_size;
+
+          void split(std::vector<Cube> &cubes) {
+            float size = m_size / 3.f;
+            nv_math::vec3f topLeftFront = m_topLeftFront;
+            for (int x = 0; x < 3; x++) {
+              topLeftFront[0] = m_topLeftFront[0] + static_cast<float>(x) * size;
+              for (int y = 0; y < 3; y++) {
+                if (x == 1 && y == 1)
+                  continue;
+                topLeftFront[1] = m_topLeftFront[1] + static_cast<float>(y) * size;
+                for (int z = 0; z < 3; z++) {
+                  if (x == 1 && z == 1)
+                    continue;
+                  if (y == 1 && z == 1)
+                    continue;
+
+                  topLeftFront[2] =
+                    m_topLeftFront[2] + static_cast<float>(z) * size;
+                  cubes.push_back({ topLeftFront, size });
+                }
+              }
+            }
+          }
+
+          void splitProb(std::vector<Cube> &cubes, float prob) {
+
+            float size = m_size / 3.f;
+            nv_math::vec3f topLeftFront = m_topLeftFront;
+            for (int x = 0; x < 3; x++) {
+              topLeftFront[0] = m_topLeftFront[0] + static_cast<float>(x) * size;
+              for (int y = 0; y < 3; y++) {
+                topLeftFront[1] = m_topLeftFront[1] + static_cast<float>(y) * size;
+                for (int z = 0; z < 3; z++) {
+                  float sample = rand() / static_cast<float>(RAND_MAX);
+                  if (sample > prob)
+                    continue;
+                  topLeftFront[2] =
+                    m_topLeftFront[2] + static_cast<float>(z) * size;
+                  cubes.push_back({ topLeftFront, size });
+                }
+              }
+            }
+          }
+        };
+
+        Cube cube = { nv_math::vec3f(-0.25, -0.25, -0.25), 0.5f };
+        //Cube cube = { nv_math::vec3f(-25, -25, -25), 50.f };
+        //Cube cube = { nv_math::vec3f(-40, -40, -40), 10.f };
+
+        std::vector<Cube> cubes1 = { cube };
+        std::vector<Cube> cubes2 = {};
+
+        auto previous = &cubes1;
+        auto next = &cubes2;
+
+        for (int i = 0; i < level; i++) {
+          size_t cubeCount = previous->size();
+          for (Cube &c : *previous) {
+            if (probability < 0.f)
+              c.split(*next);
+            else
+              c.splitProb(*next, probability);
+          }
+          auto temp = previous;
+          previous = next;
+          next = temp;
+          next->clear();
+        }
+        for (Cube &c : *previous) {
+          nv_math::mat4f matrixMove = nv_math::translation_mat4(c.m_topLeftFront);
+          nv_math::mat4f matrixScale = nv_math::scale_mat4(nv_math::vec3f(c.m_size));;
+          Box<TVertex>::add(geo, matrixMove*matrixScale, 1, 1, 1);
+        }
+
+      }
+    };
+
   }
 }
 

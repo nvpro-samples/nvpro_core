@@ -1,12 +1,28 @@
-/*
- * Copyright 1993-2014 NVIDIA Corporation.  All rights reserved.
+/* Copyright (c) 2014-2018, NVIDIA CORPORATION. All rights reserved.
  *
- * Please refer to the NVIDIA end user license agreement (EULA) associated
- * with this source code for terms and conditions that govern your use of
- * this software. Any use, reproduction, disclosure, or distribution of
- * this software and related documentation outside the terms of the EULA
- * is strictly prohibited.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *  * Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *  * Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *  * Neither the name of NVIDIA CORPORATION nor the names of its
+ *    contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
  *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+ * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #ifndef NV_CAMCONTROL_INCLUDED
@@ -33,6 +49,8 @@ namespace nv_helpers
       , m_sceneDimension(1.0f)
       , m_sceneOrtho(false)
       , m_sceneOrthoZoom(1.0f)
+      , m_useOrbit(true)
+      , m_sceneUp(0,1,0)
     {
 
     }
@@ -134,19 +152,30 @@ namespace nv_helpers
         float aspect = float(window.x)/float(window.y);
 
         nv_math::vec2f angles = (mouse - m_startRotate) * m_senseRotate;
-        nv_math::vec3f center = nv_math::vec3f(m_startMatrix * nv_math::vec4f(m_sceneOrbit,1.0f));
+        
 
-        nv_math::mat4f rot   = nv_math::rotation_yaw_pitch_roll(angles.x, angles.y, 0.0f);
-        nv_math::mat4f delta = nv_math::translation_mat4(center) * rot * nv_math::translation_mat4(-center);
+        if (m_useOrbit){
+          nv_math::mat4f rot    = nv_math::rotation_yaw_pitch_roll(angles.x, angles.y, 0.0f);
+          nv_math::vec3f center = nv_math::vec3f(m_startMatrix * nv_math::vec4f(m_sceneOrbit, 1.0f));
+          nv_math::mat4f delta  = nv_math::translation_mat4(center) * rot * nv_math::translation_mat4(-center);
 
-        m_viewMatrix = delta * m_startMatrix;
+          m_viewMatrix = delta * m_startMatrix;
+        }
+        else{
+          // FIXME use sceneUP
+          nv_math::mat4f rot = nv_math::rotation_yaw_pitch_roll(angles.x, angles.y, 0.0f);
+
+          m_viewMatrix = rot * m_startMatrix;
+        }
       }
     }
     
+    bool        m_useOrbit;
     bool        m_sceneOrtho;
     float       m_sceneOrthoZoom;
     float       m_sceneDimension;
 
+    nv_math::vec3f   m_sceneUp;
     nv_math::vec3f   m_sceneOrbit;
     nv_math::mat4f   m_viewMatrix;
 

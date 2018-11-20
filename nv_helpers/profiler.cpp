@@ -1,33 +1,39 @@
-/*-----------------------------------------------------------------------
-  Copyright (c) 2014, NVIDIA. All rights reserved.
-
-  Redistribution and use in source and binary forms, with or without
-  modification, are permitted provided that the following conditions
-  are met:
-   * Redistributions of source code must retain the above copyright
-     notice, this list of conditions and the following disclaimer.
-   * Neither the name of its contributors may be used to endorse 
-     or promote products derived from this software without specific
-     prior written permission.
-
-  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
-  EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-  PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
-  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-  PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
-  OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
------------------------------------------------------------------------*/
+/* Copyright (c) 2014-2018, NVIDIA CORPORATION. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *  * Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *  * Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *  * Neither the name of NVIDIA CORPORATION nor the names of its
+ *    contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+ * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 
 #include "profiler.hpp"
 #include <assert.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+
+#if defined(__linux__)
+#include <sys/time.h>
+#endif
 
 #ifdef _WIN32
 #ifndef NOMINMAX
@@ -47,9 +53,10 @@ namespace nv_helpers
     : m_frameEntries(0)
     , m_numFrames(0)
     , m_resetDelay(0)
-    , m_frequency(1)
     , m_level(0)
     , m_defaultGPUIF(0)
+    , m_lastPrint(0)
+    , m_lastEntries(0)
   {
 
   }
@@ -95,11 +102,13 @@ namespace nv_helpers
           if (entry.gpuif){
             gpuNano = entry.gpuif->TimerResult( getTimerIdx(Slot(i), queryFrame, true), getTimerIdx(Slot(i), queryFrame, false) );
           }
-          // nanoseconds to microseconds
-          double gpu = double(gpuNano) / 1000.0;
-          entry.gpuTimes += gpu;
-          entry.cpuTimes += entry.deltas[queryFrame];
-          entry.numTimes ++;
+          if (!entry.gpuif || gpuNano){
+            // nanoseconds to microseconds
+            double gpu = double(gpuNano) / 1000.0;
+            entry.gpuTimes += gpu;
+            entry.cpuTimes += entry.deltas[queryFrame];
+            entry.numTimes++;
+          }
         }
       }
     }
@@ -123,16 +132,6 @@ namespace nv_helpers
 
   void Profiler::init()
   {
-#ifdef _WIN32
-    LARGE_INTEGER sysfrequency;
-    if (QueryPerformanceFrequency(&sysfrequency)){
-      m_frequency = (double)sysfrequency.QuadPart;
-    }
-    else{
-      m_frequency = 1;
-    }
-#endif
-
     grow(START_SECTIONS);
   }
 
@@ -177,8 +176,8 @@ namespace nv_helpers
 
       if (!entry.numTimes || entry.accumulated || strcmp(name,entry.name) ) continue;
 
-      double gpu = entry.gpuTimes/entry.numTimes;
-      double cpu = entry.cpuTimes/entry.numTimes;
+      double gpu = entry.gpuTimes/double(entry.numTimes);
+      double cpu = entry.cpuTimes/double(entry.numTimes);
       bool found = false;
       for (unsigned int n = i+1; n < m_lastEntries; n++){
         Entry &otherentry = m_entries[n];
@@ -189,8 +188,8 @@ namespace nv_helpers
           )
         {
           found = true;
-          gpu += otherentry.gpuTimes/otherentry.numTimes;
-          cpu += otherentry.cpuTimes/otherentry.numTimes;
+          gpu += otherentry.gpuTimes/double(otherentry.numTimes);
+          cpu += otherentry.cpuTimes/double(otherentry.numTimes);
           otherentry.accumulated = true;
         }
 
@@ -226,8 +225,8 @@ namespace nv_helpers
 
       hadtimers = true;
 
-      double gpu = entry.gpuTimes/entry.numTimes;
-      double cpu = entry.cpuTimes/entry.numTimes;
+      double gpu = entry.gpuTimes/double(entry.numTimes);
+      double cpu = entry.cpuTimes/double(entry.numTimes);
       bool found = false;
       for (size_t n = i+1; n < m_lastEntries; n++){
         Entry &otherentry = m_entries[n];
@@ -238,8 +237,8 @@ namespace nv_helpers
           )
         {
           found = true;
-          gpu += otherentry.gpuTimes/otherentry.numTimes;
-          cpu += otherentry.cpuTimes/otherentry.numTimes;
+          gpu += otherentry.gpuTimes/double(otherentry.numTimes);
+          cpu += otherentry.cpuTimes/double(otherentry.numTimes);
           otherentry.accumulated = true;
         }
 
@@ -257,20 +256,17 @@ namespace nv_helpers
     }
   }
 
-  unsigned int Profiler::getAveragedFrames() const
+  unsigned int Profiler::getAveragedFrames(const char* name) const
   {
-    if (m_entries.empty()) return 0;
-    return m_entries[0].numTimes;
-  }
-
-  double Profiler::getMicroSeconds() const
-  {
-#ifdef _WIN32
-    LARGE_INTEGER time;
-    if (QueryPerformanceCounter(&time)){
-      return (double(time.QuadPart) / m_frequency)*1000000.0;
+    if (m_entries.empty()) 
+      return 0;
+    if(name == NULL)
+      return m_entries[0].numTimes;
+    for (unsigned int i = 0; i < m_lastEntries; i++) {
+      const Entry &entry = m_entries[i];
+      if (!strcmp(name, entry.name))
+        return entry.numTimes;
     }
-#endif
     return 0;
   }
 
@@ -294,5 +290,33 @@ namespace nv_helpers
     }
   }
 
+  Profiler::Clock::Clock()
+  {
+    m_frequency = 1;
+#ifdef _WIN32
+    LARGE_INTEGER sysfrequency;
+    if (QueryPerformanceFrequency(&sysfrequency)) {
+      m_frequency = (double)sysfrequency.QuadPart;
+    }
+    else {
+      m_frequency = 1;
+    }
+#endif
+  }
+
+  double Profiler::Clock::getMicroSeconds() const
+  {
+#ifdef _WIN32
+    LARGE_INTEGER time;
+    if (QueryPerformanceCounter(&time)) {
+      return (double(time.QuadPart) / m_frequency)*1000000.0;
+    }
+#elif defined(__linux__)
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return double(tv.tv_sec) * 1000000 + double(tv.tv_usec);
+#endif
+    return 0;
+  }
 }
 

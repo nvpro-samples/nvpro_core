@@ -1,12 +1,28 @@
-/*
- * Copyright 1993-2014 NVIDIA Corporation.  All rights reserved.
+/* Copyright (c) 2014-2018, NVIDIA CORPORATION. All rights reserved.
  *
- * Please refer to the NVIDIA end user license agreement (EULA) associated
- * with this source code for terms and conditions that govern your use of
- * this software. Any use, reproduction, disclosure, or distribution of
- * this software and related documentation outside the terms of the EULA
- * is strictly prohibited.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *  * Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *  * Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *  * Neither the name of NVIDIA CORPORATION nor the names of its
+ *    contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
  *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+ * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #ifndef NV_MISC_INCLUDED
@@ -17,10 +33,37 @@
 #include <sstream>
 #include <fstream>
 #include <math.h>
-#include <main.h>
+#include <string>
+#include <vector>
+#include <algorithm>
+
+#include <nv_helpers/nvprint.hpp>
 
 namespace nv_helpers
 {
+
+  inline std::string stringFormat(const char* msg, ...)
+  {
+    std::size_t const STRING_BUFFER(8192);
+    char text[STRING_BUFFER];
+    va_list list;
+
+    if (msg == 0)
+      return std::string();
+
+    va_start(list, msg);
+    vsprintf(text, msg, list);
+    va_end(list);
+
+    return std::string(text);
+  }
+
+  inline bool fileExists(const char* filename)
+  {
+    std::ifstream stream;
+    stream.open(filename);
+    return stream.is_open();
+  }
 
   inline std::string findFile( std::string const & infilename, std::vector<std::string> directories)
   {
@@ -34,21 +77,21 @@ namespace nv_helpers
     return infilename;
   }
 
-  inline std::string loadFile( std::string const & infilename, bool throwwarning = true)
+  inline std::string loadFile( std::string const & infilename, bool warn=false)
   {
     std::string result;
     std::string filename = infilename;
 
     std::ifstream stream(filename.c_str(), std::ios::binary | std::ios::in);
     if(!stream.is_open()){
-      if (throwwarning){
-        nvprintfLevel(LOGLEVEL_WARNING,"file not found:%s\n",filename.c_str());
+      if (warn) {
+        nvprintfLevel(LOGLEVEL_WARNING, "file not found:%s\n", filename.c_str());
       }
       return result;
     }
 
     stream.seekg(0, std::ios::end);
-    result.reserve(stream.tellg());
+    result.reserve(size_t(stream.tellg()));
     stream.seekg(0, std::ios::beg);
 
     result.assign(
@@ -65,6 +108,29 @@ namespace nv_helpers
       && fullPath[istart] != '\\'
       && fullPath[istart] != '/'; istart-- );
     return std::string( &fullPath[istart+1] );
+  }
+
+  inline std::string getFilePath(const char* filename)
+  {
+    std::string path;
+    // find path in filename
+    {
+      std::string filepath(filename);
+
+      size_t pos0 = filepath.rfind('\\');
+      size_t pos1 = filepath.rfind('/');
+
+      pos0 = pos0 == std::string::npos ? 0 : pos0;
+      pos1 = pos1 == std::string::npos ? 0 : pos1;
+
+      path = filepath.substr(0, std::max(pos0, pos1));
+    }
+
+    if (path.empty()) {
+      path = ".";
+    }
+
+    return path;
   }
 
   inline void saveBMP( const char* bmpfilename, int width, int height, const unsigned char* bgra)

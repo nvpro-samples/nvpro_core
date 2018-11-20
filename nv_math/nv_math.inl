@@ -1,18 +1,29 @@
-/*********************************************************************NVMH1****
-File:
-nv_algebra.cpp
-
-Copyright (C) 1999, 2000 NVIDIA Corporation
-This file is provided without support, instruction, or implied warranty of any
-kind.  NVIDIA makes no guarantee of its fitness for a particular purpose and is
-not liable under any circumstances for any damages or loss whatsoever arising
-from the use or inability to use this file or items derived from it.
-
-Comments: 
-
-
-******************************************************************************/
-
+/* Copyright (c) 1999-2018, NVIDIA CORPORATION. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *  * Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *  * Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *  * Neither the name of NVIDIA CORPORATION nor the names of its
+ *    contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+ * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 
 #ifndef _WIN32
 #define _isnan isnan
@@ -806,6 +817,64 @@ inline matrix4<T> invert(const matrix4<T>& A)
 }
 
 template<class T>
+inline matrix4<T> invert(const matrix4<T>& A, bool& valid)
+{
+  matrix4<T> B;
+  T det, oodet;
+
+  B.a00 = det3x3(A.a11, A.a21, A.a31, A.a12, A.a22, A.a32, A.a13, A.a23, A.a33);
+  B.a10 = -det3x3(A.a10, A.a20, A.a30, A.a12, A.a22, A.a32, A.a13, A.a23, A.a33);
+  B.a20 = det3x3(A.a10, A.a20, A.a30, A.a11, A.a21, A.a31, A.a13, A.a23, A.a33);
+  B.a30 = -det3x3(A.a10, A.a20, A.a30, A.a11, A.a21, A.a31, A.a12, A.a22, A.a32);
+
+  B.a01 = -det3x3(A.a01, A.a21, A.a31, A.a02, A.a22, A.a32, A.a03, A.a23, A.a33);
+  B.a11 = det3x3(A.a00, A.a20, A.a30, A.a02, A.a22, A.a32, A.a03, A.a23, A.a33);
+  B.a21 = -det3x3(A.a00, A.a20, A.a30, A.a01, A.a21, A.a31, A.a03, A.a23, A.a33);
+  B.a31 = det3x3(A.a00, A.a20, A.a30, A.a01, A.a21, A.a31, A.a02, A.a22, A.a32);
+
+  B.a02 = det3x3(A.a01, A.a11, A.a31, A.a02, A.a12, A.a32, A.a03, A.a13, A.a33);
+  B.a12 = -det3x3(A.a00, A.a10, A.a30, A.a02, A.a12, A.a32, A.a03, A.a13, A.a33);
+  B.a22 = det3x3(A.a00, A.a10, A.a30, A.a01, A.a11, A.a31, A.a03, A.a13, A.a33);
+  B.a32 = -det3x3(A.a00, A.a10, A.a30, A.a01, A.a11, A.a31, A.a02, A.a12, A.a32);
+
+  B.a03 = -det3x3(A.a01, A.a11, A.a21, A.a02, A.a12, A.a22, A.a03, A.a13, A.a23);
+  B.a13 = det3x3(A.a00, A.a10, A.a20, A.a02, A.a12, A.a22, A.a03, A.a13, A.a23);
+  B.a23 = -det3x3(A.a00, A.a10, A.a20, A.a01, A.a11, A.a21, A.a03, A.a13, A.a23);
+  B.a33 = det3x3(A.a00, A.a10, A.a20, A.a01, A.a11, A.a21, A.a02, A.a12, A.a22);
+
+  det = (A.a00 * B.a00) + (A.a01 * B.a10) + (A.a02 * B.a20) + (A.a03 * B.a30);
+
+  valid = det >= FLT_MIN;
+
+  // The following divions goes unchecked for division
+  // by zero. We should consider throwing an exception
+  // if det < eps.
+  oodet = T(1) / det;
+
+  B.a00 *= oodet;
+  B.a10 *= oodet;
+  B.a20 *= oodet;
+  B.a30 *= oodet;
+
+  B.a01 *= oodet;
+  B.a11 *= oodet;
+  B.a21 *= oodet;
+  B.a31 *= oodet;
+
+  B.a02 *= oodet;
+  B.a12 *= oodet;
+  B.a22 *= oodet;
+  B.a32 *= oodet;
+
+  B.a03 *= oodet;
+  B.a13 *= oodet;
+  B.a23 *= oodet;
+  B.a33 *= oodet;
+
+  return B;
+}
+
+template<class T>
 inline matrix4<T> invert_rot_trans(const matrix4<T>& A)
 {
     matrix4<T> B;
@@ -834,6 +903,14 @@ inline T det(const matrix3<T>& A)
     return det3x3(A.a00, A.a01, A.a02, 
                  A.a10, A.a11, A.a12, 
                  A.a20, A.a21, A.a22);
+}
+
+template<class T>
+inline T det(const matrix4<T>& A)
+{
+  return det3x3(A.a00, A.a01, A.a02,
+                A.a10, A.a11, A.a12,
+                A.a20, A.a21, A.a22);
 }
 
 template<class T>
