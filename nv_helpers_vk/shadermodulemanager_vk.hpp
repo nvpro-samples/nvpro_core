@@ -75,10 +75,11 @@ namespace nv_helpers_vk
     };
 
     struct ShaderModule {
-      ShaderModule() : module(0) {}
+      ShaderModule() : module(0), useNVextension(false) {}
 
       VkShaderModule            module;
       Definition                definition;
+      bool                      useNVextension;
     };
     
     ShaderModuleID createShaderModule(const Definition& def);

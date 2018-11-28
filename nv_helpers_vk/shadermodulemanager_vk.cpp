@@ -164,7 +164,7 @@ namespace nv_helpers_vk
 
 #if USESHADERC
       shaderc_compilation_result_t result = nullptr;
-      if (definition.filetype == FILETYPE_GLSL && !m_useNVextension) {
+      if (definition.filetype == FILETYPE_GLSL && !module.useNVextension) {
         shaderc_shader_kind shaderkind = (shaderc_shader_kind)m_usedSetupIF->getTypeShadercKind(definition.type);
         shaderc_compile_options_t options = (shaderc_compile_options_t)m_usedSetupIF->getShadercCompileOption(m_shadercCompiler);
         if (!options) {
@@ -197,7 +197,7 @@ namespace nv_helpers_vk
       }
       else 
 #else
-      if (definition.filetype == FILETYPE_GLSL && !m_useNVextension)
+      if (definition.filetype == FILETYPE_GLSL && !module.useNVextension)
       {
         LOGW("No direct GLSL support\n");
         return false;
@@ -225,6 +225,7 @@ namespace nv_helpers_vk
   {
     ShaderModule module;
     module.definition = definition;
+    module.useNVextension = m_useNVextension;
 
     setupShaderModule(module);
 

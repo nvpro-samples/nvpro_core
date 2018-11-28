@@ -35,6 +35,7 @@
 #include "parametertools.hpp"
 
 #define NV_PROFILE_SECTION(name)                    nv_helpers::Profiler::Section _tempTimer(m_profiler, name)
+#define NV_PROFILE_SECTION_CMD(name, cmd)           nv_helpers::Profiler::Section _tempTimer(m_profiler, name, nullptr, false, cmd)
 #define NV_PROFILE_SECTION_EX(name, gpui, flush)    nv_helpers::Profiler::Section _tempTimer(m_profiler, name, gpui, flush)
 #define NV_PROFILE_SPLIT()                          m_profiler.accumulationSplit()
 

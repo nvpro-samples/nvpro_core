@@ -544,6 +544,15 @@ namespace nv_helpers_vk {
       }
     }
 
+    void deinitPool(uint32_t dset, VkDevice device, const VkAllocationCallbacks* pAllocator = nullptr)
+    {
+      if (descriptorPools[dset]) {
+        vkDestroyDescriptorPool(device, descriptorPools[dset], pAllocator);
+        descriptorSets[dset].clear();
+        descriptorPools[dset] = nullptr;
+      }
+    }
+
     void deinitLayouts(VkDevice device, const VkAllocationCallbacks* pAllocator = nullptr)
     {
       for (uint32_t i = 0; i < PIPELAYOUTS; i++) {
