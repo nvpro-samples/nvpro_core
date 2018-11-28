@@ -25,9 +25,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
+ 
 #pragma once
-
 namespace nv_helpers_vk {
   template <class T> T make(){ return T(); }
   template <class T> void clear(T& ref){ ref = make<T>(); }
@@ -119,7 +118,9 @@ namespace nv_helpers_vk {
     return VkGraphicsPipelineCreateInfo{VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
   }
   template<> inline VkComputePipelineCreateInfo make<VkComputePipelineCreateInfo>(){
-    return VkComputePipelineCreateInfo{VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO};
+    VkComputePipelineCreateInfo ret = {VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO};
+    ret.stage = {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
+    return ret;
   }
   template<> inline VkPipelineLayoutCreateInfo make<VkPipelineLayoutCreateInfo>(){
     return VkPipelineLayoutCreateInfo{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
@@ -180,6 +181,9 @@ namespace nv_helpers_vk {
   }
   template<> inline VkBindImageMemoryInfo make<VkBindImageMemoryInfo>(){
     return VkBindImageMemoryInfo{VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO};
+  }
+  template<> inline VkPhysicalDevice16BitStorageFeatures make<VkPhysicalDevice16BitStorageFeatures>(){
+    return VkPhysicalDevice16BitStorageFeatures{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_16BIT_STORAGE_FEATURES};
   }
   template<> inline VkMemoryDedicatedRequirements make<VkMemoryDedicatedRequirements>(){
     return VkMemoryDedicatedRequirements{VK_STRUCTURE_TYPE_MEMORY_DEDICATED_REQUIREMENTS};
@@ -325,6 +329,9 @@ namespace nv_helpers_vk {
   template<> inline VkExternalBufferProperties make<VkExternalBufferProperties>(){
     return VkExternalBufferProperties{VK_STRUCTURE_TYPE_EXTERNAL_BUFFER_PROPERTIES};
   }
+  template<> inline VkPhysicalDeviceIDProperties make<VkPhysicalDeviceIDProperties>(){
+    return VkPhysicalDeviceIDProperties{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES};
+  }
   template<> inline VkExternalMemoryImageCreateInfo make<VkExternalMemoryImageCreateInfo>(){
     return VkExternalMemoryImageCreateInfo{VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO};
   }
@@ -361,6 +368,7 @@ namespace nv_helpers_vk {
   template<> inline VkPhysicalDeviceShaderDrawParameterFeatures make<VkPhysicalDeviceShaderDrawParameterFeatures>(){
     return VkPhysicalDeviceShaderDrawParameterFeatures{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETER_FEATURES};
   }
+#if VK_KHR_swapchain
   template<> inline VkSwapchainCreateInfoKHR make<VkSwapchainCreateInfoKHR>(){
     return VkSwapchainCreateInfoKHR{VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR};
   }
@@ -385,15 +393,21 @@ namespace nv_helpers_vk {
   template<> inline VkDeviceGroupSwapchainCreateInfoKHR make<VkDeviceGroupSwapchainCreateInfoKHR>(){
     return VkDeviceGroupSwapchainCreateInfoKHR{VK_STRUCTURE_TYPE_DEVICE_GROUP_SWAPCHAIN_CREATE_INFO_KHR};
   }
+#endif
+#if VK_KHR_display
   template<> inline VkDisplayModeCreateInfoKHR make<VkDisplayModeCreateInfoKHR>(){
     return VkDisplayModeCreateInfoKHR{VK_STRUCTURE_TYPE_DISPLAY_MODE_CREATE_INFO_KHR};
   }
   template<> inline VkDisplaySurfaceCreateInfoKHR make<VkDisplaySurfaceCreateInfoKHR>(){
     return VkDisplaySurfaceCreateInfoKHR{VK_STRUCTURE_TYPE_DISPLAY_SURFACE_CREATE_INFO_KHR};
   }
+#endif
+#if VK_KHR_display_swapchain
   template<> inline VkDisplayPresentInfoKHR make<VkDisplayPresentInfoKHR>(){
     return VkDisplayPresentInfoKHR{VK_STRUCTURE_TYPE_DISPLAY_PRESENT_INFO_KHR};
   }
+#endif
+#if VK_KHR_external_memory_fd
   template<> inline VkImportMemoryFdInfoKHR make<VkImportMemoryFdInfoKHR>(){
     return VkImportMemoryFdInfoKHR{VK_STRUCTURE_TYPE_IMPORT_MEMORY_FD_INFO_KHR};
   }
@@ -403,18 +417,26 @@ namespace nv_helpers_vk {
   template<> inline VkMemoryGetFdInfoKHR make<VkMemoryGetFdInfoKHR>(){
     return VkMemoryGetFdInfoKHR{VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR};
   }
+#endif
+#if VK_KHR_external_semaphore_fd
   template<> inline VkImportSemaphoreFdInfoKHR make<VkImportSemaphoreFdInfoKHR>(){
     return VkImportSemaphoreFdInfoKHR{VK_STRUCTURE_TYPE_IMPORT_SEMAPHORE_FD_INFO_KHR};
   }
   template<> inline VkSemaphoreGetFdInfoKHR make<VkSemaphoreGetFdInfoKHR>(){
     return VkSemaphoreGetFdInfoKHR{VK_STRUCTURE_TYPE_SEMAPHORE_GET_FD_INFO_KHR};
   }
+#endif
+#if VK_KHR_push_descriptor
   template<> inline VkPhysicalDevicePushDescriptorPropertiesKHR make<VkPhysicalDevicePushDescriptorPropertiesKHR>(){
     return VkPhysicalDevicePushDescriptorPropertiesKHR{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PUSH_DESCRIPTOR_PROPERTIES_KHR};
   }
+#endif
+#if VK_KHR_incremental_present
   template<> inline VkPresentRegionsKHR make<VkPresentRegionsKHR>(){
     return VkPresentRegionsKHR{VK_STRUCTURE_TYPE_PRESENT_REGIONS_KHR};
   }
+#endif
+#if VK_KHR_create_renderpass2
   template<> inline VkAttachmentDescription2KHR make<VkAttachmentDescription2KHR>(){
     return VkAttachmentDescription2KHR{VK_STRUCTURE_TYPE_ATTACHMENT_DESCRIPTION_2_KHR};
   }
@@ -436,15 +458,21 @@ namespace nv_helpers_vk {
   template<> inline VkSubpassEndInfoKHR make<VkSubpassEndInfoKHR>(){
     return VkSubpassEndInfoKHR{VK_STRUCTURE_TYPE_SUBPASS_END_INFO_KHR};
   }
+#endif
+#if VK_KHR_shared_presentable_image
   template<> inline VkSharedPresentSurfaceCapabilitiesKHR make<VkSharedPresentSurfaceCapabilitiesKHR>(){
     return VkSharedPresentSurfaceCapabilitiesKHR{VK_STRUCTURE_TYPE_SHARED_PRESENT_SURFACE_CAPABILITIES_KHR};
   }
+#endif
+#if VK_KHR_external_fence_fd
   template<> inline VkImportFenceFdInfoKHR make<VkImportFenceFdInfoKHR>(){
     return VkImportFenceFdInfoKHR{VK_STRUCTURE_TYPE_IMPORT_FENCE_FD_INFO_KHR};
   }
   template<> inline VkFenceGetFdInfoKHR make<VkFenceGetFdInfoKHR>(){
     return VkFenceGetFdInfoKHR{VK_STRUCTURE_TYPE_FENCE_GET_FD_INFO_KHR};
   }
+#endif
+#if VK_KHR_get_surface_capabilities2
   template<> inline VkPhysicalDeviceSurfaceInfo2KHR make<VkPhysicalDeviceSurfaceInfo2KHR>(){
     return VkPhysicalDeviceSurfaceInfo2KHR{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SURFACE_INFO_2_KHR};
   }
@@ -454,6 +482,8 @@ namespace nv_helpers_vk {
   template<> inline VkSurfaceFormat2KHR make<VkSurfaceFormat2KHR>(){
     return VkSurfaceFormat2KHR{VK_STRUCTURE_TYPE_SURFACE_FORMAT_2_KHR};
   }
+#endif
+#if VK_KHR_get_display_properties2
   template<> inline VkDisplayProperties2KHR make<VkDisplayProperties2KHR>(){
     return VkDisplayProperties2KHR{VK_STRUCTURE_TYPE_DISPLAY_PROPERTIES_2_KHR};
   }
@@ -469,18 +499,43 @@ namespace nv_helpers_vk {
   template<> inline VkDisplayPlaneCapabilities2KHR make<VkDisplayPlaneCapabilities2KHR>(){
     return VkDisplayPlaneCapabilities2KHR{VK_STRUCTURE_TYPE_DISPLAY_PLANE_CAPABILITIES_2_KHR};
   }
+#endif
+#if VK_KHR_image_format_list
   template<> inline VkImageFormatListCreateInfoKHR make<VkImageFormatListCreateInfoKHR>(){
     return VkImageFormatListCreateInfoKHR{VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO_KHR};
   }
+#endif
+#if VK_KHR_8bit_storage
+  template<> inline VkPhysicalDevice8BitStorageFeaturesKHR make<VkPhysicalDevice8BitStorageFeaturesKHR>(){
+    return VkPhysicalDevice8BitStorageFeaturesKHR{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_8BIT_STORAGE_FEATURES_KHR};
+  }
+#endif
+#if VK_KHR_shader_atomic_int64
+  template<> inline VkPhysicalDeviceShaderAtomicInt64FeaturesKHR make<VkPhysicalDeviceShaderAtomicInt64FeaturesKHR>(){
+    return VkPhysicalDeviceShaderAtomicInt64FeaturesKHR{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_ATOMIC_INT64_FEATURES_KHR};
+  }
+#endif
+#if VK_KHR_driver_properties
+  template<> inline VkPhysicalDeviceDriverPropertiesKHR make<VkPhysicalDeviceDriverPropertiesKHR>(){
+    return VkPhysicalDeviceDriverPropertiesKHR{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES_KHR};
+  }
+#endif
+#if VK_KHR_vulkan_memory_model
   template<> inline VkPhysicalDeviceVulkanMemoryModelFeaturesKHR make<VkPhysicalDeviceVulkanMemoryModelFeaturesKHR>(){
     return VkPhysicalDeviceVulkanMemoryModelFeaturesKHR{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_MEMORY_MODEL_FEATURES_KHR};
   }
+#endif
+#if VK_EXT_debug_report
   template<> inline VkDebugReportCallbackCreateInfoEXT make<VkDebugReportCallbackCreateInfoEXT>(){
     return VkDebugReportCallbackCreateInfoEXT{VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT};
   }
+#endif
+#if VK_AMD_rasterization_order
   template<> inline VkPipelineRasterizationStateRasterizationOrderAMD make<VkPipelineRasterizationStateRasterizationOrderAMD>(){
     return VkPipelineRasterizationStateRasterizationOrderAMD{VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_RASTERIZATION_ORDER_AMD};
   }
+#endif
+#if VK_EXT_debug_marker
   template<> inline VkDebugMarkerObjectNameInfoEXT make<VkDebugMarkerObjectNameInfoEXT>(){
     return VkDebugMarkerObjectNameInfoEXT{VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT};
   }
@@ -490,6 +545,8 @@ namespace nv_helpers_vk {
   template<> inline VkDebugMarkerMarkerInfoEXT make<VkDebugMarkerMarkerInfoEXT>(){
     return VkDebugMarkerMarkerInfoEXT{VK_STRUCTURE_TYPE_DEBUG_MARKER_MARKER_INFO_EXT};
   }
+#endif
+#if VK_NV_dedicated_allocation
   template<> inline VkDedicatedAllocationImageCreateInfoNV make<VkDedicatedAllocationImageCreateInfoNV>(){
     return VkDedicatedAllocationImageCreateInfoNV{VK_STRUCTURE_TYPE_DEDICATED_ALLOCATION_IMAGE_CREATE_INFO_NV};
   }
@@ -499,18 +556,50 @@ namespace nv_helpers_vk {
   template<> inline VkDedicatedAllocationMemoryAllocateInfoNV make<VkDedicatedAllocationMemoryAllocateInfoNV>(){
     return VkDedicatedAllocationMemoryAllocateInfoNV{VK_STRUCTURE_TYPE_DEDICATED_ALLOCATION_MEMORY_ALLOCATE_INFO_NV};
   }
+#endif
+#if VK_EXT_transform_feedback
+  template<> inline VkPhysicalDeviceTransformFeedbackFeaturesEXT make<VkPhysicalDeviceTransformFeedbackFeaturesEXT>(){
+    return VkPhysicalDeviceTransformFeedbackFeaturesEXT{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TRANSFORM_FEEDBACK_FEATURES_EXT};
+  }
+  template<> inline VkPhysicalDeviceTransformFeedbackPropertiesEXT make<VkPhysicalDeviceTransformFeedbackPropertiesEXT>(){
+    return VkPhysicalDeviceTransformFeedbackPropertiesEXT{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TRANSFORM_FEEDBACK_PROPERTIES_EXT};
+  }
+  template<> inline VkPipelineRasterizationStateStreamCreateInfoEXT make<VkPipelineRasterizationStateStreamCreateInfoEXT>(){
+    return VkPipelineRasterizationStateStreamCreateInfoEXT{VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_STREAM_CREATE_INFO_EXT};
+  }
+#endif
+#if VK_AMD_texture_gather_bias_lod
+  template<> inline VkTextureLODGatherFormatPropertiesAMD make<VkTextureLODGatherFormatPropertiesAMD>(){
+    return VkTextureLODGatherFormatPropertiesAMD{VK_STRUCTURE_TYPE_TEXTURE_LOD_GATHER_FORMAT_PROPERTIES_AMD};
+  }
+#endif
+#if VK_NV_corner_sampled_image
   template<> inline VkPhysicalDeviceCornerSampledImageFeaturesNV make<VkPhysicalDeviceCornerSampledImageFeaturesNV>(){
     return VkPhysicalDeviceCornerSampledImageFeaturesNV{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CORNER_SAMPLED_IMAGE_FEATURES_NV};
   }
+#endif
+#if VK_NV_external_memory
   template<> inline VkExternalMemoryImageCreateInfoNV make<VkExternalMemoryImageCreateInfoNV>(){
     return VkExternalMemoryImageCreateInfoNV{VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO_NV};
   }
   template<> inline VkExportMemoryAllocateInfoNV make<VkExportMemoryAllocateInfoNV>(){
     return VkExportMemoryAllocateInfoNV{VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO_NV};
   }
+#endif
+#if VK_EXT_validation_flags
   template<> inline VkValidationFlagsEXT make<VkValidationFlagsEXT>(){
     return VkValidationFlagsEXT{VK_STRUCTURE_TYPE_VALIDATION_FLAGS_EXT};
   }
+#endif
+#if VK_EXT_astc_decode_mode
+  template<> inline VkImageViewASTCDecodeModeEXT make<VkImageViewASTCDecodeModeEXT>(){
+    return VkImageViewASTCDecodeModeEXT{VK_STRUCTURE_TYPE_IMAGE_VIEW_ASTC_DECODE_MODE_EXT};
+  }
+  template<> inline VkPhysicalDeviceASTCDecodeFeaturesEXT make<VkPhysicalDeviceASTCDecodeFeaturesEXT>(){
+    return VkPhysicalDeviceASTCDecodeFeaturesEXT{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ASTC_DECODE_FEATURES_EXT};
+  }
+#endif
+#if VK_EXT_conditional_rendering
   template<> inline VkConditionalRenderingBeginInfoEXT make<VkConditionalRenderingBeginInfoEXT>(){
     return VkConditionalRenderingBeginInfoEXT{VK_STRUCTURE_TYPE_CONDITIONAL_RENDERING_BEGIN_INFO_EXT};
   }
@@ -520,6 +609,8 @@ namespace nv_helpers_vk {
   template<> inline VkCommandBufferInheritanceConditionalRenderingInfoEXT make<VkCommandBufferInheritanceConditionalRenderingInfoEXT>(){
     return VkCommandBufferInheritanceConditionalRenderingInfoEXT{VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_CONDITIONAL_RENDERING_INFO_EXT};
   }
+#endif
+#if VK_NVX_device_generated_commands
   template<> inline VkDeviceGeneratedCommandsFeaturesNVX make<VkDeviceGeneratedCommandsFeaturesNVX>(){
     return VkDeviceGeneratedCommandsFeaturesNVX{VK_STRUCTURE_TYPE_DEVICE_GENERATED_COMMANDS_FEATURES_NVX};
   }
@@ -538,12 +629,18 @@ namespace nv_helpers_vk {
   template<> inline VkObjectTableCreateInfoNVX make<VkObjectTableCreateInfoNVX>(){
     return VkObjectTableCreateInfoNVX{VK_STRUCTURE_TYPE_OBJECT_TABLE_CREATE_INFO_NVX};
   }
+#endif
+#if VK_NV_clip_space_w_scaling
   template<> inline VkPipelineViewportWScalingStateCreateInfoNV make<VkPipelineViewportWScalingStateCreateInfoNV>(){
     return VkPipelineViewportWScalingStateCreateInfoNV{VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_W_SCALING_STATE_CREATE_INFO_NV};
   }
+#endif
+#if VK_EXT_display_surface_counter
   template<> inline VkSurfaceCapabilities2EXT make<VkSurfaceCapabilities2EXT>(){
     return VkSurfaceCapabilities2EXT{VK_STRUCTURE_TYPE_SURFACE_CAPABILITIES_2_EXT};
   }
+#endif
+#if VK_EXT_display_control
   template<> inline VkDisplayPowerInfoEXT make<VkDisplayPowerInfoEXT>(){
     return VkDisplayPowerInfoEXT{VK_STRUCTURE_TYPE_DISPLAY_POWER_INFO_EXT};
   }
@@ -556,30 +653,44 @@ namespace nv_helpers_vk {
   template<> inline VkSwapchainCounterCreateInfoEXT make<VkSwapchainCounterCreateInfoEXT>(){
     return VkSwapchainCounterCreateInfoEXT{VK_STRUCTURE_TYPE_SWAPCHAIN_COUNTER_CREATE_INFO_EXT};
   }
+#endif
+#if VK_GOOGLE_display_timing
   template<> inline VkPresentTimesInfoGOOGLE make<VkPresentTimesInfoGOOGLE>(){
     return VkPresentTimesInfoGOOGLE{VK_STRUCTURE_TYPE_PRESENT_TIMES_INFO_GOOGLE};
   }
+#endif
+#if VK_NVX_multiview_per_view_attributes
   template<> inline VkPhysicalDeviceMultiviewPerViewAttributesPropertiesNVX make<VkPhysicalDeviceMultiviewPerViewAttributesPropertiesNVX>(){
     return VkPhysicalDeviceMultiviewPerViewAttributesPropertiesNVX{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MULTIVIEW_PER_VIEW_ATTRIBUTES_PROPERTIES_NVX};
   }
+#endif
+#if VK_NV_viewport_swizzle
   template<> inline VkPipelineViewportSwizzleStateCreateInfoNV make<VkPipelineViewportSwizzleStateCreateInfoNV>(){
     return VkPipelineViewportSwizzleStateCreateInfoNV{VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_SWIZZLE_STATE_CREATE_INFO_NV};
   }
+#endif
+#if VK_EXT_discard_rectangles
   template<> inline VkPhysicalDeviceDiscardRectanglePropertiesEXT make<VkPhysicalDeviceDiscardRectanglePropertiesEXT>(){
     return VkPhysicalDeviceDiscardRectanglePropertiesEXT{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DISCARD_RECTANGLE_PROPERTIES_EXT};
   }
   template<> inline VkPipelineDiscardRectangleStateCreateInfoEXT make<VkPipelineDiscardRectangleStateCreateInfoEXT>(){
     return VkPipelineDiscardRectangleStateCreateInfoEXT{VK_STRUCTURE_TYPE_PIPELINE_DISCARD_RECTANGLE_STATE_CREATE_INFO_EXT};
   }
+#endif
+#if VK_EXT_conservative_rasterization
   template<> inline VkPhysicalDeviceConservativeRasterizationPropertiesEXT make<VkPhysicalDeviceConservativeRasterizationPropertiesEXT>(){
     return VkPhysicalDeviceConservativeRasterizationPropertiesEXT{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CONSERVATIVE_RASTERIZATION_PROPERTIES_EXT};
   }
   template<> inline VkPipelineRasterizationConservativeStateCreateInfoEXT make<VkPipelineRasterizationConservativeStateCreateInfoEXT>(){
     return VkPipelineRasterizationConservativeStateCreateInfoEXT{VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_CONSERVATIVE_STATE_CREATE_INFO_EXT};
   }
+#endif
+#if VK_EXT_hdr_metadata
   template<> inline VkHdrMetadataEXT make<VkHdrMetadataEXT>(){
     return VkHdrMetadataEXT{VK_STRUCTURE_TYPE_HDR_METADATA_EXT};
   }
+#endif
+#if VK_EXT_debug_utils
   template<> inline VkDebugUtilsObjectNameInfoEXT make<VkDebugUtilsObjectNameInfoEXT>(){
     return VkDebugUtilsObjectNameInfoEXT{VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT};
   }
@@ -595,12 +706,16 @@ namespace nv_helpers_vk {
   template<> inline VkDebugUtilsMessengerCreateInfoEXT make<VkDebugUtilsMessengerCreateInfoEXT>(){
     return VkDebugUtilsMessengerCreateInfoEXT{VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT};
   }
+#endif
+#if VK_EXT_sampler_filter_minmax
   template<> inline VkSamplerReductionModeCreateInfoEXT make<VkSamplerReductionModeCreateInfoEXT>(){
     return VkSamplerReductionModeCreateInfoEXT{VK_STRUCTURE_TYPE_SAMPLER_REDUCTION_MODE_CREATE_INFO_EXT};
   }
   template<> inline VkPhysicalDeviceSamplerFilterMinmaxPropertiesEXT make<VkPhysicalDeviceSamplerFilterMinmaxPropertiesEXT>(){
     return VkPhysicalDeviceSamplerFilterMinmaxPropertiesEXT{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SAMPLER_FILTER_MINMAX_PROPERTIES_EXT};
   }
+#endif
+#if VK_EXT_inline_uniform_block
   template<> inline VkPhysicalDeviceInlineUniformBlockFeaturesEXT make<VkPhysicalDeviceInlineUniformBlockFeaturesEXT>(){
     return VkPhysicalDeviceInlineUniformBlockFeaturesEXT{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_INLINE_UNIFORM_BLOCK_FEATURES_EXT};
   }
@@ -613,6 +728,8 @@ namespace nv_helpers_vk {
   template<> inline VkDescriptorPoolInlineUniformBlockCreateInfoEXT make<VkDescriptorPoolInlineUniformBlockCreateInfoEXT>(){
     return VkDescriptorPoolInlineUniformBlockCreateInfoEXT{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_INLINE_UNIFORM_BLOCK_CREATE_INFO_EXT};
   }
+#endif
+#if VK_EXT_sample_locations
   template<> inline VkSampleLocationsInfoEXT make<VkSampleLocationsInfoEXT>(){
     return VkSampleLocationsInfoEXT{VK_STRUCTURE_TYPE_SAMPLE_LOCATIONS_INFO_EXT};
   }
@@ -620,7 +737,9 @@ namespace nv_helpers_vk {
     return VkRenderPassSampleLocationsBeginInfoEXT{VK_STRUCTURE_TYPE_RENDER_PASS_SAMPLE_LOCATIONS_BEGIN_INFO_EXT};
   }
   template<> inline VkPipelineSampleLocationsStateCreateInfoEXT make<VkPipelineSampleLocationsStateCreateInfoEXT>(){
-    return VkPipelineSampleLocationsStateCreateInfoEXT{VK_STRUCTURE_TYPE_PIPELINE_SAMPLE_LOCATIONS_STATE_CREATE_INFO_EXT};
+    VkPipelineSampleLocationsStateCreateInfoEXT ret = {VK_STRUCTURE_TYPE_PIPELINE_SAMPLE_LOCATIONS_STATE_CREATE_INFO_EXT};
+    ret.sampleLocationsInfo = {VK_STRUCTURE_TYPE_SAMPLE_LOCATIONS_INFO_EXT};
+    return ret;
   }
   template<> inline VkPhysicalDeviceSampleLocationsPropertiesEXT make<VkPhysicalDeviceSampleLocationsPropertiesEXT>(){
     return VkPhysicalDeviceSampleLocationsPropertiesEXT{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SAMPLE_LOCATIONS_PROPERTIES_EXT};
@@ -628,6 +747,8 @@ namespace nv_helpers_vk {
   template<> inline VkMultisamplePropertiesEXT make<VkMultisamplePropertiesEXT>(){
     return VkMultisamplePropertiesEXT{VK_STRUCTURE_TYPE_MULTISAMPLE_PROPERTIES_EXT};
   }
+#endif
+#if VK_EXT_blend_operation_advanced
   template<> inline VkPhysicalDeviceBlendOperationAdvancedFeaturesEXT make<VkPhysicalDeviceBlendOperationAdvancedFeaturesEXT>(){
     return VkPhysicalDeviceBlendOperationAdvancedFeaturesEXT{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BLEND_OPERATION_ADVANCED_FEATURES_EXT};
   }
@@ -637,18 +758,46 @@ namespace nv_helpers_vk {
   template<> inline VkPipelineColorBlendAdvancedStateCreateInfoEXT make<VkPipelineColorBlendAdvancedStateCreateInfoEXT>(){
     return VkPipelineColorBlendAdvancedStateCreateInfoEXT{VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_ADVANCED_STATE_CREATE_INFO_EXT};
   }
+#endif
+#if VK_NV_fragment_coverage_to_color
   template<> inline VkPipelineCoverageToColorStateCreateInfoNV make<VkPipelineCoverageToColorStateCreateInfoNV>(){
     return VkPipelineCoverageToColorStateCreateInfoNV{VK_STRUCTURE_TYPE_PIPELINE_COVERAGE_TO_COLOR_STATE_CREATE_INFO_NV};
   }
+#endif
+#if VK_NV_framebuffer_mixed_samples
   template<> inline VkPipelineCoverageModulationStateCreateInfoNV make<VkPipelineCoverageModulationStateCreateInfoNV>(){
     return VkPipelineCoverageModulationStateCreateInfoNV{VK_STRUCTURE_TYPE_PIPELINE_COVERAGE_MODULATION_STATE_CREATE_INFO_NV};
   }
+#endif
+#if VK_EXT_image_drm_format_modifier
+  template<> inline VkDrmFormatModifierPropertiesEXT make<VkDrmFormatModifierPropertiesEXT>(){
+    return VkDrmFormatModifierPropertiesEXT{VK_STRUCTURE_TYPE_DRM_FORMAT_MODIFIER_PROPERTIES_EXT};
+  }
+  template<> inline VkDrmFormatModifierPropertiesListEXT make<VkDrmFormatModifierPropertiesListEXT>(){
+    return VkDrmFormatModifierPropertiesListEXT{VK_STRUCTURE_TYPE_DRM_FORMAT_MODIFIER_PROPERTIES_LIST_EXT};
+  }
+  template<> inline VkPhysicalDeviceImageDrmFormatModifierInfoEXT make<VkPhysicalDeviceImageDrmFormatModifierInfoEXT>(){
+    return VkPhysicalDeviceImageDrmFormatModifierInfoEXT{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGE_DRM_FORMAT_MODIFIER_INFO_EXT};
+  }
+  template<> inline VkImageDrmFormatModifierListCreateInfoEXT make<VkImageDrmFormatModifierListCreateInfoEXT>(){
+    return VkImageDrmFormatModifierListCreateInfoEXT{VK_STRUCTURE_TYPE_IMAGE_DRM_FORMAT_MODIFIER_LIST_CREATE_INFO_EXT};
+  }
+  template<> inline VkImageDrmFormatModifierExplicitCreateInfoEXT make<VkImageDrmFormatModifierExplicitCreateInfoEXT>(){
+    return VkImageDrmFormatModifierExplicitCreateInfoEXT{VK_STRUCTURE_TYPE_IMAGE_DRM_FORMAT_MODIFIER_EXPLICIT_CREATE_INFO_EXT};
+  }
+  template<> inline VkImageDrmFormatModifierPropertiesEXT make<VkImageDrmFormatModifierPropertiesEXT>(){
+    return VkImageDrmFormatModifierPropertiesEXT{VK_STRUCTURE_TYPE_IMAGE_DRM_FORMAT_MODIFIER_PROPERTIES_EXT};
+  }
+#endif
+#if VK_EXT_validation_cache
   template<> inline VkValidationCacheCreateInfoEXT make<VkValidationCacheCreateInfoEXT>(){
     return VkValidationCacheCreateInfoEXT{VK_STRUCTURE_TYPE_VALIDATION_CACHE_CREATE_INFO_EXT};
   }
   template<> inline VkShaderModuleValidationCacheCreateInfoEXT make<VkShaderModuleValidationCacheCreateInfoEXT>(){
     return VkShaderModuleValidationCacheCreateInfoEXT{VK_STRUCTURE_TYPE_SHADER_MODULE_VALIDATION_CACHE_CREATE_INFO_EXT};
   }
+#endif
+#if VK_EXT_descriptor_indexing
   template<> inline VkDescriptorSetLayoutBindingFlagsCreateInfoEXT make<VkDescriptorSetLayoutBindingFlagsCreateInfoEXT>(){
     return VkDescriptorSetLayoutBindingFlagsCreateInfoEXT{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO_EXT};
   }
@@ -664,6 +813,8 @@ namespace nv_helpers_vk {
   template<> inline VkDescriptorSetVariableDescriptorCountLayoutSupportEXT make<VkDescriptorSetVariableDescriptorCountLayoutSupportEXT>(){
     return VkDescriptorSetVariableDescriptorCountLayoutSupportEXT{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_LAYOUT_SUPPORT_EXT};
   }
+#endif
+#if VK_NV_shading_rate_image
   template<> inline VkPipelineViewportShadingRateImageStateCreateInfoNV make<VkPipelineViewportShadingRateImageStateCreateInfoNV>(){
     return VkPipelineViewportShadingRateImageStateCreateInfoNV{VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_SHADING_RATE_IMAGE_STATE_CREATE_INFO_NV};
   }
@@ -676,39 +827,66 @@ namespace nv_helpers_vk {
   template<> inline VkPipelineViewportCoarseSampleOrderStateCreateInfoNV make<VkPipelineViewportCoarseSampleOrderStateCreateInfoNV>(){
     return VkPipelineViewportCoarseSampleOrderStateCreateInfoNV{VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_COARSE_SAMPLE_ORDER_STATE_CREATE_INFO_NV};
   }
-  template<> inline VkRaytracingPipelineCreateInfoNVX make<VkRaytracingPipelineCreateInfoNVX>(){
-    return VkRaytracingPipelineCreateInfoNVX{VK_STRUCTURE_TYPE_RAYTRACING_PIPELINE_CREATE_INFO_NVX};
+#endif
+#if VK_NV_ray_tracing
+  template<> inline VkRayTracingShaderGroupCreateInfoNV make<VkRayTracingShaderGroupCreateInfoNV>(){
+    VkRayTracingShaderGroupCreateInfoNV ret = {VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_NV};
+    ret.generalShader = VK_SHADER_UNUSED_NV;
+    ret.closestHitShader = VK_SHADER_UNUSED_NV;
+    ret.anyHitShader = VK_SHADER_UNUSED_NV;
+    ret.intersectionShader = VK_SHADER_UNUSED_NV;
+    return ret;
   }
-  template<> inline VkGeometryTrianglesNVX make<VkGeometryTrianglesNVX>(){
-    return VkGeometryTrianglesNVX{VK_STRUCTURE_TYPE_GEOMETRY_TRIANGLES_NVX};
+  template<> inline VkRayTracingPipelineCreateInfoNV make<VkRayTracingPipelineCreateInfoNV>(){
+    return VkRayTracingPipelineCreateInfoNV{VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_NV};
   }
-  template<> inline VkGeometryNVX make<VkGeometryNVX>(){
-    return VkGeometryNVX{VK_STRUCTURE_TYPE_GEOMETRY_NVX};
+  template<> inline VkGeometryTrianglesNV make<VkGeometryTrianglesNV>(){
+    return VkGeometryTrianglesNV{VK_STRUCTURE_TYPE_GEOMETRY_TRIANGLES_NV};
   }
-  template<> inline VkAccelerationStructureCreateInfoNVX make<VkAccelerationStructureCreateInfoNVX>(){
-    return VkAccelerationStructureCreateInfoNVX{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_NVX};
+  template<> inline VkGeometryAABBNV make<VkGeometryAABBNV>(){
+    return VkGeometryAABBNV{VK_STRUCTURE_TYPE_GEOMETRY_AABB_NV};
   }
-  template<> inline VkBindAccelerationStructureMemoryInfoNVX make<VkBindAccelerationStructureMemoryInfoNVX>(){
-    return VkBindAccelerationStructureMemoryInfoNVX{VK_STRUCTURE_TYPE_BIND_ACCELERATION_STRUCTURE_MEMORY_INFO_NVX};
+  template<> inline VkGeometryNV make<VkGeometryNV>(){
+    VkGeometryNV ret = {VK_STRUCTURE_TYPE_GEOMETRY_NV};
+    ret.geometry.triangles = {VK_STRUCTURE_TYPE_GEOMETRY_TRIANGLES_NV};
+    ret.geometry.aabbs = {VK_STRUCTURE_TYPE_GEOMETRY_AABB_NV};
+    return ret;
   }
-  template<> inline VkDescriptorAccelerationStructureInfoNVX make<VkDescriptorAccelerationStructureInfoNVX>(){
-    return VkDescriptorAccelerationStructureInfoNVX{VK_STRUCTURE_TYPE_DESCRIPTOR_ACCELERATION_STRUCTURE_INFO_NVX};
+  template<> inline VkAccelerationStructureInfoNV make<VkAccelerationStructureInfoNV>(){
+    return VkAccelerationStructureInfoNV{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_INFO_NV};
   }
-  template<> inline VkAccelerationStructureMemoryRequirementsInfoNVX make<VkAccelerationStructureMemoryRequirementsInfoNVX>(){
-    return VkAccelerationStructureMemoryRequirementsInfoNVX{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_INFO_NVX};
+  template<> inline VkAccelerationStructureCreateInfoNV make<VkAccelerationStructureCreateInfoNV>(){
+    VkAccelerationStructureCreateInfoNV ret = {VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_NV};
+    ret.info = {VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_INFO_NV};
+    return ret;
   }
-  template<> inline VkPhysicalDeviceRaytracingPropertiesNVX make<VkPhysicalDeviceRaytracingPropertiesNVX>(){
-    return VkPhysicalDeviceRaytracingPropertiesNVX{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAYTRACING_PROPERTIES_NVX};
+  template<> inline VkBindAccelerationStructureMemoryInfoNV make<VkBindAccelerationStructureMemoryInfoNV>(){
+    return VkBindAccelerationStructureMemoryInfoNV{VK_STRUCTURE_TYPE_BIND_ACCELERATION_STRUCTURE_MEMORY_INFO_NV};
   }
+  template<> inline VkWriteDescriptorSetAccelerationStructureNV make<VkWriteDescriptorSetAccelerationStructureNV>(){
+    return VkWriteDescriptorSetAccelerationStructureNV{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_NV};
+  }
+  template<> inline VkAccelerationStructureMemoryRequirementsInfoNV make<VkAccelerationStructureMemoryRequirementsInfoNV>(){
+    return VkAccelerationStructureMemoryRequirementsInfoNV{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_INFO_NV};
+  }
+  template<> inline VkPhysicalDeviceRayTracingPropertiesNV make<VkPhysicalDeviceRayTracingPropertiesNV>(){
+    return VkPhysicalDeviceRayTracingPropertiesNV{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PROPERTIES_NV};
+  }
+#endif
+#if VK_NV_representative_fragment_test
   template<> inline VkPhysicalDeviceRepresentativeFragmentTestFeaturesNV make<VkPhysicalDeviceRepresentativeFragmentTestFeaturesNV>(){
     return VkPhysicalDeviceRepresentativeFragmentTestFeaturesNV{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_REPRESENTATIVE_FRAGMENT_TEST_FEATURES_NV};
   }
   template<> inline VkPipelineRepresentativeFragmentTestStateCreateInfoNV make<VkPipelineRepresentativeFragmentTestStateCreateInfoNV>(){
     return VkPipelineRepresentativeFragmentTestStateCreateInfoNV{VK_STRUCTURE_TYPE_PIPELINE_REPRESENTATIVE_FRAGMENT_TEST_STATE_CREATE_INFO_NV};
   }
+#endif
+#if VK_EXT_global_priority
   template<> inline VkDeviceQueueGlobalPriorityCreateInfoEXT make<VkDeviceQueueGlobalPriorityCreateInfoEXT>(){
     return VkDeviceQueueGlobalPriorityCreateInfoEXT{VK_STRUCTURE_TYPE_DEVICE_QUEUE_GLOBAL_PRIORITY_CREATE_INFO_EXT};
   }
+#endif
+#if VK_EXT_external_memory_host
   template<> inline VkImportMemoryHostPointerInfoEXT make<VkImportMemoryHostPointerInfoEXT>(){
     return VkImportMemoryHostPointerInfoEXT{VK_STRUCTURE_TYPE_IMPORT_MEMORY_HOST_POINTER_INFO_EXT};
   }
@@ -718,9 +896,23 @@ namespace nv_helpers_vk {
   template<> inline VkPhysicalDeviceExternalMemoryHostPropertiesEXT make<VkPhysicalDeviceExternalMemoryHostPropertiesEXT>(){
     return VkPhysicalDeviceExternalMemoryHostPropertiesEXT{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_MEMORY_HOST_PROPERTIES_EXT};
   }
+#endif
+#if VK_EXT_calibrated_timestamps
+  template<> inline VkCalibratedTimestampInfoEXT make<VkCalibratedTimestampInfoEXT>(){
+    return VkCalibratedTimestampInfoEXT{VK_STRUCTURE_TYPE_CALIBRATED_TIMESTAMP_INFO_EXT};
+  }
+#endif
+#if VK_AMD_shader_core_properties
   template<> inline VkPhysicalDeviceShaderCorePropertiesAMD make<VkPhysicalDeviceShaderCorePropertiesAMD>(){
     return VkPhysicalDeviceShaderCorePropertiesAMD{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_CORE_PROPERTIES_AMD};
   }
+#endif
+#if VK_AMD_memory_overallocation_behavior
+  template<> inline VkDeviceMemoryOverallocationCreateInfoAMD make<VkDeviceMemoryOverallocationCreateInfoAMD>(){
+    return VkDeviceMemoryOverallocationCreateInfoAMD{VK_STRUCTURE_TYPE_DEVICE_MEMORY_OVERALLOCATION_CREATE_INFO_AMD};
+  }
+#endif
+#if VK_EXT_vertex_attribute_divisor
   template<> inline VkPhysicalDeviceVertexAttributeDivisorPropertiesEXT make<VkPhysicalDeviceVertexAttributeDivisorPropertiesEXT>(){
     return VkPhysicalDeviceVertexAttributeDivisorPropertiesEXT{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VERTEX_ATTRIBUTE_DIVISOR_PROPERTIES_EXT};
   }
@@ -730,31 +922,49 @@ namespace nv_helpers_vk {
   template<> inline VkPhysicalDeviceVertexAttributeDivisorFeaturesEXT make<VkPhysicalDeviceVertexAttributeDivisorFeaturesEXT>(){
     return VkPhysicalDeviceVertexAttributeDivisorFeaturesEXT{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VERTEX_ATTRIBUTE_DIVISOR_FEATURES_EXT};
   }
+#endif
+#if VK_NV_compute_shader_derivatives
   template<> inline VkPhysicalDeviceComputeShaderDerivativesFeaturesNV make<VkPhysicalDeviceComputeShaderDerivativesFeaturesNV>(){
     return VkPhysicalDeviceComputeShaderDerivativesFeaturesNV{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COMPUTE_SHADER_DERIVATIVES_FEATURES_NV};
   }
+#endif
+#if VK_NV_mesh_shader
   template<> inline VkPhysicalDeviceMeshShaderFeaturesNV make<VkPhysicalDeviceMeshShaderFeaturesNV>(){
     return VkPhysicalDeviceMeshShaderFeaturesNV{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_NV};
   }
   template<> inline VkPhysicalDeviceMeshShaderPropertiesNV make<VkPhysicalDeviceMeshShaderPropertiesNV>(){
     return VkPhysicalDeviceMeshShaderPropertiesNV{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_PROPERTIES_NV};
   }
+#endif
+#if VK_NV_fragment_shader_barycentric
   template<> inline VkPhysicalDeviceFragmentShaderBarycentricFeaturesNV make<VkPhysicalDeviceFragmentShaderBarycentricFeaturesNV>(){
     return VkPhysicalDeviceFragmentShaderBarycentricFeaturesNV{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_SHADER_BARYCENTRIC_FEATURES_NV};
   }
+#endif
+#if VK_NV_shader_image_footprint
   template<> inline VkPhysicalDeviceShaderImageFootprintFeaturesNV make<VkPhysicalDeviceShaderImageFootprintFeaturesNV>(){
     return VkPhysicalDeviceShaderImageFootprintFeaturesNV{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_IMAGE_FOOTPRINT_FEATURES_NV};
   }
+#endif
+#if VK_NV_scissor_exclusive
   template<> inline VkPipelineViewportExclusiveScissorStateCreateInfoNV make<VkPipelineViewportExclusiveScissorStateCreateInfoNV>(){
     return VkPipelineViewportExclusiveScissorStateCreateInfoNV{VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_EXCLUSIVE_SCISSOR_STATE_CREATE_INFO_NV};
   }
   template<> inline VkPhysicalDeviceExclusiveScissorFeaturesNV make<VkPhysicalDeviceExclusiveScissorFeaturesNV>(){
     return VkPhysicalDeviceExclusiveScissorFeaturesNV{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXCLUSIVE_SCISSOR_FEATURES_NV};
   }
+#endif
+#if VK_NV_device_diagnostic_checkpoints
   template<> inline VkQueueFamilyCheckpointPropertiesNV make<VkQueueFamilyCheckpointPropertiesNV>(){
     return VkQueueFamilyCheckpointPropertiesNV{VK_STRUCTURE_TYPE_QUEUE_FAMILY_CHECKPOINT_PROPERTIES_NV};
   }
   template<> inline VkCheckpointDataNV make<VkCheckpointDataNV>(){
     return VkCheckpointDataNV{VK_STRUCTURE_TYPE_CHECKPOINT_DATA_NV};
   }
+#endif
+#if VK_EXT_pci_bus_info
+  template<> inline VkPhysicalDevicePCIBusInfoPropertiesEXT make<VkPhysicalDevicePCIBusInfoPropertiesEXT>(){
+    return VkPhysicalDevicePCIBusInfoPropertiesEXT{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PCI_BUS_INFO_PROPERTIES_EXT};
+  }
+#endif
 }

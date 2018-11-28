@@ -32,12 +32,30 @@ local header =
 ]]
 
 local function generate(outfilename, header)
+  
+  local override = {
+    VkRayTracingShaderGroupCreateInfoNV = 
+[[
+  template<> inline VkRayTracingShaderGroupCreateInfoNV make<VkRayTracingShaderGroupCreateInfoNV>(){
+    VkRayTracingShaderGroupCreateInfoNV ret = {VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_NV};
+    ret.generalShader = VK_SHADER_UNUSED_NV;
+    ret.closestHitShader = VK_SHADER_UNUSED_NV;
+    ret.anyHitShader = VK_SHADER_UNUSED_NV;
+    ret.intersectionShader = VK_SHADER_UNUSED_NV;
+    return ret;
+  }
+]],
+  }
+  
+  
   local sdkpath = os.getenv("VULKAN_SDK")
   assert(sdkpath, "Vulkan SDK not found")
   
   local vulkan = io.open(sdkpath.."/Include/vulkan/vulkan_core.h","rt")
   local str = vulkan:read("*a")
   vulkan:close()
+  
+  str = str.."\n\n#define VK_DUMMY_TERMINATOR_SPEC_VERSION 1\n"
   
   local outfile = io.open(outfilename, "wt")
   assert(outfile)
@@ -46,33 +64,86 @@ local function generate(outfilename, header)
   out = out.."  template <class T> T make(){ return T(); }\n"
   out = out.."  template <class T> void clear(T& ref){ ref = make<T>(); }\n"
   
-  local structtypes = {}
-  local typesstr = str:match("typedef enum VkStructureType {(.-)}")
-  for name in typesstr:gmatch("(VK_STRUCTURE_TYPE_[%w_]-) = %d+,") do
-    --print(name)
-    structtypes[name] = true
+  local structenums = {}
+  local structextensions = {}
+  local enumsstr = str:match("typedef enum VkStructureType {(.-)}")
+  
+  local function enumID(name)
+    name = name:lower()
+    name = name:gsub("_","")
+    return name
   end
   
+  for name in enumsstr:gmatch("VK_STRUCTURE_TYPE_([%w_]-) = %d+,") do
+    structenums[enumID(name)] = "VK_STRUCTURE_TYPE_"..name
+  end
+  
+  -- associate structs with extension
+  -- not the best pattern since we will not catch the first extension (VK_KHR_surface) but we don't need to
+  for extension,defstr in str:gmatch('#define VK_[%w_]+_EXTENSION_NAME%s+"([%w_]+)"\n(.-)#define VK_[%w_]+_SPEC_VERSION%s+%d+\n')
+  do
+    for name in defstr:gmatch('typedef struct Vk([%w_]+) {')
+    do
+      structextensions[name] = extension
+    end
+  end
+  
+  local structdefs     = {}
+  local structexported = {}
   local structs = {}
-  for name in str:gmatch("typedef struct Vk([%w_]+) {") do
-    local nameext, ext  = name:match("(.-)([A-Z]+)$")
-    nameparse = ext and nameext or name
+  local lastextension = nil
   
-    local enum = "VK_STRUCTURE_TYPE"
-    for s in nameparse:gmatch("[A-Z0-9][a-z]*") do
-      enum = enum.."_"..s
-    end
-    if (ext) then
-      enum = enum.."_"..ext
-    end
-    enum = string.upper(enum)
+  for name,defs in str:gmatch("typedef struct Vk([%w_]+)%s*(%b{})") do
+    local enum = structenums[enumID(name)]
     
-    if (structtypes[enum]) then
-      local sname = "Vk"..name
-      --out = out.."  inline "..sname.." make_"..sname.."(){\n    return "..sname.."{"..enum.."};\n  }\n"
-      out = out.."  template<> inline "..sname.." make<"..sname..">(){\n    return "..sname.."{"..enum.."};\n  }\n"
+    local sname = "Vk"..name
+    structdefs[sname] = defs
+    
+    if (enum) then
+      local extension = structextensions[name]
+      if (extension ~= lastextension) then
+        if (lastextension) then
+          out = out.."#endif\n"
+        end
+        if (extension) then
+          out = out.."#if "..extension.."\n"
+        end
+        lastextension = extension
+      end
+     
+      local complex = ""
+      
+      local function addComplex(prefix, defs)
+        for typ, var in defs:gmatch("([%w_]+)%s+([%w_]+);") do
+          local expenum = structexported[typ]
+          local sdefs   = structdefs[typ]
+          if (expenum) then
+            complex = complex..prefix..var.." = {"..expenum.."};\n"
+          elseif (sdefs) then
+            addComplex(prefix..var..".", sdefs)
+          end
+        end
+      end      
+      addComplex("    ret.", defs)
+      
+      if (override[sname]) then
+        out = out..override[sname]
+        print("override", sname)
+      elseif (complex ~= "") then
+        out = out.."  template<> inline "..sname.." make<"..sname..">(){\n    "..sname.." ret = {"..enum.."};\n"..complex.."    return ret;\n  }\n"
+        print("complex", sname)
+      else
+        out = out.."  template<> inline "..sname.." make<"..sname..">(){\n    return "..sname.."{"..enum.."};\n  }\n"
+      end
+      
+      structexported[sname] = enum
     end
   end
+  
+  if (lastextension) then
+    out = out.."#endif\n"
+  end
+
   
   outfile:write(header)
   outfile:write("namespace nv_helpers_vk {\n")
