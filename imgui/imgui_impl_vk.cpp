@@ -303,10 +303,12 @@ void ImGui::InitVK(const nv_helpers_vk::DeviceUtils &utils, const nv_helpers_vk:
       s_utils.makeDescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
     };
 
+    s_pipelineSetup.init(s_utils.m_device, s_utils.m_allocator);
+
     s_pipelineSetup.descriptorSetLayout[0] = s_utils.createDescriptorSetLayout(NV_ARRAY_SIZE(bindings), bindings);
     s_pipelineSetup.pipelineLayouts[0] = s_utils.createPipelineLayout(NV_ARRAY_SIZE(s_pipelineSetup.descriptorSetLayout), s_pipelineSetup.descriptorSetLayout, 1, &pcRange);
 
-    s_pipelineSetup.initPoolAndSets(utils.m_device, 1, 1, &poolSize, 0, utils.m_allocator);
+    s_pipelineSetup.initPoolAndSets(0, 1, 1, &poolSize);
 
     const VkDescriptorImageInfo imageInfo { s_fontAtlasSampler, s_fontAtlasView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
 
@@ -473,8 +475,8 @@ void ImGui::ShutdownVK()
   vkDestroyPipeline(s_utils.m_device, s_pipeline, s_utils.m_allocator);
   s_pipeline = VK_NULL_HANDLE;
 
-  s_pipelineSetup.deinitPools(s_utils.m_device, s_utils.m_allocator);
-  s_pipelineSetup.deinitLayouts(s_utils.m_device, s_utils.m_allocator);
+  s_pipelineSetup.deinitPools();
+  s_pipelineSetup.deinitLayouts();
 
   s_utils.m_device = VK_NULL_HANDLE;
   s_utils.m_allocator = nullptr;

@@ -486,30 +486,38 @@ namespace nv_helpers_vk {
   template <uint32_t DSETS,uint32_t PIPELAYOUTS=1>
   struct DescriptorPipelineContainer 
   {
+    DeviceUtils                   utils;
     VkPipelineLayout              pipelineLayouts[PIPELAYOUTS];
     VkDescriptorSetLayout         descriptorSetLayout[DSETS];
     VkDescriptorPool              descriptorPools[DSETS];
     std::vector<VkDescriptorSet>  descriptorSets[DSETS];
     std::vector<VkDescriptorSetLayoutBinding> descriptorBindings[DSETS];
-
-    void initSetLayout(VkDevice device, uint32_t dset, VkDescriptorSetLayoutCreateFlags flags = 0, const VkAllocationCallbacks* pAllocator = nullptr)
+    
+    void init(VkDevice device, const VkAllocationCallbacks* pAllocator = nullptr)
     {
-      DeviceUtils utils(device, pAllocator);
+      utils = DeviceUtils(device, pAllocator);
+    }
+    
+    void initPipeLayout(uint32_t pipe, size_t numRanges = 0, const VkPushConstantRange* ranges = nullptr)
+    {
+      pipelineLayouts[pipe] = utils.createPipelineLayout(DSETS, descriptorSetLayout, numRanges, ranges);
+    }
+
+    void initSetLayout(uint32_t dset, VkDescriptorSetLayoutCreateFlags flags = 0)
+    {
       descriptorSetLayout[dset] = utils.createDescriptorSetLayout((uint32_t)descriptorBindings[dset].size(), descriptorBindings[dset].data(), flags);
     }
     
-    void initPoolAndSets(VkDevice device, uint32_t maxSets, size_t poolSizeCount, const VkDescriptorPoolSize* poolSizes, uint32_t dset=0, const VkAllocationCallbacks* pAllocator = nullptr)
+    void initPoolAndSets(uint32_t dset, uint32_t maxSets, size_t poolSizeCount, const VkDescriptorPoolSize* poolSizes)
     {
-      DeviceUtils utils(device,pAllocator);
       descriptorSets[dset].resize(maxSets);
       utils.createDescriptorPoolAndSets(maxSets, poolSizeCount, poolSizes, descriptorSetLayout[dset], descriptorPools[dset], descriptorSets[dset].data());
     }
 
-    void initPoolAndSets(VkDevice device, uint32_t maxSets, uint32_t dset = 0, const VkAllocationCallbacks* pAllocator = nullptr)
+    void initPoolAndSets(uint32_t dset, uint32_t maxSets)
     {
       assert(!descriptorBindings[dset].empty());
 
-      DeviceUtils utils(device, pAllocator);
       descriptorSets[dset].resize(maxSets);
 
       // setup poolsizes for each descriptorType
@@ -533,41 +541,47 @@ namespace nv_helpers_vk {
       utils.createDescriptorPoolAndSets(maxSets, (uint32_t)poolSizes.size(), poolSizes.data(), descriptorSetLayout[dset], descriptorPools[dset], descriptorSets[dset].data());
     }
 
-    void deinitPools(VkDevice device, const VkAllocationCallbacks* pAllocator = nullptr)
+    void deinitPools()
     {
       for (uint32_t i = 0; i < DSETS; i++) {
         if (descriptorPools[i]) {
-          vkDestroyDescriptorPool(device, descriptorPools[i], pAllocator);
+          vkDestroyDescriptorPool(utils.m_device, descriptorPools[i], utils.m_allocator);
           descriptorSets[i].clear();
           descriptorPools[i] = nullptr;
         }
       }
     }
 
-    void deinitPool(uint32_t dset, VkDevice device, const VkAllocationCallbacks* pAllocator = nullptr)
+    void deinitPool(uint32_t dset)
     {
       if (descriptorPools[dset]) {
-        vkDestroyDescriptorPool(device, descriptorPools[dset], pAllocator);
+        vkDestroyDescriptorPool(utils.m_device, descriptorPools[dset], utils.m_allocator);
         descriptorSets[dset].clear();
         descriptorPools[dset] = nullptr;
       }
     }
 
-    void deinitLayouts(VkDevice device, const VkAllocationCallbacks* pAllocator = nullptr)
+    void deinitLayouts()
     {
       for (uint32_t i = 0; i < PIPELAYOUTS; i++) {
         if (pipelineLayouts[i]) {
-          vkDestroyPipelineLayout(device, pipelineLayouts[i], pAllocator);
+          vkDestroyPipelineLayout(utils.m_device, pipelineLayouts[i], utils.m_allocator);
           pipelineLayouts[i] = nullptr;
         }
       }
       for (uint32_t i = 0; i < DSETS; i++) {
         if (descriptorSetLayout[i]) {
-          vkDestroyDescriptorSetLayout(device, descriptorSetLayout[i], pAllocator);
+          vkDestroyDescriptorSetLayout(utils.m_device, descriptorSetLayout[i], utils.m_allocator);
           descriptorSetLayout[i] = nullptr;
         }
         descriptorBindings[i].clear();
       }
+    }
+    
+    void deinit()
+    {
+       deinitPools();
+       deinitLayouts();
     }
 
     VkWriteDescriptorSet getWriteDescriptorSet(uint32_t dset, uint32_t dstSet, uint32_t dstBinding, const VkDescriptorImageInfo *pImageInfo) const
