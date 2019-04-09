@@ -26,4 +26,4 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */ //--------------------------------------------------------------------
 
-#include <nv_helpers_gl/extensions_gl.hpp>
+#include <nvgl/extensions_gl.hpp>

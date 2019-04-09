@@ -29,7 +29,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "imgui.h"
 
-#include <main.h>
+#include <nvpwindow.hpp>
 
 #include <vector>
 #include <string>

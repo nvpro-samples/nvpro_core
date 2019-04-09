@@ -2,8 +2,15 @@
    extensions and add OpenGL 1.1 compatibility
 */
 
-#ifndef __gl_glcustom_h_
-#define __gl_glcustom_h_ 1
+#if defined(__gl_h_) || defined(__gl_glext_h_)
+#error "must not include GL.h or glext.h prior this"
+#endif
+
+#ifndef __gl_glsubset_h_
+#define __gl_glsubset_h_ 1
+
+#define __gl_h_ 1
+#define __gl_glext_h_ 1
 
 #ifdef __cplusplus
 extern "C" {

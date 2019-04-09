@@ -39,15 +39,8 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 if(ADD_SUBDIR_BELOW)
-  if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/shared_sources/CMakeLists_include.txt)
-    # if the resource of downloaded meshes is local, keep this one. Otherwise, use the common one
-    if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/downloaded_resources)
-      SET(DOWNLOAD_TARGET_DIR "${BASE_DIRECTORY}/downloaded_resources")
-    else()
-      SET(DOWNLOAD_TARGET_DIR "${BASE_DIRECTORY}/../downloaded_resources")
-    endif()
-  elseif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../../shared_sources)
-    SET(DOWNLOAD_TARGET_DIR "${BASE_DIRECTORY}/downloaded_resources")
+  if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/downloaded_resources)
+    SET(DOWNLOAD_TARGET_DIR "${CMAKE_CURRENT_SOURCE_DIR}/downloaded_resources")
   else()
     SET(DOWNLOAD_TARGET_DIR "${BASE_DIRECTORY}/downloaded_resources")
   endif()
@@ -150,13 +143,10 @@ endmacro(_add_project_definitions)
 macro(_set_subsystem_console exename)
   if(WIN32)
      set_target_properties(${exename} PROPERTIES LINK_FLAGS_DEBUG "/SUBSYSTEM:CONSOLE")
-     target_compile_definitions(${exename} PRIVATE $<$<CONFIG:Debug>:"_CONSOLE")
+     target_compile_definitions(${exename} PRIVATE "_CONSOLE")
      set_target_properties(${exename} PROPERTIES LINK_FLAGS_RELWITHDEBINFO "/SUBSYSTEM:CONSOLE")
-     target_compile_definitions(${exename} PRIVATE $<$<CONFIG:RelWithDebInfo>: "_CONSOLE")
      set_target_properties(${exename} PROPERTIES LINK_FLAGS_RELEASE "/SUBSYSTEM:CONSOLE")
-     target_compile_definitions(${exename} PRIVATE $<$<CONFIG:Release>: "_CONSOLE")
      set_target_properties(${exename} PROPERTIES LINK_FLAGS_MINSIZEREL "/SUBSYSTEM:CONSOLE")
-     target_compile_definitions(${exename} PRIVATE $<$<CONFIG:MinSizeRel>: "_CONSOLE")
   endif(WIN32)
 endmacro(_set_subsystem_console)
 
@@ -301,7 +291,7 @@ macro(_add_package_ImGUI)
   include_directories(${IMGUI_PATH})
 
   set(IMGUI_H ${IMGUI_PATH}/imconfig.h ${IMGUI_PATH}/imgui.h ${IMGUI_PATH}/imgui_internal.h ${IMGUI_PATH}/imgui_helper.h)
-  set(IMGUI_CPP ${IMGUI_PATH}/imgui.cpp ${IMGUI_PATH}/imgui_draw.cpp ${IMGUI_PATH}/imgui_helper.cpp)
+  set(IMGUI_CPP ${IMGUI_PATH}/imgui.cpp ${IMGUI_PATH}/imgui_draw.cpp ${IMGUI_PATH}/imgui_helper.cpp ${IMGUI_PATH}/imgui_widgets.cpp)
 
   if(USING_OPENGL)
     list(APPEND IMGUI_H ${IMGUI_PATH}/imgui_impl_gl.h)
@@ -400,9 +390,8 @@ endmacro(_optional_package_OpenVRSDK)
 # package for Sockets: to allow UDP/TCP IP connections
 #
 macro(_add_package_Sockets)
-  _add_package_CThread()
   Message(STATUS "--> using package Sockets")
-  set(SOCKETS_PATH "${BASE_DIRECTORY}/shared_sources/nv_sockets")
+  set(SOCKETS_PATH "${BASE_DIRECTORY}/shared_sources/nvsockets")
   get_directory_property(hasParent PARENT_DIRECTORY)
   if(hasParent)
     set( USING_SOCKETS "YES" PARENT_SCOPE) # PARENT_SCOPE important to have this variable passed to parent. Here we want to notify that something used the Vulkan package
@@ -411,38 +400,37 @@ macro(_add_package_Sockets)
   endif()
   add_definitions(-DUSESOCKETS)
   set(SOCKETS_H
-    ${SOCKETS_PATH}/socketClient.h
-    ${SOCKETS_PATH}/socketSampleMessages.h
-    ${SOCKETS_PATH}/socketServer.h
+    ${SOCKETS_PATH}/socketclient.hpp
+    ${SOCKETS_PATH}/socketsamplemessages.hpp
+    ${SOCKETS_PATH}/socketserver.hpp
+    # ${SOCKETS_PATH}/nvpwindow_socket.hpp
+    ${SOCKETS_PATH}/cthread_s.hpp
   )
   set(SOCKETS_CPP
-    ${SOCKETS_PATH}/socketClient.cpp
-    ${SOCKETS_PATH}/socketServer.cpp
-    ${SOCKETS_PATH}/socketSampleMessages.cpp
+    ${SOCKETS_PATH}/socketclient.cpp
+    ${SOCKETS_PATH}/socketserver.cpp
+    ${SOCKETS_PATH}/socketsamplemessages.cpp
+    ${SOCKETS_PATH}/cthread_s.cpp
   )
-  source_group(Sockets FILES ${SOCKETS_H})
+  source_group(sockets FILES ${SOCKETS_H})
 if(WIN32)
   LIST(APPEND LIBRARIES_OPTIMIZED ws2_32 )
   LIST(APPEND LIBRARIES_DEBUG ws2_32 )
   #TODO: for Linux and Android, too !
 endif()
   LIST(APPEND PACKAGE_SOURCE_FILES ${SOCKETS_H} )
+  # source_group(Sockets FILES ${SOCKETS_CPP})
+  # LIST(APPEND PACKAGE_SOURCE_FILES ${SOCKETS_CPP} )
   include_directories(${SOCKETS_PATH})
 endmacro(_add_package_Sockets)
-# optional add of this package in the shared lib
+
+# for the shared_sources library
 macro(_optional_package_Sockets)
   if(USING_SOCKETS)
+    Message("NOTE: Package for remote control via Sockets is ON")
     _add_package_Sockets()
-  source_group(Sockets FILES ${SOCKETS_CPP})
-  LIST(APPEND PACKAGE_SOURCE_FILES ${SOCKETS_CPP} )
-  endif(USING_SOCKETS)
-endmacro(_optional_package_Sockets)
-# this macro is needed for the samples to add this package, although not needed
-# this happens when the shared_sources library was built with these stuff in it
-# so many samples can share the same library for many purposes
-macro(_optional_package_Sockets)
-  if(USING_SOCKETS)
-    _add_package_Sockets()
+    source_group(Sockets FILES ${SOCKETS_CPP})
+    LIST(APPEND PACKAGE_SOURCE_FILES ${SOCKETS_CPP} )
   endif(USING_SOCKETS)
 endmacro(_optional_package_Sockets)
 
@@ -697,9 +685,9 @@ macro(_add_package_OpenCL)
       string(FIND ${OpenCL_INCLUDE_DIRS} "shared_external" OFFSET)
       if((OFFSET GREATER -1) AND WIN32 )
         if((ARCH STREQUAL "x86"))
-          SET(OPENCL_DLL ${BASE_DIRECTORY}/shared_external/OpenCL/lib/x86/OpenCL.dll)
+          #SET(OPENCL_DLL ${BASE_DIRECTORY}/shared_external/OpenCL/lib/x86/OpenCL.dll)
         else()
-          SET(OPENCL_DLL ${BASE_DIRECTORY}/shared_external/OpenCL/lib/x64/OpenCL.dll)
+          #SET(OPENCL_DLL ${BASE_DIRECTORY}/shared_external/OpenCL/lib/x64/OpenCL.dll)
         endif()
       endif()
       LIST(APPEND LIBRARIES_OPTIMIZED ${OpenCL_LIBRARIES} )
@@ -732,7 +720,7 @@ macro(_add_package_NSight)
         ${BASE_DIRECTORY}/shared_external/NSight
     )
     LIST(APPEND PACKAGE_SOURCE_FILES 
-      ${BASE_DIRECTORY}/shared_sources/nv_helpers/nsightevents.h
+      ${BASE_DIRECTORY}/shared_sources/nvh/nsightevents.h
       ${BASE_DIRECTORY}/shared_external/NSight/nvToolsExt.h
     )
     add_definitions(-DSUPPORT_NVTOOLSEXT)
@@ -854,7 +842,7 @@ macro(_download_file _URL _TARGET _FORCE)
     Message(STATUS "model ${_TARGET} already loaded...")
   endif()
 endmacro()
-# example: _download_files("${FILELIST}"  "http://..." "${BASE_DIRECTORY}/shared_external/..." ${MODELS_DOWNLOAD_FORCE} )
+# example: _download_files("${FILELIST}"  "http://..." "${BASE_DIRECTORY}/shared_external/..." ${DOWNLOAD_FORCE} )
 macro(_download_files _FILELIST _URL _TARGET _FORCE FILELISTOUT)
   foreach(_FILE ${_FILELIST})
     if(${_FORCE} OR (NOT EXISTS "${_TARGET}/${_FILE}"))
@@ -941,10 +929,8 @@ macro(_add_shared_sources_lib)
   if(ADD_SUBDIR_BELOW)
     if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/shared_sources/CMakeLists_include.txt)
       add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/shared_sources ${CMAKE_BINARY_DIR}/shared_sources)
-    elseif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../../shared_sources)
-      add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../shared_sources ${CMAKE_BINARY_DIR}/shared_sources)
     else()
-      add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../shared_sources ${CMAKE_BINARY_DIR}/shared_sources)
+      add_subdirectory(${BASE_DIRECTORY}/shared_sources ${CMAKE_BINARY_DIR}/shared_sources)
     endif()
   endif()
   #-----------------------------------------------------------------------------------
@@ -958,6 +944,7 @@ macro(_add_shared_sources_lib)
   endif()
   # if socket system required in samples, add the package
   if(SUPPORT_SOCKETS)
+    Message("NOTE: Package for remote control via Sockets is ON")
     _add_package_Sockets()
   endif()
   # finish with another part (also used by cname for the shared_sources)

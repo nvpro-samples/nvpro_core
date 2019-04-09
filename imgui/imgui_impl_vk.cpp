@@ -1,5 +1,8 @@
 #include "imgui.h"
 #include "imgui_impl_vk.h"
+#include "../nvvk/staging_vk.hpp"
+#include "../nvvk/descriptorsetcontainer_vk.hpp"
+
 #include <assert.h>
 
 namespace
@@ -121,15 +124,15 @@ namespace
     0x1D, 0x00, 0x00, 0x00, 0xFD, 0x00, 0x01, 0x00, 0x38, 0x00, 0x01, 0x00,
   };
 
-  nv_helpers_vk::DeviceUtils s_utils = {};
-  nv_helpers_vk::PhysicalInfo s_physical = {};
+  nvvk::DeviceUtils s_utils = {};
+  nvvk::PhysicalInfo s_physical = {};
 
   VkImage s_fontAtlas = VK_NULL_HANDLE;
   VkImageView s_fontAtlasView = VK_NULL_HANDLE;
   VkSampler s_fontAtlasSampler = VK_NULL_HANDLE;
   VkDeviceMemory s_fontAtlasMem = VK_NULL_HANDLE;
   VkPipeline s_pipeline = VK_NULL_HANDLE;
-  nv_helpers_vk::DescriptorPipelineContainer<1> s_pipelineSetup = {};
+  nvvk::DescriptorSetContainer<1> s_pipelineSetup = {};
 
   VkBuffer s_ibo = VK_NULL_HANDLE;
   VkDeviceMemory s_iboMem = VK_NULL_HANDLE;
@@ -137,9 +140,9 @@ namespace
   VkDeviceMemory s_vboMem = VK_NULL_HANDLE;
 }
 
-void ImGui::InitVK(const nv_helpers_vk::DeviceUtils &utils, const nv_helpers_vk::PhysicalInfo &physical, VkRenderPass pass, VkQueue queue, uint32_t queueFamilyIndex)
+void ImGui::InitVK(const nvvk::DeviceUtils &utils, const nvvk::PhysicalInfo &physical, VkRenderPass pass, VkQueue queue, uint32_t queueFamilyIndex, int subPassIndex)
 {
-  using namespace nv_helpers_vk;
+  using namespace nvvk;
 
   assert(utils.m_device != VK_NULL_HANDLE);
 
@@ -204,7 +207,7 @@ void ImGui::InitVK(const nv_helpers_vk::DeviceUtils &utils, const nv_helpers_vk:
   }
 
   // Copy font atlas data from host to device memory
-  { BasicStagingBuffer staging;
+  { FixedSizeStagingBuffer staging;
     staging.init(utils.m_device, &physical.memoryProperties);
 
     staging.enqueue(s_fontAtlas,
@@ -286,7 +289,7 @@ void ImGui::InitVK(const nv_helpers_vk::DeviceUtils &utils, const nv_helpers_vk:
     createInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
     createInfo.minLod = FLT_MIN;
     createInfo.maxLod = FLT_MAX;
-    
+
     res = vkCreateSampler(utils.m_device, &createInfo, utils.m_allocator, &s_fontAtlasSampler);
     assert(res == VK_SUCCESS);
   }
@@ -296,19 +299,14 @@ void ImGui::InitVK(const nv_helpers_vk::DeviceUtils &utils, const nv_helpers_vk:
     const VkPushConstantRange pcRange = {
       VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(float) * 16
     };
-    const VkDescriptorPoolSize poolSize = {
-      VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1
+
+    s_pipelineSetup.init(utils.m_device, utils.m_allocator);
+    s_pipelineSetup.descriptorBindings[0] = {
+      {0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, 0}
     };
-    const VkDescriptorSetLayoutBinding bindings[] = {
-      s_utils.makeDescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
-    };
-
-    s_pipelineSetup.init(s_utils.m_device, s_utils.m_allocator);
-
-    s_pipelineSetup.descriptorSetLayout[0] = s_utils.createDescriptorSetLayout(NV_ARRAY_SIZE(bindings), bindings);
-    s_pipelineSetup.pipelineLayouts[0] = s_utils.createPipelineLayout(NV_ARRAY_SIZE(s_pipelineSetup.descriptorSetLayout), s_pipelineSetup.descriptorSetLayout, 1, &pcRange);
-
-    s_pipelineSetup.initPoolAndSets(0, 1, 1, &poolSize);
+    s_pipelineSetup.initSetLayout(0);
+    s_pipelineSetup.initPipeLayout(0, 1, &pcRange);
+    s_pipelineSetup.initPoolAndSets(0, 1);
 
     const VkDescriptorImageInfo imageInfo { s_fontAtlasSampler, s_fontAtlasView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
 
@@ -322,11 +320,11 @@ void ImGui::InitVK(const nv_helpers_vk::DeviceUtils &utils, const nv_helpers_vk:
   }
 
   if (pass) {
-    ReInitPipelinesVK(utils, pass);
+    ReInitPipelinesVK(utils, pass, subPassIndex);
   }
 }
 
-void ImGui::ReInitPipelinesVK(const nv_helpers_vk::DeviceUtils &utils, VkRenderPass pass)
+void ImGui::ReInitPipelinesVK(const nvvk::DeviceUtils &utils, VkRenderPass pass, int subPassIndex)
 {
   if (s_pipeline) {
     vkDestroyPipeline(s_utils.m_device, s_pipeline, s_utils.m_allocator);
@@ -436,7 +434,7 @@ void ImGui::ReInitPipelinesVK(const nv_helpers_vk::DeviceUtils &utils, VkRenderP
     createInfo.pDynamicState = &dynStateInfo;
     createInfo.layout = s_pipelineSetup.getPipeLayout();
     createInfo.renderPass = pass;
-    createInfo.subpass = 0;
+    createInfo.subpass = subPassIndex;
 
     res = vkCreateGraphicsPipelines(utils.m_device, VK_NULL_HANDLE, 1, &createInfo, utils.m_allocator, &s_pipeline);
     assert(res == VK_SUCCESS);
