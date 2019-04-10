@@ -129,7 +129,6 @@ bool NVPWindowInternal::create(int xPos, int yPos, int width, int height, const 
 
 static int CaptureAnImage(HWND hWnd, const char* filename)
 {
-  HDC hdcScreen;
   HDC hdcWindow;
   HDC hdcMemDC = NULL;
   HBITMAP hbmScreen = NULL;
@@ -137,7 +136,6 @@ static int CaptureAnImage(HWND hWnd, const char* filename)
 
   // Retrieve the handle to a display device context for the client 
   // area of the window. 
-  hdcScreen = GetDC(NULL);
   hdcWindow = GetDC(hWnd);
 
   // Create a compatible DC which is used in a BitBlt from the window DC
@@ -152,23 +150,6 @@ static int CaptureAnImage(HWND hWnd, const char* filename)
   // Get the client area for size calculation
   RECT rcClient;
   GetClientRect(hWnd, &rcClient);
-
-  //This is the best stretch mode
-  SetStretchBltMode(hdcWindow, HALFTONE);
-
-  //The source DC is the entire screen and the destination DC is the current window (HWND)
-  if (!StretchBlt(hdcWindow,
-    0, 0,
-    rcClient.right, rcClient.bottom,
-    hdcScreen,
-    0, 0,
-    GetSystemMetrics(SM_CXSCREEN),
-    GetSystemMetrics(SM_CYSCREEN),
-    SRCCOPY))
-  {
-    LOGE("StretchBlt has failed\n");
-    goto done;
-  }
 
   // Create a compatible bitmap from the Window DC
   hbmScreen = CreateCompatibleBitmap(hdcWindow, rcClient.right - rcClient.left, rcClient.bottom - rcClient.top);
@@ -270,7 +251,6 @@ static int CaptureAnImage(HWND hWnd, const char* filename)
 done:
   DeleteObject(hbmScreen);
   DeleteObject(hdcMemDC);
-  ReleaseDC(NULL, hdcScreen);
   ReleaseDC(hWnd, hdcWindow);
 
   return 0;
@@ -279,6 +259,20 @@ done:
 void NVPWindowInternal::screenshot(const char* filename)
 {
   CaptureAnImage(m_hWnd, filename);
+}
+
+void NVPWindowInternal::clear(uint32_t r, uint32_t g, uint32_t b)
+{
+  HDC hdcWindow = GetDC(m_hWnd);
+
+  RECT rcClient;
+  GetClientRect(m_hWnd, &rcClient);
+  HBRUSH hbr = CreateSolidBrush( RGB(r,g,b) );
+
+  FillRect(hdcWindow, &rcClient, hbr);
+
+  ReleaseDC(m_hWnd, hdcWindow);
+  DeleteBrush(hbr);
 }
 
 void NVPWindowInternal::setFullScreen(bool bYes)

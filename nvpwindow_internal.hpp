@@ -80,6 +80,7 @@ struct NVPWindowInternal
   void destroy();
 
   void screenshot(const char* filename);
+  void clear(uint32_t r, uint32_t g, uint32_t b);
   void setFullScreen(bool bYes);
   void setTitle( const char* title );
   void maximize();

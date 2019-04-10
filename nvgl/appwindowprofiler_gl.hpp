@@ -65,7 +65,6 @@ namespace nvgl
 
     virtual void  contextInit() override;
     virtual void  contextDeinit() override;
-    virtual void  contextScreenshot( const char* bmpfilename, int width, int height ) override;
 
     virtual void swapPrepare() override { }
     virtual void swapBuffers() override { m_contextWindow.swapBuffers(); }

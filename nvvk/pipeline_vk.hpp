@@ -293,6 +293,11 @@ namespace nvvk {
       vpState.viewportCount = std::max(vpState.viewportCount, index + 1);
     }
 
+    void setRasterizationSamples(VkSampleCountFlagBits samples)
+    {
+      msState.rasterizationSamples = samples;
+    }
+
     VkGraphicsPipelineCreateInfo createInfo;
 
     VkPipelineVertexInputStateCreateInfo viState;

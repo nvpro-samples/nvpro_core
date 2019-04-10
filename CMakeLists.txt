@@ -67,6 +67,11 @@ if(USING_VULKANSDK)
   file(GLOB NVHELPERSVK_SOURCE nvvk/*.cpp nvvk/*.hpp nvvk/*.inl nvvk/*.h)
   source_group("nvvk" FILES ${NVHELPERSVK_SOURCE})
 
+  if (USING_NVVK2)
+      file(GLOB NVHELPERSVK2_SOURCE nvvk2/*.cpp nvvk2/*.hpp nvvk2/*.inl nvvk2/*.h)
+      source_group("nvvk2" FILES ${NVHELPERSVK2_SOURCE})
+  endif()
+
   string(CONCAT library_name ${library_name} "_vk")
 endif()
 
@@ -127,6 +132,7 @@ add_library(shared_sources STATIC
   ${NVPWINDOW_SOURCE}
   ${OPENGL_FILES}
   ${NVHELPERSVK_SOURCE}
+  ${NVHELPERSVK2_SOURCE}
   ${NVHELPERSGL_SOURCE}
   ${NVHELPERSDX11_SOURCE}
   ${NVHELPERSDX12_SOURCE}

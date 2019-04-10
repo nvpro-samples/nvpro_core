@@ -149,7 +149,6 @@ namespace nvh
 
     virtual void contextInit() {}
     virtual void contextDeinit() {}
-    virtual void contextScreenshot(const char* bmpfilename, int width, int height) {}
     virtual const char* contextGetDeviceName() { return NULL; }
 
     virtual void swapResize(int width, int height) {}
@@ -191,6 +190,7 @@ namespace nvh
       std::string screenshotFilename;
       std::string logFilename;
       std::string configFilename;
+      uint32_t clearColor[3] = {127,0,0};
 
       Config() {
         winpos[0] = 0;
@@ -221,6 +221,7 @@ namespace nvh
     uint32_t      m_paramLog;
     uint32_t      m_paramCfg;
     uint32_t      m_paramBat;
+    uint32_t      m_paramClear;
   };
 }
 

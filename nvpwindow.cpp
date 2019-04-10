@@ -124,6 +124,11 @@ void NVPWindow::screenshot(const char* filename)
   m_internal->screenshot(filename);
 }
 
+void NVPWindow::clear(uint32_t r, uint32_t g, uint32_t b)
+{
+  m_internal->clear(r,g,b);
+}
+
 //---------------------------------------------------------------------------
 // Message pump
 bool NVPWindow::sysPollEvents(bool bLoop)

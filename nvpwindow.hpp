@@ -290,8 +290,9 @@ public:
   void restore();
   void minimize();
 
-  // uses operating system specific code to take the screenshot of the window, potentially slower
+  // uses operating system specific code for sake of debugging/automated testing
   void screenshot(const char* filename);
+  void clear(uint32_t r, uint32_t g, uint32_t b);
 
   // derived windows/apps should override to handle events
   virtual void shutdown() {}

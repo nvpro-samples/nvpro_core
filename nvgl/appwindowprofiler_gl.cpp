@@ -45,20 +45,6 @@ namespace nvgl
     m_contextWindow.deinit();
   }
 
-  void AppWindowProfilerGL::contextScreenshot( const char* bmpfilename, int width, int height )
-  {
-    std::vector<unsigned char> data;
-
-    data.resize( width * height * 4 );
-    glFinish();
-    glBindFramebuffer( GL_READ_FRAMEBUFFER, 0 );
-    glPixelStorei( GL_PACK_ALIGNMENT, 1 );
-    glBindBuffer( GL_PIXEL_PACK_BUFFER, 0 );
-    glReadPixels( 0, 0, width, height, GL_BGRA, GL_UNSIGNED_BYTE, &data[0] );
-
-    nvh::saveBMP( bmpfilename, width, height, &data[0] );
-  }
-
 }
 
 

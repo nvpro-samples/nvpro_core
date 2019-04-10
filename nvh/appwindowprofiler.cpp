@@ -489,7 +489,10 @@ namespace nvh
     }
     else if (param == m_paramScreenshot) {
       std::string filename = specialStrings(m_config.screenshotFilename.c_str());
-      contextScreenshot(filename.c_str(), m_windowState.m_viewSize[0], m_windowState.m_viewSize[1]);
+      screenshot(filename.c_str());
+    }
+    else if (param == m_paramClear) {
+      clear(m_config.clearColor[0], m_config.clearColor[1], m_config.clearColor[2]);
     }
   }
 
@@ -511,13 +514,14 @@ namespace nvh
     m_parameterList.add("bmpatexit|Set file to store a bitmap image of the last frame at exit", &m_config.dumpatexitFilename);
     m_parameterList.addFilename("benchmark|Set benchmark filename", &m_benchmark.filename);
     m_parameterList.add("benchmarkframes|Set number of benchmarkframes", &m_benchmark.frameLength);
-    m_paramScreenshot = m_parameterList.add("screenshot|Set a file to store a screenshot into", &m_config.screenshotFilename, callback);
+    m_paramScreenshot = m_parameterList.add("screenshot|makes a screenshot into this file", &m_config.screenshotFilename, callback);
+    m_paramClear = m_parameterList.add("clear|clears window color (r,b,g in 0-255) using OS", m_config.clearColor, callback, 3);
   }
 
   void AppWindowProfiler::exitScreenshot()
   {
     if (!m_config.dumpatexitFilename.empty() && !m_hadScreenshot) {
-      contextScreenshot(m_config.dumpatexitFilename.c_str(), m_windowState.m_viewSize[0], m_windowState.m_viewSize[1]);
+      screenshot(m_config.dumpatexitFilename.c_str());
       m_hadScreenshot = true;
     }
   }

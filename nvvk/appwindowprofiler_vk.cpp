@@ -46,12 +46,6 @@ namespace nvvk
     m_contextWindow.deinit();
   }
 
-  void AppWindowProfilerVK::contextScreenshot( const char* bmpfilename, int width, int height )
-  {
-    // TODO
-    //nvh::saveBMP( bmpfilename, width, height, &data[0] );
-  }
-
   void AppWindowProfilerVK::swapResize(int width, int height)
   {
     m_contextWindow.swapResize(width, height);

@@ -56,7 +56,6 @@ namespace nvvk
 
     virtual void contextInit() override;
     virtual void contextDeinit() override;
-    virtual void contextScreenshot(const char* bmpfilename, int width, int height) override;
 
     virtual void swapResize(int width, int height) override;
     virtual void swapPrepare() override;
