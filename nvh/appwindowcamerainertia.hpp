@@ -137,11 +137,11 @@ public:
     const char* getHelpText(int *lines=NULL) {
         if(lines) *lines = 7;
         return
-        "Left mouse button: rotate arount target\n"
+        "Left mouse button: rotate around the target\n"
         "Right mouse button: translate target forward backward (+ Y axis rotate)\n"
         "Middle mouse button: Pan target along view plane\n"
         "Mouse wheel or PgUp/PgDn: zoom in/out\n"
-        "Arrow keys: rotate arount target\n"
+        "Arrow keys: rotate around the target\n"
         "Ctrl+Arrow keys: Pan target\n"
         "Ctrl+PgUp/PgDn: translate target forward/backward\n"
         ;
