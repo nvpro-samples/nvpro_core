@@ -112,15 +112,15 @@ endif()
 if (OPTIX_ROOT_DIR)
 
   if (WIN32) 
-	  #-------- Locate DLLS
-    _find_files( OPTIX_DLL OPTIX_ROOT_DIR "lib/optix.${bestmajorver}${bestminorver}.dll" "bin64/optix.${bestmajorver}${bestminorver}.dll" "")
-    _find_files( OPTIX_DLL OPTIX_ROOT_DIR "lib/optixu.1.dll" "bin64/optixu.1.dll" "")
-	  _find_files( OPTIX_DLL OPTIX_ROOT_DIR "lib/optix_prime.1.dll" "bin64/optix_prime.1.dll" "")
-	  
-	  #-------- Locate LIBS
-    _find_files( OPTIX_LIB OPTIX_ROOT_DIR "lib/optix.${bestmajorver}${bestminorver}.lib" "lib64/optix.${bestmajorver}${bestminorver}.lib" "")
-    _find_files( OPTIX_LIB OPTIX_ROOT_DIR "lib/optixu.1.lib" "lib64/optixu.1.lib" "")
-	  _find_files( OPTIX_LIB OPTIX_ROOT_DIR "lib/optix_prime.1.lib" "lib64/optix_prime.1.lib" "")
+    #-------- Locate DLLS
+    _find_files( OPTIX_DLL OPTIX_ROOT_DIR "lib/optix.${bestmajorver}.${bestminorver}.0.dll" "bin64/optix.${bestmajorver}.${bestminorver}.0.dll" "")
+    _find_files( OPTIX_DLL OPTIX_ROOT_DIR "lib/optixu.${bestmajorver}.${bestminorver}.0.dll" "bin64/optixu.${bestmajorver}.${bestminorver}.0.dll" "")
+    _find_files( OPTIX_DLL OPTIX_ROOT_DIR "lib/optix_prime.${bestmajorver}.${bestminorver}.0.dll" "bin64/optix_prime.${bestmajorver}.${bestminorver}.0.dll" "")
+    
+    #-------- Locate LIBS
+    _find_files( OPTIX_LIB OPTIX_ROOT_DIR "lib/optix.${bestmajorver}.${bestminorver}.0.lib" "lib64/optix.${bestmajorver}.${bestminorver}.0.lib" "")
+    _find_files( OPTIX_LIB OPTIX_ROOT_DIR "lib/optixu.${bestmajorver}.${bestminorver}.0.lib" "lib64/optixu.${bestmajorver}.${bestminorver}.0.lib" "")
+    _find_files( OPTIX_LIB OPTIX_ROOT_DIR "lib/optix_prime.${bestmajorver}.${bestminorver}.0.lib" "lib64/optix_prime.${bestmajorver}.${bestminorver}.0.lib" "")
     if(NOT OPTIX_LIB)
       message(STATUS "setting OPTIX_LIB to ${OPTIX_LIB}" )
     endif()

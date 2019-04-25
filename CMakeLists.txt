@@ -66,7 +66,7 @@ endif()
 if(USING_VULKANSDK)
   file(GLOB NVHELPERSVK_SOURCE nvvk/*.cpp nvvk/*.hpp nvvk/*.inl nvvk/*.h)
   source_group("nvvk" FILES ${NVHELPERSVK_SOURCE})
-
+  # Temporary hack. TODO: remove asap
   if (USING_NVVK2)
       file(GLOB NVHELPERSVK2_SOURCE nvvk2/*.cpp nvvk2/*.hpp nvvk2/*.inl nvvk2/*.h)
       source_group("nvvk2" FILES ${NVHELPERSVK2_SOURCE})

@@ -54,6 +54,9 @@ int has_GL_ARB_debug_output = 0;
 int has_GL_ARB_indirect_parameters = 0;
 int has_GL_ARB_shading_language_include = 0;
 int has_GL_ARB_texture_filter_minmax = 0;
+int has_GL_EXT_memory_object = 0;
+int has_GL_EXT_memory_object_win32 = 0;
+int has_GL_EXT_semaphore = 0;
 int has_GL_EXT_texture_compression_s3tc = 0;
 int has_GL_NV_bindless_texture = 0;
 int has_GL_NV_blend_equation_advanced = 0;
@@ -147,6 +150,9 @@ void load_GL(nvGLLoaderGetProcFN fnGetProcAddress)
   has_GL_ARB_indirect_parameters = load_GL_ARB_indirect_parameters(fnGetProcAddress);
   has_GL_ARB_shading_language_include = load_GL_ARB_shading_language_include(fnGetProcAddress);
   has_GL_ARB_texture_filter_minmax = load_GL_ARB_texture_filter_minmax(fnGetProcAddress);
+  has_GL_EXT_memory_object = load_GL_EXT_memory_object(fnGetProcAddress);
+  has_GL_EXT_memory_object_win32 = load_GL_EXT_memory_object_win32(fnGetProcAddress);
+  has_GL_EXT_semaphore = load_GL_EXT_semaphore(fnGetProcAddress);
   has_GL_EXT_texture_compression_s3tc = load_GL_EXT_texture_compression_s3tc(fnGetProcAddress);
   has_GL_NV_bindless_texture = load_GL_NV_bindless_texture(fnGetProcAddress);
   has_GL_NV_blend_equation_advanced = load_GL_NV_blend_equation_advanced(fnGetProcAddress);
@@ -5442,6 +5448,263 @@ int load_GL_ARB_shading_language_include(nvGLLoaderGetProcFN fnGetProcAddress)
 int load_GL_ARB_texture_filter_minmax(nvGLLoaderGetProcFN fnGetProcAddress)
 {
   int success = has_extension("GL_ARB_texture_filter_minmax");
+  return success;
+}
+
+/* /////////////////////////////////// */
+/* GL_EXT_memory_object */
+
+static PFNGLGETUNSIGNEDBYTEVEXTPROC pfn_glGetUnsignedBytevEXT = 0;
+static PFNGLGETUNSIGNEDBYTEI_VEXTPROC pfn_glGetUnsignedBytei_vEXT = 0;
+static PFNGLDELETEMEMORYOBJECTSEXTPROC pfn_glDeleteMemoryObjectsEXT = 0;
+static PFNGLISMEMORYOBJECTEXTPROC pfn_glIsMemoryObjectEXT = 0;
+static PFNGLCREATEMEMORYOBJECTSEXTPROC pfn_glCreateMemoryObjectsEXT = 0;
+static PFNGLMEMORYOBJECTPARAMETERIVEXTPROC pfn_glMemoryObjectParameterivEXT = 0;
+static PFNGLGETMEMORYOBJECTPARAMETERIVEXTPROC pfn_glGetMemoryObjectParameterivEXT = 0;
+static PFNGLTEXSTORAGEMEM2DEXTPROC pfn_glTexStorageMem2DEXT = 0;
+static PFNGLTEXSTORAGEMEM2DMULTISAMPLEEXTPROC pfn_glTexStorageMem2DMultisampleEXT = 0;
+static PFNGLTEXSTORAGEMEM3DEXTPROC pfn_glTexStorageMem3DEXT = 0;
+static PFNGLTEXSTORAGEMEM3DMULTISAMPLEEXTPROC pfn_glTexStorageMem3DMultisampleEXT = 0;
+static PFNGLBUFFERSTORAGEMEMEXTPROC pfn_glBufferStorageMemEXT = 0;
+static PFNGLTEXTURESTORAGEMEM2DEXTPROC pfn_glTextureStorageMem2DEXT = 0;
+static PFNGLTEXTURESTORAGEMEM2DMULTISAMPLEEXTPROC pfn_glTextureStorageMem2DMultisampleEXT = 0;
+static PFNGLTEXTURESTORAGEMEM3DEXTPROC pfn_glTextureStorageMem3DEXT = 0;
+static PFNGLTEXTURESTORAGEMEM3DMULTISAMPLEEXTPROC pfn_glTextureStorageMem3DMultisampleEXT = 0;
+static PFNGLNAMEDBUFFERSTORAGEMEMEXTPROC pfn_glNamedBufferStorageMemEXT = 0;
+static PFNGLTEXSTORAGEMEM1DEXTPROC pfn_glTexStorageMem1DEXT = 0;
+static PFNGLTEXTURESTORAGEMEM1DEXTPROC pfn_glTextureStorageMem1DEXT = 0;
+
+GLAPI void APIENTRY glGetUnsignedBytevEXT(GLenum pname, GLubyte* data)
+{
+  assert(pfn_glGetUnsignedBytevEXT);
+  pfn_glGetUnsignedBytevEXT(pname,data);
+}
+GLAPI void APIENTRY glGetUnsignedBytei_vEXT(GLenum target, GLuint index, GLubyte* data)
+{
+  assert(pfn_glGetUnsignedBytei_vEXT);
+  pfn_glGetUnsignedBytei_vEXT(target,index,data);
+}
+GLAPI void APIENTRY glDeleteMemoryObjectsEXT(GLsizei n, const GLuint* memoryObjects)
+{
+  assert(pfn_glDeleteMemoryObjectsEXT);
+  pfn_glDeleteMemoryObjectsEXT(n,memoryObjects);
+}
+GLAPI GLboolean APIENTRY glIsMemoryObjectEXT(GLuint memoryObject)
+{
+  assert(pfn_glIsMemoryObjectEXT);
+  return pfn_glIsMemoryObjectEXT(memoryObject);
+}
+GLAPI void APIENTRY glCreateMemoryObjectsEXT(GLsizei n, GLuint* memoryObjects)
+{
+  assert(pfn_glCreateMemoryObjectsEXT);
+  pfn_glCreateMemoryObjectsEXT(n,memoryObjects);
+}
+GLAPI void APIENTRY glMemoryObjectParameterivEXT(GLuint memoryObject, GLenum pname, const GLint* params)
+{
+  assert(pfn_glMemoryObjectParameterivEXT);
+  pfn_glMemoryObjectParameterivEXT(memoryObject,pname,params);
+}
+GLAPI void APIENTRY glGetMemoryObjectParameterivEXT(GLuint memoryObject, GLenum pname, GLint* params)
+{
+  assert(pfn_glGetMemoryObjectParameterivEXT);
+  pfn_glGetMemoryObjectParameterivEXT(memoryObject,pname,params);
+}
+GLAPI void APIENTRY glTexStorageMem2DEXT(GLenum target, GLsizei levels, GLenum internalFormat, GLsizei width, GLsizei height, GLuint memory, GLuint64 offset)
+{
+  assert(pfn_glTexStorageMem2DEXT);
+  pfn_glTexStorageMem2DEXT(target,levels,internalFormat,width,height,memory,offset);
+}
+GLAPI void APIENTRY glTexStorageMem2DMultisampleEXT(GLenum target, GLsizei samples, GLenum internalFormat, GLsizei width, GLsizei height, GLboolean fixedSampleLocations, GLuint memory, GLuint64 offset)
+{
+  assert(pfn_glTexStorageMem2DMultisampleEXT);
+  pfn_glTexStorageMem2DMultisampleEXT(target,samples,internalFormat,width,height,fixedSampleLocations,memory,offset);
+}
+GLAPI void APIENTRY glTexStorageMem3DEXT(GLenum target, GLsizei levels, GLenum internalFormat, GLsizei width, GLsizei height, GLsizei depth, GLuint memory, GLuint64 offset)
+{
+  assert(pfn_glTexStorageMem3DEXT);
+  pfn_glTexStorageMem3DEXT(target,levels,internalFormat,width,height,depth,memory,offset);
+}
+GLAPI void APIENTRY glTexStorageMem3DMultisampleEXT(GLenum target, GLsizei samples, GLenum internalFormat, GLsizei width, GLsizei height, GLsizei depth, GLboolean fixedSampleLocations, GLuint memory, GLuint64 offset)
+{
+  assert(pfn_glTexStorageMem3DMultisampleEXT);
+  pfn_glTexStorageMem3DMultisampleEXT(target,samples,internalFormat,width,height,depth,fixedSampleLocations,memory,offset);
+}
+GLAPI void APIENTRY glBufferStorageMemEXT(GLenum target, GLsizeiptr size, GLuint memory, GLuint64 offset)
+{
+  assert(pfn_glBufferStorageMemEXT);
+  pfn_glBufferStorageMemEXT(target,size,memory,offset);
+}
+GLAPI void APIENTRY glTextureStorageMem2DEXT(GLuint texture, GLsizei levels, GLenum internalFormat, GLsizei width, GLsizei height, GLuint memory, GLuint64 offset)
+{
+  assert(pfn_glTextureStorageMem2DEXT);
+  pfn_glTextureStorageMem2DEXT(texture,levels,internalFormat,width,height,memory,offset);
+}
+GLAPI void APIENTRY glTextureStorageMem2DMultisampleEXT(GLuint texture, GLsizei samples, GLenum internalFormat, GLsizei width, GLsizei height, GLboolean fixedSampleLocations, GLuint memory, GLuint64 offset)
+{
+  assert(pfn_glTextureStorageMem2DMultisampleEXT);
+  pfn_glTextureStorageMem2DMultisampleEXT(texture,samples,internalFormat,width,height,fixedSampleLocations,memory,offset);
+}
+GLAPI void APIENTRY glTextureStorageMem3DEXT(GLuint texture, GLsizei levels, GLenum internalFormat, GLsizei width, GLsizei height, GLsizei depth, GLuint memory, GLuint64 offset)
+{
+  assert(pfn_glTextureStorageMem3DEXT);
+  pfn_glTextureStorageMem3DEXT(texture,levels,internalFormat,width,height,depth,memory,offset);
+}
+GLAPI void APIENTRY glTextureStorageMem3DMultisampleEXT(GLuint texture, GLsizei samples, GLenum internalFormat, GLsizei width, GLsizei height, GLsizei depth, GLboolean fixedSampleLocations, GLuint memory, GLuint64 offset)
+{
+  assert(pfn_glTextureStorageMem3DMultisampleEXT);
+  pfn_glTextureStorageMem3DMultisampleEXT(texture,samples,internalFormat,width,height,depth,fixedSampleLocations,memory,offset);
+}
+GLAPI void APIENTRY glNamedBufferStorageMemEXT(GLuint buffer, GLsizeiptr size, GLuint memory, GLuint64 offset)
+{
+  assert(pfn_glNamedBufferStorageMemEXT);
+  pfn_glNamedBufferStorageMemEXT(buffer,size,memory,offset);
+}
+GLAPI void APIENTRY glTexStorageMem1DEXT(GLenum target, GLsizei levels, GLenum internalFormat, GLsizei width, GLuint memory, GLuint64 offset)
+{
+  assert(pfn_glTexStorageMem1DEXT);
+  pfn_glTexStorageMem1DEXT(target,levels,internalFormat,width,memory,offset);
+}
+GLAPI void APIENTRY glTextureStorageMem1DEXT(GLuint texture, GLsizei levels, GLenum internalFormat, GLsizei width, GLuint memory, GLuint64 offset)
+{
+  assert(pfn_glTextureStorageMem1DEXT);
+  pfn_glTextureStorageMem1DEXT(texture,levels,internalFormat,width,memory,offset);
+}
+
+int load_GL_EXT_memory_object(nvGLLoaderGetProcFN fnGetProcAddress)
+{
+  pfn_glGetUnsignedBytevEXT = (PFNGLGETUNSIGNEDBYTEVEXTPROC)fnGetProcAddress("glGetUnsignedBytevEXT");
+  pfn_glGetUnsignedBytei_vEXT = (PFNGLGETUNSIGNEDBYTEI_VEXTPROC)fnGetProcAddress("glGetUnsignedBytei_vEXT");
+  pfn_glDeleteMemoryObjectsEXT = (PFNGLDELETEMEMORYOBJECTSEXTPROC)fnGetProcAddress("glDeleteMemoryObjectsEXT");
+  pfn_glIsMemoryObjectEXT = (PFNGLISMEMORYOBJECTEXTPROC)fnGetProcAddress("glIsMemoryObjectEXT");
+  pfn_glCreateMemoryObjectsEXT = (PFNGLCREATEMEMORYOBJECTSEXTPROC)fnGetProcAddress("glCreateMemoryObjectsEXT");
+  pfn_glMemoryObjectParameterivEXT = (PFNGLMEMORYOBJECTPARAMETERIVEXTPROC)fnGetProcAddress("glMemoryObjectParameterivEXT");
+  pfn_glGetMemoryObjectParameterivEXT = (PFNGLGETMEMORYOBJECTPARAMETERIVEXTPROC)fnGetProcAddress("glGetMemoryObjectParameterivEXT");
+  pfn_glTexStorageMem2DEXT = (PFNGLTEXSTORAGEMEM2DEXTPROC)fnGetProcAddress("glTexStorageMem2DEXT");
+  pfn_glTexStorageMem2DMultisampleEXT = (PFNGLTEXSTORAGEMEM2DMULTISAMPLEEXTPROC)fnGetProcAddress("glTexStorageMem2DMultisampleEXT");
+  pfn_glTexStorageMem3DEXT = (PFNGLTEXSTORAGEMEM3DEXTPROC)fnGetProcAddress("glTexStorageMem3DEXT");
+  pfn_glTexStorageMem3DMultisampleEXT = (PFNGLTEXSTORAGEMEM3DMULTISAMPLEEXTPROC)fnGetProcAddress("glTexStorageMem3DMultisampleEXT");
+  pfn_glBufferStorageMemEXT = (PFNGLBUFFERSTORAGEMEMEXTPROC)fnGetProcAddress("glBufferStorageMemEXT");
+  pfn_glTextureStorageMem2DEXT = (PFNGLTEXTURESTORAGEMEM2DEXTPROC)fnGetProcAddress("glTextureStorageMem2DEXT");
+  pfn_glTextureStorageMem2DMultisampleEXT = (PFNGLTEXTURESTORAGEMEM2DMULTISAMPLEEXTPROC)fnGetProcAddress("glTextureStorageMem2DMultisampleEXT");
+  pfn_glTextureStorageMem3DEXT = (PFNGLTEXTURESTORAGEMEM3DEXTPROC)fnGetProcAddress("glTextureStorageMem3DEXT");
+  pfn_glTextureStorageMem3DMultisampleEXT = (PFNGLTEXTURESTORAGEMEM3DMULTISAMPLEEXTPROC)fnGetProcAddress("glTextureStorageMem3DMultisampleEXT");
+  pfn_glNamedBufferStorageMemEXT = (PFNGLNAMEDBUFFERSTORAGEMEMEXTPROC)fnGetProcAddress("glNamedBufferStorageMemEXT");
+  pfn_glTexStorageMem1DEXT = (PFNGLTEXSTORAGEMEM1DEXTPROC)fnGetProcAddress("glTexStorageMem1DEXT");
+  pfn_glTextureStorageMem1DEXT = (PFNGLTEXTURESTORAGEMEM1DEXTPROC)fnGetProcAddress("glTextureStorageMem1DEXT");
+  int success = has_extension("GL_EXT_memory_object");
+  success = success && (pfn_glGetUnsignedBytevEXT != 0);
+  success = success && (pfn_glGetUnsignedBytei_vEXT != 0);
+  success = success && (pfn_glDeleteMemoryObjectsEXT != 0);
+  success = success && (pfn_glIsMemoryObjectEXT != 0);
+  success = success && (pfn_glCreateMemoryObjectsEXT != 0);
+  success = success && (pfn_glMemoryObjectParameterivEXT != 0);
+  success = success && (pfn_glGetMemoryObjectParameterivEXT != 0);
+  success = success && (pfn_glTexStorageMem2DEXT != 0);
+  success = success && (pfn_glTexStorageMem2DMultisampleEXT != 0);
+  success = success && (pfn_glTexStorageMem3DEXT != 0);
+  success = success && (pfn_glTexStorageMem3DMultisampleEXT != 0);
+  success = success && (pfn_glBufferStorageMemEXT != 0);
+  success = success && (pfn_glTextureStorageMem2DEXT != 0);
+  success = success && (pfn_glTextureStorageMem2DMultisampleEXT != 0);
+  success = success && (pfn_glTextureStorageMem3DEXT != 0);
+  success = success && (pfn_glTextureStorageMem3DMultisampleEXT != 0);
+  success = success && (pfn_glNamedBufferStorageMemEXT != 0);
+  success = success && (pfn_glTexStorageMem1DEXT != 0);
+  success = success && (pfn_glTextureStorageMem1DEXT != 0);
+  return success;
+}
+
+/* /////////////////////////////////// */
+/* GL_EXT_memory_object_win32 */
+
+static PFNGLIMPORTMEMORYWIN32HANDLEEXTPROC pfn_glImportMemoryWin32HandleEXT = 0;
+static PFNGLIMPORTMEMORYWIN32NAMEEXTPROC pfn_glImportMemoryWin32NameEXT = 0;
+
+GLAPI void APIENTRY glImportMemoryWin32HandleEXT(GLuint memory, GLuint64 size, GLenum handleType, void* handle)
+{
+  assert(pfn_glImportMemoryWin32HandleEXT);
+  pfn_glImportMemoryWin32HandleEXT(memory,size,handleType,handle);
+}
+GLAPI void APIENTRY glImportMemoryWin32NameEXT(GLuint memory, GLuint64 size, GLenum handleType, const void* name)
+{
+  assert(pfn_glImportMemoryWin32NameEXT);
+  pfn_glImportMemoryWin32NameEXT(memory,size,handleType,name);
+}
+
+int load_GL_EXT_memory_object_win32(nvGLLoaderGetProcFN fnGetProcAddress)
+{
+  pfn_glImportMemoryWin32HandleEXT = (PFNGLIMPORTMEMORYWIN32HANDLEEXTPROC)fnGetProcAddress("glImportMemoryWin32HandleEXT");
+  pfn_glImportMemoryWin32NameEXT = (PFNGLIMPORTMEMORYWIN32NAMEEXTPROC)fnGetProcAddress("glImportMemoryWin32NameEXT");
+  int success = has_extension("GL_EXT_memory_object_win32");
+  success = success && (pfn_glImportMemoryWin32HandleEXT != 0);
+  success = success && (pfn_glImportMemoryWin32NameEXT != 0);
+  return success;
+}
+
+/* /////////////////////////////////// */
+/* GL_EXT_semaphore */
+
+static PFNGLGENSEMAPHORESEXTPROC pfn_glGenSemaphoresEXT = 0;
+static PFNGLDELETESEMAPHORESEXTPROC pfn_glDeleteSemaphoresEXT = 0;
+static PFNGLISSEMAPHOREEXTPROC pfn_glIsSemaphoreEXT = 0;
+static PFNGLSEMAPHOREPARAMETERUI64VEXTPROC pfn_glSemaphoreParameterui64vEXT = 0;
+static PFNGLGETSEMAPHOREPARAMETERUI64VEXTPROC pfn_glGetSemaphoreParameterui64vEXT = 0;
+static PFNGLWAITSEMAPHOREEXTPROC pfn_glWaitSemaphoreEXT = 0;
+static PFNGLSIGNALSEMAPHOREEXTPROC pfn_glSignalSemaphoreEXT = 0;
+
+GLAPI void APIENTRY glGenSemaphoresEXT(GLsizei n, GLuint* semaphores)
+{
+  assert(pfn_glGenSemaphoresEXT);
+  pfn_glGenSemaphoresEXT(n,semaphores);
+}
+GLAPI void APIENTRY glDeleteSemaphoresEXT(GLsizei n, const GLuint* semaphores)
+{
+  assert(pfn_glDeleteSemaphoresEXT);
+  pfn_glDeleteSemaphoresEXT(n,semaphores);
+}
+GLAPI GLboolean APIENTRY glIsSemaphoreEXT(GLuint semaphore)
+{
+  assert(pfn_glIsSemaphoreEXT);
+  return pfn_glIsSemaphoreEXT(semaphore);
+}
+GLAPI void APIENTRY glSemaphoreParameterui64vEXT(GLuint semaphore, GLenum pname, const GLuint64* params)
+{
+  assert(pfn_glSemaphoreParameterui64vEXT);
+  pfn_glSemaphoreParameterui64vEXT(semaphore,pname,params);
+}
+GLAPI void APIENTRY glGetSemaphoreParameterui64vEXT(GLuint semaphore, GLenum pname, GLuint64* params)
+{
+  assert(pfn_glGetSemaphoreParameterui64vEXT);
+  pfn_glGetSemaphoreParameterui64vEXT(semaphore,pname,params);
+}
+GLAPI void APIENTRY glWaitSemaphoreEXT(GLuint semaphore, GLuint numBufferBarriers, const GLuint* buffers, GLuint numTextureBarriers, const GLuint* textures, const GLenum* srcLayouts)
+{
+  assert(pfn_glWaitSemaphoreEXT);
+  pfn_glWaitSemaphoreEXT(semaphore,numBufferBarriers,buffers,numTextureBarriers,textures,srcLayouts);
+}
+GLAPI void APIENTRY glSignalSemaphoreEXT(GLuint semaphore, GLuint numBufferBarriers, const GLuint* buffers, GLuint numTextureBarriers, const GLuint* textures, const GLenum* dstLayouts)
+{
+  assert(pfn_glSignalSemaphoreEXT);
+  pfn_glSignalSemaphoreEXT(semaphore,numBufferBarriers,buffers,numTextureBarriers,textures,dstLayouts);
+}
+
+int load_GL_EXT_semaphore(nvGLLoaderGetProcFN fnGetProcAddress)
+{
+  pfn_glGenSemaphoresEXT = (PFNGLGENSEMAPHORESEXTPROC)fnGetProcAddress("glGenSemaphoresEXT");
+  pfn_glDeleteSemaphoresEXT = (PFNGLDELETESEMAPHORESEXTPROC)fnGetProcAddress("glDeleteSemaphoresEXT");
+  pfn_glIsSemaphoreEXT = (PFNGLISSEMAPHOREEXTPROC)fnGetProcAddress("glIsSemaphoreEXT");
+  pfn_glSemaphoreParameterui64vEXT = (PFNGLSEMAPHOREPARAMETERUI64VEXTPROC)fnGetProcAddress("glSemaphoreParameterui64vEXT");
+  pfn_glGetSemaphoreParameterui64vEXT = (PFNGLGETSEMAPHOREPARAMETERUI64VEXTPROC)fnGetProcAddress("glGetSemaphoreParameterui64vEXT");
+  pfn_glWaitSemaphoreEXT = (PFNGLWAITSEMAPHOREEXTPROC)fnGetProcAddress("glWaitSemaphoreEXT");
+  pfn_glSignalSemaphoreEXT = (PFNGLSIGNALSEMAPHOREEXTPROC)fnGetProcAddress("glSignalSemaphoreEXT");
+  int success = has_extension("GL_EXT_semaphore");
+  success = success && (pfn_glGenSemaphoresEXT != 0);
+  success = success && (pfn_glDeleteSemaphoresEXT != 0);
+  success = success && (pfn_glIsSemaphoreEXT != 0);
+  success = success && (pfn_glSemaphoreParameterui64vEXT != 0);
+  success = success && (pfn_glGetSemaphoreParameterui64vEXT != 0);
+  success = success && (pfn_glWaitSemaphoreEXT != 0);
+  success = success && (pfn_glSignalSemaphoreEXT != 0);
   return success;
 }
 

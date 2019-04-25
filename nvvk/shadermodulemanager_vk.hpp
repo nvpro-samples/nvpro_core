@@ -89,7 +89,7 @@ namespace nvvk
     void init(VkDevice device, const VkAllocationCallbacks* pAllocator = nullptr);
     void deinit();
 
-    ShaderModuleID createShaderModule(const Definition& def);
+    ShaderModuleID createShaderModule(uint32_t type, std::string const& filename, std::string const& prepend = "", FileType fileType = FILETYPE_DEFAULT,  std::string const& entryname = "main");
 
     void destroyShaderModule( ShaderModuleID idx );
     void reloadModule(ShaderModuleID idx);
@@ -156,6 +156,7 @@ namespace nvvk
 
   private:
 
+    ShaderModuleID createShaderModule(const Definition& def);
     bool setupShaderModule(ShaderModule& prog);
 
 

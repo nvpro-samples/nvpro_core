@@ -36,133 +36,35 @@ namespace nvvk {
 
   class GraphicsPipelineState
   {
+  private:
+    struct Header{
+      VkStructureType type;
+      const void*     pNext;
+    };
+
   public:
+    VkGraphicsPipelineCreateInfo createInfo;
 
-    void resetPointers()
-    {
-      createInfo.pNext = nullptr;
-      createInfo.pStages = stages;
-      createInfo.pVertexInputState = &viState;
-      createInfo.pInputAssemblyState = &iaState;
-      createInfo.pViewportState = &vpState;
-      createInfo.pRasterizationState = &rsState;
-      createInfo.pMultisampleState = &msState;
-      createInfo.pDepthStencilState = &dsState;
-      createInfo.pColorBlendState = &cbState;
+    VkPipelineVertexInputStateCreateInfo   viState;
+    VkPipelineInputAssemblyStateCreateInfo iaState;
+    VkPipelineViewportStateCreateInfo      vpState;
+    VkPipelineRasterizationStateCreateInfo rsState;
+    VkPipelineMultisampleStateCreateInfo   msState;
+    VkPipelineDepthStencilStateCreateInfo  dsState;
+    VkPipelineColorBlendStateCreateInfo    cbState;
+    VkPipelineDynamicStateCreateInfo       dyState;
+    VkPipelineTessellationStateCreateInfo  tessState;
 
-      viState.pVertexAttributeDescriptions = viState.vertexAttributeDescriptionCount ? inputAttributes : nullptr;
-      viState.pVertexBindingDescriptions = viState.vertexBindingDescriptionCount ? inputBindings : nullptr;
+    uint32_t                            sampleMask;
+    VkPipelineShaderStageCreateInfo     stages[5];
+    VkPipelineColorBlendAttachmentState attachments[16];
+    VkRect2D                            scissors[16];
+    VkViewport                          viewports[16];
+    VkDynamicState                      dynamicStates[16];
+    VkVertexInputBindingDescription     inputBindings[16];
+    VkVertexInputAttributeDescription   inputAttributes[16];
 
-      vpState.pScissors = scissors;
-      vpState.pViewports = viewports;
-
-      dyState.pDynamicStates = dyState.dynamicStateCount ? dynamicStates : nullptr;
-
-      msState.pSampleMask = &sampleMask;
-
-      for (uint32_t i = 0; i < dyState.dynamicStateCount; i++) {
-        switch (dynamicStates[i]) {
-        case VK_DYNAMIC_STATE_VIEWPORT:
-          vpState.pViewports = nullptr;
-          break;
-        case VK_DYNAMIC_STATE_SCISSOR:
-          vpState.pScissors = nullptr;
-          break;
-        }
-      }
-
-      cbState.pAttachments = attachments;
-    }
-
-    GraphicsPipelineState(VkPipelineLayout layout=VK_NULL_HANDLE, VkPipelineCreateFlags flags = 0)
-    {
-      createInfo = { VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
-      createInfo.flags = flags;
-      createInfo.layout = layout;
-
-      viState = { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
-
-      iaState = { VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
-      iaState.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-      iaState.primitiveRestartEnable = VK_FALSE;
-
-      vpState = { VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO };
-      vpState.viewportCount = 1;
-      vpState.scissorCount = 1;
-
-      rsState = { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
-      rsState.rasterizerDiscardEnable = VK_FALSE;
-      rsState.polygonMode = VK_POLYGON_MODE_FILL;
-      rsState.cullMode = VK_CULL_MODE_BACK_BIT;
-      rsState.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-      rsState.depthClampEnable = VK_FALSE;
-      rsState.depthBiasEnable = VK_FALSE;
-      rsState.depthBiasConstantFactor = 0.0;
-      rsState.depthBiasSlopeFactor = 0.0f;
-      rsState.depthBiasClamp = 0.0f;
-      rsState.lineWidth = 1.0f;
-
-      sampleMask = ~0;
-      msState = { VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
-      msState.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-      msState.alphaToCoverageEnable = VK_FALSE;
-      msState.alphaToOneEnable = VK_FALSE;
-      msState.sampleShadingEnable = VK_FALSE;
-      msState.minSampleShading = 1.0f;
-
-      dsState = { VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
-      dsState.depthTestEnable = VK_FALSE;
-      dsState.depthBoundsTestEnable = VK_FALSE;
-      dsState.depthWriteEnable = VK_FALSE;
-      dsState.depthCompareOp = VK_COMPARE_OP_ALWAYS;
-      dsState.minDepthBounds = 0.0f;
-      dsState.maxDepthBounds = 0.0f;
-      dsState.stencilTestEnable = VK_FALSE;
-
-      cbState = { VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };
-      cbState.attachmentCount = 1;
-      
-
-      dyState = { VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO };
-
-      for (size_t i = 0; i < NV_ARRAY_SIZE(stages); ++i) {
-        stages[i] = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
-      }
-
-      for (size_t i = 0; i < NV_ARRAY_SIZE(attachments); ++i) {
-        attachments[i] = { VK_FALSE,
-        VK_BLEND_FACTOR_ZERO, VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD,
-        VK_BLEND_FACTOR_ZERO, VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD,
-        VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT };
-      }
-
-      for (size_t i = 0; i < NV_ARRAY_SIZE(scissors); ++i) {
-        scissors[i] = { { 0, 0 }, { 0, 0 } };
-      }
-
-      for (size_t i = 0; i < NV_ARRAY_SIZE(viewports); ++i) {
-        viewports[i] = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f };
-      }
-
-      for (size_t i = 0; i < NV_ARRAY_SIZE(dynamicStates); i++) {
-        dynamicStates[i] = VK_DYNAMIC_STATE_MAX_ENUM;
-      }
-      resetPointers();
-    }
-
-    GraphicsPipelineState(const GraphicsPipelineState& other){
-      memcpy(this, &other, sizeof(GraphicsPipelineState));
-      resetPointers();
-    }
-
-    void operator=(const GraphicsPipelineState &other) {
-      memcpy(this, &other, sizeof(GraphicsPipelineState));
-      resetPointers();
-    }
-
-    operator const VkGraphicsPipelineCreateInfo* () const {
-      return &createInfo;
-    }
+    operator const VkGraphicsPipelineCreateInfo*() const { return &createInfo; }
 
     void setRenderPass(VkRenderPass pass) { createInfo.renderPass = pass; }
     void setPipelineLayout(VkPipelineLayout layout) { createInfo.layout = layout; }
@@ -183,12 +85,30 @@ namespace nvvk {
       viState.pVertexAttributeDescriptions = nullptr;
     }
 
-    void addShaderStage(VkShaderStageFlagBits stage, VkShaderModule module, const char *entrypoint = "main")
+    void clearBaseNext() { createInfo.pNext = nullptr; }
+
+    template <typename T>
+    void pushBaseNext(T* extension)
+    {
+      extension->pNext = createInfo.pNext;
+      createInfo.pNext = extension;
+    }
+
+    void popBaseNext()
+    {
+      assert(createInfo.pNext);
+      Header* header = (Header*)createInfo.pNext;
+      createInfo.pNext = header->pNext;
+      header->pNext = nullptr;
+    }
+
+    void addShaderStage(VkShaderStageFlagBits stage, VkShaderModule module, const char *entrypoint = "main", const VkSpecializationInfo* pSpecialization = nullptr)
     {
       assert(createInfo.stageCount < NV_ARRAY_SIZE(stages));
       stages[createInfo.stageCount].stage = stage;
       stages[createInfo.stageCount].module = module;
       stages[createInfo.stageCount].pName = entrypoint;
+      stages[createInfo.stageCount].pSpecializationInfo = pSpecialization;
       createInfo.stageCount++;
     }
     void addDynamicState(VkDynamicState state)
@@ -243,18 +163,36 @@ namespace nvvk {
       viState.pVertexAttributeDescriptions = inputAttributes;
     }
     void setPrimitiveTopology(VkPrimitiveTopology topology) { iaState.topology = topology; }
+
     void setCullMode(VkCullModeFlags mode, VkFrontFace front)
     {
       rsState.cullMode = mode;
       rsState.frontFace = front;
     }
     void setPolygonMode(VkPolygonMode mode, float lineWidth = 0.0f) { rsState.polygonMode = mode; rsState.lineWidth = lineWidth; }
+
     void setAttachmentColorMask(uint32_t attachment, VkColorComponentFlags mask)
     {
       assert(attachment < NV_ARRAY_SIZE(attachments));
       attachments[attachment].colorWriteMask = mask;
       cbState.attachmentCount = std::max(cbState.attachmentCount, attachment + 1);
     }
+    
+    void setAttachmentBlend(uint32_t attachment, bool enable, 
+      VkBlendOp colorBlendOp, VkBlendFactor srcColorBlendFactor, VkBlendFactor dstColorBlendFactor,
+      VkBlendOp alphaBlendOp, VkBlendFactor srcAlphaBlendFactor, VkBlendFactor dstAlphaBlendFactor)
+    {
+      assert(attachment < NV_ARRAY_SIZE(attachments));
+      attachments[attachment].blendEnable = enable;
+      attachments[attachment].colorBlendOp = colorBlendOp;
+      attachments[attachment].srcColorBlendFactor = srcColorBlendFactor;
+      attachments[attachment].dstColorBlendFactor = dstColorBlendFactor;
+      attachments[attachment].alphaBlendOp        = alphaBlendOp;
+      attachments[attachment].srcAlphaBlendFactor = srcAlphaBlendFactor;
+      attachments[attachment].dstAlphaBlendFactor = dstAlphaBlendFactor;
+      cbState.attachmentCount = std::max(cbState.attachmentCount, attachment + 1);
+    }
+
     void setDepthBias(bool enable, float factor, float slope_factor)
     {
       rsState.depthBiasEnable = enable;
@@ -298,25 +236,149 @@ namespace nvvk {
       msState.rasterizationSamples = samples;
     }
 
-    VkGraphicsPipelineCreateInfo createInfo;
+    void setTessellationPatchControlPoints(uint32_t patchControlPoints)
+    {
+      tessState.patchControlPoints = patchControlPoints;
+    }
+    
 
-    VkPipelineVertexInputStateCreateInfo viState;
-    VkPipelineInputAssemblyStateCreateInfo iaState;
-    VkPipelineViewportStateCreateInfo vpState;
-    VkPipelineRasterizationStateCreateInfo rsState;
-    VkPipelineMultisampleStateCreateInfo msState;
-    VkPipelineDepthStencilStateCreateInfo dsState;
-    VkPipelineColorBlendStateCreateInfo cbState;
-    VkPipelineDynamicStateCreateInfo dyState;
+    void resetPointers()
+    {
+      createInfo.pNext               = nullptr;
+      createInfo.pStages             = stages;
+      createInfo.pVertexInputState   = &viState;
+      createInfo.pInputAssemblyState = &iaState;
+      createInfo.pViewportState      = &vpState;
+      createInfo.pRasterizationState = &rsState;
+      createInfo.pMultisampleState   = &msState;
+      createInfo.pDepthStencilState  = &dsState;
+      createInfo.pColorBlendState    = &cbState;
+      createInfo.pTessellationState  = &tessState;
 
-    uint32_t  sampleMask;
-    VkPipelineShaderStageCreateInfo stages[5];
-    VkPipelineColorBlendAttachmentState attachments[16];
-    VkRect2D scissors[16];
-    VkViewport viewports[16];
-    VkDynamicState dynamicStates[16];
-    VkVertexInputBindingDescription inputBindings[16];
-    VkVertexInputAttributeDescription inputAttributes[16];
+      viState.pVertexAttributeDescriptions = viState.vertexAttributeDescriptionCount ? inputAttributes : nullptr;
+      viState.pVertexBindingDescriptions   = viState.vertexBindingDescriptionCount ? inputBindings : nullptr;
+
+      vpState.pScissors  = scissors;
+      vpState.pViewports = viewports;
+
+      dyState.pDynamicStates = dyState.dynamicStateCount ? dynamicStates : nullptr;
+
+      msState.pSampleMask = &sampleMask;
+
+      for(uint32_t i = 0; i < dyState.dynamicStateCount; i++)
+      {
+        switch(dynamicStates[i])
+        {
+          case VK_DYNAMIC_STATE_VIEWPORT:
+            vpState.pViewports = nullptr;
+            break;
+          case VK_DYNAMIC_STATE_SCISSOR:
+            vpState.pScissors = nullptr;
+            break;
+        }
+      }
+
+      cbState.pAttachments = attachments;
+    }
+
+    GraphicsPipelineState(VkPipelineLayout layout = VK_NULL_HANDLE, VkPipelineCreateFlags flags = 0)
+    {
+      createInfo        = {VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
+      createInfo.flags  = flags;
+      createInfo.layout = layout;
+
+      viState = {VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
+
+      iaState                        = {VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO};
+      iaState.topology               = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+      iaState.primitiveRestartEnable = VK_FALSE;
+
+      vpState               = {VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO};
+      vpState.viewportCount = 1;
+      vpState.scissorCount  = 1;
+
+      rsState                         = {VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO};
+      rsState.rasterizerDiscardEnable = VK_FALSE;
+      rsState.polygonMode             = VK_POLYGON_MODE_FILL;
+      rsState.cullMode                = VK_CULL_MODE_BACK_BIT;
+      rsState.frontFace               = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+      rsState.depthClampEnable        = VK_FALSE;
+      rsState.depthBiasEnable         = VK_FALSE;
+      rsState.depthBiasConstantFactor = 0.0;
+      rsState.depthBiasSlopeFactor    = 0.0f;
+      rsState.depthBiasClamp          = 0.0f;
+      rsState.lineWidth               = 1.0f;
+
+      sampleMask                    = ~0;
+      msState                       = {VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO};
+      msState.rasterizationSamples  = VK_SAMPLE_COUNT_1_BIT;
+      msState.alphaToCoverageEnable = VK_FALSE;
+      msState.alphaToOneEnable      = VK_FALSE;
+      msState.sampleShadingEnable   = VK_FALSE;
+      msState.minSampleShading      = 1.0f;
+
+      dsState                       = {VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO};
+      dsState.depthTestEnable       = VK_FALSE;
+      dsState.depthBoundsTestEnable = VK_FALSE;
+      dsState.depthWriteEnable      = VK_FALSE;
+      dsState.depthCompareOp        = VK_COMPARE_OP_ALWAYS;
+      dsState.minDepthBounds        = 0.0f;
+      dsState.maxDepthBounds        = 0.0f;
+      dsState.stencilTestEnable     = VK_FALSE;
+
+      cbState                 = {VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO};
+      cbState.attachmentCount = 1;
+
+      tessState = {VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO};
+
+      dyState = {VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO};
+
+      for(size_t i = 0; i < NV_ARRAY_SIZE(stages); ++i)
+      {
+        stages[i] = {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
+      }
+
+      for(size_t i = 0; i < NV_ARRAY_SIZE(attachments); ++i)
+      {
+        attachments[i] = {VK_FALSE,
+                          VK_BLEND_FACTOR_ZERO,
+                          VK_BLEND_FACTOR_ZERO,
+                          VK_BLEND_OP_ADD,
+                          VK_BLEND_FACTOR_ZERO,
+                          VK_BLEND_FACTOR_ZERO,
+                          VK_BLEND_OP_ADD,
+                          VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT};
+      }
+
+      for(size_t i = 0; i < NV_ARRAY_SIZE(scissors); ++i)
+      {
+        scissors[i] = {{0, 0}, {0, 0}};
+      }
+
+      for(size_t i = 0; i < NV_ARRAY_SIZE(viewports); ++i)
+      {
+        viewports[i] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f};
+      }
+
+      for(size_t i = 0; i < NV_ARRAY_SIZE(dynamicStates); i++)
+      {
+        dynamicStates[i] = VK_DYNAMIC_STATE_MAX_ENUM;
+      }
+      resetPointers();
+    }
+
+    GraphicsPipelineState(const GraphicsPipelineState& other)
+    {
+      memcpy(this, &other, sizeof(GraphicsPipelineState));
+      resetPointers();
+    }
+
+    void operator=(const GraphicsPipelineState& other)
+    {
+      memcpy(this, &other, sizeof(GraphicsPipelineState));
+      resetPointers();
+    }
+
   };
 
 }

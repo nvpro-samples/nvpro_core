@@ -121,27 +121,6 @@ Richard J. Wagner v1.0 15 May 2003 rjwagner@writeme.com
 // General Public License for more details.
 ````
 
-#### SimplexNoise1234
-
-[website](https://github.com/stegu/perlin-noise)
-
-````
-// SimplexNoise1234
-// Copyright © 2003-2011, Stefan Gustavson
-//
-// Contact: stegu@itn.liu.se
-//
-// This library is public domain software, released by the author
-// into the public domain in February 2011. You may do anything
-// you like with it. You may even remove all attributions,
-// but of course I'd appreciate it if you kept my name somewhere.
-//
-// This library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-// General Public License for more details.
-````
-
 #### OpenGL Samples Pack
 The include file mechanism inside `nvh/shaderfilemanager.cpp` is derived from this
 framework.

@@ -132,7 +132,7 @@ namespace
   VkSampler s_fontAtlasSampler = VK_NULL_HANDLE;
   VkDeviceMemory s_fontAtlasMem = VK_NULL_HANDLE;
   VkPipeline s_pipeline = VK_NULL_HANDLE;
-  nvvk::DescriptorSetContainer<1> s_pipelineSetup = {};
+  nvvk::DescriptorSetContainer s_pipelineSetup = {};
 
   VkBuffer s_ibo = VK_NULL_HANDLE;
   VkDeviceMemory s_iboMem = VK_NULL_HANDLE;
@@ -301,12 +301,11 @@ void ImGui::InitVK(const nvvk::DeviceUtils &utils, const nvvk::PhysicalInfo &phy
     };
 
     s_pipelineSetup.init(utils.m_device, utils.m_allocator);
-    s_pipelineSetup.descriptorBindings[0] = {
-      {0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, 0}
-    };
-    s_pipelineSetup.initSetLayout(0);
-    s_pipelineSetup.initPipeLayout(0, 1, &pcRange);
-    s_pipelineSetup.initPoolAndSets(0, 1);
+    s_pipelineSetup.addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, 0);
+    s_pipelineSetup.initLayout();
+    s_pipelineSetup.initPipeLayout(1, &pcRange);
+    s_pipelineSetup.initPool(1);
+
 
     const VkDescriptorImageInfo imageInfo { s_fontAtlasSampler, s_fontAtlasView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
 
@@ -473,8 +472,7 @@ void ImGui::ShutdownVK()
   vkDestroyPipeline(s_utils.m_device, s_pipeline, s_utils.m_allocator);
   s_pipeline = VK_NULL_HANDLE;
 
-  s_pipelineSetup.deinitPools();
-  s_pipelineSetup.deinitLayouts();
+  s_pipelineSetup.deinit();
 
   s_utils.m_device = VK_NULL_HANDLE;
   s_utils.m_allocator = nullptr;

@@ -32,255 +32,285 @@
 #include <vector>
 #include <vulkan/vulkan.h>
 
-#include "makers_vk.hpp"
-#include "deviceutils_vk.hpp"
+#include "descriptorsetutils_vk.hpp"
 
-namespace nvvk
-
+namespace nvvk 
 {
 
-template <uint32_t DSETS, uint32_t PIPELAYOUTS = 1>
-struct DescriptorSetContainer
+class DescriptorSetContainer
 {
-  /*
-    Utility class to manage VkDescriptorSetLayout VkDescriptorPool and VkDescriptorSets.
-    It also can store a fixed number of pipelineLayouts, which typically reference
-    all or a subset of the VkDescriptorSetLayout within.
+    /// Container class that stores allocated DescriptorSets
+    /// as well as reflection, layout and pool
 
-    Store a fixed number of DSETS many VkDescriptorSetLayouts
-    and one pool for each such layout.
-    Also contains reflection code to ease creation VkWriteDescriptorSet when
-    updating descriptorsets. All updates will go to the descriptorset stored
-    within the container.
+    /*
+    container.init(device, allocator);
 
-    Typical usage for DSETS=2
+    // setup dset layouts
+    container.addBinding(0, UBO...)
+    container.addBinding(1, SSBO...)
+    container.initLayout();
 
-    container.init(device)
+    // allocate descriptorsets
+    container.initPool(17);
 
-    auto& bindings0 = container.descriptorBindings[0];
-    binding0.push_back({...});
-    binding0.push_back({...});
+    // update descriptorsets
+    writeUpdates.push_back( container.getWrite(0, 0, ..) );
+    writeUpdates.push_back( container.getWrite(0, 1, ..) );
+    writeUpdates.push_back( container.getWrite(1, 0, ..) );
+    writeUpdates.push_back( container.getWrite(1, 1, ..) );
+    writeUpdates.push_back( container.getWrite(2, 0, ..) );
+    writeUpdates.push_back( container.getWrite(2, 1, ..) );
     ...
-    auto& bindings1 = container.descriptorBindings[1];
-    binding1.push_back({...});
 
-    then 
+    // at render time
 
-    container.initSetLayout(0);   // uses descriptorBindings[0]
-    container.initSetLayout(1);   // uses descriptorBindings[1]
-
-    container.initPipeLayout(0);  // uses {descriptorSetLayout[0], descriptorSetLayout[1]}
-
-    container.initPoolAndSets(0, maxSetsFor0);
-    container.initPoolAndSets(1, maxSetsFor1);
-
-    std::vector<vkWriteDescriptorSet> updateSets;
-    updateSets.push_back( container.getWriteDescriptorSet(0, dstSetIndex, dstBinding...));
-    updateSets.push_back( container.getWriteDescriptorSet(0, dstSetIndex, dstBinding...));
-    updateSets.push_back( container.getWriteDescriptorSet(1, dstSetIndex, dstBinding...));
-  
+    vkCmdBindDescriptorSets(cmd, GRAPHICS, pipeLayout, 1, 1, container.at(7).getSets());
   */
 
+ protected:
+  
+  VkDevice                                  m_device = VK_NULL_HANDLE;
+  const VkAllocationCallbacks*              m_allocator = VK_NULL_HANDLE;
+  VkDescriptorSetLayout                     m_layout = VK_NULL_HANDLE;
+  VkDescriptorPool                          m_pool = VK_NULL_HANDLE;
+  VkPipelineLayout                          m_pipelineLayout = VK_NULL_HANDLE;
+  std::vector<VkDescriptorSet>              m_descriptorSets = {};
+  DescriptorSetReflection                   m_reflection = {};
+  
+  //////////////////////////////////////////////////////////////////////////
+public:
+  void init(VkDevice device, const VkAllocationCallbacks* pAllocator = nullptr);
 
-  DeviceUtils                               deviceUtils;
-  VkPipelineLayout                          pipelineLayouts[PIPELAYOUTS] = {};
-  VkDescriptorSetLayout                     descriptorSetLayout[DSETS]   = {};
-  VkDescriptorPool                          descriptorPools[DSETS]       = {};
-  std::vector<VkDescriptorSet>              descriptorSets[DSETS]        = {};
-  std::vector<VkDescriptorSetLayoutBinding> descriptorBindings[DSETS]    = {};
+  void setBindings(const std::vector<VkDescriptorSetLayoutBinding>& bindings);
+  void addBinding(VkDescriptorSetLayoutBinding layoutBinding);
+  void addBinding(uint32_t           binding,
+                  VkDescriptorType   descriptorType,
+                  uint32_t           descriptorCount,
+                  VkShaderStageFlags stageFlags,                  
+                  const VkSampler*   pImmutableSamplers = nullptr);
 
-  void init(VkDevice device, const VkAllocationCallbacks* pAllocator = nullptr)
-  {
-    deviceUtils = DeviceUtils(device, pAllocator);
-  }
 
-  void init(const DeviceUtils& utils) { deviceUtils = utils; }
+  void initLayout(VkDescriptorSetLayoutCreateFlags flags = 0);
 
-  void initSetLayout(uint32_t dset, VkDescriptorSetLayoutCreateFlags flags = 0)
-  {
-    assert(deviceUtils.m_device);
+  /// inits pool and immediately allocates all numSets-many DescriptorSets
+  void initPool(uint32_t numAllocatedSets);
 
-    descriptorSetLayout[dset] = deviceUtils.createDescriptorSetLayout((uint32_t)descriptorBindings[dset].size(),
-                                                                      descriptorBindings[dset].data(), flags);
-  }
+  /// optionally generates a pipelinelayout for the descriptorsetlayout
+  void initPipeLayout(uint32_t numRanges = 0, const VkPushConstantRange* ranges = nullptr, VkPipelineLayoutCreateFlags flags = 0);
 
-  void initPipeLayout(uint32_t pipe, uint32_t numRanges = 0, const VkPushConstantRange* ranges = nullptr, VkPipelineLayoutCreateFlags flags = 0)
-  {
-    assert(deviceUtils.m_device);
+  void deinitPool();
+  void deinitLayout();
+  void deinit();
 
-    pipelineLayouts[pipe] = deviceUtils.createPipelineLayout(DSETS, descriptorSetLayout, numRanges, ranges, flags);
-  }
+  //////////////////////////////////////////////////////////////////////////
 
-  void initPoolAndSets(uint32_t dset, uint32_t maxSets, size_t poolSizeCount, const VkDescriptorPoolSize* poolSizes)
-  {
-    assert(deviceUtils.m_device);
+  VkDescriptorSet                getSet(uint32_t dstSetIdx) const { return m_descriptorSets[dstSetIdx]; }
+  const VkDescriptorSet*         getSets(uint32_t dstSetIdx = 0) const { return m_descriptorSets.data() + dstSetIdx; }
+  uint32_t                       getSetsCount() const { return (uint32_t)m_descriptorSets.size(); }
 
-    descriptorSets[dset].resize(maxSets);
-    deviceUtils.createDescriptorPoolAndSets(maxSets, poolSizeCount, poolSizes, descriptorSetLayout[dset],
-                                            descriptorPools[dset], descriptorSets[dset].data());
-  }
+  VkDescriptorSetLayout          getLayout() const { return m_layout; }
+  VkPipelineLayout               getPipeLayout() const { return m_pipelineLayout; }
 
-  void initPoolAndSets(uint32_t dset, uint32_t maxSets)
-  {
-    assert(deviceUtils.m_device);
-    assert(!descriptorBindings[dset].empty());
+  VkDevice                       getDevice() const { return m_device; }
+  const VkAllocationCallbacks*   getAllocationCallbacks() const { return m_allocator; }
+  const DescriptorSetReflection& getRef() const { return m_reflection; }
 
-    descriptorSets[dset].resize(maxSets);
+  //////////////////////////////////////////////////////////////////////////
 
-    // setup poolsizes for each descriptorType
-    std::vector<VkDescriptorPoolSize> poolSizes;
-    for(auto it = descriptorBindings[dset].cbegin(); it != descriptorBindings[dset].cend(); ++it)
-    {
-      bool found = false;
-      for(auto itpool = poolSizes.begin(); itpool != poolSizes.end(); ++itpool)
-      {
-        if(itpool->type == it->descriptorType)
-        {
-          itpool->descriptorCount += it->descriptorCount;
-          found = true;
-          break;
-        }
-      }
-      if(!found)
-      {
-        VkDescriptorPoolSize poolSize;
-        poolSize.type            = it->descriptorType;
-        poolSize.descriptorCount = it->descriptorCount;
-        poolSizes.push_back(poolSize);
-      }
-    }
-    deviceUtils.createDescriptorPoolAndSets(maxSets, (uint32_t)poolSizes.size(), poolSizes.data(),
-                                            descriptorSetLayout[dset], descriptorPools[dset], descriptorSets[dset].data());
-  }
+  // if dstBinding is an array assumes all are provided (pInfo is array as well)
+  VkWriteDescriptorSet getWrite(uint32_t dstSetIdx, uint32_t dstBinding, const VkDescriptorImageInfo* pImageInfo) const;
+  VkWriteDescriptorSet getWrite(uint32_t dstSetIdx, uint32_t dstBinding, const VkDescriptorBufferInfo* pBufferInfo) const;
+  VkWriteDescriptorSet getWrite(uint32_t dstSetIdx, uint32_t dstBinding, const VkBufferView* pTexelBufferView) const;
+  VkWriteDescriptorSet getWrite(uint32_t dstSetIdx, uint32_t dstBinding, const VkWriteDescriptorSetAccelerationStructureNV* pAccel) const;
+  VkWriteDescriptorSet getWrite(uint32_t dstSetIdx, uint32_t dstBinding, const VkWriteDescriptorSetInlineUniformBlockEXT* pInline) const;
+  VkWriteDescriptorSet getWrite(uint32_t dstSetIdx, uint32_t dstBinding, const void* pNext) const;
 
-  void deinitPools()
-  {
-    assert(deviceUtils.m_device);
-
-    for(uint32_t i = 0; i < DSETS; i++)
-    {
-      if(descriptorPools[i])
-      {
-        vkDestroyDescriptorPool(deviceUtils.m_device, descriptorPools[i], deviceUtils.m_allocator);
-        descriptorSets[i].clear();
-        descriptorPools[i] = nullptr;
-      }
-    }
-  }
-
-  void deinitPool(uint32_t dset)
-  {
-    assert(deviceUtils.m_device);
-
-    if(descriptorPools[dset])
-    {
-      vkDestroyDescriptorPool(deviceUtils.m_device, descriptorPools[dset], deviceUtils.m_allocator);
-      descriptorSets[dset].clear();
-      descriptorPools[dset] = nullptr;
-    }
-  }
-
-  void deinitLayouts()
-  {
-    assert(deviceUtils.m_device);
-
-    for(uint32_t i = 0; i < PIPELAYOUTS; i++)
-    {
-      if(pipelineLayouts[i])
-      {
-        vkDestroyPipelineLayout(deviceUtils.m_device, pipelineLayouts[i], deviceUtils.m_allocator);
-        pipelineLayouts[i] = nullptr;
-      }
-    }
-    for(uint32_t i = 0; i < DSETS; i++)
-    {
-      if(descriptorSetLayout[i])
-      {
-        vkDestroyDescriptorSetLayout(deviceUtils.m_device, descriptorSetLayout[i], deviceUtils.m_allocator);
-        descriptorSetLayout[i] = nullptr;
-      }
-      descriptorBindings[i].clear();
-    }
-  }
-
-  void deinit()
-  {
-    deinitLayouts();
-    deinitPools();
-  }
-
-  VkWriteDescriptorSet getWriteDescriptorSet(uint32_t dset, uint32_t dstSet, uint32_t dstBinding, const VkDescriptorImageInfo* pImageInfo) const
-  {
-    return makeWriteDescriptorSet(descriptorBindings[dset].size(), descriptorBindings[dset].data(),
-                                  descriptorSets[dset][dstSet], dstBinding, pImageInfo);
-  }
-  VkWriteDescriptorSet getWriteDescriptorSet(uint32_t dset, uint32_t dstSet, uint32_t dstBinding, const VkDescriptorBufferInfo* pBufferInfo) const
-  {
-    return makeWriteDescriptorSet(descriptorBindings[dset].size(), descriptorBindings[dset].data(),
-                                  descriptorSets[dset][dstSet], dstBinding, pBufferInfo);
-  }
-  VkWriteDescriptorSet getWriteDescriptorSet(uint32_t dset, uint32_t dstSet, uint32_t dstBinding, const VkBufferView* pTexelBufferView) const
-  {
-    return makeWriteDescriptorSet(descriptorBindings[dset].size(), descriptorBindings[dset].data(),
-                                  descriptorSets[dset][dstSet], dstBinding, pTexelBufferView);
-  }
-  VkWriteDescriptorSet getWriteDescriptorSet(uint32_t dset, uint32_t dstSet, uint32_t dstBinding, const void* pNext) const
-  {
-    return makeWriteDescriptorSet(descriptorBindings[dset].size(), descriptorBindings[dset].data(),
-                                  descriptorSets[dset][dstSet], dstBinding, pNext);
-  }
-
-  VkWriteDescriptorSet getWriteDescriptorSet(uint32_t                     dset,
-                                             uint32_t                     dstSet,
-                                             uint32_t                     dstBinding,
-                                             uint32_t                     arrayElement,
-                                             const VkDescriptorImageInfo* pImageInfo) const
-  {
-    return makeWriteDescriptorSet(descriptorBindings[dset].size(), descriptorBindings[dset].data(),
-                                  descriptorSets[dset][dstSet], dstBinding, arrayElement, pImageInfo);
-  }
-  VkWriteDescriptorSet getWriteDescriptorSet(uint32_t                      dset,
-                                             uint32_t                      dstSet,
-                                             uint32_t                      dstBinding,
-                                             uint32_t                      arrayElement,
-                                             const VkDescriptorBufferInfo* pBufferInfo) const
-  {
-    return makeWriteDescriptorSet(descriptorBindings[dset].size(), descriptorBindings[dset].data(),
-                                  descriptorSets[dset][dstSet], dstBinding, arrayElement, pBufferInfo);
-  }
-  VkWriteDescriptorSet getWriteDescriptorSet(uint32_t dset, uint32_t dstSet, uint32_t dstBinding, uint32_t arrayElement, const VkBufferView* pTexelBufferView) const
-  {
-    return makeWriteDescriptorSet(descriptorBindings[dset].size(), descriptorBindings[dset].data(),
-                                  descriptorSets[dset][dstSet], dstBinding, arrayElement, pTexelBufferView);
-  }
-  VkWriteDescriptorSet getWriteDescriptorSet(uint32_t dset, uint32_t dstSet, uint32_t dstBinding, uint32_t arrayElement, const void* pNext) const
-  {
-    return makeWriteDescriptorSet(descriptorBindings[dset].size(), descriptorBindings[dset].data(),
-                                  descriptorSets[dset][dstSet], dstBinding, arrayElement, pNext);
-  }
-
-  VkWriteDescriptorSet getPushWriteDescriptorSet(uint32_t dset, uint32_t dstBinding, const VkDescriptorImageInfo* pImageInfo) const
-  {
-    return makeWriteDescriptorSet(descriptorBindings[dset].size(), descriptorBindings[dset].data(), nullptr, dstBinding, pImageInfo);
-  }
-  VkWriteDescriptorSet getPushWriteDescriptorSet(uint32_t dset, uint32_t dstBinding, const VkDescriptorBufferInfo* pBufferInfo) const
-  {
-    return makeWriteDescriptorSet(descriptorBindings[dset].size(), descriptorBindings[dset].data(), nullptr, dstBinding, pBufferInfo);
-  }
-  VkWriteDescriptorSet getPushWriteDescriptorSet(uint32_t dset, uint32_t dstBinding, const VkBufferView* pTexelBufferView) const
-  {
-    return makeWriteDescriptorSet(descriptorBindings[dset].size(), descriptorBindings[dset].data(), nullptr, dstBinding, pTexelBufferView);
-  }
-  VkWriteDescriptorSet getPushWriteDescriptorSet(uint32_t dset, uint32_t dstBinding, const void* pNext) const
-  {
-    return makeWriteDescriptorSet(descriptorBindings[dset].size(), descriptorBindings[dset].data(), nullptr, dstBinding, pNext);
-  }
-
-  const VkDescriptorSet* getSets(uint32_t dset = 0) const { return descriptorSets[dset].data(); }
-
-  VkPipelineLayout getPipeLayout(uint32_t pipe = 0) const { return pipelineLayouts[pipe]; }
-
-  size_t getSetsCount(uint32_t dset = 0) const { return descriptorSets[dset].size(); }
+  // single element for array
+  VkWriteDescriptorSet getWriteElement(uint32_t dstSetIdx, uint32_t dstBinding, uint32_t arrayElement, const VkDescriptorImageInfo* pImageInfo) const;
+  VkWriteDescriptorSet getWriteElement(uint32_t dstSetIdx, uint32_t dstBinding, uint32_t arrayElement, const VkDescriptorBufferInfo* pBufferInfo) const;
+  VkWriteDescriptorSet getWriteElement(uint32_t dstSetIdx, uint32_t dstBinding, uint32_t arrayElement, const VkBufferView* pTexelBufferView) const;
+  VkWriteDescriptorSet getWriteElement(uint32_t dstSetIdx, uint32_t dstBinding, uint32_t arrayElement, const VkWriteDescriptorSetAccelerationStructureNV* pAccel) const;
+  VkWriteDescriptorSet getWriteElement(uint32_t dstSetIdx, uint32_t dstBinding, uint32_t arrayElement, const VkWriteDescriptorSetInlineUniformBlockEXT* pInline) const;
+  VkWriteDescriptorSet getWriteElement(uint32_t dstSetIdx, uint32_t dstBinding, uint32_t arrayElement, const void* pNext) const;
+  
 };
 
-}  // namespace nvvk
+//////////////////////////////////////////////////////////////////////////
+
+template <int SETS, int PIPES = 1>
+class TDescriptorSetContainer
+{
+  /// Templated version of CombinedSetContainer,
+  /// which can hold a maximum number of SETS-many DescriptorSetContainers
+  /// and PIPES-many VkPipelineLayouts
+  /// The pipeline layouts are stored separately, the class does 
+  /// not use the pipeline layouts of the embedded sets.
+
+  /*
+    Usage, e.g. SETS = 2, PIPES = 2
+
+    container.init(device, allocator);
+
+    // setup dset layouts
+    container.at(0).addBinding(0, UBO...)
+    container.at(0).addBinding(1, SSBO...)
+    container.at(0).initLayout();
+    container.at(1).addBinding(0, COMBINED_SAMPLER...)
+    container.at(1).initLayout();
+    
+    // uses set 0 alone
+    container.initPipeLayout(0,1);
+    // use sets 0,1
+    container.initPipeLayout(1,2);
+
+    // allocate descriptorsets
+    container.at(0).initPool(1);
+    container.at(1).initPool(16);
+
+    // update descriptorsets
+
+    writeUpdates.push_back( container.at(0).getWrite(0, 0, ..) );
+    writeUpdates.push_back( container.at(0).getWrite(0, 1, ..) );
+    writeUpdates.push_back( container.at(1).getWrite(0, 0, ..) );
+    writeUpdates.push_back( container.at(1).getWrite(1, 0, ..) );
+    writeUpdates.push_back( container.at(1).getWrite(2, 0, ..) );
+    ...
+
+    // at render time
+
+    vkCmdBindDescriptorSets(cmd, GRAPHICS, container.getPipeLayout(0), 0, 1, container.at(0).getSets());
+    ..
+    vkCmdBindDescriptorSets(cmd, GRAPHICS, container.getPipeLayout(1), 1, 1, container.at(1).getSets(7));
+  */
+
+public:
+  void init(VkDevice device, const VkAllocationCallbacks* pAllocator = nullptr);
+  void deinit();
+  void deinitLayouts();
+  void deinitPools();
+
+  // pipelayout uses range of m_sets[0.. first null or SETS[
+  void initPipeLayout(uint32_t pipe, uint32_t numRanges = 0, const VkPushConstantRange* ranges = nullptr, VkPipelineLayoutCreateFlags flags = 0);
+
+  // pipelayout uses range of m_sets[0..numDsets[
+  void initPipeLayout(uint32_t                    pipe,
+                      uint32_t                    numDsets,
+                      uint32_t                    numRanges = 0,
+                      const VkPushConstantRange*  ranges    = nullptr,
+                      VkPipelineLayoutCreateFlags flags     = 0);
+
+  DescriptorSetContainer&       at(uint32_t set) { return m_sets[set]; }
+  const DescriptorSetContainer& at(uint32_t set) const { return m_sets[set]; }
+  VkPipelineLayout              getPipeLayout(uint32_t pipe = 0) const { return m_pipelayouts[pipe]; }
+
+private:
+  VkPipelineLayout              m_pipelayouts[PIPES] = {};
+  DescriptorSetContainer        m_sets[SETS];
+};
+
+//////////////////////////////////////////////////////////////////////////
+
+template <int SETS, int PIPES /*= 1*/>
+void TDescriptorSetContainer<SETS, PIPES>::initPipeLayout(uint32_t                    pipe,
+                                                          uint32_t                    numDsets,
+                                                          uint32_t                    numRanges /*= 0*/,
+                                                          const VkPushConstantRange*  ranges /*= nullptr*/,
+                                                          VkPipelineLayoutCreateFlags flags /*= 0*/)
+{
+  VkDevice                     device     = m_sets[0].getDevice();
+  const VkAllocationCallbacks* pAllocator = m_sets[0].getAllocationCallbacks();
+
+  VkDescriptorSetLayout setLayouts[SETS];
+  for(int d = 0; d < SETS; d++)
+  {
+    setLayouts[d] = m_sets[d].getLayout();
+  }
+
+  VkResult                   result;
+  VkPipelineLayoutCreateInfo layoutCreateInfo = {VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
+  layoutCreateInfo.setLayoutCount             = numDsets;
+  layoutCreateInfo.pSetLayouts                = setLayouts;
+  layoutCreateInfo.pushConstantRangeCount     = numRanges;
+  layoutCreateInfo.pPushConstantRanges        = ranges;
+  layoutCreateInfo.flags                      = flags;
+
+  result = vkCreatePipelineLayout(device, &layoutCreateInfo, pAllocator, &m_pipelayouts[pipe]);
+  assert(result == VK_SUCCESS);
+}
+
+template <int SETS, int PIPES /*= 1*/>
+void TDescriptorSetContainer<SETS, PIPES>::initPipeLayout(uint32_t                    pipe,
+                                                               uint32_t                    numRanges /*= 0*/,
+                                                               const VkPushConstantRange*  ranges /*= nullptr*/,
+                                                               VkPipelineLayoutCreateFlags flags /*= 0*/)
+{
+  VkDevice                     device     = m_sets[0].getDevice();
+  const VkAllocationCallbacks* pAllocator = m_sets[0].getAllocationCallbacks();
+
+  VkDescriptorSetLayout setLayouts[SETS];
+  int                   used;
+  for(used = 0; used < SETS; used++)
+  {
+    setLayouts[used] = m_sets[used].getLayout();
+    if(!setLayouts[used])
+      break;
+  }
+
+  VkResult                   result;
+  VkPipelineLayoutCreateInfo layoutCreateInfo = {VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
+  layoutCreateInfo.setLayoutCount             = uint32_t(used);
+  layoutCreateInfo.pSetLayouts                = setLayouts;
+  layoutCreateInfo.pushConstantRangeCount     = numRanges;
+  layoutCreateInfo.pPushConstantRanges        = ranges;
+  layoutCreateInfo.flags                      = flags;
+
+  result = vkCreatePipelineLayout(device, &layoutCreateInfo, pAllocator, &m_pipelayouts[pipe]);
+  assert(result == VK_SUCCESS);
+}
+
+template <int SETS, int PIPES /*= 1*/>
+void TDescriptorSetContainer<SETS, PIPES>::deinitPools()
+{
+  for(int d = 0; d < SETS; d++)
+  {
+    m_sets[d].deinitPool();
+  }
+}
+
+template <int SETS, int PIPES /*= 1*/>
+void TDescriptorSetContainer<SETS, PIPES>::deinitLayouts()
+{
+  VkDevice device = m_sets[0].getDevice();
+  const VkAllocationCallbacks* pAllocator = m_sets[0].getAllocationCallbacks();
+
+  for(int p = 0; p < PIPES; p++)
+  {
+    if(m_pipelayouts[p])
+    {
+      vkDestroyPipelineLayout(device, m_pipelayouts[p], pAllocator);
+      m_pipelayouts[p] = VK_NULL_HANDLE;
+    }
+  }
+  for(int d = 0; d < SETS; d++)
+  {
+    m_sets[d].deinitLayout();
+  }
+}
+
+template <int SETS, int PIPES /*= 1*/>
+void TDescriptorSetContainer<SETS, PIPES>::deinit()
+{
+  deinitPools();
+  deinitLayouts();
+}
+
+template <int SETS, int PIPES /*= 1*/>
+void TDescriptorSetContainer<SETS, PIPES>::init(VkDevice device, const VkAllocationCallbacks* pAllocator /*= nullptr*/)
+{
+  for(int d = 0; d < SETS; d++)
+  {
+    m_sets[d].init(device, pAllocator);
+  }
+}
+
+}

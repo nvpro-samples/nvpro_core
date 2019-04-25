@@ -40,9 +40,9 @@
 namespace nvvk
 {
   //void ContextWindowVK::initWindow(VkSurfaceKHR surface, uint32_t queueFamily, VkQueueFlags queueFlags, uint32_t queueIndex)
-  bool ContextWindowVK::init(const ContextInfoVK* cflags, NVPWindow* sourcewindow)
+  bool ContextWindowVK::init(const ContextInfoVK* contextInfo, NVPWindow* sourcewindow)
   {
-    ContextInfoVK cflagsUsed = *cflags;
+    ContextInfoVK cflagsUsed = *contextInfo;
     m_swapVsync = 0;
     m_windowSize[0] = sourcewindow->getWidth();
     m_windowSize[1] = sourcewindow->getHeight();
@@ -59,7 +59,7 @@ namespace nvvk
     }
     cflagsUsed.addDeviceExtension(VK_KHR_SWAPCHAIN_EXTENSION_NAME, false);
 
-    if (!cflagsUsed.initDeviceContext(m_context)) {
+    if (!m_context.initContext(cflagsUsed)) {
       return false;
     }
 

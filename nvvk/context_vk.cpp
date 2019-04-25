@@ -31,6 +31,73 @@
 
 namespace nvvk {
 
+static VkResult fillFilteredNameArray(InstanceDeviceContext::NameArray&     used,
+                                      const std::vector<VkLayerProperties>& properties,
+                                      const ContextInfoVK::EntryArray&      requested)
+{
+  VkResult result = VK_SUCCESS;
+
+  for(auto itr = requested.begin(); itr != requested.end(); ++itr)
+  {
+    bool found = false;
+    for(const auto& propertie : properties)
+    {
+      if(strcmp(itr->name, propertie.layerName) == 0)
+      {
+        found = true;
+        break;
+      }
+    }
+
+    if(!found && !itr->optional)
+    {
+      LOGW("VK_ERROR_EXTENSION_NOT_PRESENT: %s\n", itr->name);
+      return VK_ERROR_EXTENSION_NOT_PRESENT;
+    }
+
+    used.push_back(itr->name);
+  }
+
+  return result;
+}
+
+static VkResult fillFilteredNameArray(InstanceDeviceContext::NameArray&         used,
+                                      const std::vector<VkExtensionProperties>& properties,
+                                      const ContextInfoVK::EntryArray&          requested,
+                                      std::vector<void*>&                       featureStructs)
+{
+  VkResult result = VK_SUCCESS;
+
+  for(auto itr = requested.begin(); itr != requested.end(); ++itr)
+  {
+    bool found = false;
+    for(const auto& propertie : properties)
+    {
+      if(strcmp(itr->name, propertie.extensionName) == 0)
+      {
+        found = true;
+        break;
+      }
+    }
+
+    if(found)
+    {
+      used.push_back(itr->name);
+      if(itr->pFeatureStruct)
+      {
+        featureStructs.push_back(itr->pFeatureStruct);
+      }
+    }
+    else if(!itr->optional)
+    {
+      LOGW("VK_ERROR_EXTENSION_NOT_PRESENT: %s\n", itr->name);
+      return VK_ERROR_EXTENSION_NOT_PRESENT;
+    }
+  }
+
+  return result;
+}
+
 VKAPI_ATTR VkBool32 VKAPI_CALL InstanceDeviceContext::vulkanDebugReportCallback(VkDebugReportFlagsEXT      msgFlags,
                                                                                 VkDebugReportObjectTypeEXT objType,
                                                                                 uint64_t                   object,
@@ -117,7 +184,350 @@ void InstanceDeviceContext::initDebugMarker()
   m_vkCmdDebugMarkerInsertEXT =
       (PFN_vkCmdDebugMarkerInsertEXT)vkGetDeviceProcAddr(m_device, "vkCmdDebugMarkerInsertEXT");
 }
+bool InstanceDeviceContext::initContext(ContextInfoVK& info, const VkAllocationCallbacks* allocator)
+{
+  m_allocator = allocator;
+  m_apiMajor  = info.apiMajor;
+  m_apiMinor  = info.apiMinor;
 
+  VkResult result;
+  {
+    VkApplicationInfo applicationInfo = {VK_STRUCTURE_TYPE_APPLICATION_INFO};
+    applicationInfo.pApplicationName  = info.appTitle;
+    applicationInfo.pEngineName       = info.appEngine;
+    applicationInfo.apiVersion        = VK_MAKE_VERSION(m_apiMajor, m_apiMinor, 0);
+
+    std::vector<VkLayerProperties>     layerProperties;
+    std::vector<VkExtensionProperties> extensionProperties;
+
+    uint32_t count = 0;
+    {
+      result = vkEnumerateInstanceLayerProperties(&count, nullptr);
+      assert(result == VK_SUCCESS);
+      layerProperties.resize(count);
+      result = vkEnumerateInstanceLayerProperties(&count, layerProperties.data());
+      assert(result == VK_SUCCESS);
+      if(info.verboseAvailable)
+      {
+        LOGI("___________________________\n");
+        LOGI("Available Instance Layers :\n");
+        for(auto it : layerProperties)
+        {
+          LOGI("%s (v. %x %x) : %s\n", it.layerName, it.specVersion, it.implementationVersion, it.description);
+        }
+      }
+    }
+    {
+      result = vkEnumerateInstanceExtensionProperties(nullptr, &count, nullptr);
+      assert(result == VK_SUCCESS);
+      extensionProperties.resize(count);
+      result = vkEnumerateInstanceExtensionProperties(nullptr, &count, extensionProperties.data());
+      assert(result == VK_SUCCESS);
+      if(info.verboseAvailable)
+      {
+        LOGI("\n");
+        LOGI("Available Instance Extensions :\n");
+        for(auto it : extensionProperties)
+        {
+          LOGI("%s (v. %d)\n", it.extensionName, it.specVersion);
+        }
+      }
+    }
+
+    std::vector<void*> featureStructs;
+
+    if(fillFilteredNameArray(m_usedInstanceLayers, layerProperties, info.instanceLayers) != VK_SUCCESS)
+    {
+      return false;
+    }
+    if(fillFilteredNameArray(m_usedInstanceExtensions, extensionProperties, info.instanceExtensions, featureStructs) != VK_SUCCESS)
+    {
+      return false;
+    }
+    if(info.verboseUsed)
+    {
+      LOGI("______________________\n");
+      LOGI("Used Instance Layers :\n");
+      for(auto it : m_usedInstanceLayers)
+      {
+        LOGI("%s\n", it);
+      }
+      LOGI("\n");
+      LOGI("Used Instance Extensions :\n");
+      for(auto it : m_usedInstanceExtensions)
+      {
+        LOGI("%s\n", it);
+      }
+    }
+
+    VkInstanceCreateInfo instanceCreateInfo = {VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
+    instanceCreateInfo.pApplicationInfo     = &applicationInfo;
+
+    instanceCreateInfo.enabledExtensionCount   = (uint32_t)m_usedInstanceExtensions.size();
+    instanceCreateInfo.ppEnabledExtensionNames = m_usedInstanceExtensions.data();
+
+    instanceCreateInfo.enabledLayerCount   = (uint32_t)m_usedInstanceLayers.size();
+    instanceCreateInfo.ppEnabledLayerNames = m_usedInstanceLayers.data();
+
+    result = vkCreateInstance(&instanceCreateInfo, m_allocator, &m_instance);
+    if(result != VK_SUCCESS)
+    {
+      return false;
+    }
+
+    for(auto it = m_usedInstanceExtensions.begin(); it != m_usedInstanceExtensions.end(); ++it)
+    {
+      if(strcmp(*it, VK_EXT_DEBUG_REPORT_EXTENSION_NAME) == 0)
+      {
+        initDebugReport();
+        break;
+      }
+    }
+  }
+
+  {
+    if(info.useDeviceGroups)
+    {
+      uint32_t deviceGroupCount = 0;
+      result                    = vkEnumeratePhysicalDeviceGroups(m_instance, &deviceGroupCount, nullptr);
+
+      uint32_t deviceUsed = std::min(info.device, deviceGroupCount - 1);
+
+      if(result != VK_SUCCESS || deviceGroupCount == 0)
+      {
+        LOGW("could not find Vulkan device group");
+        deinitContext();
+        return false;
+      }
+
+      std::vector<VkPhysicalDeviceGroupProperties> deviceGroups(deviceGroupCount);
+      result = vkEnumeratePhysicalDeviceGroups(m_instance, &deviceGroupCount, deviceGroups.data());
+      assert(result == VK_SUCCESS);
+
+      // Pick first device group for now
+      m_physicalDeviceGroup.assign(deviceGroups[deviceUsed].physicalDevices,
+                                   deviceGroups[deviceUsed].physicalDevices + deviceGroups[deviceUsed].physicalDeviceCount);
+
+      m_physicalDevice = m_physicalDeviceGroup[0];  // This assumes the first device in the device group is the main one
+    }
+    else
+    {
+      uint32_t physicalDeviceCount = 0;
+      result                       = vkEnumeratePhysicalDevices(m_instance, &physicalDeviceCount, nullptr);
+
+      uint32_t deviceUsed = std::min(info.device, physicalDeviceCount - 1);
+
+      if(result != VK_SUCCESS || physicalDeviceCount == 0)
+      {
+        LOGW("could not find Vulkan device");
+        deinitContext();
+        return false;
+      }
+
+      std::vector<VkPhysicalDevice> physicalDevices(physicalDeviceCount);
+      result = vkEnumeratePhysicalDevices(m_instance, &physicalDeviceCount, physicalDevices.data());
+      assert(result == VK_SUCCESS);
+
+      // pick first device for now
+      m_physicalDevice = physicalDevices[deviceUsed];
+
+      m_physicalDeviceGroup.assign({m_physicalDevice});
+    }
+
+    m_physicalInfo.init(m_physicalDevice, m_apiMajor, m_apiMinor);
+    m_physicalInfo.physicalDeviceGroup = m_physicalDeviceGroup;
+
+    std::vector<VkDeviceQueueCreateInfo> queues;
+    std::vector<float>                   priorites;
+
+
+    uint32_t queueFamilyGraphicsCompute = ~0u;
+    {
+      uint32_t queueFamilyPropertiesCount = 0;
+      vkGetPhysicalDeviceQueueFamilyProperties(m_physicalDevice, &queueFamilyPropertiesCount, nullptr);
+
+      std::vector<VkQueueFamilyProperties> queueFamilyProperties(queueFamilyPropertiesCount);
+      vkGetPhysicalDeviceQueueFamilyProperties(m_physicalDevice, &queueFamilyPropertiesCount, queueFamilyProperties.data());
+
+      for(uint32_t i = 0; i < queueFamilyProperties.size(); ++i)
+      {
+        if(queueFamilyProperties[i].queueFlags & (VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT))
+        {
+          queueFamilyGraphicsCompute = i;
+        }
+        if(queueFamilyProperties[i].queueCount > priorites.size())
+        {
+          // set all priorities equal
+          priorites.resize(queueFamilyProperties[i].queueCount, 1.0f);
+        }
+      }
+
+      for(uint32_t i = 0; i < queueFamilyProperties.size(); ++i)
+      {
+        VkDeviceQueueCreateInfo queueInfo = {VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO};
+        queueInfo.queueFamilyIndex        = i;
+        queueInfo.queueCount              = queueFamilyProperties[i].queueCount;
+        queueInfo.pQueuePriorities        = priorites.data();
+
+        queues.push_back(queueInfo);
+      }
+    }
+
+    if(queueFamilyGraphicsCompute == ~0u)
+    {
+      LOGW("could not find queue that supports graphics and compute");
+      deinitContext();
+      return false;
+    }
+
+
+    // allow all queues
+    VkDeviceCreateInfo deviceCreateInfo   = {VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
+    deviceCreateInfo.queueCreateInfoCount = (uint32_t)queues.size();
+    deviceCreateInfo.pQueueCreateInfos    = queues.data();
+
+    // device group information
+    VkDeviceGroupDeviceCreateInfo deviceGroupCreateInfo = {VK_STRUCTURE_TYPE_DEVICE_GROUP_DEVICE_CREATE_INFO};
+
+    // physical device layers and extensions
+    std::vector<VkLayerProperties>     layerProperties;
+    std::vector<VkExtensionProperties> extensionProperties;
+
+    uint32_t count = 0;
+    result         = vkEnumerateDeviceLayerProperties(m_physicalDevice, &count, nullptr);
+    assert(result == VK_SUCCESS);
+
+    layerProperties.resize(count);
+    result = vkEnumerateDeviceLayerProperties(m_physicalDevice, &count, layerProperties.data());
+    assert(result == VK_SUCCESS);
+    if(info.verboseAvailable)
+    {
+      LOGI("_________________________\n");
+      LOGI("Available Device Layers :\n");
+      for(auto it : layerProperties)
+      {
+        LOGI("%s (v. %x %x) : %s\n", it.layerName, it.specVersion, it.implementationVersion, it.description);
+      }
+    }
+
+    result = vkEnumerateDeviceExtensionProperties(m_physicalDevice, nullptr, &count, nullptr);
+    assert(result == VK_SUCCESS);
+
+    extensionProperties.resize(count);
+    result = vkEnumerateDeviceExtensionProperties(m_physicalDevice, nullptr, &count, extensionProperties.data());
+    assert(result == VK_SUCCESS);
+    if(info.verboseAvailable)
+    {
+      LOGI("\n");
+      LOGI("Available Device Extensions :\n");
+      for(auto it : extensionProperties)
+      {
+        LOGI("%s (v. %d)\n", it.extensionName, it.specVersion);
+      }
+    }
+
+    std::vector<void*> featureStructs;
+
+    if(fillFilteredNameArray(m_usedDeviceLayers, layerProperties, info.deviceLayers) != VK_SUCCESS)
+    {
+      deinitContext();
+      return false;
+    }
+    if(fillFilteredNameArray(m_usedDeviceExtensions, extensionProperties, info.deviceExtensions, featureStructs) != VK_SUCCESS)
+    {
+      deinitContext();
+      return false;
+    }
+    if(info.verboseUsed)
+    {
+      LOGI("____________________\n");
+      LOGI("Used Device Layers :\n");
+      for(auto it : m_usedDeviceLayers)
+      {
+        LOGI("%s\n", it);
+      }
+      LOGI("\n");
+      LOGI("Used Device Extensions :\n");
+      for(auto it : m_usedDeviceExtensions)
+      {
+        LOGI("%s\n", it);
+      }
+      LOGI("\n");
+    }
+
+    deviceCreateInfo.enabledExtensionCount   = (uint32_t)m_usedDeviceExtensions.size();
+    deviceCreateInfo.ppEnabledExtensionNames = m_usedDeviceExtensions.data();
+
+    deviceCreateInfo.enabledLayerCount   = (uint32_t)m_usedDeviceLayers.size();
+    deviceCreateInfo.ppEnabledLayerNames = m_usedDeviceLayers.data();
+
+    bool v11 = m_apiMajor == 1 && m_apiMinor > 0;
+
+    for(size_t i = 0; i < sizeof(info.keepFeatures) / sizeof(VkBool32); i++)
+    {
+      const auto* pKeep = (const VkBool32*)&info.keepFeatures;
+      auto*       pOut  = (VkBool32*)&m_physicalInfo.features2.features;
+
+      if(!pKeep[i])
+      {
+        pOut[i] = VK_FALSE;
+      }
+    }
+
+    deviceCreateInfo.pEnabledFeatures = v11 ? nullptr : &m_physicalInfo.features2.features;
+    deviceCreateInfo.pNext            = v11 ? &m_physicalInfo.features2 : nullptr;
+
+    if(v11 && !featureStructs.empty())
+    {
+
+      // build up chain of all used extension features
+      for(size_t i = 0; i < featureStructs.size(); i++)
+      {
+        auto* header  = (ContextInfoVK::ExtensionHeader*)featureStructs[i];
+        header->pNext = i < featureStructs.size() - 1 ? featureStructs[i + 1] : nullptr;
+      }
+
+      // query them in full enabled state
+      VkPhysicalDeviceFeatures2 features2 = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
+      features2.pNext                     = featureStructs[0];
+      vkGetPhysicalDeviceFeatures2(m_physicalDevice, &features2);
+
+      // pass them as part of the create chain
+      // set last element to previous beginning of chain
+      auto* header  = (ContextInfoVK::ExtensionHeader*)featureStructs[featureStructs.size() - 1];
+      header->pNext = (void*)deviceCreateInfo.pNext;
+
+      deviceCreateInfo.pNext = featureStructs[0];
+    }
+
+    if(info.useDeviceGroups)
+    {
+      deviceCreateInfo.pNext                    = &deviceGroupCreateInfo;
+      deviceGroupCreateInfo.physicalDeviceCount = uint32_t(m_physicalDeviceGroup.size());
+      deviceGroupCreateInfo.pPhysicalDevices    = m_physicalDeviceGroup.data();
+      deviceGroupCreateInfo.pNext               = deviceGroupCreateInfo.pNext;
+    }
+
+    result = vkCreateDevice(m_physicalDevice, &deviceCreateInfo, m_allocator, &m_device);
+
+    if(result != VK_SUCCESS)
+    {
+      deinitContext();
+      return false;
+    }
+
+    for(auto it = m_usedDeviceExtensions.begin(); it != m_usedDeviceExtensions.end(); ++it)
+    {
+      if(strcmp(*it, VK_EXT_DEBUG_MARKER_EXTENSION_NAME) == 0)
+      {
+        initDebugMarker();
+        break;
+      }
+    }
+  }
+
+  return true;
+}
 
 void InstanceDeviceContext::deinitContext()
 {
@@ -223,417 +633,34 @@ void InstanceDeviceContext::cmdDebugMarkerInsertEXT(VkCommandBuffer commandBuffe
     m_vkCmdDebugMarkerInsertEXT(commandBuffer, pMarkerInfo);
   }
 }
-
-static VkResult fillFilteredNameArray(InstanceDeviceContext::NameArray&     used,
-                                      const std::vector<VkLayerProperties>& properties,
-                                      const ContextInfoVK::EntryArray&      requested)
+//////////////////////////////////////////////////////////////////////////////////////
+//
+// ContextInfoVK methods
+//
+ContextInfoVK::ContextInfoVK()
 {
-  VkResult result = VK_SUCCESS;
-
-  for(auto itr = requested.begin(); itr != requested.end(); ++itr)
-  {
-    bool found = false;
-    for(const auto& propertie : properties)
-    {
-      if(strcmp(itr->name, propertie.layerName) == 0)
-      {
-        found = true;
-        break;
-      }
-    }
-
-    if(!found && !itr->optional)
-    {
-      LOGW("VK_ERROR_EXTENSION_NOT_PRESENT: %s\n", itr->name);
-      return VK_ERROR_EXTENSION_NOT_PRESENT;
-    }
-
-    used.push_back(itr->name);
-  }
-
-  return result;
+  memset(&keepFeatures, 1, sizeof(VkPhysicalDeviceFeatures));
+  keepFeatures.robustBufferAccess = VK_FALSE;
+#ifdef _DEBUG
+  instanceExtensions.push_back({VK_EXT_DEBUG_REPORT_EXTENSION_NAME, true});
+  deviceExtensions.push_back({VK_EXT_DEBUG_MARKER_EXTENSION_NAME, true});
+#endif
 }
-
-static VkResult fillFilteredNameArray(InstanceDeviceContext::NameArray&         used,
-                                      const std::vector<VkExtensionProperties>& properties,
-                                      const ContextInfoVK::EntryArray&          requested,
-                                      std::vector<void*>&                       featureStructs)
+void ContextInfoVK::addInstanceExtension(const char* name, bool optional)
 {
-  VkResult result = VK_SUCCESS;
-
-  for(auto itr = requested.begin(); itr != requested.end(); ++itr)
-  {
-    bool found = false;
-    for(const auto& propertie : properties)
-    {
-      if(strcmp(itr->name, propertie.extensionName) == 0)
-      {
-        found = true;
-        break;
-      }
-    }
-
-    if(found)
-    {
-      used.push_back(itr->name);
-      if(itr->pFeatureStruct)
-      {
-        featureStructs.push_back(itr->pFeatureStruct);
-      }
-    }
-    else if(!itr->optional)
-    {
-      LOGW("VK_ERROR_EXTENSION_NOT_PRESENT: %s\n", itr->name);
-      return VK_ERROR_EXTENSION_NOT_PRESENT;
-    }
-  }
-
-  return result;
+  instanceExtensions.emplace_back(name, optional);
 }
-
-bool ContextInfoVK::initDeviceContext(InstanceDeviceContext& ctx, const VkAllocationCallbacks* allocator) const
+void ContextInfoVK::addInstanceLayer(const char* name, bool optional)
 {
-  ctx.m_allocator = allocator;
-  ctx.m_apiMajor  = apiMajor;
-  ctx.m_apiMinor  = apiMinor;
-
-  VkResult result;
-  {
-    VkApplicationInfo applicationInfo = {VK_STRUCTURE_TYPE_APPLICATION_INFO};
-    applicationInfo.pApplicationName  = appTitle;
-    applicationInfo.pEngineName       = appEngine;
-    applicationInfo.apiVersion        = VK_MAKE_VERSION(apiMajor, apiMinor, 0);
-
-    std::vector<VkLayerProperties>     layerProperties;
-    std::vector<VkExtensionProperties> extensionProperties;
-
-    uint32_t count = 0;
-    {
-      result = vkEnumerateInstanceLayerProperties(&count, nullptr);
-      assert(result == VK_SUCCESS);
-      layerProperties.resize(count);
-      result = vkEnumerateInstanceLayerProperties(&count, layerProperties.data());
-      assert(result == VK_SUCCESS);
-      if(verboseAvailable)
-      {
-        LOGI("___________________________\n");
-        LOGI("Available Instance Layers :\n");
-        for(auto it : layerProperties)
-        {
-          LOGI("%s (v. %x %x) : %s\n", it.layerName, it.specVersion, it.implementationVersion, it.description);
-        }
-      }
-    }
-    {
-      result = vkEnumerateInstanceExtensionProperties(nullptr, &count, nullptr);
-      assert(result == VK_SUCCESS);
-      extensionProperties.resize(count);
-      result = vkEnumerateInstanceExtensionProperties(nullptr, &count, extensionProperties.data());
-      assert(result == VK_SUCCESS);
-      if(verboseAvailable)
-      {
-        LOGI("\n");
-        LOGI("Available Instance Extensions :\n");
-        for(auto it : extensionProperties)
-        {
-          LOGI("%s (v. %d)\n", it.extensionName, it.specVersion);
-        }
-      }
-    }
-
-    std::vector<void*> featureStructs;
-
-    if(fillFilteredNameArray(ctx.m_usedInstanceLayers, layerProperties, instanceLayers) != VK_SUCCESS)
-    {
-      return false;
-    }
-    if(fillFilteredNameArray(ctx.m_usedInstanceExtensions, extensionProperties, instanceExtensions, featureStructs) != VK_SUCCESS)
-    {
-      return false;
-    }
-    if(verboseUsed)
-    {
-      LOGI("______________________\n");
-      LOGI("Used Instance Layers :\n");
-      for(auto it : ctx.m_usedInstanceLayers)
-      {
-        LOGI("%s\n", it);
-      }
-      LOGI("\n");
-      LOGI("Used Instance Extensions :\n");
-      for(auto it : ctx.m_usedInstanceExtensions)
-      {
-        LOGI("%s\n", it);
-      }
-    }
-
-    VkInstanceCreateInfo instanceCreateInfo = {VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
-    instanceCreateInfo.pApplicationInfo     = &applicationInfo;
-
-    instanceCreateInfo.enabledExtensionCount   = (uint32_t)ctx.m_usedInstanceExtensions.size();
-    instanceCreateInfo.ppEnabledExtensionNames = ctx.m_usedInstanceExtensions.data();
-
-    instanceCreateInfo.enabledLayerCount   = (uint32_t)ctx.m_usedInstanceLayers.size();
-    instanceCreateInfo.ppEnabledLayerNames = ctx.m_usedInstanceLayers.data();
-
-    result = vkCreateInstance(&instanceCreateInfo, ctx.m_allocator, &ctx.m_instance);
-    if(result != VK_SUCCESS)
-    {
-      return false;
-    }
-
-    for(auto it = ctx.m_usedInstanceExtensions.begin(); it != ctx.m_usedInstanceExtensions.end(); ++it)
-    {
-      if(strcmp(*it, VK_EXT_DEBUG_REPORT_EXTENSION_NAME) == 0)
-      {
-        ctx.initDebugReport();
-        break;
-      }
-    }
-  }
-
-  {
-    if(useDeviceGroups)
-    {
-      uint32_t deviceGroupCount = 0;
-      result                    = vkEnumeratePhysicalDeviceGroups(ctx.m_instance, &deviceGroupCount, nullptr);
-
-      uint32_t deviceUsed = std::min(device, deviceGroupCount - 1);
-
-      if(result != VK_SUCCESS || deviceGroupCount == 0)
-      {
-        LOGW("could not find Vulkan device group");
-        ctx.deinitContext();
-        return false;
-      }
-
-      std::vector<VkPhysicalDeviceGroupProperties> deviceGroups(deviceGroupCount);
-      result = vkEnumeratePhysicalDeviceGroups(ctx.m_instance, &deviceGroupCount, deviceGroups.data());
-      assert(result == VK_SUCCESS);
-
-      // Pick first device group for now
-      ctx.m_physicalDeviceGroup.assign(deviceGroups[deviceUsed].physicalDevices,
-                                       deviceGroups[deviceUsed].physicalDevices + deviceGroups[deviceUsed].physicalDeviceCount);
-
-      ctx.m_physicalDevice = ctx.m_physicalDeviceGroup[0];  // This assumes the first device in the device group is the main one
-    }
-    else
-    {
-      uint32_t physicalDeviceCount = 0;
-      result                       = vkEnumeratePhysicalDevices(ctx.m_instance, &physicalDeviceCount, nullptr);
-
-      uint32_t deviceUsed = std::min(device, physicalDeviceCount - 1);
-
-      if(result != VK_SUCCESS || physicalDeviceCount == 0)
-      {
-        LOGW("could not find Vulkan device");
-        ctx.deinitContext();
-        return false;
-      }
-
-      std::vector<VkPhysicalDevice> physicalDevices(physicalDeviceCount);
-      result = vkEnumeratePhysicalDevices(ctx.m_instance, &physicalDeviceCount, physicalDevices.data());
-      assert(result == VK_SUCCESS);
-
-      // pick first device for now
-      ctx.m_physicalDevice = physicalDevices[deviceUsed];
-
-      ctx.m_physicalDeviceGroup.assign({ctx.m_physicalDevice});
-    }
-
-    ctx.m_physicalInfo.init(ctx.m_physicalDevice, ctx.m_apiMajor, ctx.m_apiMinor);
-    ctx.m_physicalInfo.physicalDeviceGroup = ctx.m_physicalDeviceGroup;
-
-    std::vector<VkDeviceQueueCreateInfo> queues;
-    std::vector<float>                   priorites;
-
-
-    uint32_t queueFamilyGraphicsCompute = ~0u;
-    {
-      uint32_t queueFamilyPropertiesCount = 0;
-      vkGetPhysicalDeviceQueueFamilyProperties(ctx.m_physicalDevice, &queueFamilyPropertiesCount, nullptr);
-
-      std::vector<VkQueueFamilyProperties> queueFamilyProperties(queueFamilyPropertiesCount);
-      vkGetPhysicalDeviceQueueFamilyProperties(ctx.m_physicalDevice, &queueFamilyPropertiesCount, queueFamilyProperties.data());
-
-      for(uint32_t i = 0; i < queueFamilyProperties.size(); ++i)
-      {
-        if(queueFamilyProperties[i].queueFlags & (VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT))
-        {
-          queueFamilyGraphicsCompute = i;
-        }
-        if(queueFamilyProperties[i].queueCount > priorites.size())
-        {
-          // set all priorities equal
-          priorites.resize(queueFamilyProperties[i].queueCount, 1.0f);
-        }
-      }
-
-      for(uint32_t i = 0; i < queueFamilyProperties.size(); ++i)
-      {
-        VkDeviceQueueCreateInfo queueInfo = {VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO};
-        queueInfo.queueFamilyIndex        = i;
-        queueInfo.queueCount              = queueFamilyProperties[i].queueCount;
-        queueInfo.pQueuePriorities        = priorites.data();
-
-        queues.push_back(queueInfo);
-      }
-    }
-
-    if(queueFamilyGraphicsCompute == ~0u)
-    {
-      LOGW("could not find queue that supports graphics and compute");
-      ctx.deinitContext();
-      return false;
-    }
-
-
-    // allow all queues
-    VkDeviceCreateInfo deviceCreateInfo   = {VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
-    deviceCreateInfo.queueCreateInfoCount = (uint32_t)queues.size();
-    deviceCreateInfo.pQueueCreateInfos    = queues.data();
-
-    // device group information
-    VkDeviceGroupDeviceCreateInfo deviceGroupCreateInfo = {VK_STRUCTURE_TYPE_DEVICE_GROUP_DEVICE_CREATE_INFO};
-
-    // physical device layers and extensions
-    std::vector<VkLayerProperties>     layerProperties;
-    std::vector<VkExtensionProperties> extensionProperties;
-
-    uint32_t count = 0;
-    result         = vkEnumerateDeviceLayerProperties(ctx.m_physicalDevice, &count, nullptr);
-    assert(result == VK_SUCCESS);
-
-    layerProperties.resize(count);
-    result = vkEnumerateDeviceLayerProperties(ctx.m_physicalDevice, &count, layerProperties.data());
-    assert(result == VK_SUCCESS);
-    if(verboseAvailable)
-    {
-      LOGI("_________________________\n");
-      LOGI("Available Device Layers :\n");
-      for(auto it : layerProperties)
-      {
-        LOGI("%s (v. %x %x) : %s\n", it.layerName, it.specVersion, it.implementationVersion, it.description);
-      }
-    }
-
-    result = vkEnumerateDeviceExtensionProperties(ctx.m_physicalDevice, nullptr, &count, nullptr);
-    assert(result == VK_SUCCESS);
-
-    extensionProperties.resize(count);
-    result = vkEnumerateDeviceExtensionProperties(ctx.m_physicalDevice, nullptr, &count, extensionProperties.data());
-    assert(result == VK_SUCCESS);
-    if(verboseAvailable)
-    {
-      LOGI("\n");
-      LOGI("Available Device Extensions :\n");
-      for(auto it : extensionProperties)
-      {
-        LOGI("%s (v. %d)\n", it.extensionName, it.specVersion);
-      }
-    }
-
-    std::vector<void*> featureStructs;
-
-    if(fillFilteredNameArray(ctx.m_usedDeviceLayers, layerProperties, deviceLayers) != VK_SUCCESS)
-    {
-      ctx.deinitContext();
-      return false;
-    }
-    if(fillFilteredNameArray(ctx.m_usedDeviceExtensions, extensionProperties, deviceExtensions, featureStructs) != VK_SUCCESS)
-    {
-      ctx.deinitContext();
-      return false;
-    }
-    if(verboseUsed)
-    {
-      LOGI("____________________\n");
-      LOGI("Used Device Layers :\n");
-      for(auto it : ctx.m_usedDeviceLayers)
-      {
-        LOGI("%s\n", it);
-      }
-      LOGI("\n");
-      LOGI("Used Device Extensions :\n");
-      for(auto it : ctx.m_usedDeviceExtensions)
-      {
-        LOGI("%s\n", it);
-      }
-      LOGI("\n");
-    }
-
-    deviceCreateInfo.enabledExtensionCount   = (uint32_t)ctx.m_usedDeviceExtensions.size();
-    deviceCreateInfo.ppEnabledExtensionNames = ctx.m_usedDeviceExtensions.data();
-
-    deviceCreateInfo.enabledLayerCount   = (uint32_t)ctx.m_usedDeviceLayers.size();
-    deviceCreateInfo.ppEnabledLayerNames = ctx.m_usedDeviceLayers.data();
-
-    bool v11 = apiMajor == 1 && apiMinor > 0;
-
-    for(size_t i = 0; i < sizeof(keepFeatures) / sizeof(VkBool32); i++)
-    {
-      const auto* pKeep = (const VkBool32*)&keepFeatures;
-      auto*       pOut  = (VkBool32*)&ctx.m_physicalInfo.features2.features;
-
-      if(!pKeep[i])
-      {
-        pOut[i] = VK_FALSE;
-      }
-    }
-
-    deviceCreateInfo.pEnabledFeatures = v11 ? nullptr : &ctx.m_physicalInfo.features2.features;
-    deviceCreateInfo.pNext            = v11 ? &ctx.m_physicalInfo.features2 : nullptr;
-
-    if(v11 && !featureStructs.empty())
-    {
-
-      // build up chain of all used extension features
-      for(size_t i = 0; i < featureStructs.size(); i++)
-      {
-        auto* header  = (ExtensionHeader*)featureStructs[i];
-        header->pNext = i < featureStructs.size() - 1 ? featureStructs[i + 1] : nullptr;
-      }
-
-      // query them in full enabled state
-      VkPhysicalDeviceFeatures2 features2 = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
-      features2.pNext                     = featureStructs[0];
-      vkGetPhysicalDeviceFeatures2(ctx.m_physicalDevice, &features2);
-
-      // pass them as part of the create chain
-      // set last element to previous beginning of chain
-      auto* header  = (ExtensionHeader*)featureStructs[featureStructs.size() - 1];
-      header->pNext = (void*)deviceCreateInfo.pNext;
-
-      deviceCreateInfo.pNext = featureStructs[0];
-    }
-
-    if(useDeviceGroups)
-    {
-      deviceCreateInfo.pNext                    = &deviceGroupCreateInfo;
-      deviceGroupCreateInfo.physicalDeviceCount = uint32_t(ctx.m_physicalDeviceGroup.size());
-      deviceGroupCreateInfo.pPhysicalDevices    = ctx.m_physicalDeviceGroup.data();
-      deviceGroupCreateInfo.pNext               = deviceGroupCreateInfo.pNext;
-    }
-
-    result = vkCreateDevice(ctx.m_physicalDevice, &deviceCreateInfo, ctx.m_allocator, &ctx.m_device);
-
-    if(result != VK_SUCCESS)
-    {
-      ctx.deinitContext();
-      return false;
-    }
-
-    for(auto it = ctx.m_usedDeviceExtensions.begin(); it != ctx.m_usedDeviceExtensions.end(); ++it)
-    {
-      if(strcmp(*it, VK_EXT_DEBUG_MARKER_EXTENSION_NAME) == 0)
-      {
-        ctx.initDebugMarker();
-        break;
-      }
-    }
-  }
-
-  return true;
+  instanceLayers.emplace_back(name, optional);
+}
+void ContextInfoVK::addDeviceExtension(const char* name, bool optional, void* pFeatureStruct)
+{
+  deviceExtensions.emplace_back(name, optional, pFeatureStruct);
+}
+void ContextInfoVK::addDeviceLayer(const char* name, bool optional)
+{
+  deviceLayers.emplace_back(name, optional);
 }
 
 }  // namespace nvvk

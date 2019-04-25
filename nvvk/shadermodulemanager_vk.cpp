@@ -301,6 +301,21 @@ ShaderModuleManager::ShaderModuleID ShaderModuleManager::createShaderModule(cons
   return m_shadermodules.size() - 1;
 }
 
+ShaderModuleManager::ShaderModuleID ShaderModuleManager::createShaderModule(uint32_t           type,
+                                                                            std::string const& filename,
+                                                                            std::string const& prepend,
+                                                                            FileType fileType /*= FILETYPE_DEFAULT*/,
+                                                                            std::string const& entryname /*= "main"*/)
+{
+  Definition def;
+  def.type     = type;
+  def.filename = filename;
+  def.prepend  = prepend;
+  def.filetype = fileType;
+  def.entry = entryname;
+  return createShaderModule(def);
+}
+
 bool ShaderModuleManager::areShaderModulesValid()
 {
   bool valid = true;

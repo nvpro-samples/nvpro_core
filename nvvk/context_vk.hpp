@@ -35,13 +35,24 @@
 
 namespace nvvk {
 
-//////////////////////////////////////////////////////////////////////////
+struct ContextInfoVK;
 
+//////////////////////////////////////////////////////////////////////////
+// This class maintains
+// - the Vulkan instance
+// - Physical Device(s)
+// - Physical Info
+// - the LOGICAL Device
+//
+// It maintains what extensions are finally available
+// and allows to manage the debugging part for callbacks etc.
 class InstanceDeviceContext
 {
 public:
   using NameArray = std::vector<const char*>;
-
+  //
+  // Public members for the application to directly access them
+  //
   uint32_t m_apiMajor = 1;
   uint32_t m_apiMinor = 0;
 
@@ -56,13 +67,18 @@ public:
   NameArray m_usedInstanceExtensions;
   NameArray m_usedDeviceLayers;
   NameArray m_usedDeviceExtensions;
-
+  //
+  // initContext takes what features has been requrested by the application in ContextInfoVK
+  // and set-up the instance, layers, physical device(s), logical device etc.
+  //
+  bool initContext(ContextInfoVK &info, const VkAllocationCallbacks* allocator = nullptr);
   void deinitContext();
-
+  bool hasDeviceExtension(const char* name) const;
+  //
+  // methods for Debugging information
+  //
   void initDebugReport();
   void initDebugMarker();
-
-  bool hasDeviceExtension(const char* name) const;
 
   void debugReportMessageEXT(VkDebugReportFlagsEXT      flags,
                              VkDebugReportObjectTypeEXT objectType,
@@ -103,58 +119,44 @@ private:
 };
 
 
+//////////////////////////////////////////////////////////////////////////
+//
+// this structure allows the application to specify a set of features
+// that are expected for the creation of
+// - instance
+// - physical and logical device
+// Then InstanceDeviceContext::InitContext(...) will use it to query Vulkan
+// for whatever is required here
+//
 struct ContextInfoVK
 {
+  ContextInfoVK();
+  void addInstanceExtension(const char* name, bool optional = false);
+  void addInstanceLayer(const char* name, bool optional = false);
+  // pFeatureStruct is used for a version 1.1 and higher context. It will be queried from physical device
+  // and then passed in this state to device create info.
+  void addDeviceExtension(const char* name, bool optional = false, void* pFeatureStruct = nullptr);
+  void addDeviceLayer(const char* name, bool optional = false);
 
-  //////////////////////////////////////////////////////////////////////////
   // Configure context creation with these variables and functions
-
   int         apiMajor  = 1;
   int         apiMinor  = 1;
   uint32_t    device    = 0;
   const char* appEngine = "nvpro-sample";
   const char* appTitle  = "nvpro-sample";
 
-  bool useDeviceGroups = false;
+  bool useDeviceGroups  = false;
+  bool verboseUsed      = true;
+  bool verboseAvailable =
 #ifdef _DEBUG
-  bool verboseAvailable = true;
+    true; 
 #else
-  bool verboseAvailable = false;
+    false;
 #endif
-  bool verboseUsed = true;
-
   // by default all device features, except robust access are enabled
   // if the device supports them. Set a feature to zero
   // to disable it.
   VkPhysicalDeviceFeatures keepFeatures;
-
-  void addInstanceExtension(const char* name, bool optional = false)
-  {
-    instanceExtensions.emplace_back(name, optional);
-  }
-  void addInstanceLayer(const char* name, bool optional = false) { instanceLayers.emplace_back(name, optional); }
-
-  // pFeatureStruct is used for a version 1.1 and higher context. It will be queried from physical device
-  // and then passed in this state to device create info.
-  void addDeviceExtension(const char* name, bool optional = false, void* pFeatureStruct = nullptr)
-  {
-    deviceExtensions.emplace_back(name, optional, pFeatureStruct);
-  }
-  void addDeviceLayer(const char* name, bool optional = false) { deviceLayers.emplace_back(name, optional); }
-
-  //////////////////////////////////////////////////////////////////////////
-
-  ContextInfoVK()
-  {
-    memset(&keepFeatures, 1, sizeof(VkPhysicalDeviceFeatures));
-    keepFeatures.robustBufferAccess = VK_FALSE;
-#ifdef _DEBUG
-    instanceExtensions.push_back({VK_EXT_DEBUG_REPORT_EXTENSION_NAME, true});
-    deviceExtensions.push_back({VK_EXT_DEBUG_MARKER_EXTENSION_NAME, true});
-#endif
-  }
-
-  bool initDeviceContext(InstanceDeviceContext& ctx, const VkAllocationCallbacks* allocator = nullptr) const;
 
   struct Entry
   {
@@ -172,7 +174,6 @@ struct ContextInfoVK
   };
   using EntryArray = std::vector<Entry>;
 
-private:
   struct ExtensionHeader
   {
     VkStructureType sType;
@@ -183,7 +184,7 @@ private:
   EntryArray instanceExtensions;
   EntryArray deviceLayers;
   EntryArray deviceExtensions;
-};
+};//struct ContextInfoVK
 }  // namespace nvvk
 
 #endif
