@@ -353,6 +353,8 @@ General defines
 
 #define NV_ARRAY_SIZE(X)                     (sizeof((X))/sizeof((X)[0]))
 
+#define NV_PAD_POW2(value, pad)               (((value) + ((pad)-1)) & (~((pad)-1)))
+
 // check that exactly one of NDEBUG and _DEBUG is defined
 #if !(defined NDEBUG ^ defined _DEBUG)
 #define NDEBUG

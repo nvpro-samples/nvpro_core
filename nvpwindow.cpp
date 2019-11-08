@@ -26,196 +26,196 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */ //--------------------------------------------------------------------
 
-#include "nvpwindow_internal.hpp"
+#include "nvpwindow.hpp"
 
 #ifdef USESOCKETS
 #include "socketSampleMessages.h"
 #endif
 
-#include <stdio.h>
-#include <fcntl.h>
-#include <io.h>
-#include <iostream>
-#include <fstream>
 #include <algorithm>
+#include <stdio.h>
 #include <string>
 
-static std::string s_path;
-
-std::vector<NVPWindow *> g_windows;
-
-bool NVPWindow::create(int posX, int posY, int width, int height, const char* title)
+void NVPWindow::cb_windowrefreshfun(GLFWwindow* glfwwin)
 {
+  NVPWindow* win = (NVPWindow*)glfwGetWindowUserPointer(glfwwin);
+  if (win->isClosing()) return;
+  win->onWindowRefresh();
+}
+
+void NVPWindow::cb_windowsizefun(GLFWwindow* glfwwin, int w, int h)
+{
+  NVPWindow* win = (NVPWindow*)glfwGetWindowUserPointer(glfwwin);
+  if (win->isClosing()) return;
+  win->m_windowSize[0] = w;
+  win->m_windowSize[1] = h;
+  win->onWindowResize(w, h);
+}
+void NVPWindow::cb_windowclosefun(GLFWwindow* glfwwin)
+{
+  NVPWindow* win = (NVPWindow*)glfwGetWindowUserPointer(glfwwin);
+  win->m_isClosing = true;
+  win->onWindowClose();
+}
+
+void NVPWindow::cb_mousebuttonfun(GLFWwindow* glfwwin, int button, int action, int mods)
+{
+  double x,y;
+  glfwGetCursorPos(glfwwin, &x, &y);
+
+  NVPWindow* win = (NVPWindow*)glfwGetWindowUserPointer(glfwwin);
+  if (win->isClosing()) return;
+  win->m_keyModifiers = mods;
+  win->m_mouseX = int(x);
+  win->m_mouseY = int(y);
+  win->onMouseButton((NVPWindow::MouseButton)button, (NVPWindow::ButtonAction)action, mods, win->m_mouseX, win->m_mouseY);
+}
+void NVPWindow::cb_cursorposfun(GLFWwindow* glfwwin,double x,double y)
+{
+  NVPWindow* win = (NVPWindow*)glfwGetWindowUserPointer(glfwwin);
+  if (win->isClosing()) return;
+  win->m_mouseX = int(x);
+  win->m_mouseY = int(y);
+  win->onMouseMotion(win->m_mouseX, win->m_mouseY);
+}
+void NVPWindow::cb_scrollfun(GLFWwindow* glfwwin, double x,double y)
+{
+  NVPWindow* win = (NVPWindow*)glfwGetWindowUserPointer(glfwwin);
+  if (win->isClosing()) return;
+  win->m_mouseWheel += int(y);
+  win->onMouseWheel(int(y));
+}
+void NVPWindow::cb_keyfun(GLFWwindow* glfwwin, int key, int scancode, int action, int mods)
+{
+  NVPWindow* win = (NVPWindow*)glfwGetWindowUserPointer(glfwwin);
+  if (win->isClosing()) return;
+  win->m_keyModifiers = mods;
+  win->onKeyboard((NVPWindow::KeyCode) key, (NVPWindow::ButtonAction)action, mods, win->m_mouseX, win->m_mouseY);
+}
+void NVPWindow::cb_charfun(GLFWwindow* glfwwin, unsigned int codepoint)
+{
+  NVPWindow* win = (NVPWindow*)glfwGetWindowUserPointer(glfwwin);
+  if (win->isClosing()) return;
+  win->onKeyboardChar(codepoint, win->m_keyModifiers, win->m_mouseX, win->m_mouseY);
+}
+
+void NVPWindow::cb_dropfun(GLFWwindow* glfwwin, int count, const char** paths)
+{
+  NVPWindow* win = (NVPWindow*)glfwGetWindowUserPointer(glfwwin);
+  if (win->isClosing()) return;
+  win->onDragDrop(count, paths);
+}
+
+bool NVPWindow::open(int posX, int posY, int width, int height, const char* title)
+{
+  NV_ASSERT(NVPSystem::isInited() && "NVPSystem::Init not called");
+
   m_windowSize[0] = width;
   m_windowSize[1] = height;
-  m_internal = newWINinternal(this);
 
   m_windowName = title ? title : "Sample";
 
-  if (m_internal->create(posX, posY, width, height, m_windowName.c_str()))
+  glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+  m_internal = glfwCreateWindow(width, height, title, nullptr, nullptr);
+  if(!m_internal)
   {
-    // Keep track of the windows
-    g_windows.push_back(this);
-    return true;
+    return false;
   }
-
-  delete m_internal;
-  m_internal = NULL;
   
-  return false;
+  if (posX != 0 || posY != 0){
+    glfwSetWindowPos(m_internal, posX, posY);
+  }
+  glfwSetWindowUserPointer(m_internal, this);
+  glfwSetWindowRefreshCallback(m_internal, cb_windowrefreshfun);
+  glfwSetWindowCloseCallback(m_internal, cb_windowclosefun);
+  glfwSetCursorPosCallback(m_internal, cb_cursorposfun);
+  glfwSetMouseButtonCallback(m_internal, cb_mousebuttonfun);
+  glfwSetKeyCallback(m_internal, cb_keyfun);
+  glfwSetScrollCallback(m_internal, cb_scrollfun);
+  glfwSetCharCallback(m_internal, cb_charfun);
+  glfwSetWindowSizeCallback(m_internal, cb_windowsizefun);
+  glfwSetDropCallback(m_internal, cb_dropfun);
+
+  return true;
 }
 
-void NVPWindow::destroy()
+void NVPWindow::deinit()
 {
+  glfwDestroyWindow(m_internal);
+  m_internal        = nullptr;
   m_windowSize[0] = 0;
   m_windowSize[1] = 0;
-  m_internal->destroy();
-  delete m_internal;
-  m_internal = NULL;
-
-  m_windowName = "Sample";
-
-  for(auto it = g_windows.begin(); it < g_windows.end(); it++)
-    if(*it == this) {
-      g_windows.erase(it);
-      break;
-    }
+  m_windowName    = std::string();
 }
 
-void NVPWindow::setTitle( const char* title )
+void NVPWindow::close()
 {
-    m_internal->setTitle(title);
+  glfwSetWindowShouldClose(m_internal, GLFW_TRUE);
+}
+
+void NVPWindow::setTitle(const char* title)
+{
+  glfwSetWindowTitle(m_internal, title);
 }
 
 void NVPWindow::maximize()
 {
-  m_internal->maximize();
+  glfwMaximizeWindow(m_internal);
 }
 
 void NVPWindow::restore()
 {
-  m_internal->restore();
+  glfwRestoreWindow(m_internal);
 }
 
 void NVPWindow::minimize()
 {
-  m_internal->minimize();
+  glfwIconifyWindow(m_internal);
 }
 
-bool NVPWindow::isOpen()
+void NVPWindow::setWindowPos(int x, int y)
 {
-  return m_internal->m_visible && !m_internal->m_iconified;
+  glfwSetWindowPos(m_internal, x, y);
 }
 
-void NVPWindow::setWindowPos(int x, int y, int w, int h)
+void NVPWindow::setWindowSize(int w, int h)
 {
-    m_internal->setWindowPos(x,y,w,h);
+  glfwSetWindowSize(m_internal, w, h);
+}
+
+std::string NVPWindow::openFileDialog(const char* title, const char* exts)
+{
+  return NVPSystem::windowOpenFileDialog(m_internal, title, exts);
+}
+void NVPWindow::screenshot(const char* filename)
+{
+  NVPSystem::windowScreenshot(m_internal, filename);
+}
+void NVPWindow::clear(uint32_t r, uint32_t g, uint32_t b)
+{
+  NVPSystem::windowClear(m_internal, r, g, b);
 }
 
 void NVPWindow::setFullScreen(bool bYes)
 {
-    m_internal->setFullScreen(bYes);
-    m_isFullScreen = bYes;
+  if (bYes == m_isFullScreen) return;
 
-}
+  GLFWmonitor* monitor = glfwGetWindowMonitor(m_internal);
+  const GLFWvidmode* mode = glfwGetVideoMode(monitor);
 
-void NVPWindow::screenshot(const char* filename)
-{
-  m_internal->screenshot(filename);
-}
-
-void NVPWindow::clear(uint32_t r, uint32_t g, uint32_t b)
-{
-  m_internal->clear(r,g,b);
-}
-
-//---------------------------------------------------------------------------
-// Message pump
-bool NVPWindow::sysPollEvents(bool bLoop)
-{
-    bool bContinue;
-    do {
-#ifdef USESOCKETS
-		// check the stack of messages from remote connection, first
-        processRemoteMessages();
-#endif
-        // hack to get to the allocated implementation for the right platform
-        bContinue = NVPWindowInternal::sysPollEvents();
-    } while( bContinue && bLoop );
-    return bContinue;
-}
-
-void NVPWindow::sysWaitEvents()
-{
-    NVPWindowInternal::sysWaitEvents();
-}
-
-void NVPWindow::sysPostQuit()
-{
-  NVPWindowInternal::sysPostQuit();
-}
-
-void NVPWindow::sysPostTiming(float ms, int fps, const char *details)
-{
-#ifdef USESOCKETS
-    ::postTiming(ms, fps, details);
-#endif
-}
-
-
-double NVPWindow::sysGetTime()
-{
-    return NVPWindowInternal::sysGetTime();
-}
-
-void NVPWindow::sysSleep(double seconds)
-{
-  NVPWindowInternal::sysSleep(seconds);
-}
-
-void NVPWindow::sysInit(const char* exeFileName, const char* projectName)
-{
-  std::string logfile;
-  logfile = std::string("log_") + std::string(projectName) + std::string(".txt");
-  nvprintSetLogFileName(logfile.c_str() );
-
-  std::string exe = exeFileName;
-  std::replace(exe.begin(),exe.end(),'\\','/');
-
-  size_t last = exe.rfind('/');
-  if (last != std::string::npos){
-    s_path = exe.substr(0,last) + std::string("/");
+  if (bYes){
+    glfwGetWindowPos(m_internal, &m_preFullScreenPos[0], &m_preFullScreenPos[1]);
+    glfwGetWindowSize(m_internal, &m_preFullScreenSize[0], &m_preFullScreenSize[1]);
+    glfwSetWindowMonitor(m_internal, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+    glfwSetWindowAttrib(m_internal, GLFW_RESIZABLE, GLFW_FALSE);
+    glfwSetWindowAttrib(m_internal, GLFW_DECORATED, GLFW_FALSE);
+  }
+  else {
+    glfwSetWindowMonitor(m_internal, nullptr, m_preFullScreenPos[0], m_preFullScreenPos[1], m_preFullScreenSize[0], m_preFullScreenSize[1], 0);
+    glfwSetWindowAttrib(m_internal, GLFW_RESIZABLE, GLFW_TRUE);
+    glfwSetWindowAttrib(m_internal, GLFW_DECORATED, GLFW_TRUE);
   }
 
-  NVPWindowInternal::sysInit();
+  m_isFullScreen = bYes;
+}
 
-  //initNSight();
-#ifdef USESOCKETS
-	//
-	// Socket init if needed
-	//
-	startSocketServer(/*port*/1056);
-#endif
-}
-void NVPWindow::sysDeinit()
-{
-  //
-  // Terminate
-  //
-  for(size_t i=0; i<g_windows.size(); i++)
-  {
-    NVPWindow *pWin = g_windows[i];
-    // pWin->shutdown(); // This might have already been called by the WM_DESTROY or equivalent in Linux etc.
-    if (pWin->m_internal){
-      pWin->m_internal->destroy();
-      delete pWin->m_internal;
-      pWin->m_internal = NULL;
-    }
-  }
-  g_windows.clear();
-  NVPWindowInternal::sysDeinit();
-}
-std::string NVPWindow::sysExePath()
-{
-  return s_path;
-}

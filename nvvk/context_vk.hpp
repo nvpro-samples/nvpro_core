@@ -25,166 +25,282 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef NV_VK_CONTEXT_INCLUDED
-#define NV_VK_CONTEXT_INCLUDED
+#ifndef NV_VK_DEVICEINSTANCE_INCLUDED
+#define NV_VK_DEVICEINSTANCE_INCLUDED
 
 #include <vector>
-#include <vulkan/vulkan.h>
-
-#include "physical_vk.hpp"
+#include <vulkan/vulkan_core.h>
 
 namespace nvvk {
+/**
+To run a Vulkan application, you need to create the Vulkan instance and device.
+This is done using the `nvvk::Context`, which wraps the creation of `VkInstance`
+and `VkDevice`.
 
-struct ContextInfoVK;
-
-//////////////////////////////////////////////////////////////////////////
-// This class maintains
-// - the Vulkan instance
-// - Physical Device(s)
-// - Physical Info
-// - the LOGICAL Device
-//
-// It maintains what extensions are finally available
-// and allows to manage the debugging part for callbacks etc.
-class InstanceDeviceContext
-{
-public:
-  using NameArray = std::vector<const char*>;
-  //
-  // Public members for the application to directly access them
-  //
-  uint32_t m_apiMajor = 1;
-  uint32_t m_apiMinor = 0;
-
-  const VkAllocationCallbacks*  m_allocator      = nullptr;
-  VkInstance                    m_instance       = VK_NULL_HANDLE;
-  VkDevice                      m_device         = VK_NULL_HANDLE;
-  VkPhysicalDevice              m_physicalDevice = VK_NULL_HANDLE;
-  std::vector<VkPhysicalDevice> m_physicalDeviceGroup;
-  PhysicalInfo                  m_physicalInfo;
-
-  NameArray m_usedInstanceLayers;
-  NameArray m_usedInstanceExtensions;
-  NameArray m_usedDeviceLayers;
-  NameArray m_usedDeviceExtensions;
-  //
-  // initContext takes what features has been requrested by the application in ContextInfoVK
-  // and set-up the instance, layers, physical device(s), logical device etc.
-  //
-  bool initContext(ContextInfoVK &info, const VkAllocationCallbacks* allocator = nullptr);
-  void deinitContext();
-  bool hasDeviceExtension(const char* name) const;
-  //
-  // methods for Debugging information
-  //
-  void initDebugReport();
-  void initDebugMarker();
-
-  void debugReportMessageEXT(VkDebugReportFlagsEXT      flags,
-                             VkDebugReportObjectTypeEXT objectType,
-                             uint64_t                   object,
-                             size_t                     location,
-                             int32_t                    messageCode,
-                             const char*                pLayerPrefix,
-                             const char*                pMessage) const;
-
-  VkResult debugMarkerSetObjectTagEXT(const VkDebugMarkerObjectTagInfoEXT* pTagInfo) const;
-  VkResult debugMarkerSetObjectNameEXT(const VkDebugMarkerObjectNameInfoEXT* pNameInfo) const;
-
-  void cmdDebugMarkerBeginEXT(VkCommandBuffer commandBuffer, const VkDebugMarkerMarkerInfoEXT* pMarkerInfo) const;
-  void cmdDebugMarkerEndEXT(VkCommandBuffer commandBuffer) const;
-  void cmdDebugMarkerInsertEXT(VkCommandBuffer commandBuffer, const VkDebugMarkerMarkerInfoEXT* pMarkerInfo) const;
-
-private:
-  VkDebugReportCallbackEXT m_debugCallback = VK_NULL_HANDLE;
-
-  PFN_vkCreateDebugReportCallbackEXT  m_vkCreateDebugReportCallbackEXT  = nullptr;
-  PFN_vkDestroyDebugReportCallbackEXT m_vkDestroyDebugReportCallbackEXT = nullptr;
-  PFN_vkDebugReportMessageEXT         m_vkDebugReportMessageEXT         = nullptr;
-
-  PFN_vkDebugMarkerSetObjectTagEXT  m_vkDebugMarkerSetObjectTagEXT  = nullptr;
-  PFN_vkDebugMarkerSetObjectNameEXT m_vkDebugMarkerSetObjectNameEXT = nullptr;
-  PFN_vkCmdDebugMarkerBeginEXT      m_vkCmdDebugMarkerBeginEXT      = nullptr;
-  PFN_vkCmdDebugMarkerEndEXT        m_vkCmdDebugMarkerEndEXT        = nullptr;
-  PFN_vkCmdDebugMarkerInsertEXT     m_vkCmdDebugMarkerInsertEXT     = nullptr;
-
-  static VKAPI_ATTR VkBool32 VKAPI_CALL vulkanDebugReportCallback(VkDebugReportFlagsEXT      msgFlags,
-                                                                  VkDebugReportObjectTypeEXT objType,
-                                                                  uint64_t                   object,
-                                                                  size_t                     location,
-                                                                  int32_t                    msgCode,
-                                                                  const char*                pLayerPrefix,
-                                                                  const char*                pMsg,
-                                                                  void*                      pUserData);
-};
-
+First, any application needs to specify how instance and device should be created:
+Version, layers, instance and device extensions influence the features available.
+This is done through a temporary and intermediate class that will allow you to gather
+all the required conditions for the device creation.
+*/
 
 //////////////////////////////////////////////////////////////////////////
-//
-// this structure allows the application to specify a set of features
-// that are expected for the creation of
-// - instance
-// - physical and logical device
-// Then InstanceDeviceContext::InitContext(...) will use it to query Vulkan
-// for whatever is required here
-//
-struct ContextInfoVK
+/**
+# struct ContextCreateInfo
+
+This structure allows the application to specify a set of features
+that are expected for the creation of
+- VkInstance
+- VkDevice
+
+It is consumed by the `nvvk::Context::init` function.
+
+Example on how to populate information in it : 
+
+~~~~ C++
+    nvvk::ContextCreateInfo ctxInfo;
+    ctxInfo.setVersion(1, 1);
+    ctxInfo.addInstanceLayer("VK_LAYER_KHRONOS_validation");
+    ctxInfo.addInstanceLayer("VK_LAYER_LUNARG_monitor");
+    ctxInfo.addInstanceExtension(VK_KHR_SURFACE_EXTENSION_NAME, false);
+    ctxInfo.addInstanceExtension(VK_KHR_WIN32_SURFACE_EXTENSION_NAME, false);
+    ctxInfo.addInstanceExtension(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
+    ctxInfo.addDeviceExtension(VK_KHR_SWAPCHAIN_EXTENSION_NAME, false);
+~~~~
+
+then you are ready to create initialize `nvvk::Context`
+
+> Note: In debug builds, the extension `VK_EXT_DEBUG_UTILS_EXTENSION_NAME` and the layer `VK_LAYER_KHRONOS_validation` are added to help finding issues early.
+
+
+*/
+struct ContextCreateInfo
 {
-  ContextInfoVK();
+  ContextCreateInfo(bool bUseValidation = true);
+
+  void setVersion(int major, int minor);
+
   void addInstanceExtension(const char* name, bool optional = false);
   void addInstanceLayer(const char* name, bool optional = false);
-  // pFeatureStruct is used for a version 1.1 and higher context. It will be queried from physical device
-  // and then passed in this state to device create info.
   void addDeviceExtension(const char* name, bool optional = false, void* pFeatureStruct = nullptr);
-  void addDeviceLayer(const char* name, bool optional = false);
 
-  // Configure context creation with these variables and functions
-  int         apiMajor  = 1;
-  int         apiMinor  = 1;
-  uint32_t    device    = 0;
+  void removeInstanceExtension(const char* name);
+  void removeInstanceLayer(const char* name);
+  void removeDeviceExtension(const char* name);
+
+
+  // Configure additional device creation with these variables and functions
+
+  // use device groups
+  bool useDeviceGroups = false;
+
+  // which compatible device or device group to pick
+  // only used by All-in-one Context::init(...)
+  uint32_t compatibleDeviceIndex = 0;
+
+  // instance properties
   const char* appEngine = "nvpro-sample";
   const char* appTitle  = "nvpro-sample";
 
-  bool useDeviceGroups  = false;
-  bool verboseUsed      = true;
-  bool verboseAvailable =
+  // may impact performance hence disable by default
+  bool disableRobustBufferAccess = true;
+
+  // Information printed at Context::init time
+  bool verboseCompatibleDevices = true;
+  bool verboseUsed              = true;  // Print what is used
+  bool verboseAvailable         =        // Print what is available
 #ifdef _DEBUG
-    true; 
+      true;
 #else
-    false;
+      false;
 #endif
-  // by default all device features, except robust access are enabled
-  // if the device supports them. Set a feature to zero
-  // to disable it.
-  VkPhysicalDeviceFeatures keepFeatures;
 
   struct Entry
   {
-    const char* name           = nullptr;
-    bool        optional       = false;
-    void*       pFeatureStruct = nullptr;
-
-    Entry() {}
     Entry(const char* entryName, bool isOptional = false, void* pointerFeatureStruct = nullptr)
         : name(entryName)
         , optional(isOptional)
         , pFeatureStruct(pointerFeatureStruct)
     {
     }
+    const char* name{nullptr};
+    bool        optional{false};
+    void*       pFeatureStruct{nullptr};
   };
+
+  int apiMajor = 1;
+  int apiMinor = 1;
+
   using EntryArray = std::vector<Entry>;
-
-  struct ExtensionHeader
-  {
-    VkStructureType sType;
-    void*           pNext;
-  };
-
   EntryArray instanceLayers;
   EntryArray instanceExtensions;
-  EntryArray deviceLayers;
   EntryArray deviceExtensions;
-};//struct ContextInfoVK
+};
+
+//////////////////////////////////////////////////////////////////////////
+/**
+# class nvvk::Context
+
+Context class helps creating the Vulkan instance and to choose the logical device for the mandatory extensions. First is to fill the `ContextCreateInfo` structure, then call:
+
+~~~ C++
+  // Creating the Vulkan instance and device
+  nvvk::ContextCreateInfo ctxInfo;
+  ... see above ...
+
+  nvvk::Context vkctx;
+  vkctx.init(ctxInfo);
+
+  // after init the ctxInfo is no longer needed
+~~~ 
+
+At this point, the class will have created the `VkInstance` and `VkDevice` according to the information passed. It will also keeps track or have query the information of:
+ 
+* Physical Device information that you can later query : `PhysicalDeviceInfo` in which lots of `VkPhysicalDevice...` are stored
+* `VkInstance` : the one instance being used for the programm
+* `VkPhysicalDevice` : physical device(s) used for the logical device creation. In case of more than one physical device, we have a std::vector for this purpose...
+* `VkDevice` : the logical device instanciated
+* `VkQueue` : we will enumerate all the available queues and make them available in `nvvk::Context`. Some queues are specialized, while other are for general purpose (most of the time, only one can handle everything, while other queues are more specialized). We decided to make them all available in some explicit way :
+ * `Queue m_queueGCT` : Graphics/Compute/Transfer Queue + family index
+ * `Queue m_queueT` : async Transfer Queue + family index
+ * `Queue m_queueC` : Compute Queue + family index
+* maintains what extensions are finally available
+* implicitly hooks up the debug callback
+
+## Choosing the device
+When there are multiple devices, the `init` method is choosing the first compatible device available, but it is also possible the choose another one.
+~~~ C++
+  vkctx.initInstance(deviceInfo); 
+  // Find all compatible devices
+  auto compatibleDevices = vkctx.getCompatibleDevices(deviceInfo);
+  assert(!compatibleDevices.empty());
+
+  // Use first compatible device
+  vkctx.initDevice(compatibleDevices[0], deviceInfo);
+~~~
+
+## Multi-GPU
+
+When multiple graphic cards should be used as a single device, the `ContextCreateInfo::useDeviceGroups` need to be set to `true`.
+The above methods will transparently create the `VkDevice` using `VkDeviceGroupDeviceCreateInfo`.
+Especially in the context of NVLink connected cards this is useful.
+
+
+*/
+class Context
+{
+public:
+  using NameArray = std::vector<const char*>;
+
+  // This struct holds all core feature information for a physical device
+  struct PhysicalDeviceInfo
+  {
+
+    VkPhysicalDeviceMemoryProperties     memoryProperties{};
+    VkPhysicalDeviceProperties           properties{};
+    VkPhysicalDeviceFeatures2            features2{};
+    std::vector<VkQueueFamilyProperties> queueProperties;
+
+    // Vulkan 1.1 and beyond does not store properties/features within the
+    // default VkPhysicalDeviceProperties... classes but use individual structs similar
+    // to extensions.
+    // NEVER put extension structs in here, only core features
+
+    struct CoreFeatures
+    {
+      VkPhysicalDeviceMultiviewFeatures              multiview{};
+      VkPhysicalDevice16BitStorageFeatures           t16BitStorage{};
+      VkPhysicalDeviceSamplerYcbcrConversionFeatures samplerYcbcrConversion{};
+      VkPhysicalDeviceProtectedMemoryFeatures        protectedMemory{};
+      VkPhysicalDeviceShaderDrawParameterFeatures    drawParameters{};
+      VkPhysicalDeviceVariablePointerFeatures        variablePointers{};
+    };
+    struct CoreProperties
+    {
+      VkPhysicalDeviceMaintenance3Properties    maintenance3{};
+      VkPhysicalDeviceIDProperties              deviceID{};
+      VkPhysicalDeviceMultiviewProperties       multiview{};
+      VkPhysicalDeviceProtectedMemoryProperties protectedMemory{};
+      VkPhysicalDevicePointClippingProperties   pointClipping{};
+      VkPhysicalDeviceSubgroupProperties        subgroup{};
+    };
+
+    CoreFeatures   coreFeatures;
+    CoreProperties coreProperties;
+  };
+
+  struct Queue
+  {
+    VkQueue  queue       = VK_NULL_HANDLE;
+    uint32_t familyIndex = ~0;
+
+    operator VkQueue() const { return queue; }
+    operator uint32_t() const { return familyIndex; }
+  };
+
+
+  VkInstance         m_instance{VK_NULL_HANDLE};
+  VkDevice           m_device{VK_NULL_HANDLE};
+  VkPhysicalDevice   m_physicalDevice{VK_NULL_HANDLE};
+  PhysicalDeviceInfo m_physicalInfo;
+
+  Queue m_queueGCT;  // for Graphics/Compute/Transfer (must exist)
+  Queue m_queueT;    // for pure async Transfer Queue (can exist, only contains transfer nothing else)
+  Queue m_queueC;    // for async Compute (can exist, may contain other non-graphics support)
+
+  operator VkDevice() const { return m_device; }
+
+  // All-in-one instance and device creation
+  bool init(const ContextCreateInfo& info);
+  void deinit();
+
+  // Individual object creation
+  bool initInstance(const ContextCreateInfo& info);
+  // deviceIndex is an index either into getPhysicalDevices or getPhysicalDeviceGroups
+  // depending on info.useDeviceGroups
+  bool initDevice(uint32_t deviceIndex, const ContextCreateInfo& info);
+
+  // Helpers
+  std::vector<int>                             getCompatibleDevices(const ContextCreateInfo& info);
+  std::vector<VkPhysicalDevice>                getPhysicalDevices();
+  std::vector<VkPhysicalDeviceGroupProperties> getPhysicalDeviceGroups();
+  std::vector<VkExtensionProperties>           getInstanceExtensions();
+  std::vector<VkLayerProperties>               getInstanceLayers();
+  std::vector<VkExtensionProperties>           getDeviceExtensions(VkPhysicalDevice physicalDevice);
+  bool hasMandatoryExtensions(VkPhysicalDevice physicalDevice, const ContextCreateInfo& info, bool bVerbose);
+
+  // Ensures the GCT queue can present to the provided surface (return false if fails to set)
+  bool setGCTQueueWithPresent(VkSurfaceKHR surface);
+
+  uint32_t getQueueFamily(VkQueueFlags flagsSupported, VkQueueFlags flagsDisabled = 0, VkSurfaceKHR surface = VK_NULL_HANDLE);
+
+  // true if the context has the optional extension activated
+  bool hasDeviceExtension(const char* name) const;
+
+private:
+  NameArray m_usedInstanceLayers;
+  NameArray m_usedInstanceExtensions;
+  NameArray m_usedDeviceExtensions;
+
+  // New Debug system
+  PFN_vkCreateDebugUtilsMessengerEXT  m_createDebugUtilsMessengerEXT  = nullptr;
+  PFN_vkDestroyDebugUtilsMessengerEXT m_destroyDebugUtilsMessengerEXT = nullptr;
+  VkDebugUtilsMessengerEXT            m_dbgMessenger                   = nullptr;
+
+
+  void initDebugReport();
+
+  VkResult fillFilteredNameArray(Context::NameArray&                   used,
+                                 const std::vector<VkLayerProperties>& properties,
+                                 const ContextCreateInfo::EntryArray&  requested);
+  VkResult fillFilteredNameArray(Context::NameArray&                       used,
+                                 const std::vector<VkExtensionProperties>& properties,
+                                 const ContextCreateInfo::EntryArray&      requested,
+                                 std::vector<void*>&                       featureStructs);
+  bool checkEntryArray(const std::vector<VkExtensionProperties>& properties, const ContextCreateInfo::EntryArray& requested, bool bVerbose);
+  static void initPhysicalInfo(PhysicalDeviceInfo& info, VkPhysicalDevice physicalDevice);
+};
+
+
 }  // namespace nvvk
 
 #endif

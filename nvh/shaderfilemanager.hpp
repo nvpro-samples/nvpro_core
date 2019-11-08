@@ -33,20 +33,25 @@
 #include <string>
 #include <vector>
 
-#include <nvh/assetsloader.hpp>
-
 namespace nvh {
 
 class ShaderFileManager
 {
 
+  //////////////////////////////////////////////////////////////////////////
   /*
-    This class is meant to be derived from to create the actual api-specific shader/program
-    managers.
+    # class nvh::ShaderFileManager
+
+    The ShaderFileManager class is meant to be derived from to create the actual api-specific 
+    shader/program managers.
 
     The ShaderFileManager provides a system to find/load shader files.
     It also allows resolving #include instructions in HLSL/GLSL source files.
     Such includes must be registered before, and can also point to strings in memory.
+
+    Furthermore it handles injecting prepended strings (typically used for #defines) 
+    after the #version statement of GLSL files.
+
   */
 
 public:
@@ -70,25 +75,20 @@ public:
   static std::string format(const char* msg, ...);
 
 public:
-  static const unsigned int PREPROCESS_ONLY_PROGRAM = ~0;
-  static const size_t       INVALID_ID              = ~0;
-
   class IncludeID
   {
   public:
     size_t m_value;
 
     IncludeID()
-        : m_value(INVALID_ID)
+        : m_value(size_t(~0))
     {
     }
 
     IncludeID(size_t b)
-        : m_value(b)
+        : m_value((uint32_t)b)
     {
     }
-
-    operator size_t() const { return m_value; }
 
     IncludeID& operator=(size_t b)
     {
@@ -96,49 +96,48 @@ public:
       return *this;
     }
 
-    bool isValid() const { return m_value != INVALID_ID; }
+    bool isValid() const { return m_value != size_t(~0); }
+
+    operator bool() const { isValid(); }
+    operator size_t() const { return m_value; }
+
+    friend bool operator==(const IncludeID& lhs, const IncludeID& rhs){ return rhs.m_value == lhs.m_value; }
   };
 
   struct Definition
   {
-
     Definition()
-        : type(0)
-        , prepend("")
-        , filename("")
-        , filetype(FILETYPE_DEFAULT)
-        , entry("main")
     {
     }
     Definition(uint32_t type, std::string const& prepend, std::string const& filename)
         : type(type)
         , prepend(prepend)
         , filename(filename)
-        , filetype(FILETYPE_DEFAULT)
-        , entry("main")
     {
     }
     Definition(uint32_t type, std::string const& filename)
         : type(type)
-        , prepend("")
         , filename(filename)
-        , filetype(FILETYPE_DEFAULT)
-        , entry("main")
     {
     }
 
-    uint32_t    type;
-    FileType    filetype;
-    std::string prepend;
+    uint32_t    type = 0;
     std::string filename;
+    std::string prepend;
+    std::string entry = "main";
+    FileType    filetype = FILETYPE_DEFAULT;
     std::string filenameFound;
-    std::string entry;
     std::string content;
   };
 
 
   // register files to be included, optionally provide content directly
-  IncludeID registerInclude(std::string const& name, std::string const& filename, std::string const& content = std::string());
+  //
+  // name: name used within shader files
+  // diskname = filename on disk (defaults to name if not set)
+  // content = provide content as string rather than loading from disk
+
+  IncludeID registerInclude(std::string const& name, std::string const& diskname = std::string(), std::string const& content = std::string());
 
   // Use m_prepend to pass global #defines
   // Derived api classes will use this as global prepend to the per-definition prepends in combination
@@ -149,11 +148,10 @@ public:
   // per file state, used when FILETYPE_DEFAULT is provided in the Definition
   FileType    m_filetype;
 
-  // Note: we might want to avoid and directly rely on AssetLoaderAddSearchPath in the samples... ?
+  // add search directories
   void addDirectory(const std::string& dir)
   {
-    AssetLoaderAddSearchPath(dir.c_str());
-    //m_directories.push_back(dir);
+    m_directories.push_back(dir);
   }
 
   ShaderFileManager()
@@ -163,8 +161,7 @@ public:
       , m_supportsExtendedInclude(false)
       , m_filetype(FILETYPE_GLSL)
   {
-    AssetLoaderAddSearchPath(".");
-    //m_directories.push_back(".");
+    m_directories.push_back(".");
   }
 
   //////////////////////////////////////////////////////////////////////////
@@ -173,11 +170,11 @@ public:
 
   IncludeID           findInclude(std::string const& name) const;
   bool                loadIncludeContent(IncludeID);
-  const IncludeEntry& getInclude(IncludeID idx) const;
+  const IncludeEntry& getIncludeEntry(IncludeID idx) const;
+  
+  std::string         getProcessedContent(std::string const& filename, std::string& filenameFound);
 
 protected:
-  IncludeEntry& getInclude(IncludeID idx);
-
   std::string markerString(int line, std::string const& filename, int fileid);
   std::string getIncludeContent(IncludeID idx, std::string& filenameFound);
   std::string getContent(std::string const& filename, std::string& filenameFound);
@@ -189,8 +186,8 @@ protected:
   bool m_forceIncludeContent;
   bool m_supportsExtendedInclude;
 
-  //std::vector<std::string>  m_directories;
-  IncludeRegistry m_includes;
+  std::vector<std::string>  m_directories;
+  IncludeRegistry           m_includes;
 };
 
 }  // namespace nvh

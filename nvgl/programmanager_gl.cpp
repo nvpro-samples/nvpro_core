@@ -34,14 +34,13 @@
 #include <fstream>
 #include <iostream>
 
-#include <nvh/assetsloader.hpp>
-#include <nvh/misc.hpp>
+#include <nvh/fileoperations.hpp>
 #include <nvh/nvprint.hpp>
 
 namespace nvgl
 {
 
-  bool checkProgram(GLuint program)
+  static bool checkProgram(GLuint program)
   {
     if(!program)
       return false;
@@ -65,7 +64,7 @@ namespace nvgl
     return result == GL_TRUE;
   }
 
-  bool checkShader
+  static bool checkShader
     (
     GLuint shader, 
     std::string const & filename
@@ -93,26 +92,8 @@ namespace nvgl
 
     return result == GL_TRUE;
   }
-
-  GLuint createShader
-    (
-    GLenum Type,
-    std::string const & preprocessed
-    )
-  {
-    GLuint name = 0;
-
-    if (!preprocessed.empty()){
-      char const * sourcePointer = preprocessed.c_str();
-      name = glCreateShader(Type);
-      glShaderSource(name, 1, &sourcePointer, NULL);
-      glCompileShader(name);
-    }
-
-    return name;
-  }
-
-  bool  ProgramManager::setupProgram(Program& prog)
+  
+  bool ProgramManager::setupProgram(Program& prog)
   {
     prog.program = 0;
 
@@ -179,7 +160,13 @@ namespace nvgl
     if (!loadedCache){
       for (size_t i = 0; i < prog.definitions.size(); i++) {
         Definition& definition = prog.definitions[i];
-        GLuint shader = createShader(definition.type, definition.content);
+        GLuint shader = 0;
+        if (!definition.content.empty()){
+          char const * sourcePointer = definition.content.c_str();
+          shader = glCreateShader(definition.type);
+          glShaderSource(shader, 1, &sourcePointer, NULL);
+          glCompileShader(shader);
+        }
         if (!shader || !checkShader(shader,definition.filename)){
           glDeleteShader(shader);
           glDeleteProgram(prog.program);
@@ -204,12 +191,7 @@ namespace nvgl
     return false;
   }
 
-  ProgramManager::ProgramID ProgramManager::createProgram( const std::vector<ProgramManager::Definition>& definitions )
-  {
-    return createProgram(definitions.size(), definitions.data());
-  }
-
-  ProgramManager::ProgramID ProgramManager::createProgram( const Definition& def0, const Definition& def1 /*= ShaderDefinition()*/, const Definition& def2 /*= ShaderDefinition()*/, const Definition& def3 /*= ShaderDefinition()*/, const Definition& def4 /*= ShaderDefinition()*/ )
+  ProgramID ProgramManager::createProgram( const Definition& def0, const Definition& def1 /*= ShaderDefinition()*/, const Definition& def2 /*= ShaderDefinition()*/, const Definition& def3 /*= ShaderDefinition()*/, const Definition& def4 /*= ShaderDefinition()*/ )
   {
     std::vector<ProgramManager::Definition> defs;
     defs.push_back(def0);
@@ -221,13 +203,10 @@ namespace nvgl
     return createProgram(defs);
   }
 
-  ProgramManager::ProgramID ProgramManager::createProgram( size_t num, const ProgramManager::Definition* definitions )
+  ProgramID ProgramManager::createProgram( const std::vector<ProgramManager::Definition>& definitions  )
   {
     Program prog;
-    prog.definitions.reserve(num);
-    for (size_t i = 0; i < num; i++){
-      prog.definitions.push_back(definitions[i]);
-    }
+    prog.definitions = definitions;
 
     setupProgram(prog);
 
@@ -300,17 +279,7 @@ namespace nvgl
     assert( m_programs[idx].program != PREPROCESS_ONLY_PROGRAM);
     return m_programs[idx].program;
   }
-
-  ProgramManager::Program& ProgramManager::getProgram( ProgramID idx )
-  {
-    return m_programs[idx];
-  }
-
-  const ProgramManager::Program& ProgramManager::getProgram( ProgramID idx ) const
-  {
-    return m_programs[idx];
-  }
-
+  
   void ProgramManager::destroyProgram( ProgramID idx )
   {
     if (m_programs[idx].program && m_programs[idx].program != PREPROCESS_ONLY_PROGRAM){
@@ -412,8 +381,8 @@ namespace nvgl
   bool ProgramManager::loadBinary( GLuint program, const std::string& combinedPrepend, const std::string& combinedFilenames )
   {
     std::string filename = binaryName(combinedPrepend,combinedFilenames);
-
-    std::string binraw = nvh::loadFile(filename.c_str(), true);
+    std::string filenameFound;
+    std::string binraw = nvh::loadFile(filename, true, m_directories, filenameFound);
     if (!binraw.empty()){
       const char* bindata = &binraw[0];
       glProgramBinary(program, *(GLenum*)bindata, bindata+4, GLsizei(binraw.size()-4));

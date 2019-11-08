@@ -4765,6 +4765,30 @@ GLAPI void APIENTRY glTexBufferARB (GLenum target, GLenum internalformat, GLuint
 #define GL_WEIGHTED_AVERAGE_ARB           0x9367
 #endif /* GL_ARB_texture_filter_minmax */
 
+#ifndef GL_ARB_texture_float
+#define GL_ARB_texture_float 1
+#define GL_TEXTURE_RED_TYPE_ARB           0x8C10
+#define GL_TEXTURE_GREEN_TYPE_ARB         0x8C11
+#define GL_TEXTURE_BLUE_TYPE_ARB          0x8C12
+#define GL_TEXTURE_ALPHA_TYPE_ARB         0x8C13
+#define GL_TEXTURE_LUMINANCE_TYPE_ARB     0x8C14
+#define GL_TEXTURE_INTENSITY_TYPE_ARB     0x8C15
+#define GL_TEXTURE_DEPTH_TYPE_ARB         0x8C16
+#define GL_UNSIGNED_NORMALIZED_ARB        0x8C17
+#define GL_RGBA32F_ARB                    0x8814
+#define GL_RGB32F_ARB                     0x8815
+#define GL_ALPHA32F_ARB                   0x8816
+#define GL_INTENSITY32F_ARB               0x8817
+#define GL_LUMINANCE32F_ARB               0x8818
+#define GL_LUMINANCE_ALPHA32F_ARB         0x8819
+#define GL_RGBA16F_ARB                    0x881A
+#define GL_RGB16F_ARB                     0x881B
+#define GL_ALPHA16F_ARB                   0x881C
+#define GL_INTENSITY16F_ARB               0x881D
+#define GL_LUMINANCE16F_ARB               0x881E
+#define GL_LUMINANCE_ALPHA16F_ARB         0x881F
+#endif /* GL_ARB_texture_float */
+
 #ifndef GL_ARB_texture_gather
 #define GL_ARB_texture_gather 1
 #define GL_MIN_PROGRAM_TEXTURE_GATHER_OFFSET_ARB 0x8E5E
@@ -5793,6 +5817,14 @@ GLAPI void APIENTRY glFramebufferFetchBarrierEXT (void);
 #ifndef GL_EXT_shader_integer_mix
 #define GL_EXT_shader_integer_mix 1
 #endif /* GL_EXT_shader_integer_mix */
+
+#ifndef GL_EXT_texture_compression_latc
+#define GL_EXT_texture_compression_latc 1
+#define GL_COMPRESSED_LUMINANCE_LATC1_EXT 0x8C70
+#define GL_COMPRESSED_SIGNED_LUMINANCE_LATC1_EXT 0x8C71
+#define GL_COMPRESSED_LUMINANCE_ALPHA_LATC2_EXT 0x8C72
+#define GL_COMPRESSED_SIGNED_LUMINANCE_ALPHA_LATC2_EXT 0x8C73
+#endif /* GL_EXT_texture_compression_latc */
 
 #ifndef GL_EXT_texture_compression_s3tc
 #define GL_EXT_texture_compression_s3tc 1
@@ -7062,6 +7094,15 @@ typedef void (APIENTRYP PFNGLVIEWPORTSWIZZLENVPROC) (GLuint index, GLenum swizzl
 GLAPI void APIENTRY glViewportSwizzleNV (GLuint index, GLenum swizzlex, GLenum swizzley, GLenum swizzlez, GLenum swizzlew);
 #endif
 #endif /* GL_NV_viewport_swizzle */
+
+#ifndef GL_NVX_gpu_memory_info
+#define GL_NVX_gpu_memory_info 1
+#define GL_GPU_MEMORY_INFO_DEDICATED_VIDMEM_NVX 0x9047
+#define GL_GPU_MEMORY_INFO_TOTAL_AVAILABLE_MEMORY_NVX 0x9048
+#define GL_GPU_MEMORY_INFO_CURRENT_AVAILABLE_VIDMEM_NVX 0x9049
+#define GL_GPU_MEMORY_INFO_EVICTION_COUNT_NVX 0x904A
+#define GL_GPU_MEMORY_INFO_EVICTED_MEMORY_NVX 0x904B
+#endif /* GL_NVX_gpu_memory_info */
 
 #ifndef GL_OVR_multiview
 #define GL_OVR_multiview 1

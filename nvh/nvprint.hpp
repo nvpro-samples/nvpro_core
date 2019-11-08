@@ -36,6 +36,29 @@
 #include <stdarg.h>
 
 
+/**
+  # global nvprintf functions
+
+  Multiple functions and macros that should be used for logging purposes,
+  rather than printf
+
+  - nvprintf : print at default loglevel
+  - nvprintfLevel : print at a certain loglevel
+  - nvprintSetLevel : sets default loglevel
+  - nvprintGetLevel : gets default loglevel
+  - nvprintSetLogFileName : sets log filename
+  - nvprintSetLogging : sets file logging state
+  - nvprintSetCallback : sets custom callback
+  - LOGI : macro that does nvprintfLevel(LOGLEVEL_INFO)
+  - LOGW : macro that does nvprintfLevel(LOGLEVEL_WARNING)
+  - LOGE : macro that does nvprintfLevel(LOGLEVEL_ERROR)
+  - LOGE_FILELINE : macro that does nvprintfLevel(LOGLEVEL_ERROR) combined with filename/line
+  - LOGD : macro that does nvprintfLevel(LOGLEVEL_DEBUG) (only in debug builds)
+  - LOGOK : macro that does nvprintfLevel(LOGLEVEL_OK)
+  - LOGSTATS : macro that does nvprintfLevel(LOGLEVEL_STATS)
+*/
+
+
 // trick for pragma message so we can write:
 // #pragma message(__FILE__"("S__LINE__"): blah")
 #define S__(x) #x
@@ -53,7 +76,8 @@
 
 #   define  LOGI(...)  { nvprintfLevel(LOGLEVEL_INFO, __VA_ARGS__); }
 #   define  LOGW(...)  { nvprintfLevel(LOGLEVEL_WARNING, __VA_ARGS__); }
-#   define  LOGE(...)  { nvprintfLevel(LOGLEVEL_ERROR, __FILE__ "(" S__LINE__ "): **ERROR**:\n" __VA_ARGS__ ); }
+#   define  LOGE(...)  { nvprintfLevel(LOGLEVEL_ERROR, __VA_ARGS__ ); }
+#   define  LOGE_FILELINE(...)  { nvprintfLevel(LOGLEVEL_ERROR, __FILE__ "(" S__LINE__ "): **ERROR**:\n" __VA_ARGS__ ); }
 #ifdef _DEBUG
 #   define  LOGD(...)  { nvprintfLevel(LOGLEVEL_DEBUG, __FILE__ "(" S__LINE__ "): Debug Info:\n" __VA_ARGS__ ); }
 #else

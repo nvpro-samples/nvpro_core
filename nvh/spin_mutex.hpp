@@ -33,6 +33,24 @@
 
 namespace nvh {
 
+  // spin_mutex is a light-weight mutex relying on the processor's atomic instructions.
+  // It avoids the use of operating-system specific mechanisms but requires a busy wait.
+  // It is compatible with the std::lock_guard template.
+  //
+  // example usage:
+  //
+  // class MyQueue {
+  //   std::vector<Data>  m_items;
+  //   nvh::spin_mutex    m_mutex;
+  //
+  // public:
+  //
+  //  // thread-safe enqueue
+  //   void enqueue(Data item) {
+  //     std::lock_guard<nvh::spin_mutex> lock(m_mutex);
+  //     m_items.push_back(item);
+  //  }
+
   class spin_mutex
   {
   private:

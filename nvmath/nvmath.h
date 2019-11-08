@@ -256,9 +256,15 @@ template<class T>  matrix3<T> invert(const matrix3<T> & A);
 template<class T>  matrix4<T> invert_rot_trans(const matrix4<T> & A);
 
 template<class T>  matrix4<T> look_at(const vector3<T> & eye, const vector3<T> & center, const vector3<T> & up);
+
 template<class T>  matrix4<T> frustum(const T l, const T r, const T b, const T t, const T n, const T f);
+template<class T>  matrix4<T> frustum01(const T l, const T r, const T b, const T t, const T n, const T f);
+template<class T>  matrix4<T> frustum01Rev(const T l, const T r, const T b, const T t, const T n, const T f);
 
 template<class T>  matrix4<T> perspective(const T fovy, const T aspect, const T n, const T f);
+template<class T>  matrix4<T> perspective01(const T fovy, const T aspect, const T n, const T f);
+template<class T>  matrix4<T> perspective01Rev(const T fovy, const T aspect, const T n, const T f);
+
 template<class T>  matrix4<T> ortho(const T left, 
                               const T right, 
                               const T bottom, 
@@ -292,24 +298,30 @@ template<class T>  vector4<T> lerp(const T & t, const vector4<T> & u, const vect
 
 // utilities
 template<class T>  T nv_min(const T & lambda, const T & n);
-
 template<class T>  T nv_max(const T & lambda, const T & n);
-
 template<class T>  T nv_clamp(const T u, const T min, const T max);
-
 template<class T>  T nv_random();
 
 template<class T>  quaternion<T> trackball(vector2<T> & pt1, vector2<T> & pt2, T trackballsize);
 
 template<class T>  vector3<T> cube_map_normal(int i, int x, int y, int cubesize, const vector3<T> & v);
 
-// Componentwise maximum and minium 
+// Componentwise
 template<class T>  vector2<T> nv_max(const vector2<T> & vFirst, const vector2<T> & vSecond);
 template<class T>  vector2<T> nv_min(const vector2<T> & vFirst, const vector2<T> & vSecond);
 template<class T>  vector3<T> nv_max(const vector3<T> & vFirst, const vector3<T> & vSecond);
 template<class T>  vector3<T> nv_min(const vector3<T> & vFirst, const vector3<T> & vSecond);
 template<class T>  vector4<T> nv_max(const vector4<T> & vFirst, const vector4<T> & vSecond);
 template<class T>  vector4<T> nv_min(const vector4<T> & vFirst, const vector4<T> & vSecond);
+
+template<class T>  vector2<T> nv_clamp(const vector2<T>& u, const T min, const T max);
+template<class T>  vector3<T> nv_clamp(const vector3<T>& u, const T min, const T max);
+template<class T>  vector4<T> nv_clamp(const vector4<T>& u, const T min, const T max);
+
+template<class T>  vector2<T> nv_floor(const vector2<T>& u);
+template<class T>  vector3<T> nv_floor(const vector3<T>& u);
+template<class T>  vector4<T> nv_floor(const vector4<T>& u);
+
 
 // geometry
 // computes the area of a triangle

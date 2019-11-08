@@ -37,6 +37,31 @@
 
 namespace nvh {
 
+  //////////////////////////////////////////////////////////////////////////
+  /** 
+    # class nvh::ParameterList
+
+    The ParameterList helps parsing commandline arguments
+    or commandline arguments stored within ascii config files.
+    
+    Parameters always update the values they point to, and optionally
+    can trigger a callback that can be provided per-parameter.
+    
+    ``` c++
+    ParameterList list;
+    std::string   modelFilename;
+    float         modelScale;
+    
+    list.addFilename(".gltf|model filename", &modelFilename);
+    list.add("scale|model scale", &modelScale);
+    
+    list.applyTokens(3, {"blah.gltf","-scale","4"}, "-", "/assets/");
+    ``` 
+
+    Use in combination with the ParameterSequence class to iterate
+    sequences of parameter changes for benchmarking/automation.
+  */
+
   class ParameterList {
   public:
 
@@ -75,14 +100,16 @@ namespace nvh {
     uint32_t setHelp(uint32_t parameterIndex, const char* helptext);
 
     // returns number of tokens found
+    // paramPrefix is typically "-"
     // relative filenames get the defaultFilePath prepended
     uint32_t applyTokens(uint32_t argCount, const char** argv, const char* paramPrefix = nullptr, const char* defaultFilePath = nullptr) const;
     // tests only single argument, increases arg by appropriate length on success (returns true)
     bool applyParameters(uint32_t argCount, const char** argv, uint32_t &arg, const char* paramPrefix = nullptr, const char* defaultFilePath = nullptr) const;
 
+    // prints all registered parameters and optional help strings
     void print() const;
 
-    // separators are all space characters 
+    // separators are all space (tab, newline etc.) characters 
     // preserves quotes based on "", converts backslashes, uses # as line comment
     // modifies content string by setting 0 at separators
     static void tokenizeString(std::string& content, std::vector<const char*>& args);
@@ -119,6 +146,41 @@ namespace nvh {
 
     Parameter makeParam(Type type, const char* name, Callback callback, void* destination, uint32_t readLength, uint32_t writeLength);
   };
+
+  //////////////////////////////////////////////////////////////////////////
+  /** 
+    # class nvh::ParameterSequence
+
+    The ParameterSequence processes provided tokens in sequences.
+    The sequences are terminated by a special "separator" token.
+    All tokens between the last iteration and the separator are applied
+    to the provided ParameterList.
+    Useful to process commands in sequences (automation, benchmarking etc.).
+  
+    Example:
+  
+    ``` c++
+    ParameterSequence sequence;
+    ParameterList     list;
+    int               mode;
+    list.add("mode", &mode);
+  
+    std::vector<const char*> tokens;
+    ParameterList::tokenizeString("benchmark simple -mode 10 benchmark complex -mode 20", tokens);
+    sequence.init(&list, tokens);
+  
+       // 1 means our separator is followed by one argument (simple/complex)
+       // "-" as parameters in the string are prefixed with -
+  
+    while(!sequence.advanceIteration("benchmark", 1, "-")) {
+      printf("%d %s mode %d\n", sequence.getIteration(), sequence.getSeparatorArg(0), mode);
+    }
+
+    // would print:
+    //   0 simple mode 10
+    //   1 complex mode 20
+    ```
+  */
 
 
   class ParameterSequence {

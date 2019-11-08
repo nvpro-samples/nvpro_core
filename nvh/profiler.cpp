@@ -26,22 +26,11 @@
  */
 
 #include "profiler.hpp"
+
 #include <assert.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
-
-#if defined(__linux__)
-#include <sys/time.h>
-#endif
-
-#ifdef _WIN32
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#endif
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -54,23 +43,44 @@ Profiler::Profiler(Profiler* master)
   grow(START_SECTIONS);
 }
 
- Profiler::Profiler(uint32_t startSections)
- {
-   m_data = std::shared_ptr<Data>(new Data);
-   grow(startSections);
- }
+Profiler::Profiler(uint32_t startSections)
+{
+  m_data = std::shared_ptr<Data>(new Data);
+  grow(startSections);
+}
+
+void Profiler::setAveragingSize(uint32_t num)
+{
+  assert(num <= MAX_NUM_AVERAGE);
+  m_data->numAveraging = num;
+
+  for(size_t i = 0; i < m_data->entries.size(); i++)
+  {
+    m_data->entries[i].cpuTime.init(num);
+    m_data->entries[i].gpuTime.init(num);
+  }
+  m_data->cpuTime.init(num);
+}
 
 void Profiler::beginFrame()
 {
-  m_data->frameEntries = 0;
   m_data->level        = 0;
+  m_data->nextSection  = 0;
+  m_data->frameSections.clear();
+
+  m_data->cpuCurrentTime = -m_clock.getMicroSeconds();
 }
 
 void Profiler::endFrame()
 {
-  if(m_data->frameEntries != m_data->lastEntries)
+  assert(m_data->level == 0);
+
+  m_data->cpuCurrentTime += m_clock.getMicroSeconds();
+
+  if((uint32_t)m_data->frameSections.size() != m_data->numLastEntries)
   {
-    m_data->lastEntries = m_data->frameEntries;
+    m_data->numLastEntries = (uint32_t)m_data->frameSections.size();
+    m_data->numLastSections = m_data->frameSections.back() + 1;
     m_data->resetDelay  = CONFIG_DELAY;
   }
 
@@ -79,17 +89,20 @@ void Profiler::endFrame()
     m_data->resetDelay--;
     for(uint32_t i = 0; i < m_data->entries.size(); i++)
     {
-
-      m_data->entries[i].numTimes = 0;
-      m_data->entries[i].cpuTime  = 0;
-      m_data->entries[i].gpuTime  = 0;
+      Entry& entry = m_data->entries[i];
+      if (entry.level != LEVEL_SINGLESHOT){
+        entry.numTimes = 0;
+        entry.cpuTime.reset();
+        entry.gpuTime.reset();
+      }
     }
+    m_data->cpuTime.reset();
     m_data->numFrames = 0;
   }
 
   if(m_data->numFrames > FRAME_DELAY)
   {
-    for(uint32_t i = 0; i < m_data->frameEntries; i++)
+    for (uint32_t i : m_data->frameSections)
     {
       Entry& entry = m_data->entries[i];
 
@@ -101,11 +114,29 @@ void Profiler::endFrame()
 
       if(available)
       {
-        entry.gpuTime += entry.gpuTimes[queryFrame];
-        entry.cpuTime += entry.cpuTimes[queryFrame];
+        entry.cpuTime.add(entry.cpuTimes[queryFrame]);
+        entry.gpuTime.add(entry.gpuTimes[queryFrame]);
         entry.numTimes++;
       }
     }
+
+    for (uint32_t i : m_data->singleSections)
+    {
+      Entry& entry = m_data->entries[i];
+      uint32_t queryFrame = entry.subFrame;
+
+      // query once
+      bool     available  = entry.cpuTime.numValid == 0 && (entry.api == nullptr || entry.gpuTimeProvider(i, queryFrame, entry.gpuTimes[queryFrame]));
+
+      if(available)
+      {
+        entry.cpuTime.add(entry.cpuTimes[queryFrame]);
+        entry.gpuTime.add(entry.gpuTimes[queryFrame]);
+        entry.numTimes++;
+      }
+    }
+
+    m_data->cpuTime.add(m_data->cpuCurrentTime);
   }
 
   m_data->numFrames++;
@@ -122,11 +153,18 @@ void Profiler::grow(uint32_t newsize)
   }
 
   m_data->entries.resize(newsize);
+
+  for(size_t i = oldsize; i < newsize; i++)
+  {
+    m_data->entries[i].cpuTime.init(m_data->numAveraging);
+    m_data->entries[i].gpuTime.init(m_data->numAveraging);
+  }
 }
 
 void Profiler::clear()
 {
   m_data->entries.clear();
+  m_data->singleSections.clear();
 }
 
 void Profiler::reset(uint32_t delay)
@@ -150,7 +188,7 @@ static std::string format(const char* msg, ...)
   return std::string(text);
 }
 
-bool Profiler::getAveragedValues(SectionID i, double& cpuTimer, double& gpuTimer, bool& accumulated)
+bool Profiler::getTimerInfo(uint32_t i, TimerInfo& info)
 {
   Entry& entry = m_data->entries[i];
 
@@ -159,17 +197,25 @@ bool Profiler::getAveragedValues(SectionID i, double& cpuTimer, double& gpuTimer
     return false;
   }
 
-  double gpu   = entry.gpuTime / double(entry.numTimes);
-  double cpu   = entry.cpuTime / double(entry.numTimes);
-  bool   found = false;
-  for(uint32_t n = i + 1; n < m_data->lastEntries; n++)
+  info.gpu.average     = entry.gpuTime.getAveraged();
+  info.cpu.average     = entry.cpuTime.getAveraged();
+  info.cpu.absMinValue = entry.cpuTime.absMinValue;
+  info.cpu.absMaxValue = entry.cpuTime.absMaxValue;
+  info.gpu.absMinValue = entry.gpuTime.absMinValue;
+  info.gpu.absMaxValue = entry.gpuTime.absMaxValue;
+  bool found           = false;
+  for(uint32_t n = i + 1; n < m_data->numLastSections; n++)
   {
     Entry& otherentry = m_data->entries[n];
     if(otherentry.name == entry.name && otherentry.level == entry.level && otherentry.api == entry.api && !otherentry.accumulated)
     {
       found = true;
-      gpu += otherentry.gpuTime / double(otherentry.numTimes);
-      cpu += otherentry.cpuTime / double(otherentry.numTimes);
+      info.gpu.average += otherentry.gpuTime.getAveraged();
+      info.cpu.average += otherentry.cpuTime.getAveraged();
+      info.cpu.absMinValue += entry.cpuTime.absMinValue;
+      info.cpu.absMaxValue += entry.cpuTime.absMaxValue;
+      info.gpu.absMinValue += entry.gpuTime.absMinValue;
+      info.gpu.absMaxValue += entry.gpuTime.absMaxValue;
       otherentry.accumulated = true;
     }
 
@@ -177,30 +223,47 @@ bool Profiler::getAveragedValues(SectionID i, double& cpuTimer, double& gpuTimer
       break;
   }
 
-  cpuTimer    = cpu;
-  gpuTimer    = gpu;
-  accumulated = found;
+  info.accumulated = found;
+  info.numAveraged = entry.cpuTime.numValid;
 
   return true;
 }
 
-bool Profiler::getAveragedValues(const char* name, double& cpuTimer, double& gpuTimer)
+bool Profiler::getTimerInfo(const char* name, TimerInfo& info)
 {
-  for(uint32_t i = 0; i < m_data->lastEntries; i++)
+  if(name == nullptr)
   {
-    Entry& entry      = m_data->entries[i];
+    info                 = TimerInfo();
+    if(!m_data->cpuTime.numValid)
+    {
+      return false;
+    }    
+    info.cpu.average     = m_data->cpuTime.getAveraged();
+    info.cpu.absMaxValue = m_data->cpuTime.absMaxValue;
+    info.cpu.absMinValue = m_data->cpuTime.absMinValue;
+    info.numAveraged     = m_data->cpuTime.numValid;
+
+    return true;
+  }
+
+  for(uint32_t i = 0; i < m_data->numLastSections; i++)
+  {
+    Entry& entry = m_data->entries[i];
+
     entry.accumulated = false;
   }
 
-  for(uint32_t i = 0; i < m_data->lastEntries; i++)
+  for(uint32_t i = 0; i < (uint32_t)m_data->entries.size(); i++)
   {
     Entry& entry = m_data->entries[i];
+
+    if (!entry.name) continue;
 
     if(strcmp(name, entry.name))
       continue;
 
     bool accumulated = false;
-    return getAveragedValues(i, cpuTimer, gpuTimer, accumulated);
+    return getTimerInfo(i, info);
   }
 
   return false;
@@ -212,92 +275,172 @@ void Profiler::print(std::string& stats)
 
   bool hadtimers = false;
 
-  for(uint32_t i = 0; i < m_data->lastEntries; i++)
+  for(uint32_t i = 0; i < m_data->numLastSections; i++)
   {
     Entry& entry      = m_data->entries[i];
     entry.accumulated = false;
   }
 
-  for(uint32_t i = 0; i < m_data->lastEntries; i++)
+  printf("Timer null;\t N/A %6d; CPU %6d;\n", 0, (uint32_t)m_data->cpuTime.getAveraged());
+
+  for(uint32_t i = 0; i < m_data->numLastSections; i++)
   {
     static const char* spaces = "        ";  // 8
     Entry&             entry  = m_data->entries[i];
+
+    if (entry.level == LEVEL_SINGLESHOT) continue;
+
     uint32_t           level  = 7 - (entry.level > 7 ? 7 : entry.level);
 
-    double gpu         = 0;
-    double cpu         = 0;
-    bool   accumulated = false;
-
-    if(!getAveragedValues(i, cpu, gpu, accumulated))
+    TimerInfo info;
+    if(!getTimerInfo(i, info))
       continue;
 
     hadtimers = true;
 
     const char* gpuname = entry.api ? entry.api : "N/A";
 
-    if(accumulated)
+    if(info.accumulated)
     {
       stats += format("%sTimer %s;\t %s %6d; CPU %6d; (microseconds, accumulated loop)\n", &spaces[level], entry.name,
-                      gpuname, (uint32_t)(gpu), (uint32_t)(cpu));
+                      gpuname, (uint32_t)(info.gpu.average), (uint32_t)(info.cpu.average));
     }
     else
     {
       stats += format("%sTimer %s;\t %s %6d; CPU %6d; (microseconds, avg %d)\n", &spaces[level], entry.name, gpuname,
-                      (uint32_t)(gpu), (uint32_t)(cpu), (uint32_t)entry.numTimes);
+                      (uint32_t)(info.gpu.average), (uint32_t)(info.cpu.average), (uint32_t)entry.cpuTime.numValid);
     }
   }
 }
 
-uint32_t Profiler::getAveragedFrames(const char* name) const
+uint32_t Profiler::getTotalFrames() const
 {
-  if(m_data->entries.empty())
+  return m_data->numFrames;
+}
+
+void Profiler::accumulationSplit()
+{
+  SectionID sec = getSectionID(false, nullptr);
+  if(sec >= m_data->entries.size())
   {
-    return 0;
+    grow((uint32_t)(m_data->entries.size() * 2));
   }
-  if(name == nullptr)
-  {
-    return m_data->entries[0].numTimes;
+
+  m_data->entries[sec].level    = m_data->level;
+  m_data->entries[sec].splitter = true;
+}
+
+Profiler::SectionID Profiler::getSectionID(bool singleShot, const char* name)
+{
+  uint32_t numEntries = (uint32_t)m_data->entries.size();
+
+  if (singleShot) {
+    // find empty slot or with same name
+    for (uint32_t i = 0; i < numEntries; i++) {
+      Entry& entry = m_data->entries[i];
+      if (entry.name == name || entry.name == nullptr){
+        m_data->singleSections.push_back(i);
+        return i;
+      }
+    }
+    m_data->singleSections.push_back(numEntries);
+    return numEntries;
   }
-  for(uint32_t i = 0; i < m_data->lastEntries; i++)
+  else {    
+    // find non-single shot slot
+    while (m_data->nextSection < numEntries && m_data->entries[m_data->nextSection].level == LEVEL_SINGLESHOT) {
+      m_data->nextSection++;
+    }
+
+    m_data->frameSections.push_back(m_data->nextSection);
+    return m_data->nextSection++;
+  }
+}
+
+Profiler::SectionID Profiler::beginSection(const char* name, const char* api, gpuTimeProvider_fn gpuTimeProvider, bool singleShot)
+{
+  uint32_t  subFrame = m_data->numFrames % FRAME_DELAY;
+  SectionID sec      = getSectionID(singleShot, name);
+
+  if(sec >= m_data->entries.size())
   {
-    const Entry& entry = m_data->entries[i];
-    if(!strcmp(name, entry.name))
-    {
-      return entry.numTimes;
+    grow((uint32_t)(m_data->entries.size() * 2));
+  }
+
+  Entry&   entry = m_data->entries[sec];
+  uint32_t level = singleShot ? LEVEL_SINGLESHOT : (m_data->level++);
+
+  if(entry.name != name || entry.api != api || entry.level != level)
+  {
+    entry.name         = name;
+    entry.api          = api;
+
+    if (!singleShot) {
+      m_data->resetDelay = CONFIG_DELAY;
     }
   }
-  return 0;
+
+  entry.subFrame        = subFrame;
+  entry.level           = level;
+  entry.splitter        = false;
+  entry.gpuTimeProvider = gpuTimeProvider;
+
+#ifdef SUPPORT_NVTOOLSEXT
+  {
+    nvtxEventAttributes_t eventAttrib = {0};
+    eventAttrib.version               = NVTX_VERSION;
+    eventAttrib.size                  = NVTX_EVENT_ATTRIB_STRUCT_SIZE;
+    eventAttrib.colorType             = NVTX_COLOR_ARGB;
+
+    unsigned char color[4];
+    color[0] = 255;
+    color[1] = 0;
+    color[2] = sec % 2 ? 127 : 255;
+    color[3] = 255;
+
+    color[2] -= level * 16;
+    color[3] -= level * 16;
+
+    eventAttrib.color         = *(uint32_t*)(color);
+    eventAttrib.messageType   = NVTX_MESSAGE_TYPE_ASCII;
+    eventAttrib.message.ascii = name;
+    nvtxRangePushEx(&eventAttrib);
+  }
+#endif
+
+  entry.cpuTimes[subFrame] = -getMicroSeconds();
+  entry.gpuTimes[subFrame] = 0;
+
+  if (singleShot){
+    entry.cpuTime.init(1);
+    entry.gpuTime.init(1);
+  }
+
+  return sec;
+}
+
+void Profiler::endSection(SectionID sec)
+{
+  Entry&   entry    = m_data->entries[sec];
+
+  entry.cpuTimes[entry.subFrame] += getMicroSeconds();
+
+#ifdef SUPPORT_NVTOOLSEXT
+  nvtxRangePop();
+#endif
+
+  if (entry.level != LEVEL_SINGLESHOT){
+    m_data->level--;
+  }
 }
 
 Profiler::Clock::Clock()
 {
-  m_frequency = 1;
-#ifdef _WIN32
-  LARGE_INTEGER sysfrequency;
-  if(QueryPerformanceFrequency(&sysfrequency))
-  {
-    m_frequency = (double)sysfrequency.QuadPart;
-  }
-  else
-  {
-    m_frequency = 1;
-  }
-#endif
+  m_init = std::chrono::high_resolution_clock::now();
 }
 
 double Profiler::Clock::getMicroSeconds() const
 {
-#ifdef _WIN32
-  LARGE_INTEGER time;
-  if(QueryPerformanceCounter(&time))
-  {
-    return (double(time.QuadPart) / m_frequency) * 1000000.0;
-  }
-#elif defined(__linux__)
-  struct timeval tv;
-  gettimeofday(&tv, NULL);
-  return double(tv.tv_sec) * 1000000 + double(tv.tv_usec);
-#endif
-  return 0;
+  return double(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now() - m_init).count()) / double(1000);
 }
 }  // namespace nvh

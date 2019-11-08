@@ -27,6 +27,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef NV_IMGUI_INCLUDED
 #define NV_IMGUI_INCLUDED
 
+#define IMGUI_DISABLE_OBSOLETE_FUNCTIONS 1
 #include "imgui.h"
 
 #include <nvpwindow.hpp>
@@ -71,6 +72,10 @@ namespace ImGuiH
 
   inline bool key_button(int button, int action, int mods)
   {
+    if (button == NVPWindow::KEY_KP_ENTER) {
+      button = NVPWindow::KEY_ENTER;
+    }
+
     auto &io = ImGui::GetIO();
     io.KeyCtrl = (mods & NVPWindow::KMOD_CONTROL) != 0;
     io.KeyShift = (mods & NVPWindow::KMOD_SHIFT) != 0;
@@ -98,8 +103,8 @@ namespace ImGuiH
     return Clamped(ImGui::InputInt(label, v, step, step_fast, flags), v, min, max);
   }
   
-  inline bool InputFloatClamped(const char* label, float* v, float min = 0.0, float max = 1.0, float step = 0.1f, float step_fast = 1.0f, ImGuiInputTextFlags flags = 0) {
-      return Clamped(ImGui::InputFloat(label, v, step, step_fast, flags), v, min, max);
+  inline bool InputFloatClamped(const char* label, float* v, float min = 0.0, float max = 1.0, float step = 0.1f, float step_fast = 1.0f, const char*fmt = "%.3f", ImGuiInputTextFlags flags = 0) {
+      return Clamped(ImGui::InputFloat(label, v, step, step_fast, fmt, flags), v, min, max);
   }
 
   enum ValueType {
@@ -186,7 +191,7 @@ namespace ImGuiH
     }
 
     void enumReset(uint32_t type) {
-      if (type <= entries.size()) {
+      if (type < entries.size()) {
         entries[type].enums.clear();
         entries[type].valueChanged = false;
         entries[type].valueType = TYPE_INT;

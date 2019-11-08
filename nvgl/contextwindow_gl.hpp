@@ -26,13 +26,23 @@
 */ //--------------------------------------------------------------------
 #pragma once
 
+#define GLFW_INCLUDE_NONE
+#include <GLFW/glfw3.h>
 
-#include <nvpwindow.hpp>
+#include <stdint.h>
+#include <string>
 
 namespace nvgl
 {
 
-  struct ContextFlagsGL {
+/**
+  # struct nvgl::ContextWindowCreateInfo
+  
+  Set up the context properties for a OpenGL ContextWindow.
+  e.g. version, core/compatibiltiy etc.
+*/
+
+  struct ContextWindowCreateInfo {
     int         major;
     int         minor;
     int         device;
@@ -45,12 +55,12 @@ namespace nvgl
     bool        core;
     bool        forward;
     bool        stereo;
-    struct ContextWindowGL*  share;
+    class ContextWindow*  share;
 
-    ContextFlagsGL(int _major = 4, int _minor = 3,
+    ContextWindowCreateInfo(int _major = 4, int _minor = 3,
       bool _core = false, int _MSAA = 0, int _depth = 24, int _stencil = 8,
       bool _debug = false, bool _robust = false,
-      bool _forward = false, bool _stereo = false, struct ContextWindowGL* _share = 0)
+      bool _forward = false, bool _stereo = false, class ContextWindow* _share = 0)
     {
       major = _major;
       minor = _minor;
@@ -67,17 +77,26 @@ namespace nvgl
     }
   };
 
-  struct ContextWindowGL
+/**
+  # class nvgl::ContextWindow
+  
+  Sets up an OpenGL context from a provided `GLFWwindow`.
+  Makes use of `glDebugMessageCallback` to hook up an error callback
+  and loads all extensions provided by `extensions_gl.hpp`
+*/
+
+  class ContextWindow
   {
+  public:
     struct ContextWindowInternalGL*  m_internal = nullptr;
 
     uint32_t      m_debugFilter;
     std::string   m_debugTitle;
     std::string   m_deviceName;
 
-    ContextWindowGL();
+    ContextWindow();
 
-    bool init(const ContextFlagsGL* cflags, const NVPWindow* sourcewindow);
+    bool init(const ContextWindowCreateInfo* cflags, GLFWwindow* window, const char* dbgTitle = "test");
     void deinit();
 
     void swapInterval(int i);

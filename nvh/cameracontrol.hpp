@@ -33,6 +33,31 @@
 
 namespace nvh
 {
+  //////////////////////////////////////////////////////////////////////////
+  /**
+    # class nvh::CameraControl
+
+    CameraControl is a utility class to create a viewmatrix
+    based on mouse inputs.
+  
+    It can operate in perspective or orthographic mode (`m_sceneOrtho==true`).
+  
+    perspective:
+    - LMB: rotate
+    - RMB or WHEEL: zoom via dolly movement
+    - MMB: pan/move within camera plane
+  
+    ortho:
+    - LMB: pan/move within camera plane
+    - RMB or WHEEL: zoom via dolly movement, application needs to use `m_sceneOrthoZoom` for projection matrix adjustment
+    - MMB: rotate
+  
+    The camera can be orbiting (`m_useOrbit==true`) around `m_sceneOrbit` or
+    otherwise provide "first person/fly through"-like controls.
+  
+    Speed of movement/rotation etc. is influenced by `m_sceneDimension` as well as the 
+    sensitivity values.
+  */
 
   class CameraControl 
   {

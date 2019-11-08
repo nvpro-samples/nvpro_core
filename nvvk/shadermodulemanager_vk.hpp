@@ -30,9 +30,9 @@
 
 
 #include <stdio.h>
-#include <vector>
 #include <string>
-#include <vulkan/vulkan.h>
+#include <vector>
+#include <vulkan/vulkan_core.h>
 
 #if USESHADERC
 #define SHADERC_SHAREDLIB
@@ -42,147 +42,206 @@
 #endif
 
 #include <nvh/shaderfilemanager.hpp>
-#include <nvh/assetsloader.hpp>
 
 
-namespace nvvk
+namespace nvvk {
+
+//////////////////////////////////////////////////////////////////////////
+/**
+  # class nvvk::ShaderModuleManager
+
+  The ShaderModuleManager manages VkShaderModules stored in files (SPIR-V or GLSL)
+
+  Using ShaderFileManager it will find the files and resolve #include for GLSL.
+  You must register includes to the base-class for this.
+
+  It also comes with some convenience functions to reload shaders etc.
+  That is why we pass out the ShaderModuleID rather than a VkShaderModule directly.
+
+  To change the compilation behavior manipulate the public member variables
+  prior createShaderModule.
+
+  m_filetype is crucial for this. You can pass raw spir-v files or GLSL.
+  If GLSL is used either the backdoor m_useNVextension must be used, or
+  preferrable shaderc (which must be added via _add_package_ShaderC() in CMake of the project)
+
+  Example:
+
+  ``` c++
+  ShaderModuleManager mgr(myDevice);
+
+  // derived from ShaderFileManager
+  mgr.addDirectory("shaders/");
+  mgr.registerInclude("noise.glsl");
+
+  // all shaders get this injected after #version statement
+  mgr.m_prepend = "#define USE_NOISE 1\n";
+
+  vid = mgr.createShaderModule(VK_SHADER_STAGE_VERTEX_BIT,   "object.vert.glsl");
+  fid = mgr.createShaderModule(VK_SHADER_STAGE_FRAGMENT_BIT, "object.frag.glsl");
+
+  // ... later use module
+  info.module = mgr.get(vid);
+  ```
+*/
+
+class ShaderModuleID
 {
+public:
+  size_t m_value;
 
-  class ShaderModuleManager : public nvh::ShaderFileManager {
-  public:
+  ShaderModuleID()
+      : m_value(size_t(~0))
+  {
+  }
 
-    /*
-      This class manages VkShaderModules stored in files.
-      Using ShaderFileManager it will find the files and potentially resolved #include.
-      It also comes with some convenience functions to reload shaders etc.
+  ShaderModuleID(size_t b)
+      : m_value(b)
+  {
+  }
+  ShaderModuleID& operator=(size_t b)
+  {
+    m_value = b;
+    return *this;
+  }
 
-      To change the compilation behavior manipulate the public member variables
-      prior createShaderModule.
-      m_filetype is crucial for this. You can pass raw spir-v files or GLSL.
-      If GLSL is used either the backdoor m_useNVextension must be used, or
-      preferrable shaderc (which must be added via _add_package_ShaderC() in CMake of the project)
-    
-    */
+  bool isValid() const { return m_value != size_t(~0); }
 
-    class ShaderModuleID {
-    public:
-      size_t  m_value;
+  operator bool() const { return isValid(); }
+  operator size_t() const { return m_value; }
 
-      ShaderModuleID() : m_value(~0) {}
+  friend bool operator==(const ShaderModuleID& lhs, const ShaderModuleID& rhs){ return rhs.m_value == lhs.m_value; }
+};
 
-      ShaderModuleID( size_t b) : m_value(b) {}
-      operator size_t() const { return m_value; }
-      ShaderModuleID& operator=( size_t b) { m_value = b; return *this; }
+class ShaderModuleManager : public nvh::ShaderFileManager
+{
+public:
 
-      bool isValid() const { return m_value != ~0; }
-
-    };
-
-    struct ShaderModule {
-      ShaderModule() : module(0), useNVextension(false) {}
-
-      VkShaderModule            module;
-      Definition                definition;
-      bool                      useNVextension;
-    };
-
-    void init(VkDevice device, const VkAllocationCallbacks* pAllocator = nullptr);
-    void deinit();
-
-    ShaderModuleID createShaderModule(uint32_t type, std::string const& filename, std::string const& prepend = "", FileType fileType = FILETYPE_DEFAULT,  std::string const& entryname = "main");
-
-    void destroyShaderModule( ShaderModuleID idx );
-    void reloadModule(ShaderModuleID idx);
-
-    void reloadShaderModules();
-    void deleteShaderModules();
-    bool areShaderModulesValid();
-
-
-    bool isValid( ShaderModuleID idx ) const;
-    VkShaderModule get(ShaderModuleID idx) const;
-    ShaderModule& getShaderModule(ShaderModuleID idx);
-    const ShaderModule& getShaderModule(ShaderModuleID idx) const;
-    const char* getCode(ShaderModuleID idx, size_t *len=NULL) const;
-    const size_t getCodeLen(ShaderModuleID idx) const;
-
-
-    // state will affect the next created shader module
-    // also keep m_filetype in mind!
-    bool                  m_preprocessOnly = false;
-    bool                  m_useNVextension = false;
-    int                   m_apiMajor = 1;
-    int                   m_apiMinor = 1;
-    
-    
-
-    //////////////////////////////////////////////////////////////////////////
-    // for internal development 
-
-    struct SetupInterface
+  struct ShaderModule
+  {
+    ShaderModule()
+        : module(0)
+        , useNVextension(false)
     {
-      // This class is to aid using a shaderc library version that is not
-      // provided by the Vulkan SDK, but custom. Therefore it allows custom settings etc.
-      // Useful for driver development of new shader stages, otherwise can be pretty much ignored.
-
-      virtual std::string getTypeDefine(uint32_t type) const      = 0;
-      virtual uint32_t    getTypeShadercKind(uint32_t type) const = 0;
-      virtual void*       getShadercCompileOption(void* shadercCompiler) { return nullptr; }
-    };
-
-    void setSetupIF(SetupInterface* setupIF);
-
-    ShaderModuleManager()
-    {
-      m_usedSetupIF = &m_defaultSetupIF;
-      m_supportsExtendedInclude = true;
-#if USESHADERC
-      m_shadercCompiler = shaderc_compiler_initialize();
-      m_shadercOptions = shaderc_compile_options_initialize();
-#endif
     }
 
-    ~ShaderModuleManager()
-    {
-#if USESHADERC
-      if (m_shadercCompiler) {
-        shaderc_compiler_release(m_shadercCompiler);
-      }
-      if (m_shadercOptions) {
-        shaderc_compile_options_release(m_shadercOptions);
-      }
-#endif
-    }
-
-  private:
-
-    ShaderModuleID createShaderModule(const Definition& def);
-    bool setupShaderModule(ShaderModule& prog);
-
-
-    struct DefaultInterface : public SetupInterface
-    {
-      std::string getTypeDefine(uint32_t type) const override;
-      uint32_t    getTypeShadercKind(uint32_t type) const override;
-    };
-
-
-    static const VkShaderModule PREPROCESS_ONLY_MODULE;
-
-    VkDevice                     m_device    = VK_NULL_HANDLE;
-    const VkAllocationCallbacks* m_allocator = nullptr;
-    DefaultInterface             m_defaultSetupIF;
-    SetupInterface*              m_usedSetupIF = nullptr;
-
-    #if USESHADERC
-    shaderc_compiler_t        m_shadercCompiler = nullptr;
-    shaderc_compile_options_t m_shadercOptions  = nullptr;
-#endif
-
-    std::vector<ShaderModule> m_shadermodules;
+    VkShaderModule module;
+    Definition     definition;
+    bool           useNVextension;
   };
 
-}
+  void init(VkDevice device);
+  void deinit();
+
+  ShaderModuleID createShaderModule(uint32_t           type,
+                                    std::string const& filename,
+                                    std::string const& prepend   = "",
+                                    FileType           fileType  = FILETYPE_DEFAULT,
+                                    std::string const& entryname = "main");
+
+  void destroyShaderModule(ShaderModuleID idx);
+  void reloadModule(ShaderModuleID idx);
+
+  void reloadShaderModules();
+  void deleteShaderModules();
+  bool areShaderModulesValid();
 
 
-#endif//NV_PROGRAM_INCLUDED
+  bool                isValid(ShaderModuleID idx) const;
+  VkShaderModule      get(ShaderModuleID idx) const;
+  ShaderModule&       getShaderModule(ShaderModuleID idx);
+  const ShaderModule& getShaderModule(ShaderModuleID idx) const;
+  const char*         getCode(ShaderModuleID idx, size_t* len = NULL) const;
+  const size_t        getCodeLen(ShaderModuleID idx) const;
+
+
+  // state will affect the next created shader module
+  // also keep m_filetype in mind!
+  bool m_preprocessOnly = false;
+  bool m_useNVextension = false;
+  int  m_apiMajor       = 1;
+  int  m_apiMinor       = 1;
+
+
+  //////////////////////////////////////////////////////////////////////////
+  //
+  // for internal development, useful when we have new shader types that
+  // are not covered by public VulkanSDK
+
+  struct SetupInterface
+  {
+    // This class is to aid using a shaderc library version that is not
+    // provided by the Vulkan SDK, but custom. Therefore it allows custom settings etc.
+    // Useful for driver development of new shader stages, otherwise can be pretty much ignored.
+
+    virtual std::string getTypeDefine(uint32_t type) const      = 0;
+    virtual uint32_t    getTypeShadercKind(uint32_t type) const = 0;
+    virtual void*       getShadercCompileOption(void* shadercCompiler) { return nullptr; }
+  };
+
+  void setSetupIF(SetupInterface* setupIF);
+
+  ShaderModuleManager()
+  {
+    m_usedSetupIF             = &m_defaultSetupIF;
+    m_supportsExtendedInclude = true;
+#if USESHADERC
+    m_shadercCompiler = shaderc_compiler_initialize();
+    m_shadercOptions  = shaderc_compile_options_initialize();
+#endif
+  }
+  ShaderModuleManager(VkDevice device)
+  {
+    m_usedSetupIF             = &m_defaultSetupIF;
+    m_supportsExtendedInclude = true;
+#if USESHADERC
+    m_shadercCompiler = shaderc_compiler_initialize();
+    m_shadercOptions  = shaderc_compile_options_initialize();
+#endif
+    init(device);
+  }
+
+  ~ShaderModuleManager()
+  {
+#if USESHADERC
+    if(m_shadercCompiler)
+    {
+      shaderc_compiler_release(m_shadercCompiler);
+    }
+    if(m_shadercOptions)
+    {
+      shaderc_compile_options_release(m_shadercOptions);
+    }
+#endif
+  }
+
+private:
+  ShaderModuleID createShaderModule(const Definition& def);
+  bool           setupShaderModule(ShaderModule& prog);
+
+
+  struct DefaultInterface : public SetupInterface
+  {
+    std::string getTypeDefine(uint32_t type) const override;
+    uint32_t    getTypeShadercKind(uint32_t type) const override;
+  };
+
+
+  static const VkShaderModule PREPROCESS_ONLY_MODULE;
+
+  VkDevice                     m_device    = VK_NULL_HANDLE;
+  DefaultInterface             m_defaultSetupIF;
+  SetupInterface*              m_usedSetupIF = nullptr;
+
+#if USESHADERC
+  shaderc_compiler_t        m_shadercCompiler = nullptr;
+  shaderc_compile_options_t m_shadercOptions  = nullptr;
+#endif
+
+  std::vector<ShaderModule> m_shadermodules;
+};
+
+}  // namespace nvvk
+
+
+#endif  //NV_PROGRAM_INCLUDED

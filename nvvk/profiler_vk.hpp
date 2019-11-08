@@ -28,25 +28,86 @@
 #pragma once
 
 #include <nvh/profiler.hpp>
-#include <vulkan/vulkan.h>
+#include <vulkan/vulkan_core.h>
 
 namespace nvvk {
 
+//////////////////////////////////////////////////////////////////////////
+/**
+  # class nvvk::ProfilerVK
+
+  ProfilerVK derives from nvh::Profiler and uses vkCmdWriteTimestamp
+  to measure the gpu time within a section.
+
+  If profiler.setMarkerUsage(true) was used then it will make use
+  of vkCmdDebugMarkerBeginEXT and vkCmdDebugMarkerEndEXT for each
+  section so that it shows up in tools like NsightGraphics and renderdoc.
+  
+  Currently the commandbuffers must support vkCmdResetQueryPool as well.
+  
+  When multiple queues are used there could be problems with the "nesting"
+  of sections. In that case multiple profilers, one per queue, are most
+  likely better.
+
+
+  Example:
+
+  ``` c++
+  nvv::ProfilerVK profiler;
+  std::string     profilerStats;
+
+  profiler.init(device, physicalDevice);
+  profiler.setMarkerUsage(true); // depends on VK_EXT_debug_utils
+  
+  while(true)
+  {
+    profiler.beginFrame();
+
+    ... setup frame ...
+
+
+    {
+      // use the Section class to time the scope
+      auto sec = profiler.timeRecurring("draw", cmd);
+
+      vkCmdDraw(cmd, ...);
+    }
+
+    ... submit cmd buffer ...
+
+    profiler.endFrame();
+
+    // generic print to string
+    profiler.print(profilerStats);
+
+    // or access data directly
+    nvh::Profiler::TimerInfo info;
+    if( profiler.getTimerInfo("draw", info)) {
+      // do some updates
+      updateProfilerUi("draw", info.gpu.average);
+    }
+  }
+
+  ```
+*/
+  
 class ProfilerVK : public nvh::Profiler
 {
 public:
-  ProfilerVK(nvh::Profiler* masterProfiler = nullptr)
-      : Profiler(masterProfiler)
-  {
-  }
 
+  // hostReset usage depends on VK_EXT_host_query_reset
+  // mandatory for transfer-only queues
+
+  //////////////////////////////////////////////////////////////////////////
+
+  // utility class to call begin/end within local scope
   class Section
   {
   public:
-    Section(ProfilerVK& profiler, const char* name, VkCommandBuffer cmd)
+    Section(ProfilerVK& profiler, const char* name, VkCommandBuffer cmd, bool singleShot = false, bool hostReset = false)
         : m_profiler(profiler)
     {
-      m_id = profiler.beginSection(name, cmd);
+      m_id  = profiler.beginSection(name, cmd, singleShot, hostReset);
       m_cmd = cmd;
     }
     ~Section() { m_profiler.endSection(m_id, m_cmd); }
@@ -57,21 +118,44 @@ public:
     ProfilerVK&     m_profiler;
   };
 
+  // recurring, must be within beginFrame/endFrame
+  Section timeRecurring(const char* name, VkCommandBuffer cmd, bool hostReset = false) { return Section(*this, name, cmd, false, hostReset); }
 
-  void init(VkDevice device, VkPhysicalDevice physicalDevice, const VkAllocationCallbacks *pAllocator = nullptr);
+  // singleShot, results are available after FRAME_DELAY many endFrame
+  Section timeSingle(const char* name, VkCommandBuffer cmd, bool hostReset = false) { return Section(*this, name, cmd, true, hostReset); }
+
+  //////////////////////////////////////////////////////////////////////////
+
+  ProfilerVK(nvh::Profiler* masterProfiler = nullptr)
+      : Profiler(masterProfiler)
+  {
+  }
+
+  ProfilerVK(VkDevice device, VkPhysicalDevice physicalDevice, nvh::Profiler* masterProfiler = nullptr)
+      : Profiler(masterProfiler)
+  {
+    init(device, physicalDevice);
+  }
+
+  void init(VkDevice device, VkPhysicalDevice physicalDevice);
   void deinit();
 
-  SectionID beginSection(const char* name, VkCommandBuffer cmd);
+  // enable debug marker per section, requires VK_EXT_debug_utils
+  void setMarkerUsage(bool state);
+
+  SectionID beginSection(const char* name, VkCommandBuffer cmd, bool singleShot = false, bool hostReset = false);
   void      endSection(SectionID slot, VkCommandBuffer cmd);
+
+  bool      getSectionTime(SectionID i, uint32_t queryFrame, double& gpuTime);
 
 private:
   void resize();
+  bool m_useMarkers = false;
+
 
   VkDevice                     m_device        = VK_NULL_HANDLE;
-  const VkAllocationCallbacks* m_allocator     = nullptr;
   VkQueryPool                  m_queryPool     = VK_NULL_HANDLE;
   uint32_t                     m_queryPoolSize = 0;
   float                        m_frequency     = 1.0f;
 };
 }  // namespace nvvk
-

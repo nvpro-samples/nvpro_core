@@ -28,6 +28,11 @@
 #ifndef NV_GLSLTYPES_INCLUDED
 #define NV_GLSLTYPES_INCLUDED
 
+/**
+  # type definitions for nvgl and nvmath
+  Sets up vector, matrix etc. types available in GLSL
+*/
+
 #include <stdint.h>
 #include <nvmath/nvmath_glsltypes.h>
 

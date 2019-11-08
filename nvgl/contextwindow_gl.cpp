@@ -28,20 +28,20 @@
 #include <nvgl/contextwindow_gl.hpp>
 #include <nvgl/extensions_gl.hpp>
 
-#ifdef WIN32  
+#ifdef WIN32
+  #define GLFW_EXPOSE_NATIVE_WIN32
+  #include <GLFW/glfw3native.h>
+
   #include <GL/wgl.h>
 
   #include <windows.h>
   #include <windowsx.h>
   #include "resources.h"
-  
-  extern HINSTANCE   g_hInstance;
-
 #endif
 
-#include "nvpwindow_internal.hpp"
+#include <fileformats/bmp.hpp>
+#include <nvh/nvprint.hpp>
 
-#include "nvh/misc.hpp" // for bmp screenshot
 
 #include <stdio.h>
 #include <fcntl.h>
@@ -50,6 +50,7 @@
 #include <fstream>
 #include <algorithm>
 #include <string>
+#include <vector>
 
 namespace nvgl {
 
@@ -66,7 +67,7 @@ namespace nvgl {
     const GLvoid* userParam)
   {
 
-    ContextWindowGL* window = (ContextWindowGL*)userParam;
+    ContextWindow* window = (ContextWindow*)userParam;
 
     GLenum filter = window->m_debugFilter;
     GLenum severitycmp = severity;
@@ -195,9 +196,11 @@ namespace nvgl {
     PFNWGLGETEXTENSIONSSTRINGARBPROC  m_wglGetExtensionsStringARB = NULL;
     PFNWGLDELETEDCNVPROC              m_wglDeleteDCNV = NULL;
 
-    bool init(const ContextFlagsGL& settings, const NVPWindow* sourcewindow, ContextWindowGL* ctxwindow) 
+    bool init(const ContextWindowCreateInfo& settings, GLFWwindow* sourcewindow, ContextWindow* ctxwindow) 
     {
       GLuint PixelFormat;
+      HWND hWnd = glfwGetWin32Window(sourcewindow);
+      HINSTANCE hInstance = GetModuleHandle(NULL);
 
       PIXELFORMATDESCRIPTOR pfd;
       memset(&pfd, 0, sizeof(PIXELFORMATDESCRIPTOR));
@@ -217,10 +220,10 @@ namespace nvgl {
 
       if (settings.MSAA > 1)
       {
-        HWND hWndDummy = CreateWindowEx(NULL, "DUMMY",
+        HWND hWndDummy = CreateWindowEx(NULL, "Static",
           "Dummy",
           WS_OVERLAPPEDWINDOW, 0, 0, 10, 10, NULL, NULL,
-          g_hInstance, NULL);
+          hInstance, NULL);
 
         m_hDC = GetDC(hWndDummy);
         PixelFormat = ChoosePixelFormat(m_hDC, &pfd);
@@ -231,7 +234,7 @@ namespace nvgl {
         PFNWGLCHOOSEPIXELFORMATARBPROC fn_wglChoosePixelFormatARB = (PFNWGLCHOOSEPIXELFORMATARBPROC)wglGetProcAddress("wglChoosePixelFormatARB");
 
         ReleaseDC(hWndDummy, m_hDC);
-        m_hDC = GetDC(sourcewindow->m_internal->m_hWnd);
+        m_hDC = GetDC(hWnd);
         int attri[] = {
           WGL_DRAW_TO_WINDOW_ARB, true,
           WGL_PIXEL_TYPE_ARB, WGL_TYPE_RGBA_ARB,
@@ -258,7 +261,7 @@ namespace nvgl {
           return false;
       }
       else {
-        m_hDC = GetDC(sourcewindow->m_internal->m_hWnd);
+        m_hDC = GetDC(hWnd);
         PixelFormat = ChoosePixelFormat(m_hDC, &pfd);
         SetPixelFormat(m_hDC, PixelFormat, &pfd);
 
@@ -373,18 +376,18 @@ namespace nvgl {
   };
 
 
-  void ContextWindowGL::makeContextCurrent()
+  void ContextWindow::makeContextCurrent()
   {
     wglMakeCurrent(m_internal->m_hDC, m_internal->m_hRC);
   }
 
-  void ContextWindowGL::makeContextNonCurrent()
+  void ContextWindow::makeContextNonCurrent()
   {
     wglMakeCurrent(0, 0);
   }
 
 
-  int ContextWindowGL::extensionSupported(const char* name)
+  int ContextWindow::extensionSupported(const char* name)
   {
     // we are not using the glew query, as glew will only report
     // those extension it knows about, not what the actual driver may support
@@ -424,7 +427,7 @@ namespace nvgl {
   }
   
 
-  void* ContextWindowGL::sysGetProcAddress(const char* name)
+  void* ContextWindow::sysGetProcAddress(const char* name)
   {
     void *p = (void *)wglGetProcAddress(name);
     if (p == 0 ||
@@ -437,19 +440,19 @@ namespace nvgl {
     return p;
   }
 
-  void ContextWindowGL::swapInterval(int i)
+  void ContextWindow::swapInterval(int i)
   {
     m_internal->m_wglSwapIntervalEXT(i);
   }
 
-  void ContextWindowGL::swapBuffers()
+  void ContextWindow::swapBuffers()
   {
     SwapBuffers(m_internal->m_hDC);
   }
 #endif
   //////////////////////////////////////////////////////////////////////////
 
-  ContextWindowGL::ContextWindowGL()
+  ContextWindow::ContextWindow()
   {
     if (m_internal) {
       delete m_internal;
@@ -457,22 +460,22 @@ namespace nvgl {
   }
 
   //------------------------------------------------------------------------------
-  bool ContextWindowGL::init(const ContextFlagsGL* cflags, const NVPWindow* sourcewindow)
+  bool ContextWindow::init(const ContextWindowCreateInfo* cflags, GLFWwindow* sourcewindow, const char* dbgTitle)
   {
     if (!m_internal) {
       m_internal = new ContextWindowInternalGL;
     }
 
-    ContextFlagsGL  settings;
+    ContextWindowCreateInfo  settings;
     if (cflags) {
       settings = *cflags;
     }
 
     m_debugFilter = GL_DEBUG_SEVERITY_HIGH_ARB;
-    m_debugTitle = sourcewindow->m_windowName;
+    m_debugTitle = dbgTitle;
 
     if (m_internal->init(settings, sourcewindow, this)) {
-      load_GL(ContextWindowGL::sysGetProcAddress);
+      load_GL(ContextWindow::sysGetProcAddress);
 
       const char* renderer = (const char*)glGetString(GL_RENDERER);
 
@@ -523,12 +526,12 @@ namespace nvgl {
     return false;
   }
 
-  void* ContextWindowGL::getProcAddress(const char* name)
+  void* ContextWindow::getProcAddress(const char* name)
   {
     return sysGetProcAddress(name);
   }
 
-  void ContextWindowGL::screenshot(const char* filename, int x, int y, int width, int height, unsigned char* data)
+  void ContextWindow::screenshot(const char* filename, int x, int y, int width, int height, unsigned char* data)
   {
     glFinish();
     glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
@@ -537,11 +540,11 @@ namespace nvgl {
     glReadPixels(x, y, width, height, GL_BGRA, GL_UNSIGNED_BYTE, data);
 
     if (filename) {
-      nvh::saveBMP(filename, width, height, data);
+      saveBMP(filename, width, height, data);
     }
   }
 
-  void ContextWindowGL::deinit() {
+  void ContextWindow::deinit() {
     makeContextNonCurrent();
     m_internal->deinit();
   }

@@ -16,6 +16,12 @@ add_definitions(-DRESOURCE_DIRECTORY="${RESOURCE_DIRECTORY}/")
 include_directories(${BASE_DIRECTORY}/shared_sources)
 include_directories(${BASE_DIRECTORY}/shared_external)
 
+if (WIN32)
+  include_directories(${BASE_DIRECTORY}/shared_external/glfw3/include)
+else()
+  find_package(glfw3 3.3 REQUIRED)
+endif()
+
 message(STATUS "BASE_DIRECTORY = ${BASE_DIRECTORY}")
 message(STATUS "CMAKE_CURRENT_SOURCE_DIR = ${CMAKE_CURRENT_SOURCE_DIR}")
 
@@ -125,10 +131,16 @@ macro(_add_project_definitions name)
   else()
     _make_relative("${EXECUTABLE_OUTPUT_PATH}" "${CMAKE_CURRENT_SOURCE_DIR}" TOPROJECT)
   endif()
+  if(MSVC)
+    _make_relative("${EXECUTABLE_OUTPUT_PATH}/config" "${DOWNLOAD_TARGET_DIR}" TO_DOWNLOAD_TARGET_DIR)
+  else()
+    _make_relative("${EXECUTABLE_OUTPUT_PATH}" "${DOWNLOAD_TARGET_DIR}" TO_DOWNLOAD_TARGET_DIR)
+  endif()
   
   add_definitions(-DPROJECT_RELDIRECTORY="${TOPROJECT}/")
   add_definitions(-DPROJECT_ABSDIRECTORY="${CMAKE_CURRENT_SOURCE_DIR}/")
   add_definitions(-DPROJECT_NAME="${name}")
+  add_definitions(-DPROJECT_DOWNLOAD_RELDIRECTORY="${TO_DOWNLOAD_TARGET_DIR}/")
   add_definitions(-DPROJECT_DOWNLOAD_ABSDIRECTORY="${DOWNLOAD_TARGET_DIR}/")
   
   if (SUPPORT_NVTOOLSEXT)
@@ -341,6 +353,32 @@ macro(_optional_package_AntTweakBar)
     _add_package_AntTweakBar()
   endif(ANTTWEAKBAR_FOUND)
 endmacro(_optional_package_AntTweakBar)
+
+#####################################################################################
+# VMA (Vulkan Memory Allocator)
+#
+macro(_add_package_VMA)
+  Message(STATUS "--> using package VMA")
+  find_package(VMA)
+  if(VMA_FOUND)
+    add_definitions(-DUSEVMA)
+    include_directories(${VMA_INCLUDE_DIR})
+    LIST(APPEND PACKAGE_SOURCE_FILES 
+      ${VMA_HEADERS}
+    )
+    source_group(VMA FILES 
+      ${VMA_HEADERS}
+    )
+  endif()
+endmacro()
+# this macro is needed for the samples to add this package, although not needed
+# this happens when the shared_sources library was built with these stuff in it
+# so many samples can share the same library for many purposes
+macro(_optional_package_VMA)
+  if(VMA_FOUND)
+    _add_package_VMA()
+  endif(VMA_FOUND)
+endmacro(_optional_package_VMA)
 
 #####################################################################################
 # OculusSDK package
@@ -797,11 +835,11 @@ macro(_copy_binaries_to_target _PROJNAME)
   endif()
 
   if(NOT UNIX)
-    if(ZLIB_FOUND)
-      _copy_files_to_target( ${_PROJNAME} "${ZLIB_BIN}")
-      install(FILES ${ZLIB_BIN} CONFIGURATIONS Release DESTINATION bin_${ARCH})
-      install(FILES ${ZLIB_BIN} CONFIGURATIONS Debug DESTINATION bin_${ARCH}_debug)
-    endif()
+    #if(ZLIB_FOUND)
+    #  _copy_files_to_target( ${_PROJNAME} "${ZLIB_BIN}")
+    #  install(FILES ${ZLIB_BIN} CONFIGURATIONS Release DESTINATION bin_${ARCH})
+    #  install(FILES ${ZLIB_BIN} CONFIGURATIONS Debug DESTINATION bin_${ARCH}_debug)
+    #endif()
 
     if(SVCMFCUI_FOUND)
         _copy_files_to_target( ${_PROJNAME} "${SVCMFCUI_DLL}")
@@ -949,4 +987,9 @@ macro(_add_shared_sources_lib)
   endif()
   # finish with another part (also used by cname for the shared_sources)
   _process_shared_cmake_code()
+  # putting this into one of the other branches didn't work
+  if(WIN32)
+    add_definitions(-DVK_USE_PLATFORM_WIN32_KHR)
+    add_definitions(-DVULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1)
+  endif(WIN32)
 endmacro()

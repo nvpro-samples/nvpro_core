@@ -173,7 +173,12 @@ struct vector2
 template <class T>
 struct vector3
 {
-  vector3() {}
+  vector3()
+      : x(T(0))
+      , y(T(0))
+      , z(T(0))
+  {
+  }
   vector3(T x)
       : x(T(x))
       , y(T(x))
@@ -325,7 +330,13 @@ inline vector2<T>::vector2(const vector3<T>& u)
 template <class T>
 struct vector4
 {
-  vector4() {}
+  vector4()
+      : x(T(0))
+      , y(T(0))
+      , z(T(0))
+      , w(T(0))
+  {
+  }
   vector4(T x)
       : x(T(x))
       , y(T(x))

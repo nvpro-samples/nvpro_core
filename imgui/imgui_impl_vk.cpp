@@ -1,11 +1,13 @@
-#include "imgui.h"
 #include "imgui_impl_vk.h"
-#include "../nvvk/staging_vk.hpp"
-#include "../nvvk/descriptorsetcontainer_vk.hpp"
+#include "imgui.h"
 
 #include <assert.h>
+#include <cmath>
+#include <cstring>  // std::memcpy
+#define NV_ARRAY_SIZE(X) (sizeof((X)) / sizeof((X)[0]))
 
-namespace
+// clang-format off
+namespace 
 {
   const unsigned char vert_spv_data[] = {
     0x03, 0x02, 0x23, 0x07, 0x00, 0x00, 0x01, 0x00, 0x04, 0x00, 0x08, 0x00, 0x2F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // #version 450 core
@@ -123,39 +125,232 @@ namespace
     0x1D, 0x00, 0x00, 0x00, 0x12, 0x00, 0x00, 0x00, 0x1C, 0x00, 0x00, 0x00, 0x3E, 0x00, 0x03, 0x00, 0x09, 0x00, 0x00, 0x00,
     0x1D, 0x00, 0x00, 0x00, 0xFD, 0x00, 0x01, 0x00, 0x38, 0x00, 0x01, 0x00,
   };
+// clang-format on
 
-  nvvk::DeviceUtils s_utils = {};
-  nvvk::PhysicalInfo s_physical = {};
+VkDevice                         s_device = VK_NULL_HANDLE;
+VkPhysicalDeviceMemoryProperties s_memoryProperties;
 
-  VkImage s_fontAtlas = VK_NULL_HANDLE;
-  VkImageView s_fontAtlasView = VK_NULL_HANDLE;
-  VkSampler s_fontAtlasSampler = VK_NULL_HANDLE;
-  VkDeviceMemory s_fontAtlasMem = VK_NULL_HANDLE;
-  VkPipeline s_pipeline = VK_NULL_HANDLE;
-  nvvk::DescriptorSetContainer s_pipelineSetup = {};
+const VkAllocationCallbacks* s_allocator = nullptr;
 
-  VkBuffer s_ibo = VK_NULL_HANDLE;
-  VkDeviceMemory s_iboMem = VK_NULL_HANDLE;
-  VkBuffer s_vbo = VK_NULL_HANDLE;
-  VkDeviceMemory s_vboMem = VK_NULL_HANDLE;
+VkImage        s_fontAtlas        = VK_NULL_HANDLE;
+VkImageView    s_fontAtlasView    = VK_NULL_HANDLE;
+VkSampler      s_fontAtlasSampler = VK_NULL_HANDLE;
+VkDeviceMemory s_fontAtlasMem     = VK_NULL_HANDLE;
+
+VkPipeline            s_pipeline         = VK_NULL_HANDLE;
+VkPipelineLayout      s_pipelineLayout   = VK_NULL_HANDLE;
+VkDescriptorSetLayout s_descriptorLayout = VK_NULL_HANDLE;
+VkDescriptorPool      s_descriptorPool   = VK_NULL_HANDLE;
+VkDescriptorSet       s_descriptorSet    = VK_NULL_HANDLE;
+
+VkBuffer       s_ibo    = VK_NULL_HANDLE;
+VkDeviceMemory s_iboMem = VK_NULL_HANDLE;
+VkBuffer       s_vbo    = VK_NULL_HANDLE;
+VkDeviceMemory s_vboMem = VK_NULL_HANDLE;
+}  // namespace
+
+//////////////////////////////////////////////////////////////////////////
+// Utility functions
+//
+
+static uint32_t PhysicalDeviceMemoryProperties_getMemoryTypeIndex(const VkPhysicalDeviceMemoryProperties& memoryProperties,
+                                                                  const VkMemoryRequirements&             memReqs,
+                                                                  VkFlags                                 memProps)
+{
+  // Find an available memory type that satisfies the requested properties.
+  for(uint32_t memoryTypeIndex = 0; memoryTypeIndex < memoryProperties.memoryTypeCount; ++memoryTypeIndex)
+  {
+    if((memReqs.memoryTypeBits & (1 << memoryTypeIndex))
+       && (memoryProperties.memoryTypes[memoryTypeIndex].propertyFlags & memProps) == memProps)
+    {
+      return memoryTypeIndex;
+    }
+  }
+  return ~0u;
 }
 
-void ImGui::InitVK(const nvvk::DeviceUtils &utils, const nvvk::PhysicalInfo &physical, VkRenderPass pass, VkQueue queue, uint32_t queueFamilyIndex, int subPassIndex)
+static bool PhysicalDeviceMemoryProperties_getMemoryAllocationInfo(const VkPhysicalDeviceMemoryProperties& memoryProperties,
+                                                                   const VkMemoryRequirements&             memReqs,
+                                                                   VkFlags                                 memProps,
+                                                                   VkMemoryAllocateInfo&                   memInfo)
 {
-  using namespace nvvk;
+  memInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+  memInfo.pNext = nullptr;
 
-  assert(utils.m_device != VK_NULL_HANDLE);
+  if(!memReqs.size)
+  {
+    memInfo.allocationSize  = 0;
+    memInfo.memoryTypeIndex = ~0;
+    return true;
+  }
+
+  uint32_t memoryTypeIndex = PhysicalDeviceMemoryProperties_getMemoryTypeIndex(memoryProperties, memReqs, memProps);
+  if(memoryTypeIndex == ~0)
+  {
+    return false;
+  }
+
+  memInfo.allocationSize  = memReqs.size;
+  memInfo.memoryTypeIndex = memoryTypeIndex;
+
+  return true;
+}
+
+static VkBuffer createBuffer(size_t size, VkBufferUsageFlags usage, VkBufferCreateFlags flags = 0)
+{
+  VkResult           result;
+  VkBuffer           buffer;
+  VkBufferCreateInfo bufferInfo{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+  bufferInfo.size  = size;
+  bufferInfo.usage = usage | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+  bufferInfo.flags = flags;
+
+  result = vkCreateBuffer(s_device, &bufferInfo, s_allocator, &buffer);
+  assert(result == VK_SUCCESS);
+
+  return buffer;
+}
+
+
+static VkResult allocMemAndBindBuffer(VkBuffer                                obj,
+                                      const VkPhysicalDeviceMemoryProperties& memoryProperties,
+                                      VkDeviceMemory&                         gpuMem,
+                                      VkMemoryPropertyFlags                   memProps)
+{
+  VkResult             result;
+  VkMemoryRequirements memReqs;
+  vkGetBufferMemoryRequirements(s_device, obj, &memReqs);
+
+  VkMemoryAllocateInfo memInfo;
+  if(!PhysicalDeviceMemoryProperties_getMemoryAllocationInfo(memoryProperties, memReqs, memProps, memInfo))
+  {
+    return VK_ERROR_INITIALIZATION_FAILED;
+  }
+
+  result = vkAllocateMemory(s_device, &memInfo, s_allocator, &gpuMem);
+  if(result != VK_SUCCESS)
+  {
+    return result;
+  }
+
+  result = vkBindBufferMemory(s_device, obj, gpuMem, 0);
+  if(result != VK_SUCCESS)
+  {
+    return result;
+  }
+
+  return VK_SUCCESS;
+}
+
+static VkDescriptorSetLayout createDescriptorSetLayout(size_t                              numBindings,
+                                                       const VkDescriptorSetLayoutBinding* bindings,
+                                                       VkDescriptorSetLayoutCreateFlags    flags = 0)
+{
+  VkResult                        result;
+  VkDescriptorSetLayoutCreateInfo descriptorSetEntry = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
+  descriptorSetEntry.bindingCount                    = uint32_t(numBindings);
+  descriptorSetEntry.pBindings                       = bindings;
+  descriptorSetEntry.flags                           = flags;
+
+  VkDescriptorSetLayout descriptorSetLayout;
+  result = vkCreateDescriptorSetLayout(s_device, &descriptorSetEntry, s_allocator, &descriptorSetLayout);
+  assert(result == VK_SUCCESS);
+
+  return descriptorSetLayout;
+}
+
+static VkDescriptorPool createDescriptorPool(size_t poolSizeCount, const VkDescriptorPoolSize* poolSizes, uint32_t maxSets)
+{
+  VkResult result;
+
+  VkDescriptorPool           descrPool;
+  VkDescriptorPoolCreateInfo descrPoolInfo = {};
+  descrPoolInfo.sType                      = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+  descrPoolInfo.pNext                      = nullptr;
+  descrPoolInfo.maxSets                    = maxSets;
+  descrPoolInfo.poolSizeCount              = uint32_t(poolSizeCount);
+  descrPoolInfo.pPoolSizes                 = poolSizes;
+
+  // scene pool
+  result = vkCreateDescriptorPool(s_device, &descrPoolInfo, s_allocator, &descrPool);
+  assert(result == VK_SUCCESS);
+  return descrPool;
+}
+
+static VkDescriptorSet createDescriptorSets(VkDescriptorSetLayout layout, VkDescriptorPool& pool, uint32_t maxSets, VkDescriptorSet* sets)
+{
+  VkResult        result;
+  VkDescriptorSet defaultset;
+  if(sets == nullptr)
+  {
+    assert(maxSets == 1);
+    sets = &defaultset;
+  }
+
+  for(uint32_t n = 0; n < maxSets; n++)
+  {
+    VkDescriptorSetAllocateInfo allocInfo = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
+    allocInfo.descriptorPool              = pool;
+    allocInfo.descriptorSetCount          = 1;
+    allocInfo.pSetLayouts                 = &layout;
+
+    result = vkAllocateDescriptorSets(s_device, &allocInfo, sets + n);
+    assert(result == VK_SUCCESS);
+  }
+  return sets[0];  // return the first handle. Assuming it answers most of the needs when one creates a simple DSET
+}
+
+static void createDescriptorPoolAndSets(uint32_t                    maxSets,
+                                        size_t                      poolSizeCount,
+                                        const VkDescriptorPoolSize* poolSizes,
+                                        VkDescriptorSetLayout       layout,
+                                        VkDescriptorPool&           pool,
+                                        VkDescriptorSet*            sets)
+{
+  pool = createDescriptorPool(poolSizeCount, poolSizes, maxSets);
+  createDescriptorSets(layout, pool, maxSets, sets);
+}
+
+static VkPipelineLayout createPipelineLayout(size_t                       numLayouts,
+                                             const VkDescriptorSetLayout* setLayouts,
+                                             size_t                       numRanges = 0,
+                                             const VkPushConstantRange*   ranges    = nullptr,
+                                             VkPipelineLayoutCreateFlags  flags     = 0)
+{
+  VkResult                   result;
+  VkPipelineLayoutCreateInfo layoutCreateInfo = {VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
+  layoutCreateInfo.setLayoutCount             = uint32_t(numLayouts);
+  layoutCreateInfo.pSetLayouts                = setLayouts;
+  layoutCreateInfo.pushConstantRangeCount     = uint32_t(numRanges);
+  layoutCreateInfo.pPushConstantRanges        = ranges;
+  layoutCreateInfo.flags                      = flags;
+
+  VkPipelineLayout pipelineLayout;
+  result = vkCreatePipelineLayout(s_device, &layoutCreateInfo, s_allocator, &pipelineLayout);
+  assert(result == VK_SUCCESS);
+
+  return pipelineLayout;
+}
+
+//
+//////////////////////////////////////////////////////////////////////////
+
+
+void ImGui::InitVK(VkDevice device, VkPhysicalDevice physicalDevice, VkQueue queue, uint32_t queueFamilyIndex, VkRenderPass pass, int subPassIndex)
+{
+
+  assert(device != VK_NULL_HANDLE);
 
   // Destroy any existing resources
   ShutdownVK();
 
-  s_utils = utils;
-  s_physical = physical;
+  s_device = device;
+  vkGetPhysicalDeviceMemoryProperties(physicalDevice, &s_memoryProperties);
 
   // Load font atlas data
-  int fontAtlasWidth = 0;
-  int fontAtlasHeight = 0;
-  uint8_t *fontAtlasData = nullptr;
+  int      fontAtlasWidth  = 0;
+  int      fontAtlasHeight = 0;
+  uint8_t* fontAtlasData   = nullptr;
   GetIO().Fonts->GetTexDataAsRGBA32(&fontAtlasData, &fontAtlasWidth, &fontAtlasHeight);
 
   assert(fontAtlasWidth != 0 && fontAtlasHeight != 0 && fontAtlasData != nullptr);
@@ -163,372 +358,410 @@ void ImGui::InitVK(const nvvk::DeviceUtils &utils, const nvvk::PhysicalInfo &phy
   VkResult res = VK_RESULT_MAX_ENUM;
 
   // Create and allocate font atlas image
-  { VkImageCreateInfo createInfo = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
-    createInfo.imageType = VK_IMAGE_TYPE_2D;
-    createInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
-    createInfo.extent.width = fontAtlasWidth;
-    createInfo.extent.height = fontAtlasHeight;
-    createInfo.extent.depth = 1;
-    createInfo.mipLevels = 1;
-    createInfo.arrayLayers = 1;
-    createInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-    createInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+  {
+    VkImageCreateInfo createInfo = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
+    createInfo.imageType         = VK_IMAGE_TYPE_2D;
+    createInfo.format            = VK_FORMAT_R8G8B8A8_UNORM;
+    createInfo.extent.width      = fontAtlasWidth;
+    createInfo.extent.height     = fontAtlasHeight;
+    createInfo.extent.depth      = 1;
+    createInfo.mipLevels         = 1;
+    createInfo.arrayLayers       = 1;
+    createInfo.samples           = VK_SAMPLE_COUNT_1_BIT;
+    createInfo.tiling            = VK_IMAGE_TILING_OPTIMAL;
     createInfo.usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-    createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    createInfo.sharingMode   = VK_SHARING_MODE_EXCLUSIVE;
     createInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-    res = vkCreateImage(utils.m_device, &createInfo, utils.m_allocator, &s_fontAtlas);
+    res = vkCreateImage(s_device, &createInfo, s_allocator, &s_fontAtlas);
     assert(res == VK_SUCCESS);
   }
 
-  { VkMemoryRequirements reqs = {};
-    vkGetImageMemoryRequirements(utils.m_device, s_fontAtlas, &reqs);
+  {
+    VkMemoryRequirements reqs = {};
+    vkGetImageMemoryRequirements(s_device, s_fontAtlas, &reqs);
 
-    VkMemoryAllocateInfo allocInfo = { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
-    allocInfo.allocationSize = reqs.size;
-    allocInfo.memoryTypeIndex = PhysicalDeviceMemoryProperties_getMemoryTypeIndex(physical.memoryProperties, reqs, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    VkMemoryAllocateInfo allocInfo = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
+    allocInfo.allocationSize       = reqs.size;
+    allocInfo.memoryTypeIndex =
+        PhysicalDeviceMemoryProperties_getMemoryTypeIndex(s_memoryProperties, reqs, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-    res = vkAllocateMemory(utils.m_device, &allocInfo, utils.m_allocator, &s_fontAtlasMem);
+    res = vkAllocateMemory(s_device, &allocInfo, s_allocator, &s_fontAtlasMem);
     assert(res == VK_SUCCESS);
 
-    res = vkBindImageMemory(utils.m_device, s_fontAtlas, s_fontAtlasMem, 0);
+    res = vkBindImageMemory(s_device, s_fontAtlas, s_fontAtlasMem, 0);
     assert(res == VK_SUCCESS);
   }
 
   // Create image view for font atlas image
-  { VkImageViewCreateInfo createInfo = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
-    createInfo.image = s_fontAtlas;
-    createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    createInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
-    createInfo.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+  {
+    VkImageViewCreateInfo createInfo = {VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
+    createInfo.image                 = s_fontAtlas;
+    createInfo.viewType              = VK_IMAGE_VIEW_TYPE_2D;
+    createInfo.format                = VK_FORMAT_R8G8B8A8_UNORM;
+    createInfo.subresourceRange      = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
 
-    res = vkCreateImageView(utils.m_device, &createInfo, utils.m_allocator, &s_fontAtlasView);
+    res = vkCreateImageView(s_device, &createInfo, s_allocator, &s_fontAtlasView);
     assert(res == VK_SUCCESS);
   }
 
   // Copy font atlas data from host to device memory
-  { FixedSizeStagingBuffer staging;
-    staging.init(utils.m_device, &physical.memoryProperties);
+  {
+    VkDeviceSize fontAtlasSize = fontAtlasWidth * fontAtlasHeight * 4;
 
-    staging.enqueue(s_fontAtlas,
-      { 0, 0, 0 }, { uint32_t(fontAtlasWidth), uint32_t(fontAtlasHeight), 1 },
-      { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
-      fontAtlasWidth * fontAtlasHeight * 4, fontAtlasData);
+    VkDeviceMemory stagingMemory;
+    VkBuffer       stagingBuffer = createBuffer(fontAtlasSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+
+    allocMemAndBindBuffer(stagingBuffer, s_memoryProperties, stagingMemory,
+                          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    void* pdata;
+    vkMapMemory(s_device, stagingMemory, 0, fontAtlasSize, 0, &pdata);
+    memcpy(pdata, fontAtlasData, fontAtlasSize);
 
     VkCommandPool pool = VK_NULL_HANDLE;
-    { VkCommandPoolCreateInfo createInfo { VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };
+    {
+      VkCommandPoolCreateInfo createInfo{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
       createInfo.queueFamilyIndex = queueFamilyIndex;
 
-      res = vkCreateCommandPool(utils.m_device, &createInfo, utils.m_allocator, &pool);
+      res = vkCreateCommandPool(s_device, &createInfo, s_allocator, &pool);
       assert(res == VK_SUCCESS);
     }
 
     VkCommandBuffer cmd = VK_NULL_HANDLE;
-    { VkCommandBufferAllocateInfo allocInfo { VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
-      allocInfo.commandPool = pool;
-      allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    {
+      VkCommandBufferAllocateInfo allocInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
+      allocInfo.commandPool        = pool;
+      allocInfo.level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
       allocInfo.commandBufferCount = 1;
 
-      res = vkAllocateCommandBuffers(utils.m_device, &allocInfo, &cmd);
+      res = vkAllocateCommandBuffers(s_device, &allocInfo, &cmd);
       assert(res == VK_SUCCESS);
     }
 
-    { VkCommandBufferBeginInfo beginInfo { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
+    {
+      VkCommandBufferBeginInfo beginInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
       beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
       res = vkBeginCommandBuffer(cmd, &beginInfo);
       assert(res == VK_SUCCESS);
     }
 
-    VkImageMemoryBarrier transition { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
-    transition.srcAccessMask = 0;
-    transition.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-    transition.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    transition.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    VkImageMemoryBarrier transition{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
+    transition.srcAccessMask       = 0;
+    transition.dstAccessMask       = VK_ACCESS_TRANSFER_WRITE_BIT;
+    transition.oldLayout           = VK_IMAGE_LAYOUT_UNDEFINED;
+    transition.newLayout           = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
     transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    transition.image = s_fontAtlas;
-    transition.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+    transition.image               = s_fontAtlas;
+    transition.subresourceRange    = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
 
-    vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
+    vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0,
+                         nullptr, 1, &transition);
 
-    staging.flush(cmd);
+    {
+      VkBufferImageCopy cpy;
+      cpy.bufferOffset      = 0;
+      cpy.bufferRowLength   = 0;
+      cpy.bufferImageHeight = 0;
+      cpy.imageSubresource  = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
+      cpy.imageOffset       = {0, 0, 0};
+      cpy.imageExtent       = {uint32_t(fontAtlasWidth), uint32_t(fontAtlasHeight), 1};
+
+      vkCmdCopyBufferToImage(cmd, stagingBuffer, s_fontAtlas, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &cpy);
+    }
 
     transition.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
     transition.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-    transition.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-    transition.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    transition.oldLayout     = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    transition.newLayout     = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-    vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
+    vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0,
+                         nullptr, 1, &transition);
 
     res = vkEndCommandBuffer(cmd);
     assert(res == VK_SUCCESS);
 
-    { VkSubmitInfo submit { VK_STRUCTURE_TYPE_SUBMIT_INFO };
+    {
+      VkSubmitInfo submit{VK_STRUCTURE_TYPE_SUBMIT_INFO};
       submit.commandBufferCount = 1;
-      submit.pCommandBuffers = &cmd;
+      submit.pCommandBuffers    = &cmd;
 
       res = vkQueueSubmit(queue, 1, &submit, VK_NULL_HANDLE);
       assert(res == VK_SUCCESS);
     }
 
-    vkDeviceWaitIdle(utils.m_device); // Beautiful
+    vkDeviceWaitIdle(s_device);  // Beautiful
 
-    vkFreeCommandBuffers(utils.m_device, pool, 1, &cmd);
-    vkDestroyCommandPool(utils.m_device, pool, utils.m_allocator);
+    vkFreeCommandBuffers(s_device, pool, 1, &cmd);
+    vkDestroyCommandPool(s_device, pool, s_allocator);
 
-    staging.deinit();
+    vkDestroyBuffer(s_device, stagingBuffer, s_allocator);
+    vkUnmapMemory(s_device, stagingMemory);
+    vkFreeMemory(s_device, stagingMemory, s_allocator);
   }
 
   // Create sampler state for font atlas
-  { VkSamplerCreateInfo createInfo { VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
-    createInfo.magFilter = VK_FILTER_LINEAR;
-    createInfo.minFilter = VK_FILTER_LINEAR;
+  {
+    VkSamplerCreateInfo createInfo{VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
+    createInfo.magFilter    = VK_FILTER_LINEAR;
+    createInfo.minFilter    = VK_FILTER_LINEAR;
     createInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
     createInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
     createInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-    createInfo.minLod = FLT_MIN;
-    createInfo.maxLod = FLT_MAX;
+    createInfo.minLod       = FLT_MIN;
+    createInfo.maxLod       = FLT_MAX;
 
-    res = vkCreateSampler(utils.m_device, &createInfo, utils.m_allocator, &s_fontAtlasSampler);
+    res = vkCreateSampler(s_device, &createInfo, s_allocator, &s_fontAtlasSampler);
     assert(res == VK_SUCCESS);
   }
 
   // Allocate descriptors and pipeline layout for the imgui shaders
   {
-    const VkPushConstantRange pcRange = {
-      VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(float) * 16
-    };
+    const VkPushConstantRange pcRange = {VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(float) * 16};
 
-    s_pipelineSetup.init(utils.m_device, utils.m_allocator);
-    s_pipelineSetup.addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, 0);
-    s_pipelineSetup.initLayout();
-    s_pipelineSetup.initPipeLayout(1, &pcRange);
-    s_pipelineSetup.initPool(1);
+    VkDescriptorSetLayoutBinding binding = {0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, 0};
+    s_descriptorLayout                   = createDescriptorSetLayout(1, &binding);
+    VkDescriptorPoolSize poolSize        = {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1};
+    createDescriptorPoolAndSets(1, 1, &poolSize, s_descriptorLayout, s_descriptorPool, &s_descriptorSet);
+    s_pipelineLayout = createPipelineLayout(1, &s_descriptorLayout, 1, &pcRange);
 
+    const VkDescriptorImageInfo imageInfo{s_fontAtlasSampler, s_fontAtlasView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
 
-    const VkDescriptorImageInfo imageInfo { s_fontAtlasSampler, s_fontAtlasView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
-
-    VkWriteDescriptorSet write { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-    write.dstSet = s_pipelineSetup.getSets()[0];
+    VkWriteDescriptorSet write{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+    write.dstSet          = s_descriptorSet;
     write.descriptorCount = 1;
-    write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    write.pImageInfo = &imageInfo;
+    write.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    write.pImageInfo      = &imageInfo;
 
-    vkUpdateDescriptorSets(utils.m_device, 1, &write, 0, nullptr);
+    vkUpdateDescriptorSets(s_device, 1, &write, 0, nullptr);
   }
 
-  if (pass) {
-    ReInitPipelinesVK(utils, pass, subPassIndex);
+  if(pass)
+  {
+    ReInitPipelinesVK(pass, subPassIndex);
   }
 }
 
-void ImGui::ReInitPipelinesVK(const nvvk::DeviceUtils &utils, VkRenderPass pass, int subPassIndex)
+void ImGui::ReInitPipelinesVK(VkRenderPass pass, int subPassIndex)
 {
-  if (s_pipeline) {
-    vkDestroyPipeline(s_utils.m_device, s_pipeline, s_utils.m_allocator);
+  if(s_pipeline)
+  {
+    vkDestroyPipeline(s_device, s_pipeline, s_allocator);
     s_pipeline = VK_NULL_HANDLE;
   }
   // Create pipeline state
   {
     VkResult res;
 
-    VkPipelineShaderStageCreateInfo vertStage{ VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
+    VkPipelineShaderStageCreateInfo vertStage{VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
     vertStage.stage = VK_SHADER_STAGE_VERTEX_BIT;
     vertStage.pName = "main";
-    { VkShaderModuleCreateInfo createInfo{ VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
-    createInfo.codeSize = sizeof(vert_spv_data);
-    createInfo.pCode = reinterpret_cast<const uint32_t *>(vert_spv_data);
-    res = vkCreateShaderModule(s_utils.m_device, &createInfo, utils.m_allocator, &vertStage.module);
-    assert(res == VK_SUCCESS);
+    {
+      VkShaderModuleCreateInfo createInfo{VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
+      createInfo.codeSize = sizeof(vert_spv_data);
+      createInfo.pCode    = reinterpret_cast<const uint32_t*>(vert_spv_data);
+      res                 = vkCreateShaderModule(s_device, &createInfo, s_allocator, &vertStage.module);
+      assert(res == VK_SUCCESS);
     }
 
-    VkPipelineShaderStageCreateInfo fragStage{ VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
+    VkPipelineShaderStageCreateInfo fragStage{VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
     fragStage.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
     fragStage.pName = "main";
-    { VkShaderModuleCreateInfo createInfo{ VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
-    createInfo.codeSize = sizeof(frag_spv_data);
-    createInfo.pCode = reinterpret_cast<const uint32_t *>(frag_spv_data);
-    res = vkCreateShaderModule(s_utils.m_device, &createInfo, utils.m_allocator, &fragStage.module);
-    assert(res == VK_SUCCESS);
+    {
+      VkShaderModuleCreateInfo createInfo{VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
+      createInfo.codeSize = sizeof(frag_spv_data);
+      createInfo.pCode    = reinterpret_cast<const uint32_t*>(frag_spv_data);
+      res                 = vkCreateShaderModule(s_device, &createInfo, s_allocator, &fragStage.module);
+      assert(res == VK_SUCCESS);
     }
 
-    const VkVertexInputBindingDescription vertexBindings[] = {
-      { 0, sizeof(ImDrawVert), VK_VERTEX_INPUT_RATE_VERTEX }
-    };
+    const VkVertexInputBindingDescription vertexBindings[] = {{0, sizeof(ImDrawVert), VK_VERTEX_INPUT_RATE_VERTEX}};
 
     const VkVertexInputAttributeDescription vertexAttributes[] = {
-      { 0, vertexBindings[0].binding, VK_FORMAT_R32G32_SFLOAT, offsetof(ImDrawVert, pos) },
-      { 1, vertexBindings[0].binding, VK_FORMAT_R32G32_SFLOAT, offsetof(ImDrawVert, uv) },
-      { 2, vertexBindings[0].binding, VK_FORMAT_R8G8B8A8_UNORM, offsetof(ImDrawVert, col) },
+        {0, vertexBindings[0].binding, VK_FORMAT_R32G32_SFLOAT, offsetof(ImDrawVert, pos)},
+        {1, vertexBindings[0].binding, VK_FORMAT_R32G32_SFLOAT, offsetof(ImDrawVert, uv)},
+        {2, vertexBindings[0].binding, VK_FORMAT_R8G8B8A8_UNORM, offsetof(ImDrawVert, col)},
     };
 
-    VkPipelineVertexInputStateCreateInfo viStateInfo{ VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
-    viStateInfo.vertexBindingDescriptionCount = NV_ARRAY_SIZE(vertexBindings);
-    viStateInfo.pVertexBindingDescriptions = vertexBindings;
+    VkPipelineVertexInputStateCreateInfo viStateInfo{VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
+    viStateInfo.vertexBindingDescriptionCount   = NV_ARRAY_SIZE(vertexBindings);
+    viStateInfo.pVertexBindingDescriptions      = vertexBindings;
     viStateInfo.vertexAttributeDescriptionCount = NV_ARRAY_SIZE(vertexAttributes);
-    viStateInfo.pVertexAttributeDescriptions = vertexAttributes;
+    viStateInfo.pVertexAttributeDescriptions    = vertexAttributes;
 
-    VkPipelineInputAssemblyStateCreateInfo iaStateInfo{ VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
+    VkPipelineInputAssemblyStateCreateInfo iaStateInfo{VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO};
     iaStateInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
-    VkPipelineViewportStateCreateInfo vpStateInfo{ VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO };
-    vpStateInfo.scissorCount = 1;
+    VkPipelineViewportStateCreateInfo vpStateInfo{VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO};
+    vpStateInfo.scissorCount  = 1;
     vpStateInfo.viewportCount = 1;
 
-    VkPipelineRasterizationStateCreateInfo rsStateInfo{ VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
-    rsStateInfo.depthClampEnable = VK_TRUE;
-    rsStateInfo.polygonMode = VK_POLYGON_MODE_FILL;
-    rsStateInfo.cullMode = VK_CULL_MODE_NONE;
-    rsStateInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-    rsStateInfo.lineWidth = 1.0f;
+    VkPipelineRasterizationStateCreateInfo rsStateInfo{VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO};
+    rsStateInfo.depthClampEnable = VK_FALSE;
+    rsStateInfo.polygonMode      = VK_POLYGON_MODE_FILL;
+    rsStateInfo.cullMode         = VK_CULL_MODE_NONE;
+    rsStateInfo.frontFace        = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    rsStateInfo.lineWidth        = 1.0f;
 
     VkPipelineColorBlendAttachmentState cbAttachmentState;
-    cbAttachmentState.blendEnable = true;
+    cbAttachmentState.blendEnable         = true;
     cbAttachmentState.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
     cbAttachmentState.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-    cbAttachmentState.colorBlendOp = VK_BLEND_OP_ADD;
+    cbAttachmentState.colorBlendOp        = VK_BLEND_OP_ADD;
     cbAttachmentState.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
     cbAttachmentState.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-    cbAttachmentState.alphaBlendOp = VK_BLEND_OP_ADD;
-    cbAttachmentState.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    cbAttachmentState.alphaBlendOp        = VK_BLEND_OP_ADD;
+    cbAttachmentState.colorWriteMask =
+        VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
 
-    VkPipelineColorBlendStateCreateInfo cbStateInfo{ VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };
+    VkPipelineColorBlendStateCreateInfo cbStateInfo{VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO};
     cbStateInfo.attachmentCount = 1;
-    cbStateInfo.pAttachments = &cbAttachmentState;
+    cbStateInfo.pAttachments    = &cbAttachmentState;
 
-    VkPipelineDepthStencilStateCreateInfo dsStateInfo{ VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
-    dsStateInfo.depthTestEnable = false;
+    VkPipelineDepthStencilStateCreateInfo dsStateInfo{VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO};
+    dsStateInfo.depthTestEnable  = false;
     dsStateInfo.depthWriteEnable = false;
-    dsStateInfo.depthCompareOp = VK_COMPARE_OP_LESS;
+    dsStateInfo.depthCompareOp   = VK_COMPARE_OP_LESS;
 
-    VkPipelineMultisampleStateCreateInfo msStateInfo{ VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
+    VkPipelineMultisampleStateCreateInfo msStateInfo{VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO};
     msStateInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-    msStateInfo.sampleShadingEnable = VK_FALSE;
-    msStateInfo.minSampleShading = 1.0f;
+    msStateInfo.sampleShadingEnable  = VK_FALSE;
+    msStateInfo.minSampleShading     = 1.0f;
 
-    const VkDynamicState dynStates[] = {
-      VK_DYNAMIC_STATE_VIEWPORT,
-      VK_DYNAMIC_STATE_SCISSOR
-    };
+    const VkDynamicState dynStates[] = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
 
-    VkPipelineDynamicStateCreateInfo dynStateInfo{ VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO };
+    VkPipelineDynamicStateCreateInfo dynStateInfo{VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO};
     dynStateInfo.dynamicStateCount = NV_ARRAY_SIZE(dynStates);
-    dynStateInfo.pDynamicStates = dynStates;
+    dynStateInfo.pDynamicStates    = dynStates;
 
-    const VkPipelineShaderStageCreateInfo stages[] = {
-      vertStage, fragStage
-    };
+    const VkPipelineShaderStageCreateInfo stages[] = {vertStage, fragStage};
 
-    VkGraphicsPipelineCreateInfo createInfo{ VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
-    createInfo.stageCount = NV_ARRAY_SIZE(stages);
-    createInfo.pStages = stages;
-    createInfo.pVertexInputState = &viStateInfo;
+    VkGraphicsPipelineCreateInfo createInfo{VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
+    createInfo.stageCount          = NV_ARRAY_SIZE(stages);
+    createInfo.pStages             = stages;
+    createInfo.pVertexInputState   = &viStateInfo;
     createInfo.pInputAssemblyState = &iaStateInfo;
-    createInfo.pViewportState = &vpStateInfo;
+    createInfo.pViewportState      = &vpStateInfo;
     createInfo.pRasterizationState = &rsStateInfo;
-    createInfo.pMultisampleState = &msStateInfo;
-    createInfo.pDepthStencilState = &dsStateInfo;
-    createInfo.pColorBlendState = &cbStateInfo;
-    createInfo.pDynamicState = &dynStateInfo;
-    createInfo.layout = s_pipelineSetup.getPipeLayout();
-    createInfo.renderPass = pass;
-    createInfo.subpass = subPassIndex;
+    createInfo.pMultisampleState   = &msStateInfo;
+    createInfo.pDepthStencilState  = &dsStateInfo;
+    createInfo.pColorBlendState    = &cbStateInfo;
+    createInfo.pDynamicState       = &dynStateInfo;
+    createInfo.layout              = s_pipelineLayout;
+    createInfo.renderPass          = pass;
+    createInfo.subpass             = subPassIndex;
 
-    res = vkCreateGraphicsPipelines(utils.m_device, VK_NULL_HANDLE, 1, &createInfo, utils.m_allocator, &s_pipeline);
+    res = vkCreateGraphicsPipelines(s_device, VK_NULL_HANDLE, 1, &createInfo, s_allocator, &s_pipeline);
     assert(res == VK_SUCCESS);
 
-    vkDestroyShaderModule(utils.m_device, vertStage.module, utils.m_allocator);
-    vkDestroyShaderModule(utils.m_device, fragStage.module, utils.m_allocator);
+    vkDestroyShaderModule(s_device, vertStage.module, s_allocator);
+    vkDestroyShaderModule(s_device, fragStage.module, s_allocator);
   }
 }
 
 void ImGui::ShutdownVK()
 {
-  if (!s_utils.m_device)
+  if(!s_device)
     return;
 
-  vkDestroyBuffer(s_utils.m_device, s_vbo, s_utils.m_allocator);
+  vkDestroyBuffer(s_device, s_vbo, s_allocator);
   s_vbo = VK_NULL_HANDLE;
-  vkDestroyBuffer(s_utils.m_device, s_ibo, s_utils.m_allocator);
+  vkDestroyBuffer(s_device, s_ibo, s_allocator);
   s_ibo = VK_NULL_HANDLE;
 
-  vkDestroyImage(s_utils.m_device, s_fontAtlas, s_utils.m_allocator);
+  vkDestroyImage(s_device, s_fontAtlas, s_allocator);
   s_fontAtlas = VK_NULL_HANDLE;
-  vkDestroyImageView(s_utils.m_device, s_fontAtlasView, s_utils.m_allocator);
+  vkDestroyImageView(s_device, s_fontAtlasView, s_allocator);
   s_fontAtlasView = VK_NULL_HANDLE;
 
-  vkDestroySampler(s_utils.m_device, s_fontAtlasSampler, s_utils.m_allocator);
+  vkDestroySampler(s_device, s_fontAtlasSampler, s_allocator);
   s_fontAtlasSampler = VK_NULL_HANDLE;
 
-  vkFreeMemory(s_utils.m_device, s_vboMem, s_utils.m_allocator);
+  vkFreeMemory(s_device, s_vboMem, s_allocator);
   s_vboMem = VK_NULL_HANDLE;
-  vkFreeMemory(s_utils.m_device, s_iboMem, s_utils.m_allocator);
+  vkFreeMemory(s_device, s_iboMem, s_allocator);
   s_iboMem = VK_NULL_HANDLE;
 
-  vkFreeMemory(s_utils.m_device, s_fontAtlasMem, s_utils.m_allocator);
+  vkFreeMemory(s_device, s_fontAtlasMem, s_allocator);
   s_fontAtlasMem = VK_NULL_HANDLE;
 
-  vkDestroyPipeline(s_utils.m_device, s_pipeline, s_utils.m_allocator);
+  vkDestroyPipeline(s_device, s_pipeline, s_allocator);
   s_pipeline = VK_NULL_HANDLE;
 
-  s_pipelineSetup.deinit();
+  vkDestroyPipelineLayout(s_device, s_pipelineLayout, s_allocator);
+  s_pipelineLayout = VK_NULL_HANDLE;
 
-  s_utils.m_device = VK_NULL_HANDLE;
-  s_utils.m_allocator = nullptr;
+  vkDestroyDescriptorPool(s_device, s_descriptorPool, s_allocator);
+  s_descriptorPool = VK_NULL_HANDLE;
+  s_descriptorSet  = 0;
+
+  vkDestroyDescriptorSetLayout(s_device, s_descriptorLayout, s_allocator);
+  s_descriptorLayout = VK_NULL_HANDLE;
+
+
+  s_device = VK_NULL_HANDLE;
 }
 
 void ImGui::RenderDrawDataVK(VkCommandBuffer cmd, const ImDrawData* drawData)
 {
-  if (drawData == nullptr || drawData->TotalIdxCount == 0 || drawData->TotalVtxCount == 0)
+  if(drawData == nullptr || drawData->TotalIdxCount == 0 || drawData->TotalVtxCount == 0)
     return;
 
   // Resize vertex and index buffers
   static uint32_t lastIboSize = 0;
-  uint32_t iboSize = drawData->TotalIdxCount * sizeof(ImDrawIdx);
-  if (lastIboSize < iboSize || s_ibo == VK_NULL_HANDLE) {
-    if (s_ibo != VK_NULL_HANDLE) {
-      vkDeviceWaitIdle(s_utils.m_device);
-      vkDestroyBuffer(s_utils.m_device, s_ibo, s_utils.m_allocator);
-      vkFreeMemory(s_utils.m_device, s_iboMem, s_utils.m_allocator);
+  uint32_t        iboSize     = drawData->TotalIdxCount * sizeof(ImDrawIdx);
+  if(lastIboSize < iboSize || s_ibo == VK_NULL_HANDLE)
+  {
+    if(s_ibo != VK_NULL_HANDLE)
+    {
+      vkDeviceWaitIdle(s_device);
+      vkDestroyBuffer(s_device, s_ibo, s_allocator);
+      vkFreeMemory(s_device, s_iboMem, s_allocator);
     }
-    lastIboSize = uint32_t(exp2(ceil(log2(iboSize)))); // Round up to next power of two
-    s_ibo = s_utils.createBuffer(lastIboSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
-    s_utils.allocMemAndBindBuffer(s_ibo, s_physical.memoryProperties, s_iboMem, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+    lastIboSize = uint32_t(exp2(ceil(log2(iboSize))));  // Round up to next power of two
+    s_ibo       = createBuffer(lastIboSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+    allocMemAndBindBuffer(s_ibo, s_memoryProperties, s_iboMem, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
   }
   static uint32_t lastVboSize = 0;
-  uint32_t vboSize = drawData->TotalVtxCount * sizeof(ImDrawVert);
-  if (lastVboSize < vboSize || s_vbo == VK_NULL_HANDLE) {
-    if (s_vbo != VK_NULL_HANDLE) {
-      vkDeviceWaitIdle(s_utils.m_device);
-      vkDestroyBuffer(s_utils.m_device, s_vbo, s_utils.m_allocator);
-      vkFreeMemory(s_utils.m_device, s_vboMem, s_utils.m_allocator);
+  uint32_t        vboSize     = drawData->TotalVtxCount * sizeof(ImDrawVert);
+  if(lastVboSize < vboSize || s_vbo == VK_NULL_HANDLE)
+  {
+    if(s_vbo != VK_NULL_HANDLE)
+    {
+      vkDeviceWaitIdle(s_device);
+      vkDestroyBuffer(s_device, s_vbo, s_allocator);
+      vkFreeMemory(s_device, s_vboMem, s_allocator);
     }
-    lastVboSize = uint32_t(exp2(ceil(log2(vboSize)))); // Round up to next power of two
-    s_vbo = s_utils.createBuffer(lastVboSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
-    s_utils.allocMemAndBindBuffer(s_vbo, s_physical.memoryProperties, s_vboMem, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+    lastVboSize = uint32_t(exp2(ceil(log2(vboSize))));  // Round up to next power of two
+    s_vbo       = createBuffer(lastVboSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+    allocMemAndBindBuffer(s_vbo, s_memoryProperties, s_vboMem, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
   }
 
   // Upload data to vertex and index buffers
-  { ImDrawIdx* mappedMem = nullptr;
+  {
+    ImDrawIdx* mappedMem = nullptr;
     assert(s_iboMem != VK_NULL_HANDLE);
-    vkMapMemory(s_utils.m_device, s_iboMem, 0, VK_WHOLE_SIZE, 0, reinterpret_cast<void **>(&mappedMem));
-    for (int i = 0, offset = 0; i < drawData->CmdListsCount; i++) {
-      const ImDrawList *drawList = drawData->CmdLists[i];
+    vkMapMemory(s_device, s_iboMem, 0, VK_WHOLE_SIZE, 0, reinterpret_cast<void**>(&mappedMem));
+    for(int i = 0, offset = 0; i < drawData->CmdListsCount; i++)
+    {
+      const ImDrawList* drawList = drawData->CmdLists[i];
       std::memcpy(mappedMem + offset, drawList->IdxBuffer.Data, drawList->IdxBuffer.Size * sizeof(ImDrawIdx));
       offset += drawList->IdxBuffer.size();
     }
-    vkUnmapMemory(s_utils.m_device, s_iboMem);
+    vkUnmapMemory(s_device, s_iboMem);
   }
-  { ImDrawVert* mappedMem = nullptr;
+  {
+    ImDrawVert* mappedMem = nullptr;
     assert(s_vboMem != VK_NULL_HANDLE);
-    vkMapMemory(s_utils.m_device, s_vboMem, 0, VK_WHOLE_SIZE, 0, reinterpret_cast<void **>(&mappedMem));
-    for (int i = 0, offset = 0; i < drawData->CmdListsCount; i++) {
-      const ImDrawList *drawList = drawData->CmdLists[i];
+    vkMapMemory(s_device, s_vboMem, 0, VK_WHOLE_SIZE, 0, reinterpret_cast<void**>(&mappedMem));
+    for(int i = 0, offset = 0; i < drawData->CmdListsCount; i++)
+    {
+      const ImDrawList* drawList = drawData->CmdLists[i];
       std::memcpy(mappedMem + offset, drawList->VtxBuffer.Data, drawList->VtxBuffer.Size * sizeof(ImDrawVert));
       offset += drawList->VtxBuffer.size();
     }
-    vkUnmapMemory(s_utils.m_device, s_vboMem);
+    vkUnmapMemory(s_device, s_vboMem);
   }
 
   // Setup render states
@@ -536,43 +769,34 @@ void ImGui::RenderDrawDataVK(VkCommandBuffer cmd, const ImDrawData* drawData)
   vkCmdBindIndexBuffer(cmd, s_ibo, offset, VK_INDEX_TYPE_UINT16);
   vkCmdBindVertexBuffers(cmd, 0, 1, &s_vbo, &offset);
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, s_pipeline);
-  vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, s_pipelineSetup.getPipeLayout(), 0, 1, s_pipelineSetup.getSets(), 0, nullptr);
+  vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, s_pipelineLayout, 0, 1, &s_descriptorSet, 0, nullptr);
 
   const VkViewport viewport = {
-    0.0f, 0.0f, static_cast<float>(GetIO().DisplaySize.x), static_cast<float>(GetIO().DisplaySize.y), 0.0f, 1.0f
-  };
+      0.0f, 0.0f, static_cast<float>(GetIO().DisplaySize.x), static_cast<float>(GetIO().DisplaySize.y), 0.0f, 1.0f};
   vkCmdSetViewport(cmd, 0, 1, &viewport);
 
-  // Setup ortographic projection matrix
+  // Setup orthographic projection matrix
   const float mvp[16] = {
-    2.0f / GetIO().DisplaySize.x, 0.0f, 0.0f, 0.0f,
-    0.0f, 2.0f / GetIO().DisplaySize.y, 0.0f, 0.0f,
-    0.0f, 0.0f, 0.5f, 0.0f,
-    -1.0f, -1.0f, 0.5f, 1.0f };
+      2.0f / GetIO().DisplaySize.x, 0.0f, 0.0f, 0.0f, 0.0f, 2.0f / GetIO().DisplaySize.y, 0.0f, 0.0f, 0.0f, 0.0f, 0.5f, 0.0f, -1.0f, -1.0f, 0.5f, 1.0f};
 
-  vkCmdPushConstants(cmd, s_pipelineSetup.getPipeLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mvp), mvp);
+  vkCmdPushConstants(cmd, s_pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mvp), mvp);
 
   // Render command lists
-  for (uint32_t i = 0, ioffset = 0, voffset = 0; i < uint32_t(drawData->CmdListsCount); ++i)
+  for(uint32_t i = 0, ioffset = 0, voffset = 0; i < uint32_t(drawData->CmdListsCount); ++i)
   {
-    const ImDrawList *drawList = drawData->CmdLists[i];
+    const ImDrawList* drawList = drawData->CmdLists[i];
 
-    for (const ImDrawCmd &drawCmd : drawList->CmdBuffer)
+    for(const ImDrawCmd& drawCmd : drawList->CmdBuffer)
     {
-      if (drawCmd.UserCallback != nullptr)
+      if(drawCmd.UserCallback != nullptr)
       {
         drawCmd.UserCallback(drawList, &drawCmd);
         continue;
       }
 
-      const VkRect2D rect = {
-        VkOffset2D {
-          static_cast<int32_t>(drawCmd.ClipRect.x),
-          static_cast<int32_t>(drawCmd.ClipRect.y) },
-        VkExtent2D {
-          static_cast<uint32_t>(drawCmd.ClipRect.z - drawCmd.ClipRect.x),
-          static_cast<uint32_t>(drawCmd.ClipRect.w - drawCmd.ClipRect.y) }
-      };
+      const VkRect2D rect = {VkOffset2D{static_cast<int32_t>(drawCmd.ClipRect.x), static_cast<int32_t>(drawCmd.ClipRect.y)},
+                             VkExtent2D{static_cast<uint32_t>(drawCmd.ClipRect.z - drawCmd.ClipRect.x),
+                                        static_cast<uint32_t>(drawCmd.ClipRect.w - drawCmd.ClipRect.y)}};
 
       vkCmdSetScissor(cmd, 0, 1, &rect);
 

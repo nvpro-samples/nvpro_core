@@ -54,9 +54,13 @@ int has_GL_ARB_debug_output = 0;
 int has_GL_ARB_indirect_parameters = 0;
 int has_GL_ARB_shading_language_include = 0;
 int has_GL_ARB_texture_filter_minmax = 0;
+int has_GL_ARB_texture_float = 0;
 int has_GL_EXT_memory_object = 0;
 int has_GL_EXT_memory_object_win32 = 0;
 int has_GL_EXT_semaphore = 0;
+int has_GL_EXT_semaphore_fd = 0;
+int has_GL_EXT_semaphore_win32 = 0;
+int has_GL_EXT_texture_compression_latc = 0;
 int has_GL_EXT_texture_compression_s3tc = 0;
 int has_GL_NV_bindless_texture = 0;
 int has_GL_NV_blend_equation_advanced = 0;
@@ -96,6 +100,7 @@ int has_GL_NV_texture_multisample = 0;
 int has_GL_NV_uniform_buffer_unified_memory = 0;
 int has_GL_NV_vertex_buffer_unified_memory = 0;
 int has_GL_NV_viewport_swizzle = 0;
+int has_GL_NVX_gpu_memory_info = 0;
 
 /* tests */
 static int has_extension(const char* name)
@@ -150,9 +155,13 @@ void load_GL(nvGLLoaderGetProcFN fnGetProcAddress)
   has_GL_ARB_indirect_parameters = load_GL_ARB_indirect_parameters(fnGetProcAddress);
   has_GL_ARB_shading_language_include = load_GL_ARB_shading_language_include(fnGetProcAddress);
   has_GL_ARB_texture_filter_minmax = load_GL_ARB_texture_filter_minmax(fnGetProcAddress);
+  has_GL_ARB_texture_float = load_GL_ARB_texture_float(fnGetProcAddress);
   has_GL_EXT_memory_object = load_GL_EXT_memory_object(fnGetProcAddress);
   has_GL_EXT_memory_object_win32 = load_GL_EXT_memory_object_win32(fnGetProcAddress);
   has_GL_EXT_semaphore = load_GL_EXT_semaphore(fnGetProcAddress);
+  has_GL_EXT_semaphore_fd = load_GL_EXT_semaphore_fd(fnGetProcAddress);
+  has_GL_EXT_semaphore_win32 = load_GL_EXT_semaphore_win32(fnGetProcAddress);
+  has_GL_EXT_texture_compression_latc = load_GL_EXT_texture_compression_latc(fnGetProcAddress);
   has_GL_EXT_texture_compression_s3tc = load_GL_EXT_texture_compression_s3tc(fnGetProcAddress);
   has_GL_NV_bindless_texture = load_GL_NV_bindless_texture(fnGetProcAddress);
   has_GL_NV_blend_equation_advanced = load_GL_NV_blend_equation_advanced(fnGetProcAddress);
@@ -192,6 +201,7 @@ void load_GL(nvGLLoaderGetProcFN fnGetProcAddress)
   has_GL_NV_uniform_buffer_unified_memory = load_GL_NV_uniform_buffer_unified_memory(fnGetProcAddress);
   has_GL_NV_vertex_buffer_unified_memory = load_GL_NV_vertex_buffer_unified_memory(fnGetProcAddress);
   has_GL_NV_viewport_swizzle = load_GL_NV_viewport_swizzle(fnGetProcAddress);
+  has_GL_NVX_gpu_memory_info = load_GL_NVX_gpu_memory_info(fnGetProcAddress);
 }
 
 /* loaders */
@@ -5452,6 +5462,17 @@ int load_GL_ARB_texture_filter_minmax(nvGLLoaderGetProcFN fnGetProcAddress)
 }
 
 /* /////////////////////////////////// */
+/* GL_ARB_texture_float */
+
+
+
+int load_GL_ARB_texture_float(nvGLLoaderGetProcFN fnGetProcAddress)
+{
+  int success = has_extension("GL_ARB_texture_float");
+  return success;
+}
+
+/* /////////////////////////////////// */
 /* GL_EXT_memory_object */
 
 static PFNGLGETUNSIGNEDBYTEVEXTPROC pfn_glGetUnsignedBytevEXT = 0;
@@ -5705,6 +5726,63 @@ int load_GL_EXT_semaphore(nvGLLoaderGetProcFN fnGetProcAddress)
   success = success && (pfn_glGetSemaphoreParameterui64vEXT != 0);
   success = success && (pfn_glWaitSemaphoreEXT != 0);
   success = success && (pfn_glSignalSemaphoreEXT != 0);
+  return success;
+}
+
+/* /////////////////////////////////// */
+/* GL_EXT_semaphore_fd */
+
+static PFNGLIMPORTSEMAPHOREFDEXTPROC pfn_glImportSemaphoreFdEXT = 0;
+
+GLAPI void APIENTRY glImportSemaphoreFdEXT(GLuint semaphore, GLenum handleType, GLint fd)
+{
+  assert(pfn_glImportSemaphoreFdEXT);
+  pfn_glImportSemaphoreFdEXT(semaphore,handleType,fd);
+}
+
+int load_GL_EXT_semaphore_fd(nvGLLoaderGetProcFN fnGetProcAddress)
+{
+  pfn_glImportSemaphoreFdEXT = (PFNGLIMPORTSEMAPHOREFDEXTPROC)fnGetProcAddress("glImportSemaphoreFdEXT");
+  int success = has_extension("GL_EXT_semaphore_fd");
+  success = success && (pfn_glImportSemaphoreFdEXT != 0);
+  return success;
+}
+
+/* /////////////////////////////////// */
+/* GL_EXT_semaphore_win32 */
+
+static PFNGLIMPORTSEMAPHOREWIN32HANDLEEXTPROC pfn_glImportSemaphoreWin32HandleEXT = 0;
+static PFNGLIMPORTSEMAPHOREWIN32NAMEEXTPROC pfn_glImportSemaphoreWin32NameEXT = 0;
+
+GLAPI void APIENTRY glImportSemaphoreWin32HandleEXT(GLuint semaphore, GLenum handleType, void* handle)
+{
+  assert(pfn_glImportSemaphoreWin32HandleEXT);
+  pfn_glImportSemaphoreWin32HandleEXT(semaphore,handleType,handle);
+}
+GLAPI void APIENTRY glImportSemaphoreWin32NameEXT(GLuint semaphore, GLenum handleType, const void* name)
+{
+  assert(pfn_glImportSemaphoreWin32NameEXT);
+  pfn_glImportSemaphoreWin32NameEXT(semaphore,handleType,name);
+}
+
+int load_GL_EXT_semaphore_win32(nvGLLoaderGetProcFN fnGetProcAddress)
+{
+  pfn_glImportSemaphoreWin32HandleEXT = (PFNGLIMPORTSEMAPHOREWIN32HANDLEEXTPROC)fnGetProcAddress("glImportSemaphoreWin32HandleEXT");
+  pfn_glImportSemaphoreWin32NameEXT = (PFNGLIMPORTSEMAPHOREWIN32NAMEEXTPROC)fnGetProcAddress("glImportSemaphoreWin32NameEXT");
+  int success = has_extension("GL_EXT_semaphore_win32");
+  success = success && (pfn_glImportSemaphoreWin32HandleEXT != 0);
+  success = success && (pfn_glImportSemaphoreWin32NameEXT != 0);
+  return success;
+}
+
+/* /////////////////////////////////// */
+/* GL_EXT_texture_compression_latc */
+
+
+
+int load_GL_EXT_texture_compression_latc(nvGLLoaderGetProcFN fnGetProcAddress)
+{
+  int success = has_extension("GL_EXT_texture_compression_latc");
   return success;
 }
 
@@ -7758,6 +7836,17 @@ int load_GL_NV_viewport_swizzle(nvGLLoaderGetProcFN fnGetProcAddress)
   pfn_glViewportSwizzleNV = (PFNGLVIEWPORTSWIZZLENVPROC)fnGetProcAddress("glViewportSwizzleNV");
   int success = has_extension("GL_NV_viewport_swizzle");
   success = success && (pfn_glViewportSwizzleNV != 0);
+  return success;
+}
+
+/* /////////////////////////////////// */
+/* GL_NVX_gpu_memory_info */
+
+
+
+int load_GL_NVX_gpu_memory_info(nvGLLoaderGetProcFN fnGetProcAddress)
+{
+  int success = has_extension("GL_NVX_gpu_memory_info");
   return success;
 }
 

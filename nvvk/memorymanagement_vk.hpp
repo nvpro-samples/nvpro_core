@@ -25,263 +25,728 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#pragma  once
+#pragma once
 
 #include <assert.h>
 #include <platform.h>
 #include <vector>
-#include <vulkan/vulkan.h>
 
-namespace nvvk
+#include <nvh/trangeallocator.hpp>
+#include <vulkan/vulkan_core.h>
+
+namespace nvvk {
+
+
+// safe-ish value for most desktop hw http://vulkan.gpuinfo.org/displayextensionproperty.php?name=maxMemoryAllocationSize
+#define NVVK_DEFAULT_MAX_MEMORY_ALLOCATIONSIZE (VkDeviceSize(2 * 1024) * 1024 * 1024)
+
+#define NVVK_DEFAULT_MEMORY_BLOCKSIZE (VkDeviceSize(128) * 1024 * 1024)
+
+#define NVVK_DEFAULT_STAGING_BLOCKSIZE (VkDeviceSize(64) * 1024 * 1024)
+
+//////////////////////////////////////////////////////////////////////////
+/**
+  This framework assumes that memory heaps exists that support:
+
+  - VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+    for uploading data to the device
+  - VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT & VK_MEMORY_PROPERTY_HOST_CACHED_BIT
+    for downloading data from the device
+
+  This is typical on all major desktop platforms and vendors.
+  See http://vulkan.gpuinfo.org for information of various devices and platforms.
+
+  # functions in nvvk
+
+  * getMemoryInfo : fills the VkMemoryAllocateInfo based on device's memory properties and memory requirements and property flags. Returns `true` on success.
+*/
+
+// returns true on success
+bool getMemoryInfo(const VkPhysicalDeviceMemoryProperties& memoryProperties,
+                   const VkMemoryRequirements&             memReqs,
+                   VkMemoryPropertyFlags                   properties,
+                   VkMemoryAllocateInfo&                   memInfo);
+
+//////////////////////////////////////////////////////////////////////////
+
+static const uint32_t INVALID_ID_INDEX = ~0;
+
+struct Allocation
 {
-  //////////////////////////////////////////////////////////////////////////
-  #define NVVK_DEFAULT_MAX_MEMORYALLOCATIONSIZE  (VkDeviceSize(2) * 1024 * 1024 * 1024)
-  // safeish value for most desktop hw http://vulkan.gpuinfo.org/displayextensionproperty.php?name=maxMemoryAllocationSize
+  VkDeviceMemory mem    = VK_NULL_HANDLE;
+  VkDeviceSize   offset = 0;
+  VkDeviceSize   size   = 0;
+};
 
-  struct Allocation
+class AllocationID
+{
+  friend class DeviceMemoryAllocator;
+
+private:
+  uint32_t index      = INVALID_ID_INDEX;
+  uint32_t generation = 0;
+
+  void     invalidate() { index = INVALID_ID_INDEX; }
+  uint32_t instantiate(uint32_t newIndex)
   {
-    VkDeviceMemory mem = VK_NULL_HANDLE;
-    VkDeviceSize   offset = 0;
-    VkDeviceSize   size = 0;
-  };
+    uint32_t oldIndex = index;
+    index             = newIndex;
+    generation++;
 
-  class AllocationID
-  {
-    friend class BlockDeviceMemoryAllocator;
+    return oldIndex;
+  }
 
-  private:
-    uint32_t index = ~0;
-    uint32_t incarnation = 0;
+public:
+  bool isValid() const { return index != INVALID_ID_INDEX; }
+  bool isEqual(const AllocationID& other) const { return index == other.index && generation == other.generation; }
 
-  public:
-    void invalidate() { index = ~0; }
-    bool isValid() const { return index != ~0; }
-    bool isEqual(const AllocationID& other) const { return index == other.index && incarnation == other.incarnation; }
-    operator bool() const { return isValid(); }
-  };
+  operator bool() const { return isValid(); }
 
-  //////////////////////////////////////////////////////////////////////////
-
-  class MemoryBlockManager
-  {
-  public:
-
-    /*
-      This class allows to find out how much device memory (organized in a minimal amount of blocks with an upper size limit)
-      are required for a given set of resources. It sub-allocates those resources from the blocks
-      and gives back the appropriate ranges and which block is used.
-
-      The class does NOT actually allocate any device memory at all. It just provides
-      information how those allocations should be made and where each resource finds itself.
-
-      The idea is that you allocate a tight set (no-waste) of device memory after you filled the block manager.
-      It assumes resources are never deleted individually, but if so, alls block are destroyed.
-    */
-
-    struct Entry
-    {
-      size_t       blockIdx = ~0ULL;
-      VkDeviceSize offset = 0;
-
-      bool isValid() const {
-        return blockIdx != ~0ULL;
-      }
-    };
-
-    struct Block
-    {
-      // use whatever is preferred for doing actual allocation
-      VkMemoryAllocateInfo  memAllocate;
-      VkMemoryRequirements  memReqs;
-      VkMemoryPropertyFlags memProps;
-    };
-
-    void init(const VkPhysicalDeviceMemoryProperties* memoryProperties, VkDeviceSize blockSize = 32 * 1024 * 1024, VkDeviceSize maxAllocationSize = NVVK_DEFAULT_MAX_MEMORYALLOCATIONSIZE);
-
-    // appends to existing allocation blocks if currentUsage < blockSize, starts new block otherwise
-    // no memory is wasted
-    Entry add(const VkMemoryRequirements& memReqs, VkMemoryPropertyFlags memProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    void  clear();
-
-    const size_t getBlockCount() const;
-    const Block& getBlock(size_t idx) const;
-
-    MemoryBlockManager() {}
-    MemoryBlockManager(const VkPhysicalDeviceMemoryProperties* memoryProperties, VkDeviceSize blockSize = 32 * 1024 * 1024, VkDeviceSize maxAllocationSize = NVVK_DEFAULT_MAX_MEMORYALLOCATIONSIZE)
-    {
-      init(memoryProperties, blockSize, maxAllocationSize);
-    }
-
-    // utility helper when used with MemoryBlockAllocation
-    VkBindImageMemoryInfo makeBind(VkImage image, const MemoryBlockManager::Entry& entry, const Allocation* blockAllocations) const;
-    VkBindBufferMemoryInfo makeBind(VkBuffer buffer, const MemoryBlockManager::Entry& entry, const Allocation* blockAllocations) const;
-#if VK_NV_ray_tracing
-    VkBindAccelerationStructureMemoryInfoNV makeBind(VkAccelerationStructureNV        accel,
-      const MemoryBlockManager::Entry& entry,
-      const Allocation*                blockAllocations) const;
-#endif
-
-  private:
-    const VkPhysicalDeviceMemoryProperties* m_memoryProperties;
-    VkDeviceSize                            m_maxAllocationSize;
-    VkDeviceSize                            m_blockSize;
-    std::vector<Block>                      m_blocks;
-  };
-
-  //////////////////////////////////////////////////////////////////////////
+  friend bool operator==(const AllocationID& lhs, const AllocationID& rhs) { return rhs.isEqual(lhs); }
+};
 
 
-  class BlockDeviceMemoryAllocator
-  {
-    /*
-      This class allocates and manages device memory in fixed-size blocks.
+//////////////////////////////////////////////////////////////////////////
+/**
+  # class nvvk::DeviceMemoryAllocator
 
-      It sub-allocates from the blocks, and can re-use memory if it finds empty
-      regions. The logic is very basic and should not be used in production
-      code, it currently lacks de-fragmentation or smarter re-use of gaps in the memory.
+  DeviceMemoryAllocator allocates and manages device memory in fixed-size memory blocks.
 
-      Because of the fixed-block usage, you can directly create resources and 
-      don't need a phase to compute the allocation sizes first.
+  It sub-allocates from the blocks, and can re-use memory if it finds empty
+  regions. Because of the fixed-block usage, you can directly create resources
+  and don't need a phase to compute the allocation sizes first.
 
-      It will create compatible chunks according to the memory requirements and 
-      usage flags. Therefore you can easily create mappable host allocations
-      and delete them after usage, without inferring device-side allocations.
+  It will create compatible chunks according to the memory requirements and
+  usage flags. Therefore you can easily create mappable host allocations
+  and delete them after usage, without inferring device-side allocations.
 
-      We return allocationIDs rather than the allocation details directly,
-      as a future variant may allow de-fragmentation.
-    */
+  We return `AllocationID` rather than the allocation details directly, which
+  you can query separately.
 
-  public:
+  Several utility functions are provided to handle the binding of memory
+  directly with the resource creation of buffers, images and acceleration
+  structures. This utilities also make implicit use of Vulkan's dedicated
+  allocation mechanism.
+
+  > **WARNING** : The memory manager serves as proof of concept for some key concepts
+  > however it is not meant for production use and it currently lacks de-fragmentation logic
+  > as well.
+
+  You can derive from this calls and overload the 
+
+  Example :
+  ~~~ C++
+  nvvk::DeviceMemoryAllocator memAllocator;
+
+  memAllocator.init(device, physicalDevice);
+
+  // low-level
+  aid = memAllocator.alloc(memRequirements,...);
+  ...
+  memAllocator.free(aid);
+
+  // utility wrapper
+  buffer = memAllocator.createBuffer(bufferSize, bufferUsage, bufferAid);
+  ...
+  memAllocator.free(bufferAid);
+
+
+  // It is also possible to not track individual resources
+  // and free everything in one go. However, this is
+  // not recommended for general purpose use.
+
+  bufferA = memAllocator.createBuffer(sizeA, usageA);
+  bufferB = memAllocator.createBuffer(sizeB, usageB);
+  ...
+  memAllocator.freeAll();
+
+  ~~~
+*/
+class DeviceMemoryAllocator
+{
+
+public:
+  static const float DEFAULT_PRIORITY;
+
 #ifndef NDEBUG
-    ~BlockDeviceMemoryAllocator()
-    {
-      // If all memory was released properly, no blocks should be alive at this point
-      assert(m_blocks.empty());
-    }
+  virtual ~DeviceMemoryAllocator()
+  {
+    // If all memory was released properly, no blocks should be alive at this point
+    assert(m_blocks.empty());
+  }
 #endif
 
-    //////////////////////////////////////////////////////////////////////////
+  // system related
 
-    // system related
+  DeviceMemoryAllocator() {}
+  DeviceMemoryAllocator(VkDevice         device,
+                        VkPhysicalDevice physicalDevice,
+                        VkDeviceSize     blockSize = NVVK_DEFAULT_MEMORY_BLOCKSIZE,
+                        VkDeviceSize     maxSize   = NVVK_DEFAULT_MAX_MEMORY_ALLOCATIONSIZE)
+  {
+    init(device, physicalDevice, blockSize, maxSize);
+  }
 
-    void init(VkDevice                        device,
-      const VkPhysicalDeviceMemoryProperties* memoryProperties,
-      VkDeviceSize                            blockSize = 1024 * 1024 * 32,
-      const VkAllocationCallbacks*            allocator = nullptr);
+  void init(VkDevice         device,
+            VkPhysicalDevice physicalDevice,
+            VkDeviceSize     blockSize = NVVK_DEFAULT_MEMORY_BLOCKSIZE,
+            VkDeviceSize     maxSize   = NVVK_DEFAULT_MAX_MEMORY_ALLOCATIONSIZE);
 
-    // frees all blocks independent of individual allocations
-    void freeAll();
-    void deinit();
+  // requires VK_EXT_memory_priority, default is false
+  void setPrioritySupported(bool state) { m_supportsPriority = state; }
 
-    void setMaxAllocationSize(VkDeviceSize size);
+  // frees all blocks independent of individual allocations
+  // use only if you know the lifetime of all resources from this allocator.
+  void freeAll();
 
-    float getUtilization(VkDeviceSize& allocatedSize, VkDeviceSize& usedSize) const;
+  // asserts on all resources being freed properly
+  void deinit();
 
-    VkDevice                                getDevice() const;
-    const VkAllocationCallbacks*            getAllocationCallbacks() const;
-    const VkPhysicalDeviceMemoryProperties* getMemoryProperties() const;
-    VkDeviceSize                            getMaxAllocationSize() const;
+  // get utilization of block allocations
+  float getUtilization(VkDeviceSize& allocatedSize, VkDeviceSize& usedSize) const;
+  // get total amount of active blocks / VkDeviceMemory allocations
+  uint32_t getActiveBlockCount() const {return m_activeBlockCount; }
 
-    //////////////////////////////////////////////////////////////////////////
+  // dump detailed stats via nvprintfLevel(LOGLEVEL_INFO
+  void nvprintReport() const;
 
-    // make individual allocations.
+  VkDevice                                getDevice() const;
+  VkPhysicalDevice                        getPhysicalDevice() const;
+  const VkPhysicalDeviceMemoryProperties& getMemoryProperties() const;
+  VkDeviceSize                            getMaxAllocationSize() const;
 
+  //////////////////////////////////////////////////////////////////////////
 
-    AllocationID alloc(const VkMemoryRequirements&          memReqs,
-      VkMemoryPropertyFlags                memProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-      const VkMemoryDedicatedAllocateInfo* dedicated = nullptr);
-    void         free(AllocationID allocationID);
+  // subsequent allocations (and creates) will use the provided priority
+  // ignored if setPrioritySupported is not enabled
+  float setPriority(float priority = DEFAULT_PRIORITY)
+  {
+    float old  = m_priority;
+    m_priority = priority;
+    return old;
+  }
 
-    // returns the detailed information from an allocationID
-    Allocation getAllocation(AllocationID id) const;
+  float getPriority() const { return m_priority; }
 
-    // can have multiple map/unmaps at once, but must be paired
-    // internally will keep the vk mapping active as long as one map is active
-    void* map(AllocationID allocationID);
-    void  unmap(AllocationID allocationID);
+  // make individual raw allocations.
+  // there is also utilities that combine creation of buffers/images etc. with binding
+  // the memory below.
+  AllocationID alloc(const VkMemoryRequirements& memReqs,
+                     VkMemoryPropertyFlags       memProps,
+                     bool                        isLinear,  // buffers are linear, optimal tiling textures are not
+                     const VkMemoryDedicatedAllocateInfo* dedicated,
+                     VkResult&                            result);
 
-    template <class T>
-    T* tmap(AllocationID allocationID)
-    {
-      return (T*)map(allocationID);
-    }
+  AllocationID alloc(const VkMemoryRequirements& memReqs,
+                     VkMemoryPropertyFlags       memProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                     bool isLinear = true,  // buffers are linear, optimal tiling textures are not
+                     const VkMemoryDedicatedAllocateInfo* dedicated = nullptr)
+  {
+    VkResult result;
+    return alloc(memReqs, memProps, isLinear, dedicated, result);
+  }
 
+  // unless you use the freeAll mechanism, each allocation must be freed individually
+  void free(AllocationID allocationID);
 
-    //////////////////////////////////////////////////////////////////////////
+  // returns the detailed information from an allocationID
+  const Allocation& getAllocation(AllocationID id) const;
 
-    // utility functions to create resources and bind their memory
+  // can have multiple map/unmaps at once, but must be paired
+  // internally will keep the vk mapping active as long as one map is active
+  void* map(AllocationID allocationID);
+  void  unmap(AllocationID allocationID);
 
-    VkResult create(const VkImageCreateInfo& createInfo,
-      VkImage&                 image,
-      AllocationID&            allocationID,
-      VkMemoryPropertyFlags    memProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-      bool                     useDedicated = false);
+  template <class T>
+  T* mapT(AllocationID allocationID)
+  {
+    return (T*)map(allocationID);
+  }
 
-    VkResult create(const VkBufferCreateInfo& createInfo,
-      VkBuffer&                 buffer,
-      AllocationID&             allocationID,
-      VkMemoryPropertyFlags     memProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-      bool                      useDedicated = false);
+  //////////////////////////////////////////////////////////////////////////
+
+  // utility functions to create resources and bind their memory directly
+
+  // subsequent creates will use dedicated allocations (mostly for debugging purposes)
+  inline void setForceDedicatedAllocation(bool state) { m_forceDedicatedAllocation = state; }
+  // subsequent createBuffers will also use these flags
+  inline void setDefaultBufferUsageFlags(VkBufferUsageFlags usage) { m_defaultBufferUsageFlags = usage; }
+
+  VkImage createImage(const VkImageCreateInfo& createInfo, AllocationID& allocationID, VkMemoryPropertyFlags memProps, VkResult& result);
+  VkImage createImage(const VkImageCreateInfo& createInfo, AllocationID& allocationID, VkMemoryPropertyFlags memProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+  {
+    VkResult result;
+    return createImage(createInfo, allocationID, memProps, result);
+  }
+
+  VkBuffer createBuffer(const VkBufferCreateInfo& createInfo, AllocationID& allocationID, VkMemoryPropertyFlags memProps, VkResult& result);
+  VkBuffer createBuffer(const VkBufferCreateInfo& createInfo, AllocationID& allocationID, VkMemoryPropertyFlags memProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+  {
+    VkResult result;
+    return createBuffer(createInfo, allocationID, memProps, result);
+  }
+
+  VkBuffer createBuffer(VkDeviceSize size,
+                        VkBufferUsageFlags usage,  // combined with m_defaultBufferUsageFlags and VK_BUFFER_USAGE_TRANSFER_DST_BIT
+                        AllocationID&         allocationID,
+                        VkMemoryPropertyFlags memProps,
+                        VkResult&             result);
+  VkBuffer createBuffer(VkDeviceSize size,
+                        VkBufferUsageFlags usage,  // combined with m_defaultBufferUsageFlags and VK_BUFFER_USAGE_TRANSFER_DST_BIT
+                        AllocationID&         allocationID,
+                        VkMemoryPropertyFlags memProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+  {
+    VkResult result;
+    return createBuffer(size, usage, allocationID, memProps, result);
+  }
 
 #if VK_NV_ray_tracing
-    VkResult create(const VkAccelerationStructureCreateInfoNV& createInfo,
-      VkAccelerationStructureNV&                 accel,
-      AllocationID&                              allocationID,
-      VkMemoryPropertyFlags                      memProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-      bool                                       useDedicated = false);
+  VkAccelerationStructureNV createAccStructure(const VkAccelerationStructureCreateInfoNV& createInfo,
+                                               AllocationID&                              allocationID,
+                                               VkMemoryPropertyFlags                      memProps,
+                                               VkResult&                                  result);
+  VkAccelerationStructureNV createAccStructure(const VkAccelerationStructureCreateInfoNV& createInfo,
+                                               AllocationID&                              allocationID,
+                                               VkMemoryPropertyFlags memProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+  {
+    VkResult result;
+    return createAccStructure(createInfo, allocationID, memProps, result);
+  }
 #endif
 
-  private:
+protected:
+  static const VkMemoryDedicatedAllocateInfo* DEDICATED_PROXY;
 
-    struct MemoryBlock
+  struct BlockID
+  {
+    uint32_t index      = INVALID_ID_INDEX;
+    uint32_t generation = 0;
+
+    bool     isEqual(const BlockID& other) const { return index == other.index && generation == other.generation; }
+    uint32_t instantiate(uint32_t newIndex)
     {
-      VkDeviceMemory mem;
-      VkDeviceSize   currentOffset;
-      VkDeviceSize   allocationSize;
-      uint32_t       memoryTypeIndex;
-      uint32_t       allocationCount;
-      uint32_t       mapCount;
-      uint32_t       mappable;
-      uint8_t*       mapped;
-    };
+      uint32_t oldIndex = index;
+      index             = newIndex;
+      generation++;
 
-    typedef std::vector<MemoryBlock>::iterator MemoryBlockIterator;
+      return oldIndex;
+    }
 
-    struct AllocationInfo
-    {
-      Allocation   allocation;
-      AllocationID id;
-    };
-
-    struct CompactBind
-    {
-      AllocationID                    id;
-      nvvk::MemoryBlockManager::Entry entry;
-      VkStructureType                 type;
-      union
-      {
-        VkImage  image;
-        VkBuffer buffer;
-      };
-    };
-
-    VkDevice     m_device            = VK_NULL_HANDLE;
-    VkDeviceSize m_blockSize         = 0;
-    VkDeviceSize m_allocatedSize     = 0;
-    VkDeviceSize m_usedSize          = 0;
-    VkDeviceSize m_maxAllocationSize = NVVK_DEFAULT_MAX_MEMORYALLOCATIONSIZE;
-
-    std::vector<MemoryBlock>    m_blocks;
-    std::vector<AllocationInfo> m_allocations;
-
-    const VkAllocationCallbacks*            m_allocation_callbacks = nullptr;
-    const VkPhysicalDeviceMemoryProperties* m_memoryProperties     = nullptr;
-
-
-    AllocationID        createID(Allocation& allocation);
-    void                freeID(AllocationID id);
-    MemoryBlockIterator getBlock(const Allocation& allocation);
+    friend bool operator==(const BlockID& lhs, const BlockID& rhs) { return rhs.isEqual(lhs); }
   };
 
-}
+  struct Block
+  {
+    BlockID                   id;  // index to self, or next free item
+    VkDeviceMemory            mem = VK_NULL_HANDLE;
+    nvh::TRangeAllocator<256> range;
 
+    VkDeviceSize allocationSize;
+    VkDeviceSize usedSize;
+
+    // to avoid management of pages via limits::bufferImageGranularity,
+    // a memory block is either fully linear, or non-linear
+    bool  isLinear;
+    bool  isDedicated;
+    float priority;
+
+    uint32_t memoryTypeIndex;
+    uint32_t allocationCount;
+    uint32_t mapCount;
+    uint32_t mappable;
+    uint8_t* mapped;
+
+    Block& operator=(Block&&) = default;
+    Block(Block&&)            = default;
+    Block()                   = default;
+  };
+
+  struct AllocationInfo
+  {
+    AllocationID id;  // index to self, or next free item
+    Allocation   allocation;
+    uint32_t     blockOffset;
+    uint32_t     blockSize;
+    BlockID      block;
+  };
+
+  VkDevice     m_device            = VK_NULL_HANDLE;
+  VkDeviceSize m_blockSize         = 0;
+  VkDeviceSize m_allocatedSize     = 0;
+  VkDeviceSize m_usedSize          = 0;
+  VkDeviceSize m_maxAllocationSize = NVVK_DEFAULT_MAX_MEMORY_ALLOCATIONSIZE;
+
+  std::vector<Block>          m_blocks;
+  std::vector<AllocationInfo> m_allocations;
+
+  // linked-list to next free allocation
+  uint32_t m_freeAllocationIndex = INVALID_ID_INDEX;
+  // linked-list to next free block
+  uint32_t m_freeBlockIndex = INVALID_ID_INDEX;
+  uint32_t m_activeBlockCount = 0;
+
+  VkPhysicalDeviceMemoryProperties m_memoryProperties;
+  VkPhysicalDevice                 m_physicalDevice = VK_NULL_HANDLE;
+
+  float m_priority = DEFAULT_PRIORITY;
+
+  VkBufferUsageFlags m_defaultBufferUsageFlags  = 0;
+  bool               m_forceDedicatedAllocation = false;
+  bool               m_supportsPriority         = false;
+
+  AllocationID createID(Allocation& allocation, BlockID block, uint32_t blockOffset, uint32_t blockSize);
+  void         destroyID(AllocationID id);
+
+  const AllocationInfo& getInfo(AllocationID id) const
+  {
+    assert(m_allocations[id.index].id.isEqual(id));
+
+    return m_allocations[id.index];
+  }
+
+  Block& getBlock(BlockID id)
+  {
+    Block& block = m_blocks[id.index];
+    assert(block.id.isEqual(id));
+    return block;
+  }
+
+  //////////////////////////////////////////////////////////////////////////
+  // For derived memory allocators you can do special purpose operations via overloading these functions.
+  // A typical use-case would be export/import the memory to another API.
+
+  virtual VkResult allocBlockMemory(BlockID id, VkMemoryAllocateInfo& memInfo, VkDeviceMemory& deviceMemory)
+  {
+    return vkAllocateMemory(m_device, &memInfo, nullptr, &deviceMemory);
+  }
+  virtual void freeBlockMemory(BlockID id, VkDeviceMemory deviceMemory)
+  {
+    vkFreeMemory(m_device, deviceMemory, nullptr);
+  }
+  virtual void resizeBlocks(uint32_t count) {}
+};
+
+//////////////////////////////////////////////////////////////////
+/**
+  # class nvvk::StagingMemoryManager
+
+  StagingMemoryManager class is a utility that manages host visible
+  buffers and their allocations in an opaque fashion to assist
+  asynchronous transfers between device and host.
+
+  The collection of such resources is represented by nvvk::StagingID.
+  The necessary memory is sub-allocated and recycled in blocks internally.
+
+  The default implementation will create one dedicated memory allocation per block.
+  You can derive from this class and overload the virtual functions,
+  if you want to use a different allocation system.
+
+  - **allocBlockMemory**
+  - **freeBlockMemory**
+
+  > **WARNING:**
+  > - cannot manage copy > 4 GB
+
+  Usage:
+  - Enqueue transfers into the provided VkCommandBuffer and then finalize the copy operations.
+  - You can either signal the completion of the operations manually by the nvvk::StagingID
+    or implicitly by associating the copy operations with a VkFence.
+  - The release of the resources allows to safely recycle the memory for future transfers.
+
+  Example :
+
+  ~~~ C++
+  StagingMemoryManager  staging;
+  staging.init(device, physicalDevice);
+
+
+  // Enqueue copy operations of data to target buffer.
+  // This internally manages the required staging resources
+  staging.cmdToBuffer(cmd, targetBufer, 0, targetSize, targetData);
+
+  // you can also get access to a temporary mapped pointer and fill
+  // the staging buffer directly
+  vertices = staging.cmdToBufferT<Vertex>(cmd, targetBufer, 0, targetSize);
+
+  // OPTION A:
+  // associate all previous copy operations with a fence
+  staging.finalizeCmds(myfence);
+
+  ...
+
+  // every once in a while call
+  staging.tryReleaseFenced();
+
+  // OPTION B
+  // alternatively manage the resources and fence waiting yourself
+  sid = staging.finalizeCmds();
+
+  ... need to ensure uploads completed
+
+  staging.recycleTask(sid);
+
+  ~~~
+*/
+
+class StagingID
+{
+  friend class StagingMemoryManager;
+
+public:
+  bool isValid() const { return index != INVALID_ID_INDEX; }
+  bool isEqual(const StagingID& other) const { return index == other.index && generation == other.generation; }
+
+  operator bool() const { return isValid(); }
+
+  friend bool operator==(const StagingID& lhs, const StagingID& rhs) { return rhs.isEqual(lhs); }
+
+private:
+  uint32_t index      = INVALID_ID_INDEX;
+  uint32_t generation = 0;
+
+  void     invalidate() { index = INVALID_ID_INDEX; }
+  uint32_t instantiate(uint32_t inIndex)
+  {
+    uint32_t oldIndex = index;
+    index             = inIndex;
+    generation++;
+    return oldIndex;
+  }
+};
+
+class StagingMemoryManager
+{
+public:
+  //////////////////////////////////////////////////////////////////////////
+
+  StagingMemoryManager() {}
+  StagingMemoryManager(VkDevice device, VkPhysicalDevice physicalDevice, VkDeviceSize stagingBlockSize = NVVK_DEFAULT_STAGING_BLOCKSIZE)
+  {
+    init(device, physicalDevice, stagingBlockSize);
+  }
+
+  void init(VkDevice device, VkPhysicalDevice physicalDevice, VkDeviceSize stagingBlockSize = NVVK_DEFAULT_STAGING_BLOCKSIZE);
+  void deinit();
+
+  // if true (default) we free the memory completely when released
+  // otherwise we would keep blocks for re-use around, unless freeUnused() is called
+  void setFreeUnusedOnRelease(bool state) { m_freeOnRelease = state; }
+
+  // test if there is enough space in current allocations
+  bool fitsInAllocated(VkDeviceSize size) const;
+
+  // if data != nullptr memcpies to mapping and returns nullptr
+  // otherwise returns temporary mapping (valid until "complete" functions)
+  void* cmdToImage(VkCommandBuffer                 cmd,
+                   VkImage                         image,
+                   const VkOffset3D&               offset,
+                   const VkExtent3D&               extent,
+                   const VkImageSubresourceLayers& subresource,
+                   VkDeviceSize                    size,
+                   const void*                     data);
+
+
+  // if data != nullptr memcpies to mapping and returns nullptr
+  // otherwise returns temporary mapping (valid until "complete" functions)
+  void* cmdToBuffer(VkCommandBuffer cmd, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size, const void* data);
+
+  template <class T>
+  T* cmdToBufferT(VkCommandBuffer cmd, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size)
+  {
+    return (T*)cmdToBuffer(cmd, buffer, offset, size, nullptr);
+  }
+
+  // provides a handle for all staging resources by previous cmd operations
+  // since the last finalize.
+  // fence is optional, allows the usage of tryReleaseFenced
+  StagingID finalizeCmds(VkFence fence = VK_NULL_HANDLE);
+
+  // signals that outstanding copy operations have completed
+  // allows to reclaim internal staging memory
+  void release(StagingID stagingID);
+
+  // completes all tasks whose fence was triggered
+  void tryReleaseFenced();
+
+  // frees staging memory no longer in use
+  void freeUnused() { free(true); }
+
+  float getUtilization(VkDeviceSize& allocatedSize, VkDeviceSize& usedSize) const;
+
+protected:
+  struct BlockID
+  {
+    uint32_t index      = INVALID_ID_INDEX;
+    uint32_t generation = 0;
+
+    bool     isEqual(const BlockID& other) const { return index == other.index && generation == other.generation; }
+    uint32_t instantiate(uint32_t newIndex)
+    {
+      uint32_t oldIndex = index;
+      index             = newIndex;
+      generation++;
+
+      return oldIndex;
+    }
+
+    friend bool operator==(const BlockID& lhs, const BlockID& rhs) { return rhs.isEqual(lhs); }
+  };
+
+  struct Block
+  {
+    BlockID                   id;  // index to self, or next free item
+    VkDeviceSize              size   = 0;
+    VkBuffer                  buffer = VK_NULL_HANDLE;
+    VkDeviceMemory            memory = VK_NULL_HANDLE;
+    nvh::TRangeAllocator<256> range;
+    uint8_t*                  mapping;
+  };
+
+  struct Entry
+  {
+    BlockID  block;
+    uint32_t offset;
+    uint32_t size;
+  };
+
+  struct StagingSet
+  {
+    StagingID          id;  // index to self, or next free item
+    VkFence            fence = VK_NULL_HANDLE;
+    std::vector<Entry> entries;
+  };
+
+  VkDevice         m_device           = VK_NULL_HANDLE;
+  VkPhysicalDevice m_physicalDevice   = VK_NULL_HANDLE;
+  uint32_t         m_memoryTypeIndex  = ~0;
+  VkDeviceSize     m_stagingBlockSize = 0;
+  bool             m_freeOnRelease    = true;
+
+  std::vector<Block>      m_blocks;
+  std::vector<StagingSet> m_sets;
+
+  // linked-list to next free staging set
+  uint32_t m_freeStagingIndex = INVALID_ID_INDEX;
+  // linked list to next free block
+  uint32_t m_freeBlockIndex = INVALID_ID_INDEX;
+
+  VkDeviceSize m_allocatedSize = 0;
+  VkDeviceSize m_usedSize      = 0;
+
+  StagingID m_current;
+
+  void free(bool unusedOnly);
+  void freeBlock(Block& block);
+
+  StagingID createID();
+
+  void* getStagingSpace(VkDeviceSize size, VkBuffer& buffer, VkDeviceSize& offset);
+
+  Block& getBlock(BlockID id)
+  {
+    Block& block = m_blocks[id.index];
+    assert(block.id.isEqual(id));
+    return block;
+  }
+
+  //////////////////////////////////////////////////////////////////////////
+  // You can specialize the staging buffer allocation mechanism used.
+  // The default is using one dedicated VkDeviceMemory per staging VkBuffer.
+
+  // must fill block.buffer, memory, mapping
+  virtual VkResult allocBlockMemory(BlockID id, VkDeviceSize size, bool toDevice, Block& block);
+  virtual void     freeBlockMemory(BlockID id, const Block& block);
+  virtual void     resizeBlocks(uint32_t num) {}
+};
+
+class ScopeStagingMemoryManager : public StagingMemoryManager
+{
+public:
+  ScopeStagingMemoryManager(VkDevice device, VkPhysicalDevice physicalDevice, VkDeviceSize stagingBlockSize = NVVK_DEFAULT_STAGING_BLOCKSIZE)
+  {
+    init(device, physicalDevice, stagingBlockSize);
+  }
+
+  ~ScopeStagingMemoryManager()
+  {
+    vkDeviceWaitIdle(m_device);
+    deinit();
+  }
+};
+
+//////////////////////////////////////////////////////////////////
+/**
+  # class nvvk::StagingMemoryManagerDma
+
+  Derives from nvvk::StagingMemoryManager and uses the referenced nvvk::DeviceMemoryAllocator
+  for allocations.
+
+  ~~~ C++
+  DeviceMemoryAllocator    memAllocator;
+  memAllocator.init(device, physicalDevice);
+
+  StagingMemoryManagerDma  staging;
+  staging.init(memAllocator);
+
+  // rest as usual
+  staging.cmdToBuffer(cmd, targetBufer, 0, targetSize, targetData);
+  ~~~
+*/
+
+class StagingMemoryManagerDma : public StagingMemoryManager
+{
+public:
+  StagingMemoryManagerDma(DeviceMemoryAllocator& memAllocator, VkDeviceSize stagingBlockSize = NVVK_DEFAULT_STAGING_BLOCKSIZE)
+  {
+    init(memAllocator, stagingBlockSize);
+  }
+  StagingMemoryManagerDma() {}
+
+  void init(DeviceMemoryAllocator& memAllocator, VkDeviceSize stagingBlockSize = NVVK_DEFAULT_STAGING_BLOCKSIZE)
+  {
+    StagingMemoryManager::init(memAllocator.getDevice(), memAllocator.getPhysicalDevice(), stagingBlockSize);
+    m_memAllocator = &memAllocator;
+  }
+
+
+protected:
+  DeviceMemoryAllocator*    m_memAllocator;
+  std::vector<AllocationID> m_blockAllocs;
+
+  VkResult allocBlockMemory(BlockID id, VkDeviceSize size, bool toDevice, Block& block) override
+  {
+    VkResult result;
+    float priority = m_memAllocator->setPriority();
+    block.buffer = m_memAllocator->createBuffer(
+        size, toDevice ? VK_BUFFER_USAGE_TRANSFER_SRC_BIT : VK_BUFFER_USAGE_TRANSFER_DST_BIT, m_blockAllocs[id.index],
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | (toDevice ? VK_MEMORY_PROPERTY_HOST_COHERENT_BIT : VK_MEMORY_PROPERTY_HOST_CACHED_BIT),
+        result);
+    m_memAllocator->setPriority(priority);
+    if(result == VK_SUCCESS)
+    {
+      block.mapping = m_memAllocator->mapT<uint8_t>(m_blockAllocs[id.index]);
+    }
+
+    return result;
+  }
+  void freeBlockMemory(BlockID id, const Block& block) override
+  {
+    vkDestroyBuffer(m_device, block.buffer, nullptr);
+    m_memAllocator->unmap(m_blockAllocs[id.index]);
+    m_memAllocator->free(m_blockAllocs[id.index]);
+  }
+
+  void resizeBlocks(uint32_t num) override
+  {
+    if(num)
+    {
+      m_blockAllocs.resize(num);
+    }
+    else
+    {
+      m_blockAllocs.clear();
+    }
+  }
+};
+
+}  // namespace nvvk

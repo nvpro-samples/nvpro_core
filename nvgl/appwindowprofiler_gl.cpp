@@ -34,7 +34,7 @@ namespace nvgl
   void AppWindowProfilerGL::contextInit()
   {
     // create OpenGL stuff at last
-    m_contextWindow.init(&m_contextInfo, this);
+    m_contextWindow.init(&m_contextInfo, m_internal, m_windowName.c_str());
     // create other additional OpenGL tools
     m_profilerGL.init();
   }

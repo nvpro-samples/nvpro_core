@@ -34,8 +34,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-#include <nvh/assetsloader.hpp>
-#include <nvh/misc.hpp>
+#include <nvh/fileoperations.hpp>
 #include <nvh/nvprint.hpp>
 
 #define NV_LINE_MARKERS 1
@@ -66,20 +65,6 @@ std::string ShaderModuleManager::DefaultInterface::getTypeDefine(uint32_t type) 
       return "#define _MESH_SHADER_ 1\n";
     case VK_SHADER_STAGE_TASK_BIT_NV:
       return "#define _TASK_SHADER_ 1\n";
-#endif
-#if VK_NVX_raytracing
-    case VK_SHADER_STAGE_RAYGEN_BIT_NVX:
-      return "#define _RAY_GENERATION_SHADER_ 1\n";
-    case VK_SHADER_STAGE_ANY_HIT_BIT_NVX:
-      return "#define _RAY_ANY_HIT_SHADER_ 1\n";
-    case VK_SHADER_STAGE_CLOSEST_HIT_BIT_NVX:
-      return "#define _RAY_CLOSEST_HIT_SHADER_ 1\n";
-    case VK_SHADER_STAGE_MISS_BIT_NVX:
-      return "#define _RAY_MISS_SHADER_ 1\n";
-    case VK_SHADER_STAGE_INTERSECTION_BIT_NVX:
-      return "#define _RAY_INTERSECTION_SHADER_ 1\n";
-    case VK_SHADER_STAGE_CALLABLE_BIT_NVX:
-      return "#define _RAY_CALLABLE_BIT_SHADER_ 1\n";
 #endif
 #if VK_NV_ray_tracing
     case VK_SHADER_STAGE_RAYGEN_BIT_NV:
@@ -124,20 +109,6 @@ uint32_t ShaderModuleManager::DefaultInterface::getTypeShadercKind(uint32_t type
     case VK_SHADER_STAGE_TASK_BIT_NV:
       return shaderc_glsl_task_shader;
 #endif
-#if VK_NVX_raytracing
-    case VK_SHADER_STAGE_RAYGEN_BIT_NVX:
-      return shaderc_glsl_raygen_shader;
-    case VK_SHADER_STAGE_ANY_HIT_BIT_NVX:
-      return shaderc_glsl_anyhit_shader;
-    case VK_SHADER_STAGE_CLOSEST_HIT_BIT_NVX:
-      return shaderc_glsl_closesthit_shader;
-    case VK_SHADER_STAGE_MISS_BIT_NVX:
-      return shaderc_glsl_miss_shader;
-    case VK_SHADER_STAGE_INTERSECTION_BIT_NVX:
-      return shaderc_glsl_intersection_shader;
-    case VK_SHADER_STAGE_CALLABLE_BIT_NVX:
-      return shaderc_glsl_callable_shader;
-#endif
 #if VK_NV_ray_tracing
     case VK_SHADER_STAGE_RAYGEN_BIT_NV:
       return shaderc_glsl_raygen_shader;
@@ -177,7 +148,8 @@ bool ShaderModuleManager::setupShaderModule(ShaderModule& module)
 
   if(definition.filetype == FILETYPE_SPIRV)
   {
-    definition.content = AssetLoadBinaryFile(definition.filename);
+    std::string filenameFound;
+    definition.content = nvh::loadFile(definition.filename, true, m_directories, filenameFound);
   }
   else
   {
@@ -255,7 +227,7 @@ bool ShaderModuleManager::setupShaderModule(ShaderModule& module)
       shaderModuleInfo.pCode    = (const uint32_t*)definition.content.c_str();
     }
 
-    vkresult = ::vkCreateShaderModule(m_device, &shaderModuleInfo, m_allocator, &module.module);
+    vkresult = ::vkCreateShaderModule(m_device, &shaderModuleInfo, nullptr, &module.module);
 
 #if USESHADERC
     if(result)
@@ -268,10 +240,9 @@ bool ShaderModuleManager::setupShaderModule(ShaderModule& module)
   }
 }
 
-void ShaderModuleManager::init(VkDevice device, const VkAllocationCallbacks* pAllocator)
+void ShaderModuleManager::init(VkDevice device)
 {
-  m_device = device;
-  m_allocator = pAllocator;
+  m_device    = device;
 }
 
 void ShaderModuleManager::deinit()
@@ -279,7 +250,7 @@ void ShaderModuleManager::deinit()
   deleteShaderModules();
 }
 
-ShaderModuleManager::ShaderModuleID ShaderModuleManager::createShaderModule(const Definition& definition)
+ShaderModuleID ShaderModuleManager::createShaderModule(const Definition& definition)
 {
   ShaderModule module;
   module.definition     = definition;
@@ -301,7 +272,7 @@ ShaderModuleManager::ShaderModuleID ShaderModuleManager::createShaderModule(cons
   return m_shadermodules.size() - 1;
 }
 
-ShaderModuleManager::ShaderModuleID ShaderModuleManager::createShaderModule(uint32_t           type,
+ShaderModuleID ShaderModuleManager::createShaderModule(uint32_t           type,
                                                                             std::string const& filename,
                                                                             std::string const& prepend,
                                                                             FileType fileType /*= FILETYPE_DEFAULT*/,
@@ -312,7 +283,7 @@ ShaderModuleManager::ShaderModuleID ShaderModuleManager::createShaderModule(uint
   def.filename = filename;
   def.prepend  = prepend;
   def.filetype = fileType;
-  def.entry = entryname;
+  def.entry    = entryname;
   return createShaderModule(def);
 }
 
@@ -332,6 +303,7 @@ void ShaderModuleManager::deleteShaderModules()
   {
     destroyShaderModule((ShaderModuleID)i);
   }
+  m_shadermodules.clear();
 }
 
 void ShaderModuleManager::reloadModule(ShaderModuleID idx)
@@ -345,7 +317,7 @@ void ShaderModuleManager::reloadModule(ShaderModuleID idx)
   m_preprocessOnly = module.module == PREPROCESS_ONLY_MODULE;
   if(module.module && module.module != PREPROCESS_ONLY_MODULE)
   {
-    vkDestroyShaderModule(m_device, module.module, m_allocator);
+    vkDestroyShaderModule(m_device, module.module, nullptr);
     module.module = nullptr;
   }
   if(module.definition.type != 0)
@@ -370,7 +342,7 @@ void ShaderModuleManager::reloadShaderModules()
 
 bool ShaderModuleManager::isValid(ShaderModuleID idx) const
 {
-  return m_shadermodules[idx].definition.type && m_shadermodules[idx].module != 0;
+  return (m_shadermodules[idx].definition.type && m_shadermodules[idx].module != 0) || !m_shadermodules[idx].definition.type;
 }
 
 VkShaderModule ShaderModuleManager::get(ShaderModuleID idx) const
@@ -397,7 +369,7 @@ void ShaderModuleManager::destroyShaderModule(ShaderModuleID idx)
 
   if(module.module && module.module != PREPROCESS_ONLY_MODULE)
   {
-    vkDestroyShaderModule(m_device, module.module, m_allocator);
+    vkDestroyShaderModule(m_device, module.module, nullptr);
     module.module = 0;
   }
   module.definition = Definition();

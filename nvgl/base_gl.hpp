@@ -36,14 +36,19 @@
 
 namespace nvgl
 {
-  struct GLBufferBinding {
+  /**
+    # struct nvgl::BufferBinding
+    Wraps buffer, offset, size, gpu address
+  */
+
+  struct BufferBinding {
     GLuint      buffer = 0;
     GLintptr    offset = 0;
     GLsizeiptr  size = 0;
     GLuint64    bufferADDR;
 
-    GLBufferBinding() {}
-    GLBufferBinding(GLuint inBuffer, GLintptr inOffset, GLsizeiptr inSize, GLuint64 inBufferADDR) {
+    BufferBinding() {}
+    BufferBinding(GLuint inBuffer, GLintptr inOffset, GLsizeiptr inSize, GLuint64 inBufferADDR) {
       buffer = inBuffer;
       size = inSize;
       offset = inOffset;
@@ -51,7 +56,13 @@ namespace nvgl
     }
   };
   
-  struct GLTextureBuffer {
+  /**
+    # struct nvgl::TextureBuffer
+    A `GL_TEXTURE_BUFFER` that references the provided buffer.
+    Wraps texture and bindless texture handle.
+  */
+
+  struct TextureBuffer {
     GLuint      tex = 0;
     GLuint64    texADDR = 0;
 
@@ -72,7 +83,17 @@ namespace nvgl
     }
   };
 
-  struct GLBuffer {
+  /**
+    # struct nvgl::Buffer
+    Wraps buffer as well as optionally creates a `GL_TEXTURE_BUFFER` if
+    a non-null `format` is provided. If bindless is available it will
+    also create bindless handles for all resources and make them resident.
+
+    If the `flags` contain `GL_MAP_PERSISTENT_BIT` it will also map
+    the buffer and keep the host pointer.
+  */
+
+  struct Buffer {
     GLuint      buffer = 0;
     GLuint      tex = 0;
     GLuint64    bufferADDR = 0;
@@ -131,6 +152,35 @@ namespace nvgl
     glBindTexture(textarget, tex);
   }
 
+  /**
+    # nvgl resource functions
+
+    Functions that wrap glCreate/glDelete and operate on `GLuint& obj`.
+    The "new" functions delete the existing object if non-null and create a new one.
+    The "delete" functions delete non-null objects.
+
+    * newBuffer / deleteBuffer
+    * newTextureView
+    * newTexture / deleteTexture
+    * newFramebuffer / deleteFramebuffer
+    * newSampler / deleteSampler
+    * newQuery / deleteQuery
+    * newVertexArray / deleteVertexArray
+
+    ~~~ C++
+    // typical use-case
+    FrameBuffer::resize(int with, int height){
+      newFramebuffer(m_fbo);
+      newTexture(m_color, GL_TEXTURE_2D);
+      newTexture(m_depthStencil, GL_TEXTURE_2D);
+      glTextureStorage2D(m_color, ...)
+      glTextureStorage2D(m_depthStencil, ...)
+      glNamedFramebufferTexture(m_fbo, GL_COLOR_ATTACHMENT0,        m_color, 0);
+      glNamedFramebufferTexture(m_fbo, GL_DEPTH_STENCIL_ATTACHMENT, m_depthStencil, 0);
+    }
+    ~~~
+  */
+
   inline void newBuffer(GLuint &glid)
   {
     if (glid) glDeleteBuffers(1, &glid);
@@ -141,6 +191,12 @@ namespace nvgl
   {
     if (glid) glDeleteBuffers(1, &glid);
     glid = 0;
+  }
+
+  inline void newTextureView(GLuint &glid)
+  {
+    if (glid) glDeleteTextures(1, &glid);
+    glGenTextures(1, &glid);
   }
   
   inline void newTexture(GLuint &glid, GLenum target)

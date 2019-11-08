@@ -27,16 +27,22 @@
 
 
 //--------------------------------------------------------------------------------------------------
-// Simple command line parser
-//
-// Example of usage for: test.exe -f name.txt -size 200 100
-//
-// Parsing the command line: mandatory '-f' for the filename of the scene
-//  InputParser parser(argc, argv);
-//  std::string filename = parser.getString("-f");
-//  if(filename.empty())  filename = "default.txt";
-//  if(parser.exist("-size") {
-//        auto values = parser.getInt2("-size");
+/** 
+  # class nvh::InputParser
+  Simple command line parser
+  
+  Example of usage for: test.exe -f name.txt -size 200 100
+  
+  Parsing the command line: mandatory '-f' for the filename of the scene
+
+  ``` c++
+  nvh::InputParser parser(argc, argv);
+  std::string filename = parser.getString("-f");
+  if(filename.empty())  filename = "default.txt";
+  if(parser.exist("-size") {
+        auto values = parser.getInt2("-size");
+  ```
+*/
 
 #pragma once
 #include <string>
@@ -49,7 +55,10 @@ public:
   {
     for(int i = 1; i < argc; ++i)
     {
-      m_tokens.emplace_back(argv[i]);
+      if(argv[i])
+      {
+        m_tokens.emplace_back(argv[i]);
+      }
     }
   }
 

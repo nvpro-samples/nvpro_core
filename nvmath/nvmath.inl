@@ -30,6 +30,8 @@
 #define _finite finite
 #endif
 
+#include <cmath> // std::floor
+
 namespace nvmath
 {
 
@@ -1005,6 +1007,60 @@ inline matrix4<T> frustum(const T l, const T r, const T b,
 }
 
 template<class T>
+inline matrix4<T> frustum01(const T l, const T r, const T b,
+  const T t, const T n, const T f)
+{
+  matrix4<T> M;
+  M.a00 = (nv_two*n) / (r - l);
+  M.a10 = 0.0;
+  M.a20 = 0.0;
+  M.a30 = 0.0;
+
+  M.a01 = 0.0;
+  M.a11 = (nv_two*n) / (t - b);
+  M.a21 = 0.0;
+  M.a31 = 0.0;
+
+  M.a02 = (r + l) / (r - l);
+  M.a12 = (t + b) / (t - b);
+  M.a22 = (f) / (n - f);
+  M.a32 = -T(1);
+
+  M.a03 = 0.0;
+  M.a13 = 0.0;
+  M.a23 = (f*n) / (n - f);
+  M.a33 = 0.0;
+  return M;
+}
+
+template<class T>
+inline matrix4<T> frustum01Rev(const T l, const T r, const T b,
+  const T t, const T n, const T f)
+{
+  matrix4<T> M;
+  M.a00 = (nv_two*n) / (r - l);
+  M.a10 = 0.0;
+  M.a20 = 0.0;
+  M.a30 = 0.0;
+
+  M.a01 = 0.0;
+  M.a11 = (nv_two*n) / (t - b);
+  M.a21 = 0.0;
+  M.a31 = 0.0;
+
+  M.a02 = (r + l) / (r - l);
+  M.a12 = (t + b) / (t - b);
+  M.a22 = -((f) / (n - f)) - T(1);
+  M.a32 = -T(1);
+
+  M.a03 = 0.0;
+  M.a13 = 0.0;
+  M.a23 = -(f*n) / (n - f);
+  M.a33 = 0.0;
+  return M;
+}
+
+template<class T>
 inline matrix4<T> perspective(const T fovy, const T aspect, const T n, const T f)
 {
   T xmin, xmax, ymin, ymax;
@@ -1018,6 +1074,33 @@ inline matrix4<T> perspective(const T fovy, const T aspect, const T n, const T f
   return frustum(xmin, xmax, ymin, ymax, n, f);
 }
 
+template<class T>
+inline matrix4<T> perspective01(const T fovy, const T aspect, const T n, const T f)
+{
+  T xmin, xmax, ymin, ymax;
+
+  ymax = n * tanf(fovy * nv_to_rad * T(0.5));
+  ymin = -ymax;
+
+  xmin = ymin * aspect;
+  xmax = ymax * aspect;
+
+  return frustum01(xmin, xmax, ymin, ymax, n, f);
+}
+
+template<class T>
+inline matrix4<T> perspective01Rev(const T fovy, const T aspect, const T n, const T f)
+{
+  T xmin, xmax, ymin, ymax;
+
+  ymax = n * tanf(fovy * nv_to_rad * T(0.5));
+  ymin = -ymax;
+
+  xmin = ymin * aspect;
+  xmax = ymax * aspect;
+
+  return frustum01Rev(xmin, xmax, ymin, ymax, n, f);
+}
 
 // Vulkan uses DX style 0,1 z clip space and inversed Y
 template <class T>
@@ -1431,8 +1514,10 @@ inline T dot(const quaternion<T>& q1, const quaternion<T>& q2)
     return q1.x*q2.x + q1.y*q2.y + q1.z*q2.z + q1.w*q2.w;
 }
 
+#if !defined(_MSC_VER) || (defined(_MSC_VER) && (_MSC_VER < 1920))
 #ifndef acosf
 #define acosf acos
+#endif
 #endif
 
 template<class T>
@@ -2224,7 +2309,7 @@ inline vector3<T> nv_min(const vector3<T> & vFirst, const vector3<T> & vSecond)
 template<class T> 
 inline vector4<T> nv_max(const vector4<T> & vFirst, const vector4<T> & vSecond)
 {
-    vector4<T> vOut;
+  vector4<T> vOut;
   vOut.x = nv_max(vFirst.x, vSecond.x);
   vOut.y = nv_max(vFirst.y, vSecond.y);
   vOut.z = nv_max(vFirst.z, vSecond.z);
@@ -2235,11 +2320,72 @@ inline vector4<T> nv_max(const vector4<T> & vFirst, const vector4<T> & vSecond)
 template<class T> 
 inline vector4<T> nv_min(const vector4<T> & vFirst, const vector4<T> & vSecond)
 {
-    vector4<T> vOut;
+  vector4<T> vOut;
   vOut.x = nv_min(vFirst.x, vSecond.x);
   vOut.y = nv_min(vFirst.y, vSecond.y);
   vOut.z = nv_min(vFirst.z, vSecond.z);
   vOut.w = nv_min(vFirst.w, vSecond.w);
+  return vOut;
+}
+
+
+template<class T>
+inline vector2<T> nv_clamp(const vector2<T>& u, const T min, const T max)
+{
+  vector2<T> vOut;
+  vOut.x = nv_clamp(u.x, min, max);
+  vOut.y = nv_clamp(u.y, min, max);
+  return vOut;
+}
+
+template<class T>
+inline vector3<T> nv_clamp(const vector3<T>& u, const T min, const T max)
+{
+  vector3<T> vOut;
+  vOut.x = nv_clamp(u.x, min, max);
+  vOut.y = nv_clamp(u.y, min, max);
+  vOut.z = nv_clamp(u.z, min, max);
+  return vOut;
+}
+
+template<class T>
+inline vector4<T> nv_clamp(const vector4<T>& u, const T min, const T max)
+{
+  vector4<T> vOut;
+  vOut.x = nv_clamp(u.x, min, max);
+  vOut.y = nv_clamp(u.y, min, max);
+  vOut.z = nv_clamp(u.z, min, max);
+  vOut.w = nv_clamp(u.w, min, max);
+  return vOut;
+}
+
+template<class T>
+inline vector2<T> nv_floor(const vector2<T>& u)
+{
+  vector2<T> vOut;
+  vOut.x = std::floor(u.x);
+  vOut.y = std::floor(u.y);
+  return vOut;
+}
+
+template<class T>
+inline vector3<T> nv_floor(const vector3<T>& u)
+{
+  vector3<T> vOut;
+  vOut.x = std::floor(u.x);
+  vOut.y = std::floor(u.y);
+  vOut.z = std::floor(u.z);
+  return vOut;
+}
+
+template<class T>
+inline vector4<T> nv_floor(const vector4<T>& u)
+{
+  vector4<T> vOut;
+  vOut.x = std::floor(u.x);
+  vOut.y = std::floor(u.y);
+  vOut.z = std::floor(u.z);
+  vOut.w = std::floor(u.w);
   return vOut;
 }
 

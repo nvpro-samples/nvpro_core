@@ -34,16 +34,29 @@
 #include "profiler.hpp"
 #include "parametertools.hpp"
 
-#define NV_PROFILE_BASE_SECTION(name)                    nvh::Profiler::Section _tempTimer(m_profiler, name)
-#define NV_PROFILE_BASE_SPLIT()                          m_profiler.accumulationSplit()
 
 namespace nvh
 {
 
-  /*
-    Project by default quits with ESC
-    and allows toggling vsync with V
+  /**
+    # class nvh::AppWindowProfiler
+    AppWindowProfiler provides an alternative utility wrapper class around NVPWindow.
+    It is useful to derive single-window applications from and is used by some
+    but not all nvpro-samples.
+
+    Further functionality is provided :
+    - built-in profiler/timer reporting to console
+    - command-line argument parsing as well as config file parsing using the ParameterTools
+      see AppWindowProfiler::setupParameters() for built-in commands
+    - benchmark/automation mode using ParameterTools
+    - screenshot creation
+    - logfile based on devicename (depends on context)
+    - optional context/swapchain interface
+      the derived classes nvvk/appwindowprofiler_vk and nvgl/appwindowprofiler_gl make use of this
   */
+
+  #define NV_PROFILE_BASE_SECTION(name)                    nvh::Profiler::Section _tempTimer(m_profiler, name)
+  #define NV_PROFILE_BASE_SPLIT()                          m_profiler.accumulationSplit()
 
   class AppWindowProfiler : public NVPWindow {
   public:
@@ -78,20 +91,17 @@ namespace nvh
     bool          m_profilerPrint;
     bool          m_hadProfilerPrint;
     bool          m_timeInTitle;
-    bool          m_singleThreaded;
     bool          m_doSwap;
 
     ParameterList m_parameterList;
 
 
-    AppWindowProfiler(bool singleThreaded = true, bool doSwap = true)
+    AppWindowProfiler(bool deprecated = true, bool doSwap = true)
       : m_profilerPrint(true)
       , m_vsync(false)
-      , m_singleThreaded(singleThreaded)
       , m_doSwap(doSwap)
       , m_active(false)
       , m_timeInTitle(true)
-      , m_isShutdown(false)
       , m_hadScreenshot(false)
     {
       setupParameters();
@@ -100,9 +110,13 @@ namespace nvh
     // Sample Related
     //////////////////////////////////////////////////////////////////////////
 
+    // setup sample (this is executed after window/context creatio)
     virtual bool begin() { return false; }
+    // tear down sample (triggered by ESC/window close)
     virtual void end() {}
+    // do primary logic/drawing etc. here
     virtual void think(double time) {}
+    // reacte on window resizes here
     virtual void resize(int width, int height) {}
 
     // return true to prevent m_window state updates
@@ -125,13 +139,16 @@ namespace nvh
       return true;
     } 
 
+    // additional special-purpose callbacks
+
     virtual void postProfiling() { }
     virtual void postEnd() {}
     virtual void postBenchmarkAdvance() {}
     virtual void postConfigPreContext() {};
 
-    
     //////////////////////////////////////////////////////////////////////////
+
+    // initial kickoff (typically called from main)
 
     int  run(const std::string& name, int argc, const char** argv, int width, int height);
     void leave();
@@ -139,13 +156,14 @@ namespace nvh
     void        parseConfigFile(const char* filename);
     std::string specialStrings(const char* original);
 
-    void waitEvents();
-
     void setVsync(bool state);
     bool getVsync() const { return m_vsync; }
 
     //////////////////////////////////////////////////////////////////////////
     // Context Window (if desired, not mandatory )
+    //
+    // Used when deriving from this class for the purpose of providing 3D Api contexts
+    // nvvk/appwindowprofiler_vk or nvgl/appwindowprofiler_gl make use of this.
 
     virtual void contextInit() {}
     virtual void contextDeinit() {}
@@ -159,15 +177,15 @@ namespace nvh
 
     //////////////////////////////////////////////////////////////////////////
 
-    // from NVPWindow
-    void shutdown() override;
-    void reshape(int w, int h) override;
-    void motion(int x, int y) override;
-    void mousewheel(int delta) override;
-    void mouse(MouseButton button, ButtonAction action, int mods, int x, int y) override;
-    void keyboard(KeyCode key, ButtonAction action, int mods, int x, int y) override;
-    void keyboardchar(unsigned char key, int mods, int x, int y) override;
-    void display() override { } // leave empty, we call redraw ourselves in think    
+    // inherited from NVPWindow, don't use them directly, use the "Sample-related" ones
+    void onWindowClose() override;
+    void onWindowResize(int w, int h) override;
+    void onWindowRefresh() override { } // leave empty, we call redraw ourselves in think    
+    void onMouseMotion(int x, int y) override;
+    void onMouseWheel(int delta) override;
+    void onMouseButton(MouseButton button, ButtonAction action, int mods, int x, int y) override;
+    void onKeyboard(KeyCode key, ButtonAction action, int mods, int x, int y) override;
+    void onKeyboardChar(unsigned char key, int mods, int x, int y) override;
   
   private:
 
@@ -193,8 +211,8 @@ namespace nvh
       uint32_t clearColor[3] = {127,0,0};
 
       Config() {
-        winpos[0] = 0;
-        winpos[1] = 0;
+        winpos[0] = 50;
+        winpos[1] = 50;
         winsize[0] = 0;
         winsize[1] = 0;
       }
@@ -210,7 +228,6 @@ namespace nvh
 
     bool          m_active;
     bool          m_vsync;
-    bool          m_isShutdown;
     bool          m_hadScreenshot;
     Config        m_config;
     Benchmark     m_benchmark;

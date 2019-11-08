@@ -25,18 +25,19 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "error_vk.hpp"
 #include "profiler_vk.hpp"
 #include <assert.h>
+
 
 
 //////////////////////////////////////////////////////////////////////////
 
 namespace nvvk {
 
-void ProfilerVK::init(VkDevice device, VkPhysicalDevice physicalDevice, const VkAllocationCallbacks* allocator)
+void ProfilerVK::init(VkDevice device, VkPhysicalDevice physicalDevice)
 {
-  m_device = device;
-  m_allocator = allocator;
+  m_device     = device;
 
   VkPhysicalDeviceProperties properties;
   vkGetPhysicalDeviceProperties(physicalDevice, &properties);
@@ -48,71 +49,108 @@ void ProfilerVK::init(VkDevice device, VkPhysicalDevice physicalDevice, const Vk
 
 void ProfilerVK::deinit()
 {
-  vkDestroyQueryPool(m_device, m_queryPool, m_allocator);
+  vkDestroyQueryPool(m_device, m_queryPool, nullptr);
+}
+
+void ProfilerVK::setMarkerUsage(bool state)
+{
+  m_useMarkers = state;
 }
 
 void ProfilerVK::resize()
 {
-  if (getRequiredTimers() < m_queryPoolSize) return;
+  if(getRequiredTimers() < m_queryPoolSize)
+    return;
 
-  if (m_queryPool) {
+  if(m_queryPool)
+  {
+    // FIXME we may loose results this way
     // not exactly efficient, but when timers changed a lot, we have a slow frame anyway
     // cleaner would be allocating more pools
-    vkDeviceWaitIdle(m_device);
-    vkDestroyQueryPool(m_device, m_queryPool, m_allocator);
+    VkResult result = vkDeviceWaitIdle(m_device);
+    if (nvvk::checkResult(result, __FILE__, __LINE__)) {
+      exit(-1);
+    }
+    vkDestroyQueryPool(m_device, m_queryPool, nullptr);
   }
 
-  VkQueryPoolCreateInfo create_info = { VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO };
-  create_info.queryType = VK_QUERY_TYPE_TIMESTAMP;
-  create_info.queryCount = getRequiredTimers();
-  m_queryPoolSize = create_info.queryCount;
+  VkQueryPoolCreateInfo createInfo = {VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO};
+  createInfo.queryType             = VK_QUERY_TYPE_TIMESTAMP;
+  createInfo.queryCount            = getRequiredTimers();
+  m_queryPoolSize                  = createInfo.queryCount;
 
-  VkResult res = vkCreateQueryPool(m_device, &create_info, m_allocator, &m_queryPool);
+  VkResult res = vkCreateQueryPool(m_device, &createInfo, nullptr, &m_queryPool);
   assert(res == VK_SUCCESS);
 }
 
-nvh::Profiler::SectionID ProfilerVK::beginSection(const char* name, VkCommandBuffer cmd)
+nvh::Profiler::SectionID ProfilerVK::beginSection(const char* name, VkCommandBuffer cmd, bool singleShot, bool useHostReset)
 {
   nvh::Profiler::gpuTimeProvider_fn fnProvider = [&](SectionID i, uint32_t queryFrame, double& gpuTime) {
-    uint32_t idxBegin = getTimerIdx(i, queryFrame, true);
-    uint32_t idxEnd   = getTimerIdx(i, queryFrame, false);
-
-    uint64_t times[2];
-    VkResult result = vkGetQueryPoolResults(m_device, m_queryPool, idxBegin, 2, sizeof(uint64_t) * 2, times, 0, VK_QUERY_RESULT_64_BIT);
-   
-    if(result == VK_SUCCESS)
-    {
-      gpuTime = (double(times[1] - times[0]) * double(m_frequency)) / double(1000);
-      return true;
-    }
-    else
-    {
-      return false;
-    }
+    return getSectionTime(i, queryFrame, gpuTime);
   };
 
 
-  SectionID slot = Profiler::beginSection(name, "VK ", fnProvider);
-
-  if (getRequiredTimers() > m_queryPoolSize) {
+  SectionID slot = Profiler::beginSection(name, "VK ", fnProvider, singleShot);
+  if(getRequiredTimers() > m_queryPoolSize)
+  {
     resize();
   }
+  if(m_useMarkers)
+  {
+    VkDebugMarkerMarkerInfoEXT marker = {VK_STRUCTURE_TYPE_DEBUG_MARKER_MARKER_INFO_EXT};
+    marker.pMarkerName                = name;
+    vkCmdDebugMarkerBeginEXT(cmd, &marker);
+  }
 
-  uint32_t idx = getTimerIdx(slot, getSubFrame(), true);
-  // clear begin and end
-  vkCmdResetQueryPool(cmd, m_queryPool, idx, 2);  // not ideal to do this per query
-  vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, m_queryPool, idx);
+  uint32_t idx = getTimerIdx(slot, getSubFrame(slot), true);
+
+  if (useHostReset){
+    vkResetQueryPoolEXT(m_device, m_queryPool, idx, 2);
+  }
+  else {
+    // not ideal to do this per query
+    vkCmdResetQueryPool(cmd, m_queryPool, idx, 2);
+  }
+  // log timestamp
+  vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, m_queryPool, idx);
 
   return slot;
 }
 
 void ProfilerVK::endSection(SectionID slot, VkCommandBuffer cmd)
 {
-  uint32_t idx = getTimerIdx(slot, getSubFrame(), false);
-  vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, m_queryPool, idx);
-
+  uint32_t idx = getTimerIdx(slot, getSubFrame(slot), false);
+  vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, m_queryPool, idx);
+  if(m_useMarkers)
+  {
+    vkCmdDebugMarkerEndEXT(cmd);
+  }
   Profiler::endSection(slot);
 }
 
+
+bool ProfilerVK::getSectionTime(SectionID i, uint32_t queryFrame, double& gpuTime)
+{
+  bool     isRecurring = isSectionRecurring(i);
+  uint32_t idxBegin = getTimerIdx(i, queryFrame, true);
+  uint32_t idxEnd   = getTimerIdx(i, queryFrame, false);
+
+  uint64_t times[2];
+  VkResult result = vkGetQueryPoolResults(m_device, m_queryPool, idxBegin, 2, sizeof(uint64_t) * 2, times, 0,
+                                          VK_QUERY_RESULT_64_BIT | (isRecurring ? VK_QUERY_RESULT_WAIT_BIT : 0));
+  // validation layer bug, complains if VK_QUERY_RESULT_WAIT_BIT is not provided, even if we wait
+  // through another fence for the buffer containing the problem
+  // fixed in VK SDK fixed with 1.1.126, but we keep old logic still here
+
+  if(result == VK_SUCCESS)
+  {
+    gpuTime = (double(times[1] - times[0]) * double(m_frequency)) / double(1000);
+    return true;
+  }
+  else
+  {
+    return false;
+  }
+}
 
 }  // namespace nvvk

@@ -34,33 +34,68 @@
 #include <string>
 
 #include <nvh/shaderfilemanager.hpp>
-#include <nvh/assetsloader.hpp>
 #include <nvh/nvprint.hpp>
 
 namespace nvgl
 {
+  //////////////////////////////////////////////////////////////////////////
+  /**
+    # class nvgl::ProgramManager
+
+    The ProgramManager manages OpenGL programs generated from shader files (GLSL)
+
+    Using ShaderFileManager it will find the files and resolve #include for GLSL.
+    You must register includes to the base-class for this.
+
+    It also comes with some convenience functions to reload shaders etc.
+    That is why we pass out the ProgramID rather than a GLuint directly.
+
+    To change the compilation behavior manipulate the public member variables
+    prior createShaderModule.
+
+    m_filetype is crucial for this. You can pass raw spir-v files or GLSL.
+    If GLSL is used either the backdoor m_useNVextension must be used, or
+    preferrable shaderc (which must be added via _add_package_ShaderC() in CMake of the project)
+
+    Example:
+
+    ``` c++
+    ProgramManager mgr;
+
+    // derived from ShaderFileManager
+    mgr.addDirectory("/shaders/")
+    mgr.registerInclude("noise.glsl");
+
+    // injected after #version directive
+    mgr.m_prepend = "#define USE_NOISE 1\n";
+
+    id = mgr.createProgram({{GL_VERTEX_SHADER, "object.vert.glsl"},{GL_FRAGMENT_SHADER, "object.frag.glsl"}}):
+
+    glUseProgram(mgr.get(id));
+    ```
+  */
+
+
+  class ProgramID {
+  public:
+    size_t  m_value;
+
+    ProgramID() : m_value(size_t(~0)) {}
+    ProgramID( size_t b) : m_value(b) {}
+
+    ProgramID& operator=( size_t b) { m_value = b; return *this; }
+
+    bool isValid() const { return m_value != size_t(~0); }
+
+    operator bool() const { return isValid(); }
+    operator size_t() const { return m_value; }
+
+    friend bool operator==(const ProgramID& lhs, const ProgramID& rhs){ return rhs.m_value == lhs.m_value; }
+  };
 
   class ProgramManager : public nvh::ShaderFileManager  {
   public:
     static const uint32_t PREPROCESS_ONLY_PROGRAM = ~0;
-    static const size_t   INVALID_ID = ~0;
-
-    class ProgramID {
-    public:
-      size_t  m_value;
-
-      ProgramID() : m_value(INVALID_ID) {}
-
-      ProgramID( size_t b) : m_value(b) {}
-      operator size_t() const { return m_value; }
-      ProgramID& operator=( size_t b) { m_value = b; return *this; }
-
-      bool isValid() const 
-      {
-        return m_value != INVALID_ID;
-      }
-    };
-
     struct Program {
       Program() : program(0) {}
 
@@ -68,7 +103,6 @@ namespace nvgl
       std::vector<Definition>   definitions;
     };
 
-    ProgramID createProgram(size_t num, const Definition* definitions);
     ProgramID createProgram(const std::vector<Definition>& definitions);
     ProgramID createProgram(const Definition& def0, const Definition& def1 = Definition(), const Definition& def2 = Definition(), const Definition& def3 = Definition(), const Definition& def4 = Definition());
 
@@ -82,12 +116,19 @@ namespace nvgl
 
     bool isValid( ProgramID idx ) const;
     unsigned int get(ProgramID idx) const;
-    Program& getProgram(ProgramID idx);
-    const Program& getProgram(ProgramID idx) const;
 
+    //////////////////////////////////////////////////////////////////////////
+    // special purpose use, normally not required to touch
+
+    // if not empty then we will store program binaries in files that use the cachefile as prefix
+    //   m_useCacheFile + "_"... implementation dependent
     std::string m_useCacheFile;
+
+    // look for cachefiles first, otherwise look for original glsl files
     bool        m_preferCache;
+    // don't create actual program, only preprocess definition strings
     bool        m_preprocessOnly;
+    // don't create actual program, treat filename as raw
     bool        m_rawOnly;
 
     ProgramManager() 

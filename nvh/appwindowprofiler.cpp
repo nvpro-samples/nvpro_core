@@ -25,6 +25,14 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifdef _WIN32
+  #ifndef NOMINMAX
+  #define NOMINMAX 
+  #endif
+  #define WIN32_LEAN_AND_MEAN
+  #include <windows.h>
+#endif
+
 #include "appwindowprofiler.hpp"
 
 #include <assert.h>
@@ -35,16 +43,9 @@
 #include <fstream>
 #include <iostream>
 
-#include <nvh/misc.hpp>
-#include <nvh/assetsloader.hpp>
-
-#ifdef _WIN32
-#ifndef NOMINMAX
-#define NOMINMAX 
-#endif
-#define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
-#endif
+#include "misc.hpp"
+#include "fileoperations.hpp"
+#include <fileformats/bmp.hpp>
 
 namespace nvh
 {
@@ -78,10 +79,8 @@ namespace nvh
     std::remove(deviceName.begin(), deviceName.end(), '"');
     std::remove(deviceName.begin(), deviceName.end(), ',');
   }
-
-  static AppWindowProfiler* s_project;
-
-  void AppWindowProfiler::motion(int x, int y)
+  
+  void AppWindowProfiler::onMouseMotion(int x, int y)
   {
     AppWindowProfiler::WindowState &window = m_windowState;
 
@@ -91,7 +90,7 @@ namespace nvh
     window.m_mouseCurrent[1] = y;
   }
 
-  void AppWindowProfiler::mouse(MouseButton Button, ButtonAction Action, int mods, int x, int y)
+  void AppWindowProfiler::onMouseButton(MouseButton Button, ButtonAction Action, int mods, int x, int y)
   {
     AppWindowProfiler::WindowState  &window   = m_windowState;
     m_profiler.reset();
@@ -149,7 +148,7 @@ namespace nvh
     }
   }
 
-  void AppWindowProfiler::mousewheel(int y)
+  void AppWindowProfiler::onMouseWheel(int y)
   {
     AppWindowProfiler::WindowState &window = m_windowState;
     m_profiler.reset();
@@ -159,7 +158,7 @@ namespace nvh
     window.m_mouseWheel += y;
   }
 
-  void AppWindowProfiler::keyboard(KeyCode key, ButtonAction action, int mods, int x, int y)
+  void AppWindowProfiler::onKeyboard(KeyCode key, ButtonAction action, int mods, int x, int y)
   {
     AppWindowProfiler::WindowState  &window   = m_windowState;
     m_profiler.reset();
@@ -187,7 +186,7 @@ namespace nvh
     window.m_keyPressed[key] = newState;
   }
 
-  void AppWindowProfiler::keyboardchar(unsigned char key, int mods, int x, int y)
+  void AppWindowProfiler::onKeyboardChar(unsigned char key, int mods, int x, int y)
   {
     m_profiler.reset();
 
@@ -196,7 +195,7 @@ namespace nvh
 
   void AppWindowProfiler::parseConfigFile(const char* filename)
   {
-    std::string result = AssetLoadTextFile(filename);
+    std::string result = loadFile(filename, false);
     if (result.empty()) {
       LOGW("file not found: %s\n", filename);
       return;
@@ -209,13 +208,12 @@ namespace nvh
     parseConfig(uint32_t(args.size()), args.data(), path);
   }
 
-  void AppWindowProfiler::shutdown()
+  void AppWindowProfiler::onWindowClose()
   {
-    m_isShutdown = true;
     exitScreenshot();
   }
 
-  void AppWindowProfiler::reshape(int width, int height)
+  void AppWindowProfiler::onWindowResize(int width, int height)
   {
     AppWindowProfiler::WindowState  &window   = m_windowState;
     m_profiler.reset();
@@ -238,16 +236,11 @@ namespace nvh
   void AppWindowProfiler::setVsync(bool state)
   {
     if (m_internal) {
-      swapVsync(state ? 1 : 0);
+      swapVsync(state);
       LOGI("vsync: %s\n", state ? "on" : "off");
     }
     m_config.vsyncstate = state;
     m_vsync = state;
-  }
-
-  void AppWindowProfiler::waitEvents()
-  {
-    sysWaitEvents();
   }
 
   int AppWindowProfiler::run
@@ -256,29 +249,6 @@ namespace nvh
     int argc, const char** argv,
     int width, int height)
   {
-    s_project = this;
-
-#if _WIN32 && 0
-    // do not use this anymore, too much side-effects
-    if (m_singleThreaded)
-    {
-      HANDLE proc = GetCurrentProcess();
-      size_t procmask;
-      size_t sysmask;
-      // pin to one physical cpu for smoother timings, disable hyperthreading
-      GetProcessAffinityMask(proc, (PDWORD_PTR)&procmask, (PDWORD_PTR)&sysmask);
-      if (sysmask & 8) {
-        // quadcore, use last core
-        procmask = 8;
-      }
-      else if (sysmask & 2) {
-        // dualcore, use last core
-        procmask = 2;
-      }
-      SetProcessAffinityMask(proc, (DWORD_PTR)procmask);
-    }
-#endif
-
     m_config.winsize[0] = m_config.winsize[0] ? m_config.winsize[0] : width;
     m_config.winsize[1] = m_config.winsize[1] ? m_config.winsize[1] : height;
 
@@ -288,7 +258,7 @@ namespace nvh
       return EXIT_FAILURE;
     }
 
-    if (!NVPWindow::create(m_config.winpos[0], m_config.winpos[1], m_config.winsize[0], m_config.winsize[1], title.c_str() )) {
+    if (!NVPWindow::open(m_config.winpos[0], m_config.winpos[1], m_config.winsize[0], m_config.winsize[1], title.c_str() )) {
         LOGE("Could not create window\n");
       return EXIT_FAILURE;
     }
@@ -322,8 +292,8 @@ namespace nvh
       quickExit = true;
     }
 
-    double timeStart = sysGetTime();
-    double timeBegin = sysGetTime();
+    double timeStart = getTime();
+    double timeBegin = getTime();
     double frames = 0;
 
     bool   lastVsync = m_vsync;
@@ -335,14 +305,15 @@ namespace nvh
 
     if(Run)
     {
-      while(true)
+      while(pollEvents())
       {
-        if (!NVPWindow::sysPollEvents(false) || m_isShutdown){
-          break;
-        }
-
+        bool wasClosed = false;
         while ( !isOpen() ){
-          NVPWindow::sysWaitEvents();
+          NVPSystem::waitEvents();
+          wasClosed = true;
+        }
+        if (wasClosed) {
+          continue;
         }
 
         if (m_windowState.onPress(KEY_V)){
@@ -352,7 +323,7 @@ namespace nvh
         std::string stats;
         {
           bool benchmarkActive   = m_benchmark.sequence.isActive();
-          double curTime         = sysGetTime();
+          double curTime         = getTime();
           double printInterval   = m_profilerPrint && !benchmarkActive ? float(m_config.intervalSeconds) : float(FLT_MAX);
           bool printStats       = ((curTime - lastProfilerPrintTime) > printInterval);
 
@@ -368,7 +339,7 @@ namespace nvh
           }
           {
             //const nvh::Profiler::Section profile(m_profiler, "App");
-            think(sysGetTime() - timeStart);
+            think(getTime() - timeStart);
           }
           memset(m_windowState.m_keyToggled, 0, sizeof(m_windowState.m_keyToggled)); 
           if( m_doSwap )
@@ -380,7 +351,6 @@ namespace nvh
           if(printStats)
           {
             m_profiler.print(stats);
-            m_profiler.reset(1);
           }
         }
 
@@ -404,7 +374,7 @@ namespace nvh
 
         frames++;
 
-        double timeCurrent = sysGetTime();
+        double timeCurrent = getTime();
         double timeDelta = timeCurrent - timeBegin;
         if (timeDelta > double(m_config.intervalSeconds) || lastVsync != m_vsync || m_config.frameLimit==1){
           std::ostringstream combined; 
@@ -482,7 +452,7 @@ namespace nvh
     if (!m_active) return;
 
     if (param == m_paramWinsize) {
-      AppWindowProfiler::reshape(m_config.winsize[0], m_config.winsize[1]);
+      AppWindowProfiler::onWindowResize(m_config.winsize[0], m_config.winsize[1]);
     }
     else if (param == m_paramVsync) {
       setVsync(m_config.vsyncstate);
@@ -530,7 +500,7 @@ namespace nvh
   {
     if (m_benchmark.filename.empty()) return;
 
-    m_benchmark.content = AssetLoadTextFile(m_benchmark.filename.c_str());
+    m_benchmark.content = loadFile(m_benchmark.filename.c_str(), false);
     if (!m_benchmark.content.empty()) {
       std::vector<const char*> tokens;
       ParameterList::tokenizeString(m_benchmark.content, tokens);

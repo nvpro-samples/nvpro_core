@@ -30,15 +30,45 @@
 
 namespace nvh {
 
-    template<uint32_t OFFSET, uint32_t PASSES, typename TKey>
-    uint32_t* radixsort(uint32_t numKeys, const TKey* keys, uint32_t* indicesIn, uint32_t* indicesTemp) {
-      uint32_t histogram[PASSES][256] = { 0 };
+    /**
+      # function nvh::radixsort
 
-      for (uint32_t i = 0; i < numKeys; i++) {
+      The radixsort function sorts the provided keys based on
+      BYTES many bytes stored inside TKey starting at BYTEOFFSET.
+      The sorting result is returned as indices into the keys array.
+      
+      For example:
+      
+      ``` c++
+      struct MyData {
+        uint32_t objectIdentifier;
+        uint16_t objectSortKey;
+      };
+      
+      
+      // 4-byte offset of objectSortKey within MyData
+      // 2-byte size of sorting key
+      
+      result = radixsort<4,2>(keys, indicesIn, indicesTemp);
+      
+      // after sorting the following is true
+      
+      keys[result[i]].objectSortKey < keys[result[i + 1]].objectSortKey
+
+      // result can point either to indicesIn or indicesTemp (we swap the arrays
+      // after each byte iteration)
+      ```
+    */
+   
+    template<uint32_t BYTEOFFSET, uint32_t BYTES, typename TKey>
+    uint32_t* radixsort(uint32_t numIndices, const TKey* keys, uint32_t* indicesIn, uint32_t* indicesTemp) {
+      uint32_t histogram[BYTES][256] = { 0 };
+
+      for (uint32_t i = 0; i < numIndices; i++) {
         uint32_t idx = indicesIn[i];
         const uint8_t*  bytes = (const uint8_t*)&keys[idx];
-        for (uint32_t p = 0; p < PASSES; p++) {
-          uint8_t curbyte = bytes[OFFSET + p];
+        for (uint32_t p = 0; p < BYTES; p++) {
+          uint8_t curbyte = bytes[BYTEOFFSET + p];
           histogram[p][curbyte]++;
         }
       }
@@ -46,7 +76,7 @@ namespace nvh {
       uint32_t* tempIn = indicesIn;
       uint32_t* tempOut = indicesTemp;
 
-      for (uint32_t p = 0; p < PASSES; p++) {
+      for (uint32_t p = 0; p < BYTES; p++) {
         uint32_t offset = 0;
         for (int32_t i = 0; i < 256; i++) {
           uint32_t numBin = histogram[p][i];
@@ -54,10 +84,10 @@ namespace nvh {
           offset += numBin;
         }
 
-        for (uint32_t i = 0; i < numKeys; i++) {
+        for (uint32_t i = 0; i < numIndices; i++) {
           uint32_t idx = tempIn[i];
           const uint8_t*  bytes = (const uint8_t*)&keys[idx];
-          uint8_t curbyte = bytes[OFFSET + p];
+          uint8_t curbyte = bytes[BYTEOFFSET + p];
           uint32_t pos = histogram[p][curbyte]++;
           tempOut[pos] = idx;
         }

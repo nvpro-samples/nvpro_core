@@ -33,21 +33,29 @@
 
 namespace nvgl {
 
+  //////////////////////////////////////////////////////////////////////////
+  /**
+    # class nvgl::ProfilerGL
+
+    ProfilerGL extends Profiler and uses `glQueryCounter(... GL_TIMESTAMP)`
+    to compute the GPU time of a section.
+    `glPushDebugGroup` and `glPopDebugGroup` are used within each timed
+    section, so that the section names can show up in NSightGraphics,
+    renderdoc or comparable tools.
+
+  */
+
 class ProfilerGL : public nvh::Profiler
 {
 public:
-  ProfilerGL(nvh::Profiler* masterProfiler = nullptr)
-      : Profiler(masterProfiler)
-  {
-  }
-
+  // utility class to call begin/end within local scope
   class Section
   {
   public:
-    Section(ProfilerGL& profiler, const char* name)
+    Section(ProfilerGL& profiler, const char* name, bool singleShot = false)
         : m_profiler(profiler)
     {
-      m_id = profiler.beginSection(name);
+      m_id = profiler.beginSection(name, singleShot);
     }
     ~Section() { m_profiler.endSection(m_id); }
 
@@ -56,11 +64,23 @@ public:
     ProfilerGL& m_profiler;
   };
 
+  // recurring, must be within beginFrame/endFrame
+  Section timeRecurring(const char* name) { return Section(*this, name, false); }
+
+  // singleShot, results are available after FRAME_DELAY many endFrame
+  Section timeSingle(const char* name) { return Section(*this, name, true); }
+
+  //////////////////////////////////////////////////////////////////////////
+
+  ProfilerGL(nvh::Profiler* masterProfiler = nullptr)
+      : Profiler(masterProfiler)
+  {
+  }
 
   void init();
   void deinit();
 
-  SectionID beginSection(const char* name);
+  SectionID beginSection(const char* name, bool singleShot = false);
   void      endSection(SectionID slot);
 
 private:

@@ -10,24 +10,27 @@ else()
   Message(STATUS "Processing shared_sources files")
 endif()
 
-set(NVPWINDOW_SOURCE ${BASE_DIRECTORY}/shared_sources/nvpwindow_internal.hpp )
-if(UNIX) 
-  SET(NVPWINDOW_FILE ${BASE_DIRECTORY}/shared_sources/nvpwindow_internal_x11.cpp ) #TODO
-else(UNIX)
-  if(APPLE)
-    SET(NVPWINDOW_FILE ${BASE_DIRECTORY}/shared_sources/nvpwindow_internal_osx.cpp ) #TODO
-  else(APPLE)
-    if(WIN32)
-      SET(NVPWINDOW_FILE ${BASE_DIRECTORY}/shared_sources/nvpwindow_internal_win32.cpp )
-    endif(WIN32)
-  endif(APPLE)
-endif(UNIX)
 
-LIST(APPEND NVPWINDOW_SOURCE
-    ${NVPWINDOW_FILE}
-    ${BASE_DIRECTORY}/shared_sources/nvpwindow.cpp
-    ${BASE_DIRECTORY}/shared_sources/nvpwindow.hpp
+SET(NVPWINDOW_SOURCE
+  ${BASE_DIRECTORY}/shared_sources/nvpwindow.cpp
+  ${BASE_DIRECTORY}/shared_sources/nvpwindow.hpp
+  ${BASE_DIRECTORY}/shared_sources/nvpsystem.cpp
+  ${BASE_DIRECTORY}/shared_sources/nvpsystem.hpp
 )
+
+if(UNIX) 
+  Message(FATAL_ERROR "not supported yet") # TODO
+else()
+  LIST(APPEND NVPWINDOW_SOURCE ${BASE_DIRECTORY}/shared_sources/nvpsystem_win32.cpp )
+endif()
+
+if(NOT (CMAKE_SIZEOF_VOID_P EQUAL 8))
+  message( FATAL_ERROR "64-bit builds are mandatory for this framework" )
+endif()
+
+# CSF filefomat uses zlib
+_add_package_ZLIB()
+add_definitions(-DCSF_ZIP_SUPPORT=1)
 
 # add packages that may be needed by some of the samples
 _optional_package_VulkanSDK()
@@ -50,6 +53,7 @@ _optional_package_ImGUI()
 # process the rest of some cmake code that needs to be done after the packages
 _process_shared_cmake_code()
 
+file(GLOB FILEFORMATS_SOURCE fileformats/*.cpp fileformats/*.hpp fileformats/*.inl fileformats/*.h)
 file(GLOB NVMATH_SOURCE nvmath/*.cpp nvmath/*.hpp nvmath/*.inl nvmath/*.h)
 file(GLOB NVHELPERS_SOURCE nvh/*.cpp nvh/*.hpp nvh/*.inl nvh/*.h)
 file(GLOB NOISE_SOURCE noise/*.cpp noise/*.hpp noise/*.inl noise/*.h)
@@ -66,13 +70,17 @@ endif()
 if(USING_VULKANSDK)
   file(GLOB NVHELPERSVK_SOURCE nvvk/*.cpp nvvk/*.hpp nvvk/*.inl nvvk/*.h)
   source_group("nvvk" FILES ${NVHELPERSVK_SOURCE})
-  # Temporary hack. TODO: remove asap
-  if (USING_NVVK2)
-      file(GLOB NVHELPERSVK2_SOURCE nvvk2/*.cpp nvvk2/*.hpp nvvk2/*.inl nvvk2/*.h)
-      source_group("nvvk2" FILES ${NVHELPERSVK2_SOURCE})
-  endif()
+
+  file(GLOB NVHELPERSVKPP_SOURCE nvvkpp/*.cpp nvvkpp/*.hpp nvvkpp/*.inl nvvkpp/*.h)
+  source_group("nvvkpp" FILES ${NVHELPERSVKPP_SOURCE})
 
   string(CONCAT library_name ${library_name} "_vk")
+  
+  add_definitions(-DVULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1)
+
+  if(WIN32)
+    add_definitions(-DVK_USE_PLATFORM_WIN32_KHR)
+  endif(WIN32)
 endif()
 
 if (USING_DIRECTX11)
@@ -91,18 +99,19 @@ endif()
 
 
 if (USING_OPTIX)
-    Message(STATUS "Note: adding Optix utility files")
-    file(GLOB NVHELPERSOPTIX_FILES nvoptix/*.cpp nvoptix/*.h)
-    source_group("nvoptix" FILES ${NVHELPERSOPTIX_FILES})
+  Message(STATUS "Note: adding Optix utility files")
+  file(GLOB NVHELPERSOPTIX_FILES nvoptix/*.cpp nvoptix/*.h)
+  source_group("nvoptix" FILES ${NVHELPERSOPTIX_FILES})
 endif()
 
 
 
-
+source_group("fileformats" FILES ${FILEFORMATS_SOURCE})
+source_group("noise" FILES ${NOISE_SOURCE})
 source_group("nvmath" FILES ${NVMATH_SOURCE})
 source_group("nvh" FILES ${NVHELPERS_SOURCE})
-source_group("noise" FILES ${NOISE_SOURCE})
-source_group("nvpwindow" FILES ${NVPWINDOW_SOURCE})
+source_group("nvp" FILES ${NVPWINDOW_SOURCE})
+
 
 if(MSVC)
   add_definitions(-D_CRT_SECURE_NO_WARNINGS)
@@ -126,13 +135,14 @@ if(USING_OPENGL)
 endif()
 
 add_library(shared_sources STATIC 
-  ${NVHELPERS_SOURCE} 
-  ${NVMATH_SOURCE} 
-  ${NOISE_SOURCE} 
+  ${NVHELPERS_SOURCE}
+  ${NVMATH_SOURCE}
+  ${NOISE_SOURCE}
+  ${FILEFORMATS_SOURCE}
   ${NVPWINDOW_SOURCE}
   ${OPENGL_FILES}
   ${NVHELPERSVK_SOURCE}
-  ${NVHELPERSVK2_SOURCE}
+  ${NVHELPERSVKPP_SOURCE}
   ${NVHELPERSGL_SOURCE}
   ${NVHELPERSDX11_SOURCE}
   ${NVHELPERSDX12_SOURCE}
@@ -140,8 +150,23 @@ add_library(shared_sources STATIC
   ${NVHELPERSOPTIX_FILES}
 )
 
+if (MSVC)
+  if (MSVC_VERSION EQUAL 1900)
+    set(glfw3 ${BASE_DIRECTORY}/shared_external/glfw3/lib-vc2015/glfw3.lib)
+  elseif ((MSVC_VERSION GREATER_EQUAL 1900) AND (MSVC_VERSION LESS 1920))
+    set(glfw3 ${BASE_DIRECTORY}/shared_external/glfw3/lib-vc2017/glfw3.lib)
+  elseif ((MSVC_VERSION GREATER_EQUAL 1920) AND (MSVC_VERSION LESS 1925))
+    set(glfw3 ${BASE_DIRECTORY}/shared_external/glfw3/lib-vc2019/glfw3.lib)
+  else()
+    message( FATAL_ERROR "incompatible MSVC version with glfw3 binaries" )
+  endif()
+  message( STATUS "using glfw3 " ${glfw3} )
+else()
+  set(glfw3 glfw)
+endif()
+
 target_link_libraries(shared_sources
-  ${PLATFORM_LIBRARIES}
+  ${PLATFORM_LIBRARIES} ${glfw3} 
  )
 
 set_target_properties(shared_sources PROPERTIES OUTPUT_NAME ${library_name})

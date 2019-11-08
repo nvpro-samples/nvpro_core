@@ -37,25 +37,24 @@ SET(_ZLIB_SEARCH_NORMAL
 LIST(APPEND _ZLIB_SEARCHES _ZLIB_SEARCH_NORMAL)
 
 # zlibstatic raised linkage errors... no idea why
-#SET(ZLIB_NAMES z zlibstatic zlib zdll zlib1 zlibd zlibd1)
-SET(ZLIB_NAMES z zlib32 zlib64 zlib zdll zlib1 zlibd zlibd1)
+SET(ZLIB_NAMES z zlibstatic zlib zdll zlib1 zlibd zlibd1)
+#SET(ZLIB_NAMES z zlib32 zlib64 zlib zdll zlib1 zlibd zlibd1)
 
 # Try each search configuration.
 FOREACH(search ${_ZLIB_SEARCHES})
   FIND_PATH(ZLIB_INCLUDE_DIR NAMES zlib.h        ${${search}} PATH_SUFFIXES include)
-  if(ARCH STREQUAL "x86")
-    FIND_LIBRARY(ZLIB_LIBRARY  NAMES ${ZLIB_NAMES} ${${search}} PATH_SUFFIXES lib lib32)
+  if (MSVC)
+    if (MSVC_VERSION EQUAL 1900)
+      FIND_LIBRARY(ZLIB_LIBRARY  NAMES ${ZLIB_NAMES} ${${search}} PATH_SUFFIXES lib lib64-vc2015)
+    elseif ((MSVC_VERSION GREATER_EQUAL 1900) AND (MSVC_VERSION LESS 1920))
+      FIND_LIBRARY(ZLIB_LIBRARY  NAMES ${ZLIB_NAMES} ${${search}} PATH_SUFFIXES lib lib64-vc2017)
+    elseif ((MSVC_VERSION GREATER_EQUAL 1920) AND (MSVC_VERSION LESS 1950))
+      FIND_LIBRARY(ZLIB_LIBRARY  NAMES ${ZLIB_NAMES} ${${search}} PATH_SUFFIXES lib lib64-vc2019)
+    else()
+      message( FATAL_ERROR "incompatible MSVC version with zlib binaries" )
+    endif()
   else()
     FIND_LIBRARY(ZLIB_LIBRARY  NAMES ${ZLIB_NAMES} ${${search}} PATH_SUFFIXES lib lib64)
-  endif()
-  if(WIN32)
-    # want to find it later to copy it close to the exe files that need it
-    # zlibstatic would avoid this but there is link error...
-    if(ARCH STREQUAL "x86")
-      FIND_PROGRAM(ZLIB_BIN  NAMES zlib.dll zlibd.dll ${${search}} PATH_SUFFIXES bin bin32)
-    else()
-      FIND_PROGRAM(ZLIB_BIN  NAMES zlib.dll zlibd.dll ${${search}} PATH_SUFFIXES bin bin64)
-    endif()
   endif()
 ENDFOREACH()
 

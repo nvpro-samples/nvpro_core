@@ -28,11 +28,46 @@
 #ifndef NV_GEOMETRY_INCLUDED
 #define NV_GEOMETRY_INCLUDED
 
+#include <stdint.h>
 #include <nvmath/nvmath.h>
 
 #include <vector>
 
 namespace nvh{
+
+  //////////////////////////////////////////////////////////////////////////
+  /**
+    # namespace nvh::geometry
+    The geometry namespace provides a few procedural mesh primitives
+    that are subdivided.
+    
+    nvh::geometry::Mesh template uses the provided TVertex which must have a 
+    constructor from nvh::geometry::Vertex. You can also use nvh::geometry::Vertex
+    directly.
+    
+    It provides triangle indices, as well as outline line indices. The outline indices
+    are typical feature lines (rectangle for plane, some circles for sphere/torus).
+    
+    All basic primitives are within -1,1 ranges along the axis they use
+    
+    - nvh::geometry::Plane (x,y subdivision)
+    - nvh::geometry::Box (x,y,z subdivision, made of 6 planes)
+    - nvh::geometry::Sphere (lat,long subdivision)
+    - nvh::geometry::Torus (inner, outer circle subdivision)
+    - nvh::geometry::RandomMengerSponge (subdivision, tree depth, probability)
+
+    Example:
+
+    ``` c++
+    // single primitive
+    nvh::geometry::Box<nvh::geometry::Vertex> box(4,4,4);
+
+    // construct from primitives
+
+    ```
+  */
+
+
   namespace geometry{
     struct Vertex
     {
@@ -52,10 +87,13 @@ namespace nvh{
       nvmath::vec4f texcoord;
     };
 
-    template <class TVertex>
+
+    // The provided TVertex must have a constructor from Vertex
+
+    template <class TVertex = Vertex>
     class Mesh {
     public:
-      std::vector<TVertex>        m_vertices;
+      std::vector<TVertex>            m_vertices;
       std::vector<nvmath::vec3ui>     m_indicesTriangles;
       std::vector<nvmath::vec2ui>     m_indicesOutline;
 
@@ -65,7 +103,7 @@ namespace nvh{
         m_indicesTriangles.reserve(geo.m_indicesTriangles.size() + m_indicesTriangles.size());
         m_indicesOutline.reserve(geo.m_indicesOutline.size() + m_indicesOutline.size());
 
-        nvmath::uint offset = nvmath::uint(m_vertices.size());
+        uint32_t offset = uint32_t(m_vertices.size());
 
         for (size_t i = 0; i < geo.m_vertices.size(); i++){
           m_vertices.push_back(geo.m_vertices[i]);
@@ -91,28 +129,28 @@ namespace nvh{
         return m_indicesTriangles.size() * sizeof(nvmath::vec3ui);
       }
 
-      nvmath::uint getTriangleIndicesCount() const{
-        return (nvmath::uint)m_indicesTriangles.size() * 3;
+      uint32_t getTriangleIndicesCount() const{
+        return (uint32_t)m_indicesTriangles.size() * 3;
       }
 
       size_t getOutlineIndicesSize() const{
         return m_indicesOutline.size() * sizeof(nvmath::vec2ui);
       }
 
-      nvmath::uint getOutlineIndicesCount() const{
-        return (nvmath::uint)m_indicesOutline.size() * 2;
+      uint32_t getOutlineIndicesCount() const{
+        return (uint32_t)m_indicesOutline.size() * 2;
       }
 
       size_t getVerticesSize() const{
         return m_vertices.size() * sizeof(TVertex);
       }
 
-      nvmath::uint getVerticesCount() const{
-        return (nvmath::uint)m_vertices.size();
+      uint32_t getVerticesCount() const{
+        return (uint32_t)m_vertices.size();
       }
     };
 
-    template <class TVertex>
+    template <class TVertex = Vertex>
     class Plane : public Mesh<TVertex> {
     public:
       static void add(Mesh<TVertex>& geo, const nvmath::mat4f& mat, int w, int h)
@@ -125,7 +163,7 @@ namespace nvh{
 
         int width = (xdim + 1);
 
-        nvmath::uint vertOffset = (nvmath::uint)geo.m_vertices.size();
+        uint32_t vertOffset = (uint32_t)geo.m_vertices.size();
 
         int x,y;
         for (y = 0; y < ydim + 1; y++){
@@ -214,7 +252,7 @@ namespace nvh{
       }
     };
 
-    template <class TVertex>
+    template <class TVertex= Vertex>
     class Box : public Mesh<TVertex> {
     public:
       static void add(Mesh<TVertex>& geo, const nvmath::mat4f& mat, int w, int h, int d)
@@ -265,7 +303,7 @@ namespace nvh{
       }
     };
 
-    template <class TVertex>
+    template <class TVertex = Vertex>
     class Sphere : public Mesh<TVertex> {
     public:
       static void add(Mesh<TVertex>& geo, const nvmath::mat4f& mat, int w, int h)
@@ -273,7 +311,7 @@ namespace nvh{
         int xydim = w;
         int zdim  = h;
 
-        nvmath::uint vertOffset = (nvmath::uint)geo.m_vertices.size();
+        uint32_t vertOffset = (uint32_t)geo.m_vertices.size();
 
         float xyshift = 1.0f / (float)xydim;
         float zshift  = 1.0f / (float)zdim;
@@ -353,7 +391,100 @@ namespace nvh{
       }
     };
 
-    template <class TVertex>
+    template <class TVertex = Vertex>
+    class Torus : public Mesh<TVertex>
+    {
+    public:
+      static void add(Mesh<TVertex>& geo, const nvmath::mat4f& mat, int w, int h)
+      {
+        // Radius of inner and outer circles
+        float innerRadius = 0.8f;
+        float outerRadius = 0.2f;
+
+        unsigned int numVertices = (w + 1) * (h + 1);
+
+        float wf = (float)w;
+        float hf = (float)h;
+
+        float phi_step   = 2.0f * nv_pi / wf;
+        float theta_step = 2.0f * nv_pi / hf;
+
+        // Setup vertices and normals
+        // Generate the Torus exactly like the sphere with rings around the origin along the latitudes.
+        for(unsigned int latitude = 0; latitude <= (unsigned int)w; latitude++)  // theta angle
+        {
+          float theta    = (float)latitude * theta_step;
+          float sinTheta = std::sinf(theta);
+          float cosTheta = std::cosf(theta);
+
+          float radius = innerRadius + outerRadius * cosTheta;
+
+          for(unsigned int longitude = 0; longitude <= (unsigned int)h; longitude++)  // phi angle
+          {
+            float phi    = (float)longitude * phi_step;
+            float sinPhi = sinf(phi);
+            float cosPhi = cosf(phi);
+
+            nvmath::vec3f position = nvmath::vec3f(radius * cosPhi, outerRadius * sinTheta, radius * -sinPhi);
+            nvmath::vec3f normal   = nvmath::vec3f(cosPhi * cosTheta, sinTheta, -sinPhi * cosTheta);
+            nvmath::vec2f uv       = nvmath::vec2f((float)longitude / wf, (float)latitude / hf);
+
+            Vertex vertex(position, normal, uv);
+            geo.m_vertices.push_back(TVertex(vertex));
+          }
+        }
+
+        const unsigned int columns = w + 1;
+
+        // Setup indices
+        for(unsigned int latitude = 0; latitude < (unsigned int)w; latitude++)
+        {
+          for(unsigned int longitude = 0; longitude < (unsigned int)h; longitude++)
+          {
+            // Indices for triangles
+            nvmath::vec3ui triangle1(
+              latitude * columns + longitude, 
+              latitude * columns + longitude + 1,
+              (latitude + 1) * columns + longitude
+            );
+            nvmath::vec3ui triangle2(
+              (latitude + 1) * columns + longitude, 
+              latitude * columns + longitude + 1,
+              (latitude + 1) * columns + longitude + 1
+            );
+
+            geo.m_indicesTriangles.push_back(triangle1);
+            geo.m_indicesTriangles.push_back(triangle2);
+          }
+        }
+
+        // Setup outline indices
+        // Outline for outer ring
+        for(unsigned int longitude = 0; longitude < (unsigned int)w; longitude++)
+        {
+          for(unsigned int y = 0; y < 4; y++)
+          {
+            unsigned int latitude = y * (0.25 * h);
+            nvmath::vec2ui line(latitude * columns + longitude, latitude * columns + longitude + 1);
+            geo.m_indicesOutline.push_back(line);
+          }
+        }
+        // Outline for inner rings
+        for(unsigned int x = 0; x < 4; x++)
+        {
+          for(unsigned int latitude = 0; latitude < (unsigned int)h; latitude++)
+          {
+            unsigned int longitude = x * (0.25 * w);
+            nvmath::vec2ui line(latitude * columns + longitude, (latitude + 1) * columns + longitude);
+            geo.m_indicesOutline.push_back(line);
+          }
+        }
+      }
+
+      Torus(int w = 16, int h = 16) { add(*this, nvmath::mat4f(1), w, h); }
+    };
+
+    template <class TVertex = Vertex>
     class RandomMengerSponge : public Mesh<TVertex> {
     public:
       static void add(Mesh<TVertex>& geo, const nvmath::mat4f& mat, int w, int h, int d, int level=3, float probability=-1.f)

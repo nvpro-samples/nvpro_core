@@ -30,42 +30,59 @@
 
 #include <nvh/appwindowprofiler.hpp>
 
-#include "profiler_vk.hpp"
-#include "contextwindow_vk.hpp"
+#include <nvvk/context_vk.hpp>
+#include <nvvk/profiler_vk.hpp>
+#include <nvvk/swapchain_vk.hpp>
 
-namespace nvvk
+
+namespace nvvk {
+
+//////////////////////////////////////////////////////////////////////////
+/**
+  # class nvvk::AppWindowProfilerVK
+
+  AppWindowProfilerVK derives from nvh::AppWindowProfiler
+  and overrides the context and swapbuffer functions.
+  
+  To influence the vulkan instance/device creation modify 
+  `m_contextInfo` prior running AppWindowProfiler::run,
+  which triggers instance, device, window, swapchain creation etc.
+
+  The class comes with a nvvk::ProfilerVK instance that references the 
+  AppWindowProfiler::m_profiler's data.
+*/
+
+#define NV_PROFILE_VK_SECTION(name, cmd) const nvvk::ProfilerVK::Section _tempTimer(m_profilerVK, name, cmd)
+#define NV_PROFILE_VK_SPLIT() m_profilerVK.accumulationSplit()
+
+class AppWindowProfilerVK : public nvh::AppWindowProfiler
 {
-
-  #define NV_PROFILE_VK_SECTION(name, cmd)  const nvvk::ProfilerVK::Section _tempTimer(m_profilerVK, name, cmd)
-  #define NV_PROFILE_VK_SPLIT()             m_profilerVK.accumulationSplit()
-
-  class AppWindowProfilerVK : public nvh::AppWindowProfiler {
-  public:
-    
-
-    AppWindowProfilerVK(bool singleThreaded = true, bool doSwap = true) 
+public:
+  AppWindowProfilerVK(bool singleThreaded = true, bool doSwap = true)
       : nvh::AppWindowProfiler(singleThreaded, doSwap)
-        , m_profilerVK(&m_profiler)
-    {
-    }
+      , m_profilerVK(&m_profiler)
+  {
+  }
 
-    ContextInfoVK   m_contextInfo;
-    ContextWindowVK m_contextWindow;
-    ProfilerVK      m_profilerVK;
+  bool              m_swapVsync;
+  ContextCreateInfo m_contextInfo;
+  Context           m_context;
+  SwapChain         m_swapChain;
+  VkSurfaceKHR      m_surface;
+  ProfilerVK        m_profilerVK;
 
 
-    virtual void contextInit() override;
-    virtual void contextDeinit() override;
+  virtual void        contextInit() override;
+  virtual void        contextDeinit() override;
+  virtual const char* contextGetDeviceName() override;
 
-    virtual void swapResize(int width, int height) override;
-    virtual void swapPrepare() override;
-    virtual void swapBuffers() override;
-    virtual void swapVsync(bool state) override;
-    virtual const char* contextGetDeviceName() override;
-  };
-}
+  virtual void        swapResize(int width, int height) override;
+  virtual void        swapPrepare() override;
+  virtual void        swapBuffers() override;
+  virtual void        swapVsync(bool state) override;
+  
+};
+}  // namespace nvvk
 
 
 #endif
-
-

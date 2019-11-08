@@ -23,87 +23,79 @@
     OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 */ //--------------------------------------------------------------------
-
+#pragma once
+#include <chrono>
 //-----------------------------------------------------------------------------
 // TimeSampler work
 //-----------------------------------------------------------------------------
 struct TimeSampler
 {
-    bool                bNonStopRendering;
-    int                 renderCnt;
-#ifdef WIN32
-    LARGE_INTEGER       start_time, end_time, freq;
-#endif
-    int                 timing_counter;
-    int                 maxTimeSamples;
-    int                 frameFPS;
-    double              frameDT;
-    double              timeSamplingFreq;
-    TimeSampler()
-    {
-        bNonStopRendering = true;
-        renderCnt = 1;
-        timing_counter = 0;
-        maxTimeSamples = 60;
-        frameDT = 1.0/60.0;
-        frameFPS = 0;
-        timeSamplingFreq = 0.1;
-#ifdef WIN32
-        QueryPerformanceCounter(&start_time);
-        QueryPerformanceCounter(&end_time);
-#endif
-    }
-    inline double   getTiming() { return frameDT; }
-    inline int      getFPS() { return frameFPS; }
-    void            setTimeSamplingFreq(float s) { timeSamplingFreq = (double)s; }
-    void            resetSampling(int i=10) { maxTimeSamples = i; }
-    bool update(bool bContinueToRender)
-    {
-#ifdef WIN32
-        bool updated = false;
-        int totalSamples;
-        totalSamples = (bContinueToRender || bNonStopRendering) ? maxTimeSamples : timing_counter;
+  bool   bNonStopRendering;
+  int    renderCnt;
+  double start_time, end_time;
+  int    timing_counter;
+  int    maxTimeSamples;
+  int    frameFPS;
+  double frameDT;
+  TimeSampler()
+  {
+    bNonStopRendering = true;
+    renderCnt         = 1;
+    timing_counter    = 0;
+    maxTimeSamples    = 60;
+    frameDT           = 1.0 / 60.0;
+    frameFPS          = 0;
+    start_time = end_time = getTime();
+  }
+  inline double getTime()
+  {
+    auto now(std::chrono::system_clock::now());
+    auto duration = now.time_since_epoch();
+    return std::chrono::duration_cast<std::chrono::microseconds>(duration).count() / 1000.0;
+  }
+  inline double getFrameDT() { return frameDT; }
+  inline int    getFPS() { return frameFPS; }
+  void          resetSampling(int i = 10) { maxTimeSamples = i; }
+  bool          update(bool bContinueToRender, bool* glitch = nullptr)
+  {
+    if(glitch)
+      *glitch = false;
+    bool updated = false;
 
-        // avoid extreme situations
-	    #define MINDT (1.0/2000.0)
-	    if(frameDT < MINDT)
-        {
-	    	frameDT = MINDT;
-            totalSamples = timing_counter;
-        }
 
-        if((timing_counter >= totalSamples) && (totalSamples > 0))
-        {
-            timing_counter = 0;
-            QueryPerformanceCounter(&end_time);
-            QueryPerformanceFrequency(&freq);
-            frameDT = (((double)end_time.QuadPart) - ((double)start_time.QuadPart))/((double)freq.QuadPart);
-            frameDT /= totalSamples;
-			//#define MINDT (1.0/60.0)
-			//#define MAXDT (1.0/3000.0)
-			//if(frameDT < MINDT)
-			//	frameDT = MINDT;
-			//else if(frameDT > MAXDT)
-			//	frameDT = MAXDT;
-            frameFPS = (int)(1.0/frameDT);
-            // update the amount of samples to average, depending on the speed of the scene
-            maxTimeSamples = (int)(0.15/(frameDT));
-            if(maxTimeSamples == 0)
-                maxTimeSamples = 10; // just to avoid 0...
-            //else if(maxTimeSamples > 200)
-            //    maxTimeSamples = 200;
-            updated = true;
-        }
-        if(bContinueToRender || bNonStopRendering)
-        {
-            if(timing_counter == 0)
-                QueryPerformanceCounter(&start_time);
-            timing_counter++;
-        }
-        return updated;
-#else
-	// Linux/OSX etc. TODO
-	return true;
-#endif
+    if((timing_counter >= maxTimeSamples) && (maxTimeSamples > 0))
+    {
+      timing_counter = 0;
+      end_time       = getTime();
+      frameDT        = (end_time - start_time) / 1000.0;
+      // Linux/OSX etc. TODO
+      frameDT /= maxTimeSamples;
+#define MAXDT (1.0 / 40.0)
+#define MINDT (1.0 / 3000.0)
+      if(frameDT < MINDT)
+      {
+        frameDT = MINDT;
+      }
+      else if(frameDT > MAXDT)
+      {
+        frameDT = MAXDT;
+        if(glitch)
+          *glitch = true;
+      }
+      frameFPS = (int)(1.0 / frameDT);
+      // update the amount of samples to average, depending on the speed of the scene
+      maxTimeSamples = (int)(0.15 / (frameDT));
+      if(maxTimeSamples > 50)
+        maxTimeSamples = 50;
+      updated = true;
     }
+    if(bContinueToRender || bNonStopRendering)
+    {
+      if(timing_counter == 0)
+        start_time = getTime();
+      timing_counter++;
+    }
+    return updated;
+    return true;
+  }
 };

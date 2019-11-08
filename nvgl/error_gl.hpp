@@ -25,20 +25,34 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
  
-#ifndef NV_ERROR_INCLUDED
-#define NV_ERROR_INCLUDED
+#ifndef NVGL_ERROR_INCLUDED
+#define NVGL_ERROR_INCLUDED
 
 #include <include_gl.h>
 #include <string>
+#include <vector>
 
 #include <nvh/nvprint.hpp>
 
+/**
+  # functions in nvgl
+
+  Several utility functions that aid debugging. Check if all bindings
+  are cleared, framebuffer complete etc.
+*/
+
 namespace nvgl
 {
+  // tests if version is available
   bool checkGLVersion(GLint MajorVersionRequire, GLint MinorVersionRequire);
+
+  // tests if extension string is available
   bool checkExtension(char const * String);
 
+  // tests against any gl error
   bool checkError(const char* Title);
+
+  // tests for framebuffer incompleteness, also prints errors
   bool checkNamedFramebuffer(GLuint fbo);
 
   enum CheckBindingBits {
@@ -55,263 +69,72 @@ namespace nvgl
   };
 
 #ifndef NDEBUG
-  #define DBG_CHECKBINDINGS(bindingBits)   checkBindings(bindingBits, __FILE__, __LINE__);
+  #define DBG_CHECKBINDINGS(bindingBits)   nvgl::checkBindings(bindingBits, __FILE__, __LINE__);
 #else
   #define DBG_CHECKBINDINGS(bindingBits)
 #endif
 
+  // tests if the bindings specified by the bits are set to 0
   bool checkBindings(int bindingBits, const char* marker = NULL, int num=0);
 
-}
-
-//////////////////////////////////////////////////////////////////////////
-
-namespace nvgl
-{
+  // tests if the texture has the expected target
+  bool checkTextureTarget(GLuint texture, GLenum target);
+  bool checkTextureTarget(GLuint texture, GLenum target, const char* name, const char* marker = NULL, int num = 0);
 
 
-  inline bool checkNamedFramebuffer(GLuint fbo)
-  {
-    GLenum status = glCheckNamedFramebufferStatus(fbo, GL_FRAMEBUFFER);
-    switch (status)
+  /**
+    # template class nvgl::CheckBufferContent
+    Utility wrapper to downlad buffer data into a temp vector for debugging
+  */
+  template<class T>
+  class CheckBufferContent {
+  public:
+    std::vector<T>  content;
+
+    CheckBufferContent(GLuint buffer, size_t offset, size_t size)
     {
-    case GL_FRAMEBUFFER_UNDEFINED:
-      LOGE("OpenGL Error(%s)\n", "GL_FRAMEBUFFER_UNDEFINED");
-      break;
-    case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
-      LOGE("OpenGL Error(%s)\n", "GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT");
-      break;
-    case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
-      LOGE("OpenGL Error(%s)\n", "GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT");
-      break;
-    case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER:
-      LOGE("OpenGL Error(%s)\n", "GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER");
-      break;
-    case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER:
-      LOGE("OpenGL Error(%s)\n", "GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER");
-      break;
-    case GL_FRAMEBUFFER_UNSUPPORTED:
-      LOGE("OpenGL Error(%s)\n", "GL_FRAMEBUFFER_UNSUPPORTED");
-      break;
-    case GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE:
-      LOGE("OpenGL Error(%s)\n", "GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE");
-      break;
-    case GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS:
-      LOGE("OpenGL Error(%s)\n", "GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS");
-      break;
+      size_t elements = size / sizeof(T);
+      content.resize(elements);
+      glGetNamedBufferSubData(buffer, offset, elements * sizeof(T), content.data());
+      elements = elements;
+    }
+  };
+
+  /**
+    # class nvgl::CheckBufferResidency
+    Utility class to test if a certain gpu address is coming from
+    a resident buffer. Register the address of buffers in advance.
+  */
+  class CheckBufferResidency {
+  public:
+    void addAddress(uint64_t address, uint64_t size);
+    void removeAddress(uint64_t address);
+    bool checkAddress(uint64_t address);
+    size_t getEntryNum() const {
+      return m_entries.size();
     }
 
-    return status != GL_FRAMEBUFFER_COMPLETE;
-  }
+  private:
+    struct Entry {
+      uint64_t address;
+      uint64_t size;
 
-  inline bool checkGLVersion(GLint MajorVersionRequire, GLint MinorVersionRequire)
-  {
-    GLint MajorVersionContext = 0;
-    GLint MinorVersionContext = 0;
-    glGetIntegerv(GL_MAJOR_VERSION, &MajorVersionContext);
-    glGetIntegerv(GL_MINOR_VERSION, &MinorVersionContext);
-    return (MajorVersionContext * 100 +  MinorVersionContext * 10) 
-      >= (MajorVersionRequire* 100 + MinorVersionRequire * 10);
-  }
+      Entry() {}
+      Entry(uint64_t address, uint64_t size=0) : address(address) , size(size) {}
+    };
 
-  inline bool checkExtension(char const * String)
-  {
-    GLint ExtensionCount = 0;
-    glGetIntegerv(GL_NUM_EXTENSIONS, &ExtensionCount);
-    for(GLint i = 0; i < ExtensionCount; ++i)
-      if(std::string((char const*)glGetStringi(GL_EXTENSIONS, i)) == std::string(String))
-        return true;
-    return false;
-  }
+    size_t find(uint64_t address);
 
-  inline bool checkError(const char* Title)
-  {
-    int Error;
-    if((Error = glGetError()) != GL_NO_ERROR)
+    static bool Entry_compare(const Entry& a, const Entry& b)
     {
-      std::string ErrorString;
-      switch(Error)
-      {
-      case GL_INVALID_ENUM:
-        ErrorString = "GL_INVALID_ENUM";
-        break;
-      case GL_INVALID_VALUE:
-        ErrorString = "GL_INVALID_VALUE";
-        break;
-      case GL_INVALID_OPERATION:
-        ErrorString = "GL_INVALID_OPERATION";
-        break;
-      case GL_INVALID_FRAMEBUFFER_OPERATION:
-        ErrorString = "GL_INVALID_FRAMEBUFFER_OPERATION";
-        break;
-      case GL_OUT_OF_MEMORY:
-        ErrorString = "GL_OUT_OF_MEMORY";
-        break;
-      default:
-        ErrorString = "UNKNOWN";
-        break;
-      }
-      LOGE("OpenGL Error(%s): %s\n", ErrorString.c_str(), Title);
-    }
-    return Error == GL_NO_ERROR;
-  }
-
-  bool checkBindings(int bindingBits, const char* marker, int num)
-  {
-    bool bound = false;
-    GLint obj = 0;
-
-#define GLERRCHECKBOUND( name, obj )   \
-      glGetIntegerv(name, (obj)); \
-      if(*(obj)) { \
-        bound = true; \
-        LOGW("OpenGL bound: %s\n", #name); \
-      }
-
-#define GLERRCHECKBOUNDFN( fn, what, obj )   \
-      fn; \
-      if(*(obj)) { \
-        bound = true; \
-        LOGW("OpenGL bound: %s\n", what); \
-      }
-
-#define GLERRCHECKBOUNDUNIT( i, name, obj )   \
-      glGetIntegerv(name, (obj)); \
-      if(*(obj)) { \
-        bound = true; \
-        LOGW("OpenGL bound: %s %d\n", #name, i); \
-      }
-
-#define GLERRCHECKBOUNDINDEXED(name, i, obj) \
-    glGetIntegeri_v( name, i, (obj) ); \
-    if (*(obj)) { \
-      bound = true; \
-      LOGW("OpenGL bound: %s %d\n", #name, i); \
+      return a.address < b.address;
     }
 
-    if (bindingBits & CHECKBINDING_VAO_BIT){
-      GLERRCHECKBOUND( GL_VERTEX_ARRAY_BINDING, &obj );
-    }
-    if (bindingBits & CHECKBINDING_FBO_BIT){
-      GLERRCHECKBOUND( GL_DRAW_FRAMEBUFFER_BINDING, &obj );
-      GLERRCHECKBOUND( GL_READ_FRAMEBUFFER_BINDING, &obj );
-    }
-    if (bindingBits & CHECKBINDING_PROGRAM_BIT){
-      GLERRCHECKBOUND( GL_CURRENT_PROGRAM, &obj );
-      GLERRCHECKBOUND( GL_PROGRAM_PIPELINE_BINDING, &obj );
-    }
-    if (bindingBits & CHECKBINDING_IMAGES_BIT){
-      GLint units;
-      glGetIntegerv(GL_MAX_IMAGE_UNITS, &units);
-      for (int i = 0; i < units; i++){
-        GLERRCHECKBOUNDINDEXED(GL_IMAGE_BINDING_NAME, i, &obj);
-      }
-    }
-    if (bindingBits & CHECKBINDING_BUFFERS_BIT){
-      GLERRCHECKBOUND(GL_ARRAY_BUFFER_BINDING, &obj);
-      GLERRCHECKBOUND(GL_ELEMENT_ARRAY_BUFFER_BINDING, &obj);
-      GLERRCHECKBOUND(GL_PIXEL_PACK_BUFFER_BINDING, &obj);
-      GLERRCHECKBOUND(GL_PIXEL_UNPACK_BUFFER_BINDING, &obj);
-      GLERRCHECKBOUND(GL_UNIFORM_BUFFER_BINDING, &obj);
-      GLERRCHECKBOUND(GL_TRANSFORM_FEEDBACK_BINDING, &obj);
-      GLERRCHECKBOUND(GL_SHADER_STORAGE_BUFFER_BINDING, &obj);
-      GLERRCHECKBOUND(GL_ATOMIC_COUNTER_BUFFER_BINDING, &obj);
-      GLERRCHECKBOUND(GL_TEXTURE_BUFFER_BINDING, &obj);
-      GLERRCHECKBOUND(GL_COPY_READ_BUFFER_BINDING, &obj);
-      GLERRCHECKBOUND(GL_COPY_WRITE_BUFFER_BINDING, &obj);
+    void sort();
 
-      GLint units;
-      glGetIntegerv( GL_MAX_VERTEX_ATTRIB_BINDINGS, &units );
-      for (int i = 0; i < units; i++){
-        GLERRCHECKBOUNDINDEXED(GL_VERTEX_BINDING_BUFFER, i, &obj);
-      }
-
-      glGetIntegerv( GL_MAX_UNIFORM_BUFFER_BINDINGS, &units );
-      for (int i = 0; i < units; i++){
-        GLERRCHECKBOUNDINDEXED( GL_UNIFORM_BUFFER_BINDING, i, &obj );
-      }
-
-      glGetIntegerv( GL_MAX_TRANSFORM_FEEDBACK_BUFFERS, &units );
-      for (int i = 0; i < units; i++){
-        GLERRCHECKBOUNDINDEXED( GL_TRANSFORM_FEEDBACK_BUFFER_BINDING, i, &obj );
-      }
-
-      glGetIntegerv( GL_MAX_SHADER_STORAGE_BUFFER_BINDINGS, &units );
-      for (int i = 0; i < units; i++){
-        GLERRCHECKBOUNDINDEXED( GL_SHADER_STORAGE_BUFFER_BINDING, i, &obj );
-      }
-
-      glGetIntegerv( GL_MAX_ATOMIC_COUNTER_BUFFER_BINDINGS, &units );
-      for (int i = 0; i < units; i++){
-        GLERRCHECKBOUNDINDEXED( GL_ATOMIC_COUNTER_BUFFER_BINDING, i, &obj );
-      }
-    }
-
-    
-    if (bindingBits & (CHECKBINDING_TEXTURES_BIT | CHECKBINDING_SAMPLERS_BIT)){
-      GLint currentUnit;
-      GLint units;
-
-      glGetIntegerv(GL_ACTIVE_TEXTURE, &currentUnit);
-      glGetIntegerv( GL_MAX_TEXTURE_IMAGE_UNITS, &units );
-
-      for (int i = 0; i < units; i++){
-        glActiveTexture( GL_TEXTURE0 + i );
-        if (bindingBits & CHECKBINDING_TEXTURES_BIT){
-          GLERRCHECKBOUNDUNIT( i, GL_TEXTURE_BINDING_1D, &obj );
-          GLERRCHECKBOUNDUNIT( i, GL_TEXTURE_BINDING_2D, &obj );
-          GLERRCHECKBOUNDUNIT( i, GL_TEXTURE_BINDING_3D, &obj );
-          GLERRCHECKBOUNDUNIT( i, GL_TEXTURE_BINDING_1D_ARRAY, &obj );
-          GLERRCHECKBOUNDUNIT( i, GL_TEXTURE_BINDING_2D_ARRAY, &obj );
-          GLERRCHECKBOUNDUNIT( i, GL_TEXTURE_BINDING_CUBE_MAP, &obj );
-          GLERRCHECKBOUNDUNIT( i, GL_TEXTURE_BINDING_CUBE_MAP_ARRAY, &obj );
-          GLERRCHECKBOUNDUNIT( i, GL_TEXTURE_BINDING_2D_MULTISAMPLE, &obj );
-          GLERRCHECKBOUNDUNIT( i, GL_TEXTURE_BINDING_2D_MULTISAMPLE_ARRAY, &obj );
-          GLERRCHECKBOUNDUNIT( i, GL_TEXTURE_BINDING_CUBE_MAP, &obj );
-          GLERRCHECKBOUNDUNIT( i, GL_TEXTURE_BINDING_CUBE_MAP_ARRAY, &obj );
-          GLERRCHECKBOUNDUNIT( i, GL_TEXTURE_BINDING_BUFFER, &obj );
-          GLERRCHECKBOUNDUNIT( i, GL_TEXTURE_BINDING_RECTANGLE, &obj );
-        }
-        if (bindingBits & CHECKBINDING_SAMPLERS_BIT){
-          GLERRCHECKBOUND( GL_SAMPLER_BINDING, &obj );
-        }
-      }
-
-      glActiveTexture(currentUnit);
-    }
-
-    if (bindingBits & CHECKBINDING_XFB_BIT){
-      GLERRCHECKBOUND( GL_TRANSFORM_FEEDBACK_BINDING, &obj );
-    }
-
-    if (bindingBits & CHECKBINDING_VATTRIBS_BIT){
-      GLint units;
-      glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &units);
-      GLint enabled;
-      for (int i = 0; i < units; i++){
-        glGetVertexAttribiv(i, GL_VERTEX_ATTRIB_ARRAY_ENABLED, &enabled);
-        if (enabled){
-          bound = true;
-          LOGW("OpenGL enabled: vertex %d\n", i);
-        }
-      }
-    }
-
-    if (bound){
-      if (marker){
-        LOGW("%s %d\n\n",marker,num);
-      }
-      else{
-        LOGW("\n");
-      }
-    }
-#undef GLERRCHECKBOUNDUNIT
-#undef GLERRCHECKBOUND
-#undef GLERRCHECKBOUNDINDEXED
-#undef GLERRCHECKBOUNDFN
-
-    return !bound;
-  }
+    bool                m_dirty;
+    std::vector<Entry>  m_entries;
+  };
 }
 
 

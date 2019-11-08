@@ -63,7 +63,7 @@ void ProfilerGL::deinit()
 }
 
 
-nvh::Profiler::SectionID ProfilerGL::beginSection(const char* name)
+nvh::Profiler::SectionID ProfilerGL::beginSection(const char* name, bool singleShot)
 {
   nvh::Profiler::gpuTimeProvider_fn fnProvider = [&](SectionID i, uint32_t queryFrame, double& gpuTime) 
   { 
@@ -90,15 +90,16 @@ nvh::Profiler::SectionID ProfilerGL::beginSection(const char* name)
     }
   };
 
-
-  SectionID slot = Profiler::beginSection(name, "GL ", fnProvider);
+  SectionID slot = Profiler::beginSection(name, "GL ", fnProvider, singleShot);
 
   if(m_queries.size() != getRequiredTimers())
   {
     resizeQueries();
   }
 
-  uint32_t idx  = getTimerIdx(slot, getSubFrame(), true);
+  glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, name);
+
+  uint32_t idx  = getTimerIdx(slot, getSubFrame(slot), true);
   glQueryCounter(m_queries[idx], GL_TIMESTAMP);
 
   return slot;
@@ -106,8 +107,9 @@ nvh::Profiler::SectionID ProfilerGL::beginSection(const char* name)
 
 void ProfilerGL::endSection(SectionID slot)
 {
-  uint32_t idx = getTimerIdx(slot, getSubFrame(), false);
+  uint32_t idx = getTimerIdx(slot, getSubFrame(slot), false);
   glQueryCounter(m_queries[idx], GL_TIMESTAMP);
+  glPopDebugGroup();
   Profiler::endSection(slot);
 }
 

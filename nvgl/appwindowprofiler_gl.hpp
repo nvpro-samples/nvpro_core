@@ -32,6 +32,21 @@
 #include "profiler_gl.hpp"
 #include "contextwindow_gl.hpp"
 
+//////////////////////////////////////////////////////////////////////////
+/**
+  # class nvgl::AppWindowProfilerGL
+
+  AppWindowProfilerGL derives from nvh::AppWindowProfiler
+  and overrides the context and swapbuffer functions.
+  
+  To influence the context creation modify
+  `m_contextInfo` prior running AppWindowProfiler::run,
+  which triggers window, and context creation etc.
+
+  The class comes with a nvgl::ProfilerGL instance that references the 
+  AppWindowProfiler::m_profiler's data.
+*/
+
 namespace nvgl
 {
 
@@ -57,8 +72,8 @@ namespace nvgl
       m_contextInfo.minor = 5;
     }
 
-    nvgl::ContextFlagsGL   m_contextInfo;
-    ContextWindowGL        m_contextWindow;
+    nvgl::ContextWindowCreateInfo   m_contextInfo;
+    ContextWindow        m_contextWindow;
     
     nvgl::ProfilerGL       m_profilerGL;
     
