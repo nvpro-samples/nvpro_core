@@ -157,5 +157,7 @@ private:
   VkQueryPool                  m_queryPool     = VK_NULL_HANDLE;
   uint32_t                     m_queryPoolSize = 0;
   float                        m_frequency     = 1.0f;
+  uint64_t                     m_queueFamilyMask = ~0;
+  
 };
 }  // namespace nvvk

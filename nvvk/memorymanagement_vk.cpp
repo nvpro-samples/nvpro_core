@@ -38,7 +38,8 @@ static VkExportMemoryAllocateInfo memoryHandleEx{VK_STRUCTURE_TYPE_MEMORY_ALLOCA
 bool getMemoryInfo(const VkPhysicalDeviceMemoryProperties& memoryProperties,
                    const VkMemoryRequirements&             memReqs,
                    VkMemoryPropertyFlags                   properties,
-                   VkMemoryAllocateInfo&                   memInfo)
+                   VkMemoryAllocateInfo&                   memInfo,
+                   bool                                    preferDevice)
 {
   memInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
   memInfo.pNext = nullptr;
@@ -54,7 +55,10 @@ bool getMemoryInfo(const VkPhysicalDeviceMemoryProperties& memoryProperties,
   for(uint32_t memoryTypeIndex = 0; memoryTypeIndex < memoryProperties.memoryTypeCount; ++memoryTypeIndex)
   {
     if((memReqs.memoryTypeBits & (1 << memoryTypeIndex))
-       && (memoryProperties.memoryTypes[memoryTypeIndex].propertyFlags & properties) == properties)
+       // either there is a propertyFlags that also includes the combinations
+       && ((properties && (memoryProperties.memoryTypes[memoryTypeIndex].propertyFlags & properties) == properties)
+           // or it directly matches the properties (zero case)
+           || (memoryProperties.memoryTypes[memoryTypeIndex].propertyFlags == properties)))
     {
       memInfo.allocationSize  = memReqs.size;
       memInfo.memoryTypeIndex = memoryTypeIndex;
@@ -66,7 +70,8 @@ bool getMemoryInfo(const VkPhysicalDeviceMemoryProperties& memoryProperties,
   if(properties == 0)
   {
     // prefer something with host visible
-    return getMemoryInfo(memoryProperties, memReqs, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, memInfo);
+    return getMemoryInfo(memoryProperties, memReqs,
+                         preferDevice ? VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT : VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, memInfo);
   }
 
   return false;
@@ -211,7 +216,7 @@ void DeviceMemoryAllocator::nvprintReport() const
       uint32_t heapIndex = m_memoryProperties.memoryTypes[block.memoryTypeIndex].heapIndex;
       used[heapIndex] += block.usedSize;
       allocated[heapIndex] += block.allocationSize;
-      
+
       active[heapIndex]++;
       linear[heapIndex] += block.isLinear ? 1 : 0;
       dedicated[heapIndex] += block.isDedicated ? 1 : 0;
@@ -268,16 +273,17 @@ const VkPhysicalDeviceMemoryProperties& DeviceMemoryAllocator::getMemoryProperti
   return m_memoryProperties;
 }
 
-AllocationID DeviceMemoryAllocator::alloc(const VkMemoryRequirements&          memReqs,
-                                          VkMemoryPropertyFlags                memProps,
-                                          bool                                 isLinear,
-                                          const VkMemoryDedicatedAllocateInfo* dedicated,
-                                          VkResult&                            result)
+AllocationID DeviceMemoryAllocator::allocInternal(const VkMemoryRequirements&          memReqs,
+                                                  VkMemoryPropertyFlags                memProps,
+                                                  bool                                 isLinear,
+                                                  const VkMemoryDedicatedAllocateInfo* dedicated,
+                                                  VkResult&                            result,
+                                                  bool                                 preferDevice)
 {
   VkMemoryAllocateInfo memInfo;
 
   // Fill out allocation info structure
-  if(memReqs.size > m_maxAllocationSize || !getMemoryInfo(m_memoryProperties, memReqs, memProps, memInfo))
+  if(memReqs.size > m_maxAllocationSize || !getMemoryInfo(m_memoryProperties, memReqs, memProps, memInfo, preferDevice))
   {
     result = VK_ERROR_OUT_OF_DEVICE_MEMORY;
     return AllocationID();
@@ -369,7 +375,7 @@ AllocationID DeviceMemoryAllocator::alloc(const VkMemoryRequirements&          m
   block.priority        = priority;
   block.memoryTypeIndex = memInfo.memoryTypeIndex;
   block.range.init((uint32_t)block.allocationSize);
-  block.isLinear = isLinear;
+  block.isLinear    = isLinear;
   block.isDedicated = dedicated != nullptr;
 
   result = allocBlockMemory(id, memInfo, block.mem);
@@ -407,11 +413,12 @@ AllocationID DeviceMemoryAllocator::alloc(const VkMemoryRequirements&          m
     m_freeBlockIndex = block.id.instantiate(m_freeBlockIndex);
     m_activeBlockCount--;
 
-    if(result == VK_ERROR_OUT_OF_DEVICE_MEMORY && memProps == VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+    if(result == VK_ERROR_OUT_OF_DEVICE_MEMORY
+       && ((memProps == VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) || (memProps == 0 && preferDevice)))
     {
-      // downgrade memory property to zero
+      // downgrade memory property to zero and/or not preferDevice
       LOGW("downgrade memory\n");
-      return alloc(memReqs, 0, isLinear, dedicated, result);
+      return allocInternal(memReqs, 0, isLinear, dedicated, result, !preferDevice);
     }
     else
     {

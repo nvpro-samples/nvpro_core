@@ -65,7 +65,8 @@ namespace nvvk {
 bool getMemoryInfo(const VkPhysicalDeviceMemoryProperties& memoryProperties,
                    const VkMemoryRequirements&             memReqs,
                    VkMemoryPropertyFlags                   properties,
-                   VkMemoryAllocateInfo&                   memInfo);
+                   VkMemoryAllocateInfo&                   memInfo,
+                   bool preferDevice = true);  // special case if zero properties are unsupported, otherwise use host
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -205,7 +206,7 @@ public:
   // get utilization of block allocations
   float getUtilization(VkDeviceSize& allocatedSize, VkDeviceSize& usedSize) const;
   // get total amount of active blocks / VkDeviceMemory allocations
-  uint32_t getActiveBlockCount() const {return m_activeBlockCount; }
+  uint32_t getActiveBlockCount() const { return m_activeBlockCount; }
 
   // dump detailed stats via nvprintfLevel(LOGLEVEL_INFO
   void nvprintReport() const;
@@ -235,7 +236,10 @@ public:
                      VkMemoryPropertyFlags       memProps,
                      bool                        isLinear,  // buffers are linear, optimal tiling textures are not
                      const VkMemoryDedicatedAllocateInfo* dedicated,
-                     VkResult&                            result);
+                     VkResult&                            result)
+  {
+    return allocInternal(memReqs, memProps, isLinear, dedicated, result, true);
+  }
 
   AllocationID alloc(const VkMemoryRequirements& memReqs,
                      VkMemoryPropertyFlags       memProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
@@ -243,7 +247,7 @@ public:
                      const VkMemoryDedicatedAllocateInfo* dedicated = nullptr)
   {
     VkResult result;
-    return alloc(memReqs, memProps, isLinear, dedicated, result);
+    return allocInternal(memReqs, memProps, isLinear, dedicated, result, true);
   }
 
   // unless you use the freeAll mechanism, each allocation must be freed individually
@@ -382,7 +386,7 @@ protected:
   // linked-list to next free allocation
   uint32_t m_freeAllocationIndex = INVALID_ID_INDEX;
   // linked-list to next free block
-  uint32_t m_freeBlockIndex = INVALID_ID_INDEX;
+  uint32_t m_freeBlockIndex   = INVALID_ID_INDEX;
   uint32_t m_activeBlockCount = 0;
 
   VkPhysicalDeviceMemoryProperties m_memoryProperties;
@@ -393,6 +397,13 @@ protected:
   VkBufferUsageFlags m_defaultBufferUsageFlags  = 0;
   bool               m_forceDedicatedAllocation = false;
   bool               m_supportsPriority         = false;
+
+  AllocationID allocInternal(const VkMemoryRequirements& memReqs,
+                             VkMemoryPropertyFlags       memProps,
+                             bool isLinear,  // buffers are linear, optimal tiling textures are not
+                             const VkMemoryDedicatedAllocateInfo* dedicated,
+                             VkResult&                            result,
+                             bool                                 preferDevice);
 
   AllocationID createID(Allocation& allocation, BlockID block, uint32_t blockOffset, uint32_t blockSize);
   void         destroyID(AllocationID id);
@@ -716,8 +727,8 @@ protected:
   VkResult allocBlockMemory(BlockID id, VkDeviceSize size, bool toDevice, Block& block) override
   {
     VkResult result;
-    float priority = m_memAllocator->setPriority();
-    block.buffer = m_memAllocator->createBuffer(
+    float    priority = m_memAllocator->setPriority();
+    block.buffer      = m_memAllocator->createBuffer(
         size, toDevice ? VK_BUFFER_USAGE_TRANSFER_SRC_BIT : VK_BUFFER_USAGE_TRANSFER_DST_BIT, m_blockAllocs[id.index],
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | (toDevice ? VK_MEMORY_PROPERTY_HOST_COHERENT_BIT : VK_MEMORY_PROPERTY_HOST_CACHED_BIT),
         result);

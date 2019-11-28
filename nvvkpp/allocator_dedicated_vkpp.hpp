@@ -29,9 +29,6 @@
 #include <vulkan/vulkan.hpp>
 
 #include "images_vkpp.hpp"
-#include "utilities_vkpp.hpp"
-#include <basetsd.h>
-#include <vk_mem_alloc.h>
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -295,14 +292,14 @@ public:
 
   //--------------------------------------------------------------------------------------------------
   // Flushing staging buffers, must be done after the command buffer is submitted
-  void flushStaging()
+  void flushStaging(vk::Fence fence = vk::Fence())
   {
-    for(auto& st : m_stagingBuffers)
+    if(!m_stagingBuffers.empty())
     {
-      m_device.destroyBuffer(st.buffer);
-      m_device.freeMemory(st.allocation);
+      m_garbageBuffers.push_back({fence, m_stagingBuffers});
+      m_stagingBuffers.clear();
     }
-    m_stagingBuffers.clear();
+    cleanGarbage();
   }
 
 
@@ -372,12 +369,45 @@ protected:
     return ~0u;
   }
 
+  // Clean all staging buffers, only if the associated fence is set to ready
+  void cleanGarbage()
+  {
+    auto s = m_garbageBuffers.begin();  // Loop over all garbage
+    while(s != m_garbageBuffers.end())
+    {
+      vk::Result result = vk::Result ::eSuccess;
+      if(s->fence)  // Could be that no fence was set
+        result = m_device.getFenceStatus(s->fence);
+      if(result == vk::Result::eSuccess)
+      {
+        for(auto& st : s->stagingBuffers)
+        {  // Delete all buffers and free up memory
+          m_device.destroy(st.buffer);
+          m_device.free(st.allocation);
+        }
+        s = m_garbageBuffers.erase(s);  // Done with it
+      }
+      else
+      {
+        ++s;
+      }
+    }
+  }
+
+
+  struct GarbageCollection
+  {
+    vk::Fence                    fence;
+    std::vector<BufferDedicated> stagingBuffers;
+  };
+  std::vector<GarbageCollection> m_garbageBuffers;
+
 
   vk::Device                         m_device;
   vk::PhysicalDevice                 m_physicalDevice;
   vk::PhysicalDeviceMemoryProperties m_memoryProperties;
   std::vector<BufferDedicated>       m_stagingBuffers;
-};
+};  // namespace nvvkpp
 
 //--------------------------------------------------------------------------------------------------
 // This class will export all memory allocations, to be used by OpenGL and Cuda Interop

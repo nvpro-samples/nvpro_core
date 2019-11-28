@@ -272,7 +272,9 @@ public:
   {
     m_device.destroyImageView(t_.descriptor.imageView);
     m_device.destroySampler(t_.descriptor.sampler);
-    destroy(static_cast<ImageDma>(t_));
+    m_device.destroyImage(t_.image);
+    if(t_.allocation)
+      m_allocator->free(t_.allocation);
   }
 
   void destroy(AccelerationDma& a_)

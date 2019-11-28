@@ -396,7 +396,7 @@ public:
   //
   void setViewport(const vk::CommandBuffer& cmdBuf)
   {
-    cmdBuf.setViewport(0, {vk::Viewport(0, 0, m_size.width, m_size.height, 0, 1)});
+    cmdBuf.setViewport(0, {vk::Viewport(0.0f, 0.0f, static_cast<float>(m_size.width), static_cast<float>(m_size.height), 0.0f, 1.0f)});
     cmdBuf.setScissor(0, {{{0, 0}, {m_size.width, m_size.height}}});
   }
 
@@ -418,7 +418,7 @@ public:
 
     // Update imgui and camera
     auto& imgui_io       = ImGui::GetIO();
-    imgui_io.DisplaySize = ImVec2(w, h);
+    imgui_io.DisplaySize = ImVec2(static_cast<float>(w), static_cast<float>(h));
     CameraManip.setWindowSize(w, h);
 
     m_device.waitIdle();

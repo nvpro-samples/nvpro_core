@@ -25,10 +25,9 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "error_vk.hpp"
 #include "profiler_vk.hpp"
+#include "error_vk.hpp"
 #include <assert.h>
-
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -37,12 +36,29 @@ namespace nvvk {
 
 void ProfilerVK::init(VkDevice device, VkPhysicalDevice physicalDevice)
 {
-  m_device     = device;
+  m_device = device;
 
   VkPhysicalDeviceProperties properties;
   vkGetPhysicalDeviceProperties(physicalDevice, &properties);
 
   m_frequency = properties.limits.timestampPeriod;
+
+  std::vector<VkQueueFamilyProperties> queueProperties;
+  uint32_t                             queueFamilyCount = 0;
+  vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, nullptr);
+  queueProperties.resize(queueFamilyCount);
+  vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, queueProperties.data());
+  
+  uint32_t validBits = queueProperties[0].timestampValidBits;
+  m_queueFamilyMask = validBits == 64 ?
+                                uint64_t(-1) :
+                                ((uint64_t(1) << validBits) - uint64_t(1));
+
+  for(uint32_t i = 1; i < queueFamilyCount; i++)
+  {
+    // no vendor seems to have queue specific validBits so far
+    assert(queueProperties[i].timestampValidBits == validBits);
+  }
 
   resize();
 }
@@ -68,7 +84,8 @@ void ProfilerVK::resize()
     // not exactly efficient, but when timers changed a lot, we have a slow frame anyway
     // cleaner would be allocating more pools
     VkResult result = vkDeviceWaitIdle(m_device);
-    if (nvvk::checkResult(result, __FILE__, __LINE__)) {
+    if(nvvk::checkResult(result, __FILE__, __LINE__))
+    {
       exit(-1);
     }
     vkDestroyQueryPool(m_device, m_queryPool, nullptr);
@@ -102,12 +119,14 @@ nvh::Profiler::SectionID ProfilerVK::beginSection(const char* name, VkCommandBuf
     vkCmdDebugMarkerBeginEXT(cmd, &marker);
   }
 
-  uint32_t idx = getTimerIdx(slot, getSubFrame(slot), true);
+  uint32_t idx         = getTimerIdx(slot, getSubFrame(slot), true);
 
-  if (useHostReset){
+  if(useHostReset || true)
+  {
     vkResetQueryPoolEXT(m_device, m_queryPool, idx, 2);
   }
-  else {
+  else
+  {
     // not ideal to do this per query
     vkCmdResetQueryPool(cmd, m_queryPool, idx, 2);
   }
@@ -132,11 +151,11 @@ void ProfilerVK::endSection(SectionID slot, VkCommandBuffer cmd)
 bool ProfilerVK::getSectionTime(SectionID i, uint32_t queryFrame, double& gpuTime)
 {
   bool     isRecurring = isSectionRecurring(i);
-  uint32_t idxBegin = getTimerIdx(i, queryFrame, true);
-  uint32_t idxEnd   = getTimerIdx(i, queryFrame, false);
+  uint32_t idxBegin    = getTimerIdx(i, queryFrame, true);
+  uint32_t idxEnd      = getTimerIdx(i, queryFrame, false);
 
   uint64_t times[2];
-  VkResult result = vkGetQueryPoolResults(m_device, m_queryPool, idxBegin, 2, sizeof(uint64_t) * 2, times, 0,
+  VkResult result = vkGetQueryPoolResults(m_device, m_queryPool, idxBegin, 2, sizeof(uint64_t) * 2, times, sizeof(uint64_t),
                                           VK_QUERY_RESULT_64_BIT | (isRecurring ? VK_QUERY_RESULT_WAIT_BIT : 0));
   // validation layer bug, complains if VK_QUERY_RESULT_WAIT_BIT is not provided, even if we wait
   // through another fence for the buffer containing the problem
@@ -144,7 +163,8 @@ bool ProfilerVK::getSectionTime(SectionID i, uint32_t queryFrame, double& gpuTim
 
   if(result == VK_SUCCESS)
   {
-    gpuTime = (double(times[1] - times[0]) * double(m_frequency)) / double(1000);
+    uint64_t mask = m_queueFamilyMask;
+    gpuTime       = (double((times[1] & mask) - (times[0] & mask)) * double(m_frequency)) / double(1000);
     return true;
   }
   else

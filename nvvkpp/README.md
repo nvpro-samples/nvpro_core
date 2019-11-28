@@ -418,6 +418,25 @@ pipelineGenerator.vertexInputState.attributeDescriptions = {
 m_pipeline = pipelineGenerator.create();
 ~~~~
 
+## raytrace_vkpp.hpp
+
+Base functionality of raytracing
+
+This class does not implement all what you need to do raytracing, but
+helps creating the BLAS and TLAS, which then can be used by different
+raytracing usage.
+
+### Setup and Usage
+~~~~ C++
+m_rtBuilder.setup(device, memoryAllocator, queueIndex);
+// Create array of vk::GeometryNV 
+m_rtBuilder.buildBlas(allBlas);
+// Create array of RaytracingBuilder::instance
+m_rtBuilder.buildTlas(instances);
+// Retrieve the acceleration structure
+const vk::AccelerationStructureNV& tlas = m.rtBuilder.getAccelerationStructure() 
+~~~~
+
 ## renderpass_vkpp.hpp
 
 Simple creation of render passes

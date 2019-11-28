@@ -27,6 +27,7 @@
 
 #include <nvgl/contextwindow_gl.hpp>
 #include <nvgl/extensions_gl.hpp>
+#include <nvgl/error_gl.hpp>
 
 #ifdef WIN32
   #define GLFW_EXPOSE_NATIVE_WIN32
@@ -333,6 +334,13 @@ namespace nvgl {
           int *p = &(attribList[0]);
         if (!(hRC = fn_wglCreateContextAttribsARB(hdcContext, 0, p)))
         {
+          GLint MajorVersionContext = 0;
+          GLint MinorVersionContext = 0;
+          glGetIntegerv(GL_MAJOR_VERSION, &MajorVersionContext);
+          glGetIntegerv(GL_MINOR_VERSION, &MinorVersionContext);
+          if((MajorVersionContext * 100 + MinorVersionContext * 10) < (maj * 100 + min * 10)) {
+            LOGE("OpenGL version %d.%d not available. Only %d.%d found\n", maj, min, MajorVersionContext, MinorVersionContext);
+          }
           LOGE("wglCreateContextAttribsARB() failed for OpenGL context.\n");
           return false;
         }

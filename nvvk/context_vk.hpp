@@ -134,6 +134,7 @@ struct ContextCreateInfo
   EntryArray instanceLayers;
   EntryArray instanceExtensions;
   EntryArray deviceExtensions;
+  void* deviceCreateInfoExt = nullptr;
 };
 
 //////////////////////////////////////////////////////////////////////////

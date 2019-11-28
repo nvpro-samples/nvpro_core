@@ -442,7 +442,26 @@ bool Context::initDevice(uint32_t deviceIndex, const ContextCreateInfo& info)
     deviceCreateInfo.pNext                    = &deviceGroupCreateInfo;
   }
 
+  ExtensionHeader* deviceCreateChain = nullptr;
+  if (info.deviceCreateInfoExt) {
+    deviceCreateChain = (ExtensionHeader*)info.deviceCreateInfoExt;
+    while(deviceCreateChain->pNext != nullptr)
+    {
+      deviceCreateChain = (ExtensionHeader*)deviceCreateChain->pNext;
+    }
+    // override last of external chain
+    deviceCreateChain->pNext = (void*)deviceCreateInfo.pNext;
+    deviceCreateInfo.pNext = info.deviceCreateInfoExt;
+  }
+
   VkResult result = vkCreateDevice(m_physicalDevice, &deviceCreateInfo, nullptr, &m_device);
+
+  if (deviceCreateChain)
+  {
+    // reset last of external chain
+    deviceCreateChain->pNext = nullptr;
+  }
+
   if(result != VK_SUCCESS)
   {
     deinit();
