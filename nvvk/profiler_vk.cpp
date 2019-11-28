@@ -121,7 +121,7 @@ nvh::Profiler::SectionID ProfilerVK::beginSection(const char* name, VkCommandBuf
 
   uint32_t idx         = getTimerIdx(slot, getSubFrame(slot), true);
 
-  if(useHostReset || true)
+  if(useHostReset)
   {
     vkResetQueryPoolEXT(m_device, m_queryPool, idx, 2);
   }
