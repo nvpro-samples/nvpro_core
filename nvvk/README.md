@@ -616,7 +616,8 @@ allocation mechanism.
 
 > **WARNING** : The memory manager serves as proof of concept for some key concepts
 > however it is not meant for production use and it currently lacks de-fragmentation logic
-> as well.
+> as well. You may want to look at [VMA](https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator)
+> for a more production-focused solution.
 
 You can derive from this calls and overload the 
 

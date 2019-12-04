@@ -361,7 +361,7 @@ The **TRangeAllocator**<GRANULARITY> template allows to sub-allocate ranges from
 maximum size. **Ranges** are allocated at GRANULARITY and are merged back on freeing.
 Its primary use is within allocators that sub-allocate from fixed-size blocks.
 
-The implementation is based on [MakeID](http://www.humus.name/3D/MakeID.h).
+The implementation is based on [MakeID by Emil Persson](http://www.humus.name/3D/MakeID.h).
 
 Example :
 
@@ -384,7 +384,7 @@ uint32_t alignedOffset;
 
 if (range.subAllocate(size, alignment, allocOffset, alignedOffset, allocSize)) {
   ... use the allocation space
-  // [allocOffset + size] is guaranteed to be within [allocOffset + allocSize]
+  // [alignedOffset + size] is guaranteed to be within [allocOffset + allocSize]
 }
 
 // give back the memory range for re-use

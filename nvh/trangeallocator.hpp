@@ -30,6 +30,7 @@
 #include <algorithm>
 #include <assert.h>
 #include <stdint.h>
+#include <intrin.h>
 
 namespace nvh {
 
@@ -40,7 +41,7 @@ namespace nvh {
   maximum size. Ranges are allocated at GRANULARITY and are merged back on freeing.
   Its primary use is within allocators that sub-allocate from fixed-size blocks.
 
-  The implementation is based on [MakeID](http://www.humus.name/3D/MakeID.h).
+  The implementation is based on [MakeID by Emil Persson](http://www.humus.name/3D/MakeID.h).
 
   Example :
 
@@ -63,7 +64,7 @@ namespace nvh {
 
   if (range.subAllocate(size, alignment, allocOffset, alignedOffset, allocSize)) {
     ... use the allocation space
-    // [allocOffset + size] is guaranteed to be within [allocOffset + allocSize]
+    // [alignedOffset + size] is guaranteed to be within [allocOffset + allocSize]
   }
 
   // give back the memory range for re-use
@@ -76,6 +77,7 @@ namespace nvh {
   ~~~
 */
 
+// GRANULARITY must be power of two
 template <uint32_t GRANULARITY = 256>
 class TRangeAllocator
 {
@@ -89,9 +91,7 @@ public:
 
   ~TRangeAllocator() { deinit(); }
 
-  static uint32_t alignedSize(uint32_t size) {
-    return (size + GRANULARITY - 1) & (~(GRANULARITY - 1));
-  }
+  static uint32_t alignedSize(uint32_t size) { return (size + GRANULARITY - 1) & (~(GRANULARITY - 1)); }
 
   void init(uint32_t size)
   {
@@ -108,10 +108,11 @@ public:
 
   bool isAvailable(uint32_t size, uint32_t align) const
   {
-    uint32_t alignRest = align - 1;
+    uint32_t alignRest    = align - 1;
     uint32_t sizeReserved = size;
 
-    if (m_used >= m_size) {
+    if(m_used >= m_size)
+    {
       return false;
     }
 
@@ -126,17 +127,23 @@ public:
 
   bool subAllocate(uint32_t size, uint32_t align, uint32_t& outOffset, uint32_t& outAligned, uint32_t& outSize)
   {
-    uint32_t alignRest = align - 1;
+    uint32_t alignRest    = align - 1;
     uint32_t sizeReserved = size;
+#if (defined(NV_X86) || defined(NV_X64)) && defined(_MSC_VER)
+    bool alignIsPOT = __popcnt(align) == 1;
+#else
+    bool alignIsPOT = __builtin_popcount(align) == 1;
+#endif
 
-    if (m_used >= m_size) {
+    if(m_used >= m_size)
+    {
       outSize    = 0;
       outOffset  = 0;
       outAligned = 0;
       return false;
     }
 
-    if(m_used != 0 && align > GRANULARITY)
+    if(m_used != 0 && (alignIsPOT ? (align > GRANULARITY) : ((alignRest + size) > GRANULARITY)))
     {
       sizeReserved += alignRest;
     }
@@ -147,23 +154,39 @@ public:
     if(createRangeID(startID, countReserved))
     {
       outOffset  = startID * GRANULARITY;
-      outAligned = (outOffset + alignRest) & (~(alignRest));
+      outAligned = ((outOffset + alignRest) / align) * align;
+
+      // due to custom alignment, we may be able to give
+      // pages back that we over-allocated
+      //
+      // reserved:   [     |     |     |     ] (GRANULARITY spacing)
+      // used:                [      ]         (custom alignment/size)
+      // corrected:        [     |     ]       (GRANULARITY spacing)
+
+      // correct start (warning could yield more fragmentation)
+
+      uint32_t skipFront = (outAligned - outOffset) / GRANULARITY;
+      if(skipFront)
+      {
+        destroyRangeID(startID, skipFront);
+        outOffset += skipFront * GRANULARITY;
+        startID += skipFront;
+        countReserved -= skipFront;
+      }
+
       assert(outOffset <= outAligned);
 
-#if 0
-      outSize = countReserved * GRANULARITY;
-#else
+      // correct end
       uint32_t outLast = alignedSize(outAligned + size);
-      outSize    = outLast - outOffset;
+      outSize          = outLast - outOffset;
 
       uint32_t usedCount = outSize / GRANULARITY;
       assert(usedCount <= countReserved);
 
-      // give back memory that is unused
-      if (usedCount < countReserved) {
+      if(usedCount < countReserved)
+      {
         destroyRangeID(startID + usedCount, countReserved - usedCount);
       }
-#endif
 
       assert((outAligned + size) <= (outOffset + outSize));
 
@@ -234,10 +257,10 @@ public:
     m_size = other.m_size;
     m_used = other.m_used;
 
-    m_Ranges       = other.m_Ranges;
-    m_Count        = other.m_Count;
-    m_Capacity     = other.m_Capacity;
-    m_MaxID        = other.m_MaxID;
+    m_Ranges   = other.m_Ranges;
+    m_Count    = other.m_Count;
+    m_Capacity = other.m_Capacity;
+    m_MaxID    = other.m_MaxID;
 
     other.m_Ranges = nullptr;
 
@@ -249,10 +272,10 @@ public:
     m_size = other.m_size;
     m_used = other.m_used;
 
-    m_Ranges       = other.m_Ranges;
-    m_Count        = other.m_Count;
-    m_Capacity     = other.m_Capacity;
-    m_MaxID        = other.m_MaxID;
+    m_Ranges   = other.m_Ranges;
+    m_Count    = other.m_Count;
+    m_Capacity = other.m_Capacity;
+    m_MaxID    = other.m_MaxID;
 
     other.m_Ranges = nullptr;
   }
@@ -447,7 +470,7 @@ public:
 
   bool isRangeAvailable(uint32_t searchCount) const
   {
-    uint32_t i         = 0;
+    uint32_t i = 0;
     do
     {
       uint32_t count = m_Ranges[i].m_Last - m_Ranges[i].m_First + 1;
@@ -485,14 +508,16 @@ public:
 
   void checkRanges() const
   {
-    for (uint32_t i = 0; i < m_Count; i++) {
+    for(uint32_t i = 0; i < m_Count; i++)
+    {
       assert(m_Ranges[i].m_Last <= m_MaxID);
 
-      if (m_Ranges[i].m_First == m_Ranges[i].m_Last + 1) {
+      if(m_Ranges[i].m_First == m_Ranges[i].m_Last + 1)
+      {
         continue;
       }
       assert(m_Ranges[i].m_First <= m_Ranges[i].m_Last);
-      assert(m_Ranges[i].m_First <= m_MaxID);      
+      assert(m_Ranges[i].m_First <= m_MaxID);
     }
   }
 

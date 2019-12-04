@@ -131,7 +131,8 @@ public:
 
   > **WARNING** : The memory manager serves as proof of concept for some key concepts
   > however it is not meant for production use and it currently lacks de-fragmentation logic
-  > as well.
+  > as well. You may want to look at [VMA](https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator)
+  > for a more production-focused solution.
 
   You can derive from this calls and overload the 
 
@@ -320,6 +321,7 @@ public:
 
 protected:
   static const VkMemoryDedicatedAllocateInfo* DEDICATED_PROXY;
+  static int                                  s_allocDebugBias;
 
   struct BlockID
   {
@@ -352,6 +354,7 @@ protected:
     // a memory block is either fully linear, or non-linear
     bool  isLinear;
     bool  isDedicated;
+    bool  isFirst;  // first memory block of a type
     float priority;
 
     uint32_t memoryTypeIndex;
@@ -394,6 +397,9 @@ protected:
 
   float m_priority = DEFAULT_PRIORITY;
 
+  // heuristic that doesn't immediately free the first memory block of a kind
+  bool m_keepFirst = true;
+
   VkBufferUsageFlags m_defaultBufferUsageFlags  = 0;
   bool               m_forceDedicatedAllocation = false;
   bool               m_supportsPriority         = false;
@@ -428,10 +434,12 @@ protected:
 
   virtual VkResult allocBlockMemory(BlockID id, VkMemoryAllocateInfo& memInfo, VkDeviceMemory& deviceMemory)
   {
+    //s_allocDebugBias++;
     return vkAllocateMemory(m_device, &memInfo, nullptr, &deviceMemory);
   }
   virtual void freeBlockMemory(BlockID id, VkDeviceMemory deviceMemory)
   {
+    //s_allocDebugBias--;
     vkFreeMemory(m_device, deviceMemory, nullptr);
   }
   virtual void resizeBlocks(uint32_t count) {}
