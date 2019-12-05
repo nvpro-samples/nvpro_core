@@ -282,11 +282,11 @@ public:
     vmaFreeMemory(m_allocator, a_.allocation);
   }
 
-  void destroy(const TextureVma& t_)
+  void destroy(TextureVma& t_)
   {
     m_device.destroyImageView(t_.descriptor.imageView);
     m_device.destroySampler(t_.descriptor.sampler);
-    destroy(static_cast<ImageVma>(t_));
+    destroy(static_cast<ImageVma&>(t_));
   }
 
   //--------------------------------------------------------------------------------------------------
