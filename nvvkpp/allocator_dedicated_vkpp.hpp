@@ -424,4 +424,38 @@ protected:
   }
 };
 
+//--------------------------------------------------------------------------------------------------
+// This class will export all memory allocations, to be used by OpenGL and Cuda Interop
+//
+class AllocatorExplicitDeviceMask : public AllocatorDedicated
+{
+public:
+  // Initialization of the allocator
+  void init(vk::Device device, vk::PhysicalDevice physicalDevice, uint32_t deviceMask)
+  {
+    m_device           = device;
+    m_physicalDevice   = physicalDevice;
+    m_memoryProperties = m_physicalDevice.getMemoryProperties();
+    m_deviceMask = deviceMask;
+  }
+
+protected:
+  // Override the standard allocation
+  vk::DeviceMemory AllocateMemory(vk::MemoryAllocateInfo& allocateInfo) override
+  {
+    vk::MemoryAllocateFlagsInfo flags = {};
+
+
+    flags.setDeviceMask(m_deviceMask);
+    flags.setFlags(vk::MemoryAllocateFlagBits::eDeviceMask);
+
+
+    allocateInfo.setPNext(&flags);  // <-- Enabling Export
+    return m_device.allocateMemory(allocateInfo);
+  }
+
+  // Target device (first device per default)
+  uint32_t m_deviceMask{1u};
+};
+
 }  // namespace nvvkpp

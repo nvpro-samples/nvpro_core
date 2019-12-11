@@ -28,20 +28,19 @@
 
 #include <vulkan/vulkan.hpp>
 
-#include <imgui/imgui_helper.h>
-#include <imgui/imgui_impl_vk.h>
-#include <nvh/camerainertia.hpp>
-#include <nvh/cameramanipulator.hpp>
-#include <nvpwindow.hpp>
-
+#include "imgui.h"
+#include "imgui/imgui_impl_vk.h"
+#include "nvh/camerainertia.hpp"
+#include "nvh/cameramanipulator.hpp"
 #include "swapchain_vkpp.hpp"
 
 
 #ifdef _WIN32
 #define GLFW_EXPOSE_NATIVE_WIN32
 #endif
-#include <GLFW/glfw3native.h>
-#include <set>
+#include "GLFW/glfw3.h"
+#include "GLFW/glfw3native.h"
+
 
 namespace nvvkpp {
 static float const s_keyTau    = 0.10f;
@@ -55,7 +54,7 @@ static float const s_moveStep  = 0.2f;
  the swapchain
 */
 
-class AppBase : public NVPWindow
+class AppBase
 {
 public:
   AppBase()          = default;
@@ -75,7 +74,6 @@ public:
     m_cmdPool = m_device.createCommandPool({vk::CommandPoolCreateFlagBits::eResetCommandBuffer, graphicsQueueIndex});
     m_pipelineCache = device.createPipelineCache(vk::PipelineCacheCreateInfo());
   }
-
 
   //--------------------------------------------------------------------------------------------------
   // To call on exit
@@ -110,26 +108,15 @@ public:
   //--------------------------------------------------------------------------------------------------
   // Return the surface "screen" for the display
   //
-  VkSurfaceKHR getVkSurface(const vk::Instance& instance)
+  VkSurfaceKHR getVkSurface(const vk::Instance& instance, GLFWwindow* window)
   {
     assert(instance);
+    m_window = window;
 
     VkSurfaceKHR surface{};
-    VkResult     result{};
-#ifdef _WIN32
-    HWND      hWnd      = glfwGetWin32Window(m_internal);
-    HINSTANCE hInstance = GetModuleHandle(nullptr);
-
-    VkWin32SurfaceCreateInfoKHR createInfo{VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR};
-    createInfo.hinstance = hInstance;
-    createInfo.hwnd      = hWnd;
-    result               = vkCreateWin32SurfaceKHR(instance, &createInfo, nullptr, &surface);
-#else   // _WIN32
-    VkXcbSurfaceCreateInfoKHR createInfo{VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR};
-    createInfo.connection = info.connection;
-    createInfo.window     = info.window;
-    result                = vkCreateXcbSurfaceKHR(instance, &createInfo, NULL, &surface);
-#endif  // _WIN32
+    auto         err = glfwCreateWindowSurface(instance, window, nullptr, &surface);
+    assert(err == VK_SUCCESS);
+    m_surface = surface;
 
     return surface;
   }
@@ -252,9 +239,12 @@ public:
   //
   virtual void createDepthBuffer()
   {
-    m_device.destroyImageView(m_depthView);
-    m_device.destroyImage(m_depthImage);
-    m_device.freeMemory(m_depthMemory);
+    if(m_depthView)
+      m_device.destroyImageView(m_depthView);
+    if(m_depthImage)
+      m_device.destroyImage(m_depthImage);
+    if(m_depthMemory)
+      m_device.freeMemory(m_depthMemory);
 
     // Depth information
     const vk::ImageAspectFlags aspect = vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
@@ -405,13 +395,12 @@ public:
   // - Destroy allocated frames, then rebuild them with the new size
   // - Call onResize() of the derived class
   //
-  void onWindowResize(int w, int h) override
+  virtual void onWindowResize(int w, int h)
   {
     if(w == 0 || h == 0)
     {
       return;
     }
-
 
     m_size.width  = w;
     m_size.height = h;
@@ -435,9 +424,9 @@ public:
   // Window callback when the mouse move
   // - Handling ImGui and a default camera
   //
-  void onMouseMotion(int x, int y) override
+  void onMouseMotion(int x, int y)
   {
-    if(ImGuiH::mouse_pos(x, y))
+    if(ImGui::GetIO().WantCaptureMouse)
     {
       return;
     }
@@ -484,55 +473,55 @@ public:
   // Window callback when a special key gets hit
   // - Handling ImGui and a default camera
   //
-  void onKeyboard(NVPWindow::KeyCode key, ButtonAction action, int mods, int /*x*/, int /*y*/) override
+  virtual void onKeyboard(int key, int scancode, int action, int mods)
   {
-    const bool capture = ImGuiH::key_button(key, action, mods);
-    const bool pressed = action != NVPWindow::BUTTON_RELEASE;
+    const bool capture = ImGui::GetIO().WantCaptureKeyboard;
+    const bool pressed = action != GLFW_RELEASE;
 
-    if(key == NVPWindow::KEY_LEFT_CONTROL)
+    if(key == GLFW_KEY_LEFT_CONTROL)
     {
       m_inputs.ctrl = pressed;
     }
-    if(key == NVPWindow::KEY_LEFT_SHIFT)
+    if(key == GLFW_KEY_LEFT_SHIFT)
     {
       m_inputs.shift = pressed;
     }
-    if(key == NVPWindow::KEY_LEFT_ALT)
+    if(key == GLFW_KEY_LEFT_ALT)
     {
       m_inputs.alt = pressed;
     }
 
-    if(action == NVPWindow::BUTTON_RELEASE || capture)
+    if(action == GLFW_RELEASE || capture)
     {
       return;
     }
 
     switch(key)
     {
-      case NVPWindow::KEY_ESCAPE:
-        close();
+      case GLFW_KEY_ESCAPE:
+        glfwSetWindowShouldClose(m_window, 1);
         break;
-      case NVPWindow::KEY_LEFT:
+      case GLFW_KEY_LEFT:
         m_inertCamera.tau = s_keyTau;
         m_inertCamera.rotateH(s_moveStep, m_inputs.ctrl);
         break;
-      case NVPWindow::KEY_UP:
+      case GLFW_KEY_UP:
         m_inertCamera.tau = s_keyTau;
         m_inertCamera.rotateV(s_moveStep, m_inputs.ctrl);
         break;
-      case NVPWindow::KEY_RIGHT:
+      case GLFW_KEY_RIGHT:
         m_inertCamera.tau = s_keyTau;
         m_inertCamera.rotateH(-s_moveStep, m_inputs.ctrl);
         break;
-      case NVPWindow::KEY_DOWN:
+      case GLFW_KEY_DOWN:
         m_inertCamera.tau = s_keyTau;
         m_inertCamera.rotateV(-s_moveStep, m_inputs.ctrl);
         break;
-      case NVPWindow::KEY_PAGE_UP:
+      case GLFW_KEY_PAGE_UP:
         m_inertCamera.tau = s_keyTau;
         m_inertCamera.move(s_moveStep, m_inputs.ctrl);
         break;
-      case NVPWindow::KEY_PAGE_DOWN:
+      case GLFW_KEY_PAGE_DOWN:
         m_inertCamera.tau = s_keyTau;
         m_inertCamera.move(-s_moveStep, m_inputs.ctrl);
         break;
@@ -544,12 +533,12 @@ public:
   //--------------------------------------------------------------------------------------------------
   // Window callback when a key gets hit
   //
-  void onKeyboardChar(unsigned char key, int mods, int x, int y) override
+  virtual void onKeyboardChar(unsigned char key)
   {
-    (void)mods;
-    (void)x;
-    (void)y;
-    ImGuiH::key_char(key);
+    if(ImGui::GetIO().WantCaptureKeyboard)
+    {
+      return;
+    }
 
     // Toggling vsync
     if(key == 'v')
@@ -566,27 +555,31 @@ public:
   // Window callback when the mouse button is pressed
   // - Handling ImGui and a default camera
   //
-  void onMouseButton(NVPWindow::MouseButton button, NVPWindow::ButtonAction state, int mods, int x, int y) override
+  void onMouseButton(int button, int action, int mods)
   {
     (void)mods;
-    if(ImGuiH::mouse_button(button, state))
+
+    if(ImGui::GetIO().WantCaptureMouse)
     {
       return;
     }
 
+    double x, y;
+    glfwGetCursorPos(m_window, &x, &y);
     CameraManip.setMousePosition(x, y);
-    m_inputs.lmb = (button == NVPWindow::MOUSE_BUTTON_LEFT) && (state == NVPWindow::BUTTON_PRESS);
-    m_inputs.mmb = (button == NVPWindow::MOUSE_BUTTON_MIDDLE) && (state == NVPWindow::BUTTON_PRESS);
-    m_inputs.rmb = (button == NVPWindow::MOUSE_BUTTON_RIGHT) && (state == NVPWindow::BUTTON_PRESS);
+
+    m_inputs.lmb = (button == GLFW_MOUSE_BUTTON_LEFT) && (action == GLFW_PRESS);
+    m_inputs.mmb = (button == GLFW_MOUSE_BUTTON_MIDDLE) && (action == GLFW_PRESS);
+    m_inputs.rmb = (button == GLFW_MOUSE_BUTTON_RIGHT) && (action == GLFW_PRESS);
   }
 
   //--------------------------------------------------------------------------------------------------
   // Window callback when the mouse wheel is modified
   // - Handling ImGui and a default camera
   //
-  void onMouseWheel(int delta) override
+  void onMouseWheel(int delta)
   {
-    if(ImGuiH::mouse_wheel(delta))
+    if(ImGui::GetIO().WantCaptureMouse)
     {
       return;
     }
@@ -606,7 +599,7 @@ public:
     assert(m_renderPass && "Render Pass must be set");
 
     // UI
-    ImGuiH::Init(m_size.width, m_size.height, nullptr);
+    ImGui::CreateContext();
     ImGui::InitVK(m_device, m_physicalDevice, m_queue, m_graphicsQueueIndex, m_renderPass, subpassID);
     ImGui::GetIO().IniFilename = nullptr;  // Avoiding the INI file
   }
@@ -646,8 +639,78 @@ public:
     CameraManip.setLookat(veye, boxCenter, vup, instantFit);
   }
 
+  // Return true if the window is minimized
+  bool isMinimized(bool doSleeping = true)
+  {
+    int w, h;
+    glfwGetWindowSize(m_window, &w, &h);
+    bool minimized(w == 0 || h == 0);
+    if(minimized && doSleeping)
+      Sleep(50);
+    return minimized;
+  }
+
+  // GLFW Callback setup
+  void setupGlfwCallbacks(GLFWwindow* window)
+  {
+    m_window = window;
+    glfwSetWindowUserPointer(window, this);
+    glfwSetKeyCallback(window, &key_cb);
+    glfwSetCharCallback(window, &char_cb);
+    glfwSetCursorPosCallback(window, &cursorpos_cb);
+    glfwSetMouseButtonCallback(window, &mousebutton_cb);
+    glfwSetScrollCallback(window, &scroll_cb);
+    glfwSetWindowSizeCallback(window, &windowsize_cb);
+  }
+  static void windowsize_cb(GLFWwindow* window, int w, int h)
+  {
+    auto app = reinterpret_cast<AppBase*>(glfwGetWindowUserPointer(window));
+    app->onWindowResize(w, h);
+  }
+  static void mousebutton_cb(GLFWwindow* window, int button, int action, int mods)
+  {
+    auto app = reinterpret_cast<AppBase*>(glfwGetWindowUserPointer(window));
+    app->onMouseButton(button, action, mods);
+  }
+  static void cursorpos_cb(GLFWwindow* window, double x, double y)
+  {
+    auto app = reinterpret_cast<AppBase*>(glfwGetWindowUserPointer(window));
+    app->onMouseMotion(x, y);
+  }
+  static void scroll_cb(GLFWwindow* window, double x, double y)
+  {
+    auto app = reinterpret_cast<AppBase*>(glfwGetWindowUserPointer(window));
+    app->onMouseWheel(y);
+  }
+  static void key_cb(GLFWwindow* window, int key, int scancode, int action, int mods)
+  {
+    auto app = reinterpret_cast<AppBase*>(glfwGetWindowUserPointer(window));
+    app->onKeyboard(key, scancode, action, mods);
+  }
+  static void char_cb(GLFWwindow* window, unsigned int key)
+  {
+    auto app = reinterpret_cast<AppBase*>(glfwGetWindowUserPointer(window));
+    app->onKeyboardChar(key);
+  }
+  // GLFW Callback end
+
+  // Set if Nvlink will be used
   void useNvlink(bool useNvlink) { m_useNvlink = useNvlink; }
 
+  //--------------------------------------------------------------------------------------------------
+  // Getters
+  vk::Device                            getDevice() { return m_device; }
+  vk::PhysicalDevice                    getPhysicalDevice() { return m_physicalDevice; }
+  vk::Queue                             getQueue() { return m_queue; }
+  uint32_t                              getQueueFamily() { return m_graphicsQueueIndex; }
+  vk::CommandPool                       getCommandPool() { return m_cmdPool; }
+  vk::RenderPass                        getRenderPass() { return m_renderPass; }
+  vk::Extent2D                          getSize() { return m_size; }
+  vk::PipelineCache                     getPipelineCache() { return m_pipelineCache; }
+  vk::SurfaceKHR                        getSurface() { return m_surface; }
+  const std::vector<vk::Framebuffer>&   getFramebuffers() { return m_framebuffers; }
+  const std::vector<vk::CommandBuffer>& getCommandBuffers() { return m_commandBuffers; }
+  uint32_t                              getCurFrame() { return m_curFramebuffer; }
 
 protected:
   uint32_t getMemoryType(uint32_t typeBits, const vk::MemoryPropertyFlags& properties) const
@@ -679,27 +742,27 @@ protected:
 
   // Drawing/Surface
   nvvkpp::SwapChain              m_swapChain;
-  std::vector<vk::Framebuffer>   m_framebuffers;      // All framebuffers, correspond to the Swapchain
-  std::vector<vk::CommandBuffer> m_commandBuffers;    // Command buffer per nb element in Swapchain
-  std::vector<vk::Fence>         m_waitFences;        // Fences per nb element in Swapchain
-  vk::Semaphore                  m_acquireComplete;   // Swap chain image presentation
-  vk::Semaphore                  m_renderComplete;    // Command buffer submission and execution
-  vk::Image                      m_depthImage;        // Depth/Stencil
-  vk::DeviceMemory               m_depthMemory;       // Depth/Stencil
-  vk::ImageView                  m_depthView;         // Depth/Stencil
-  vk::RenderPass                 m_renderPass;        // Base render pass
-  vk::Extent2D                   m_size{0, 0};        // Size of the window
-  vk::PipelineCache              m_pipelineCache;     // Cache for pipeline/shaders
-  bool                           m_vsync{false};      // Swapchain with vsync
-  bool                           m_useNvlink{false};  // NVLINK usage
-
-  uint32_t m_curFramebuffer{0};  // Remember the current framebuffer in use
+  std::vector<vk::Framebuffer>   m_framebuffers;       // All framebuffers, correspond to the Swapchain
+  std::vector<vk::CommandBuffer> m_commandBuffers;     // Command buffer per nb element in Swapchain
+  std::vector<vk::Fence>         m_waitFences;         // Fences per nb element in Swapchain
+  vk::Semaphore                  m_acquireComplete;    // Swap chain image presentation
+  vk::Semaphore                  m_renderComplete;     // Command buffer submission and execution
+  vk::Image                      m_depthImage;         // Depth/Stencil
+  vk::DeviceMemory               m_depthMemory;        // Depth/Stencil
+  vk::ImageView                  m_depthView;          // Depth/Stencil
+  vk::RenderPass                 m_renderPass;         // Base render pass
+  vk::Extent2D                   m_size{0, 0};         // Size of the window
+  vk::PipelineCache              m_pipelineCache;      // Cache for pipeline/shaders
+  bool                           m_vsync{false};       // Swapchain with vsync
+  bool                           m_useNvlink{false};   // NVLINK usage
+  GLFWwindow*                    m_window{nullptr};    // GLFW Window
+  uint32_t                       m_curFramebuffer{0};  // Remember the current framebuffer in use
 
   // Surface buffer formats
   vk::Format m_colorFormat{vk::Format::eB8G8R8A8Unorm};
   vk::Format m_depthFormat{vk::Format::eUndefined};
 
-
+  // Two different camera manipulators
   nvh::CameraManipulator::Inputs m_inputs;       // Camera manipulator, like in Maya, 3dsmax, Softimage, ...
   InertiaCamera                  m_inertCamera;  // Camera Inertia
 };

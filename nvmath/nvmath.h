@@ -30,9 +30,8 @@
 
 #include "nvmath_types.h"
 
-namespace nvmath
-{
-
+namespace nvmath {
+// clang-format off
 template<class T>  const vector2<T> operator+(const vector2<T>& u, const vector2<T>& v);
 template<class T>  const vector2<T> operator+(const vector2<T>& u, const T s);
 template<class T>  const vector2<T> operator-(const vector2<T>& u, const vector2<T>& v);
@@ -196,6 +195,9 @@ template<class T>  vector3<T> add(const vector3<T> & v, const vector3<T> & w);
 // Computes u = v - w
 template<class T>  vector3<T> sub(const vector3<T> & v, const vector3<T> & w);
 
+// Computes u = pow(v, exponemt)
+template <class T> vector3<T> pow(const vector3<T>& v, const T & e);
+
 // Computes u = u * s
 template<class T>  vector2<T> scale(const vector2<T> & u, const T s);
 template<class T>  vector3<T> scale(const vector3<T> & u, const T s);
@@ -350,8 +352,10 @@ template<class T>  vector3<T> rotate_by(const vector3<T> & src, const quaternion
 
 template<class T>
  matrix4<T> rotation_yaw_pitch_roll( const T yaw , const T pitch , const T roll );
-}//namespace nvmath
+
+// clang-format on
+}  //namespace nvmath
 
 #include "nvmath.inl"
 
-#endif //_nvmath_h_
+#endif  //_nvmath_h_

@@ -155,6 +155,16 @@ bool Context::initInstance(const ContextCreateInfo& info)
   instanceCreateInfo.enabledLayerCount       = static_cast<uint32_t>(m_usedInstanceLayers.size());
   instanceCreateInfo.ppEnabledLayerNames     = m_usedInstanceLayers.data();
 
+#ifdef _DEBUG
+  //std::vector<vk::ValidationFeatureEnableEXT> vfe{vk::ValidationFeatureEnableEXT::eGpuAssisted,
+  //                                                vk::ValidationFeatureEnableEXT::eGpuAssistedReserveBindingSlot,
+  //                                                vk::ValidationFeatureEnableEXT::eBestPractices};
+  //vk::ValidationFeaturesEXT                   validationFeatures;
+  //validationFeatures.setEnabledValidationFeatureCount(static_cast<uint32_t>(vfe.size()));
+  //validationFeatures.setPEnabledValidationFeatures(vfe.data());
+  //instanceCreateInfo.setPNext(&validationFeatures);
+#endif  // _DEBUG
+
   if(info.verboseAvailable)
     LOGI("Creating Vulkan instance\n");
   m_instance = vk::createInstance(instanceCreateInfo);

@@ -82,6 +82,8 @@ bool getMemoryInfo(const VkPhysicalDeviceMemoryProperties& memoryProperties,
 const VkMemoryDedicatedAllocateInfo* DeviceMemoryAllocator::DEDICATED_PROXY =
     (const VkMemoryDedicatedAllocateInfo*)&DeviceMemoryAllocator::DEDICATED_PROXY;
 
+int DeviceMemoryAllocator::s_allocDebugBias = 0;
+
 nvvk::AllocationID DeviceMemoryAllocator::createID(Allocation& allocation, BlockID block, uint32_t blockOffset, uint32_t blockSize)
 {
   // find free slot
@@ -160,13 +162,24 @@ void DeviceMemoryAllocator::deinit()
 {
   for(const auto& it : m_blocks)
   {
-    if(it.mem)
-    {
-      assert("not all blocks were freed properly");
-    }
     if(it.mapped)
     {
       assert("not all blocks were unmapped properly");
+      if(it.mem)
+      {
+        vkUnmapMemory(m_device, it.mem);
+      }
+    }
+    if(it.mem)
+    {
+      if(it.isFirst && m_keepFirst)
+      {
+        vkFreeMemory(m_device, it.mem, nullptr);
+      }
+      else
+      {
+        assert("not all blocks were freed properly");
+      }
     }
   }
 
@@ -252,6 +265,22 @@ void DeviceMemoryAllocator::nvprintReport() const
   }
 }
 
+void DeviceMemoryAllocator::getTypeStats(uint32_t count[VK_MAX_MEMORY_TYPES], VkDeviceSize used[VK_MAX_MEMORY_TYPES], VkDeviceSize allocated[VK_MAX_MEMORY_TYPES]) const
+{
+  memset(used, 0, sizeof(used));
+  memset(allocated, 0, sizeof(allocated));
+
+  for(const auto& block : m_blocks)
+  {
+    if(block.mem)
+    {
+      count[block.memoryTypeIndex]++;
+      used[block.memoryTypeIndex] += block.usedSize;
+      allocated[block.memoryTypeIndex] += block.allocationSize;
+    }
+  }
+}
+
 VkDevice DeviceMemoryAllocator::getDevice() const
 {
   return m_device;
@@ -290,6 +319,7 @@ AllocationID DeviceMemoryAllocator::allocInternal(const VkMemoryRequirements&   
   }
 
   float priority = m_supportsPriority ? m_priority : DEFAULT_PRIORITY;
+  bool  isFirst  = !dedicated;
 
   if(!dedicated)
   {
@@ -305,9 +335,13 @@ AllocationID DeviceMemoryAllocator::allocInternal(const VkMemoryRequirements&   
         continue;
       }
 
+      // if there is a compatible block, we are not "first" of a kind
+      isFirst = false;
+
       uint32_t blockSize;
       uint32_t blockOffset;
       uint32_t offset;
+
 
       // Look for a block which has enough free space available
 
@@ -376,6 +410,7 @@ AllocationID DeviceMemoryAllocator::allocInternal(const VkMemoryRequirements&   
   block.memoryTypeIndex = memInfo.memoryTypeIndex;
   block.range.init((uint32_t)block.allocationSize);
   block.isLinear    = isLinear;
+  block.isFirst     = isFirst;
   block.isDedicated = dedicated != nullptr;
 
   result = allocBlockMemory(id, memInfo, block.mem);
@@ -441,12 +476,13 @@ void DeviceMemoryAllocator::free(AllocationID allocationID)
   block.allocationCount--;
   block.usedSize -= info.blockSize;
 
-  if(block.allocationCount == 0)
+  if(block.allocationCount == 0 && !(block.isFirst && m_keepFirst))
   {
     assert(block.usedSize == 0);
     assert(!block.mapped);
     freeBlockMemory(info.block, block.mem);
-    block.mem = VK_NULL_HANDLE;
+    block.mem     = VK_NULL_HANDLE;
+    block.isFirst = false;
 
     m_allocatedSize -= block.allocationSize;
     block.range.deinit();

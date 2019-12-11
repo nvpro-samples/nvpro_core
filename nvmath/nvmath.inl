@@ -335,6 +335,12 @@ inline vector3<T> add(const vector3<T>& v, const vector3<T>& w)
     return u;
 }
 
+template <class T>
+inline vector3<T> pow(const vector3<T>& v, const T& e)
+{
+  return vector3<T>(::pow(v.x, e), ::pow(v.y, e), ::pow(v.z, e));
+}
+
 template<class T>
 inline void vector3<T>::orthogonalize( const vector3<T>& v )
 {
