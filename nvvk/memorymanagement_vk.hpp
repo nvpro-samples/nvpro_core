@@ -399,6 +399,8 @@ protected:
 
   float m_priority = DEFAULT_PRIORITY;
 
+  // heuristic that doesn't immediately free the first memory block of a kind
+  bool m_keepFirst = true;
 
   VkBufferUsageFlags m_defaultBufferUsageFlags  = 0;
   bool               m_forceDedicatedAllocation = false;
