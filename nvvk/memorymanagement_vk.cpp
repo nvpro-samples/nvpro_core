@@ -446,7 +446,6 @@ AllocationID DeviceMemoryAllocator::allocInternal(const VkMemoryRequirements&   
   {
     // make block free
     m_freeBlockIndex = block.id.instantiate(m_freeBlockIndex);
-    m_activeBlockCount--;
 
     if(result == VK_ERROR_OUT_OF_DEVICE_MEMORY
        && ((memProps == VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) || (memProps == 0 && preferDevice)))
