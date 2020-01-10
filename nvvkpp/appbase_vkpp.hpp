@@ -424,7 +424,7 @@ public:
   // Window callback when the mouse move
   // - Handling ImGui and a default camera
   //
-  void onMouseMotion(int x, int y)
+  virtual void onMouseMotion(int x, int y)
   {
     if(ImGui::GetIO().WantCaptureMouse)
     {
@@ -555,7 +555,7 @@ public:
   // Window callback when the mouse button is pressed
   // - Handling ImGui and a default camera
   //
-  void onMouseButton(int button, int action, int mods)
+  virtual void onMouseButton(int button, int action, int mods)
   {
     (void)mods;
 
@@ -566,7 +566,7 @@ public:
 
     double x, y;
     glfwGetCursorPos(m_window, &x, &y);
-    CameraManip.setMousePosition(x, y);
+    CameraManip.setMousePosition(static_cast<int>(x), static_cast<int>(y));
 
     m_inputs.lmb = (button == GLFW_MOUSE_BUTTON_LEFT) && (action == GLFW_PRESS);
     m_inputs.mmb = (button == GLFW_MOUSE_BUTTON_MIDDLE) && (action == GLFW_PRESS);
@@ -577,7 +577,7 @@ public:
   // Window callback when the mouse wheel is modified
   // - Handling ImGui and a default camera
   //
-  void onMouseWheel(int delta)
+  virtual void onMouseWheel(int delta)
   {
     if(ImGui::GetIO().WantCaptureMouse)
     {
@@ -675,12 +675,12 @@ public:
   static void cursorpos_cb(GLFWwindow* window, double x, double y)
   {
     auto app = reinterpret_cast<AppBase*>(glfwGetWindowUserPointer(window));
-    app->onMouseMotion(x, y);
+    app->onMouseMotion(static_cast<int>(x), static_cast<int>(y));
   }
   static void scroll_cb(GLFWwindow* window, double x, double y)
   {
     auto app = reinterpret_cast<AppBase*>(glfwGetWindowUserPointer(window));
-    app->onMouseWheel(y);
+    app->onMouseWheel(static_cast<int>(y));
   }
   static void key_cb(GLFWwindow* window, int key, int scancode, int action, int mods)
   {

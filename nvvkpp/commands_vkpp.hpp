@@ -169,14 +169,14 @@ public:
     m_device.destroyCommandPool(m_cmdPool);
   }
 
-  vk::CommandBuffer getCmdBuffer()
+  vk::CommandBuffer getCmdBuffer(vk::CommandBufferUsageFlagBits f = vk::CommandBufferUsageFlagBits::eOneTimeSubmit)
   {
     while(m_device.waitForFences(m_fences[m_curCmd], VK_TRUE, 10) == vk::Result::eTimeout)
     {
       assert(!"getCmdBuffer: waitForFences failed - getCmdBuffer without submit? Not enough Command Buffers? Timeout too short?");
     }
     m_device.resetFences(m_fences[m_curCmd]);
-    m_cmdBuffers[m_curCmd].begin(vk::CommandBufferBeginInfo{vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
+    m_cmdBuffers[m_curCmd].begin(vk::CommandBufferBeginInfo{f});
     return m_cmdBuffers[m_curCmd];
   }
 

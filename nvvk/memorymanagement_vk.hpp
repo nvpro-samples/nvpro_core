@@ -211,10 +211,8 @@ public:
 
   // dump detailed stats via nvprintfLevel(LOGLEVEL_INFO
   void nvprintReport() const;
-
-  void getTypeStats(uint32_t     count[VK_MAX_MEMORY_TYPES],
-                    VkDeviceSize used[VK_MAX_MEMORY_TYPES],
-                    VkDeviceSize allocated[VK_MAX_MEMORY_TYPES]) const;
+  
+  void getTypeStats(uint32_t count[VK_MAX_MEMORY_TYPES], VkDeviceSize used[VK_MAX_MEMORY_TYPES], VkDeviceSize allocated[VK_MAX_MEMORY_TYPES]) const;
 
   VkDevice                                getDevice() const;
   VkPhysicalDevice                        getPhysicalDevice() const;
@@ -401,12 +399,12 @@ protected:
 
   float m_priority = DEFAULT_PRIORITY;
 
-  // heuristic that doesn't immediately free the first memory block of a kind
-  bool m_keepFirst = true;
 
   VkBufferUsageFlags m_defaultBufferUsageFlags  = 0;
   bool               m_forceDedicatedAllocation = false;
   bool               m_supportsPriority         = false;
+    // heuristic that doesn't immediately free the first memory block of a specific memorytype
+  bool m_keepFirst = true;
 
   AllocationID allocInternal(const VkMemoryRequirements& memReqs,
                              VkMemoryPropertyFlags       memProps,

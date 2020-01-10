@@ -818,11 +818,50 @@ Message(STATUS "NVCUDA_COMPILE_PTX ${options} ${oneValueArgs} ${multiValueArgs} 
       DEPENDS ${input}
       COMMAND ${CUDA_NVCC_EXECUTABLE} ${MACHINE} --ptx ${NVCUDA_COMPILE_PTX_NVCC_OPTIONS} ${input} -o ${output} WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
       COMMAND ${CMAKE_COMMAND} -E echo ${NVCUDA_COMPILE_PTX_TARGET_PATH}
-      COMMAND ${CMAKE_COMMAND} -E copy ${output} "${NVCUDA_COMPILE_PTX_TARGET_PATH}/${input_we}.ptx"
     )
   ENDFOREACH( )
   
   set(${NVCUDA_COMPILE_PTX_GENERATED_FILES} ${PTX_FILES} PARENT_SCOPE)
+endfunction()
+
+#####################################################################################
+# Generate CUBIN files
+# NVCUDA_COMPILE_CUBIN( SOURCES file1.cu file2.cu TARGET_PATH <path where cubin's should be stored> GENERATED_FILES cubin_sources NVCC_OPTIONS -arch=sm_20)
+# Generates cubin files for the given source files. cubin_sources will contain the list of generated files.
+function(NVCUDA_COMPILE_CUBIN)
+  set(options "")
+  set(oneValueArgs TARGET_PATH GENERATED_FILES)
+  set(multiValueArgs NVCC_OPTIONS SOURCES)
+  CMAKE_PARSE_ARGUMENTS(NVCUDA_COMPILE_CUBIN "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+  
+Message(STATUS "NVCUDA_COMPILE_CUBIN ${options} ${oneValueArgs} ${multiValueArgs} ")
+
+  # Match the bitness of the cubin to the bitness of the application
+  set( MACHINE "--machine=32" )
+  if( CMAKE_SIZEOF_VOID_P EQUAL 8)
+    set( MACHINE "--machine=64" )
+  endif()
+  
+  # Custom build rule to generate cubin files from cuda files
+  FOREACH( input ${NVCUDA_COMPILE_CUBIN_SOURCES} )
+    get_filename_component( input_we ${input} NAME_WE )
+    
+    # generate the *.cubin files inside "cubin" folder inside the executable's output directory.
+    set( output "${NVCUDA_COMPILE_CUBIN_TARGET_PATH}/${input_we}.cubin" )
+    LIST( APPEND CUBIN_FILES  ${output} )
+    
+    message(STATUS "${CUDA_NVCC_EXECUTABLE} ${MACHINE} --cubin ${NVCUDA_COMPILE_CUBIN_NVCC_OPTIONS} ${input} -o ${output} WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}")
+    
+    add_custom_command(
+      OUTPUT  ${output}
+      DEPENDS ${input}
+      COMMAND ${CUDA_NVCC_EXECUTABLE} ${MACHINE} --cubin ${NVCUDA_COMPILE_CUBIN_NVCC_OPTIONS} ${input} -o ${output} WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+      COMMAND ${CMAKE_COMMAND} -E echo ${NVCUDA_COMPILE_CUBIN_TARGET_PATH}
+      COMMAND ${CMAKE_COMMAND} -E copy ${output} "${NVCUDA_COMPILE_CUBIN_TARGET_PATH}/${input_we}.cubin"
+    )
+  ENDFOREACH( )
+  
+  set(${NVCUDA_COMPILE_CUBIN_GENERATED_FILES} ${CUBIN_FILES} PARENT_SCOPE)
 endfunction()
 
 #####################################################################################

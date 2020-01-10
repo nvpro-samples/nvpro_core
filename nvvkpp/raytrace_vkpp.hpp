@@ -348,6 +348,33 @@ struct RaytracingBuilder
     m_alloc.destroy(stagingBuffer);
   }
 
+  //--------------------------------------------------------------------------------------------------
+  // Refit the BLAS from updated buffers
+  //
+  void updateBlas(uint32_t blasIdx)
+  {
+    Blas& blas = m_blas[blasIdx];
+
+    // Compute the amount of scratch memory required by the AS builder to update the TLAS
+    vk::AccelerationStructureMemoryRequirementsInfoNV memoryRequirementsInfo{
+        vk::AccelerationStructureMemoryRequirementsTypeNV::eUpdateScratch, blas.as.accel};
+    vk::DeviceSize scratchSize =
+        m_device.getAccelerationStructureMemoryRequirementsNV(memoryRequirementsInfo).memoryRequirements.size;
+    // Allocate the scratch buffer
+    nvvkBuffer scratchBuffer = m_alloc.createBuffer(scratchSize, vk::BufferUsageFlagBits::eRayTracingNV);
+
+    // Update the instance buffer on the device side and build the TLAS
+    nvvkpp::SingleCommandBuffer genCmdBuf(m_device, m_queueIndex);
+    vk::CommandBuffer           cmdBuf = genCmdBuf.createCommandBuffer();
+
+
+    // Update the acceleration structure. Note the VK_TRUE parameter to trigger the update,
+    // and the existing BLAS being passed and updated in place
+    cmdBuf.buildAccelerationStructureNV(blas.asInfo, nullptr, 0, VK_TRUE, blas.as.accel, blas.as.accel, scratchBuffer.buffer, 0);
+
+    genCmdBuf.flushCommandBuffer(cmdBuf);
+    m_alloc.destroy(scratchBuffer);
+  }
 
 private:
   // Bottom-level acceleration structure
