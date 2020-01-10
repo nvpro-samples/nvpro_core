@@ -234,8 +234,34 @@ public:
   AccelerationDma createAcceleration(vk::AccelerationStructureCreateInfoNV& accel_)
   {
     AccelerationDma resultAccel;
-    resultAccel.accel = m_allocator->createAccStructure(accel_, resultAccel.allocation);
 
+    // 1. Creating the acceleration structure
+    auto accel = m_device.createAccelerationStructureNV(accel_);
+
+    // 2. Finding memory to allocate
+    vk::AccelerationStructureMemoryRequirementsInfoNV memoryRequirementsInfo;
+    memoryRequirementsInfo.setAccelerationStructure(accel);
+    const VkMemoryRequirements2 requirements = m_device.getAccelerationStructureMemoryRequirementsNV(memoryRequirementsInfo);
+
+    // 3. Allocate memory
+    auto allocationID = m_allocator->alloc(requirements.memoryRequirements, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, true, nullptr);
+    nvvk::Allocation allocation = allocationID.isValid() ? m_allocator->getAllocation(allocationID) : nvvk::Allocation();
+    if(allocation.mem == VK_NULL_HANDLE)
+    {
+      m_device.destroy(accel);
+      return resultAccel;
+    }
+
+    // 4. Bind memory to acceleration structure
+    vk::BindAccelerationStructureMemoryInfoNV bind;
+    bind.setAccelerationStructure(accel);
+    bind.setMemory(allocation.mem);
+    bind.setMemoryOffset(allocation.offset);
+    assert(allocation.offset % requirements.memoryRequirements.alignment == 0);
+    m_device.bindAccelerationStructureMemoryNV(bind);
+
+    resultAccel.accel      = accel;
+    resultAccel.allocation = allocationID;
     return resultAccel;
   }
 

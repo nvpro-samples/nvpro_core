@@ -217,16 +217,16 @@ public:
   //--------------------------------------------------------------------------------------------------
   // Create the acceleration structure
   //
-  AccelerationVma createAcceleration(const vk::AccelerationStructureCreateInfoNV& accel_/*, vk::DispatchLoaderDynamic const& d*/)
+  AccelerationVma createAcceleration(const vk::AccelerationStructureCreateInfoNV& accel_)
   {
     AccelerationVma resultAccel;
     // 1. Create the acceleration structure
-    resultAccel.accel = m_device.createAccelerationStructureNV(accel_/*, nullptr, d*/);
+    resultAccel.accel = m_device.createAccelerationStructureNV(accel_);
 
     // 2. Find the memory requirements
     vk::AccelerationStructureMemoryRequirementsInfoNV memoryRequirementsInfo;
     memoryRequirementsInfo.setAccelerationStructure(resultAccel.accel);
-    const VkMemoryRequirements2 requirements = m_device.getAccelerationStructureMemoryRequirementsNV(memoryRequirementsInfo/*, d*/);
+    const VkMemoryRequirements2 requirements = m_device.getAccelerationStructureMemoryRequirementsNV(memoryRequirementsInfo);
 
     // 3. Allocate memory using allocator.
     VmaAllocationCreateInfo allocCreateInfo{};
@@ -243,7 +243,7 @@ public:
     bind.setMemory(allocInfo.deviceMemory);
     bind.setMemoryOffset(allocInfo.offset);
 
-    m_device.bindAccelerationStructureMemoryNV(bind /*, d*/);
+    m_device.bindAccelerationStructureMemoryNV(bind);
 
 
     return resultAccel;
