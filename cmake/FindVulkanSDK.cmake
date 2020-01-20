@@ -123,7 +123,7 @@ if (VULKANSDK_ROOT_DIR)
   if (WIN32) 
 	  #-------- Locate LIBS
     _find_files( VULKAN_LIB VULKANSDK_ROOT_DIR "Lib/vulkan-1.lib" "Lib/vulkan-1.lib" "")
-    _find_files( VULKANSTATIC_LIB VULKANSDK_ROOT_DIR "Lib/VKstatic.1.lib" "Lib/VKstatic.1.lib" "")
+    # _find_files( VULKANSTATIC_LIB VULKANSDK_ROOT_DIR "Lib/VKstatic.1.lib" "Lib/VKstatic.1.lib" "")
     _find_files( VULKANSDK_SHADERC_LIB VULKANSDK_ROOT_DIR "Lib/shaderc_combined.lib" "Lib/shaderc_combined.lib" "")
     unset(GLSLANGVALIDATOR)
     _find_files( GLSLANGVALIDATOR VULKANSDK_ROOT_DIR "bin/glslangValidator.exe" "bin/glslangValidator.exe" "")
