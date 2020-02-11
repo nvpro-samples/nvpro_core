@@ -31,7 +31,13 @@
 #pragma warning(disable : 4201)
 #include <nvmath/nvmath.h>
 #include <nvmath/nvmath_glsltypes.h>
+#include <string>
+#include <array>
 
+#ifdef LINUX
+// None is a macro defined in X.h
+#undef None
+#endif
 
 namespace nvh {
 /**
@@ -168,6 +174,8 @@ public:
   double getDuration() const { return m_duration; }
   void   setDuration(double val) { m_duration = val; }
 
+  const std::string& getHelp();
+
 protected:
   CameraManipulator();
 
@@ -207,9 +215,9 @@ protected:
   Camera m_goal;      // Wish camera position
   Camera m_snapshot;  // Current camera the moment a set lookat is done
 
-  nvmath::vec3f m_bezier[3];
-  double        m_start_time = 0;
-  double        m_duration   = 0.5;
+  std::array<nvmath::vec3f, 3> m_bezier;
+  double                       m_start_time = 0;
+  double                       m_duration   = 0.5;
 
   // Screen
   int m_width  = 1;

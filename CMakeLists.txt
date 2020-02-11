@@ -19,7 +19,7 @@ SET(NVPWINDOW_SOURCE
 )
 
 if(UNIX) 
-  Message(FATAL_ERROR "not supported yet") # TODO
+  LIST(APPEND NVPWINDOW_SOURCE ${BASE_DIRECTORY}/shared_sources/nvpsystem_linux.cpp )
 else()
   LIST(APPEND NVPWINDOW_SOURCE ${BASE_DIRECTORY}/shared_sources/nvpsystem_win32.cpp )
 endif()
@@ -77,10 +77,16 @@ if(USING_VULKANSDK)
   string(CONCAT library_name ${library_name} "_vk")
   
   add_definitions(-DVULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1)
+  #GLFW needs to see the vulkan header, so it can provide glfwCreateWindowSurface
+  add_definitions(-DGLFW_INCLUDE_VULKAN)
 
   if(WIN32)
     add_definitions(-DVK_USE_PLATFORM_WIN32_KHR)
   endif(WIN32)
+  if(UNIX)
+    add_definitions(-DVK_USE_PLATFORM_XCB_KHR)
+    add_definitions(-DVK_USE_PLATFORM_XLIB_KHR)
+  endif(UNIX)
 endif()
 
 if (USING_DIRECTX11)

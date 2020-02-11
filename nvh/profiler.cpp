@@ -37,6 +37,11 @@
 
 namespace nvh {
 
+const uint32_t Profiler::CONFIG_DELAY;
+const uint32_t Profiler::FRAME_DELAY;
+const uint32_t Profiler::START_SECTIONS;
+const uint32_t Profiler::MAX_NUM_AVERAGE;
+
 Profiler::Profiler(Profiler* master)
 {
   m_data = master ? master->m_data : std::shared_ptr<Data>(new Data);

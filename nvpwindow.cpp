@@ -106,7 +106,7 @@ void NVPWindow::cb_dropfun(GLFWwindow* glfwwin, int count, const char** paths)
   win->onDragDrop(count, paths);
 }
 
-bool NVPWindow::open(int posX, int posY, int width, int height, const char* title)
+bool NVPWindow::open(int posX, int posY, int width, int height, const char* title, bool requireGLContext)
 {
   NV_ASSERT(NVPSystem::isInited() && "NVPSystem::Init not called");
 
@@ -115,7 +115,22 @@ bool NVPWindow::open(int posX, int posY, int width, int height, const char* titl
 
   m_windowName = title ? title : "Sample";
 
+#ifdef _WIN32
+  (void)requireGLContext;
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+#else
+  if(!requireGLContext)
+  {
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+  }
+  else
+  {
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
+  }
+#endif
+
   m_internal = glfwCreateWindow(width, height, title, nullptr, nullptr);
   if(!m_internal)
   {

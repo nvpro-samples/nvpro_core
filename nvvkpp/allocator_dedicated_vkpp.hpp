@@ -328,7 +328,7 @@ public:
   {
     m_device.destroyImageView(t_.descriptor.imageView);
     m_device.destroySampler(t_.descriptor.sampler);
-    destroy(static_cast<ImageDedicated>(t_));
+    destroy(static_cast<ImageDedicated&>(t_));
   }
 
 
@@ -349,7 +349,7 @@ protected:
   void checkMemory(const VkDeviceMemory& memory)
   {
     // If there is a leak in a DeviceMemory allocation, set the ID here to catch the object
-    assert(PtrToInt(memory) != 0x00);
+    assert(uintptr_t(memory) != 0x00);
   }
 
 

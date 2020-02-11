@@ -855,7 +855,7 @@ while(true)
 The **ShaderModuleManager** manages `VkShaderModules` stored in files (SPIR-V or GLSL)
 
 Using **ShaderFileManager** it will find the files and resolve #include for GLSL.
-You must register includes to the base-class for this.
+You must add include directories to the base-class for this.
 
 It also comes with some convenience functions to reload shaders etc.
 That is why we pass out the **ShaderModuleID** rather than a `VkShaderModule` directly.
@@ -874,7 +874,6 @@ ShaderModuleManager mgr(myDevice);
 
 // derived from ShaderFileManager
 mgr.addDirectory("shaders/");
-mgr.registerInclude("noise.glsl");
 
 // all shaders get this injected after #version statement
 mgr.m_prepend = "#define USE_NOISE 1\n";

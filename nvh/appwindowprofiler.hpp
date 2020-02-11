@@ -149,8 +149,7 @@ namespace nvh
     //////////////////////////////////////////////////////////////////////////
 
     // initial kickoff (typically called from main)
-
-    int  run(const std::string& name, int argc, const char** argv, int width, int height);
+    int run(const std::string& name, int argc, const char** argv, int width, int height, bool requireGLContext);
     void leave();
 
     void        parseConfigFile(const char* filename);
@@ -186,7 +185,7 @@ namespace nvh
     void onMouseButton(MouseButton button, ButtonAction action, int mods, int x, int y) override;
     void onKeyboard(KeyCode key, ButtonAction action, int mods, int x, int y) override;
     void onKeyboardChar(unsigned char key, int mods, int x, int y) override;
-  
+
   private:
 
     struct Benchmark {

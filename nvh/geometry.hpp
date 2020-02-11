@@ -32,6 +32,7 @@
 #include <nvmath/nvmath.h>
 
 #include <vector>
+#include <cmath>
 
 namespace nvh{
 
@@ -414,8 +415,8 @@ namespace nvh{
         for(unsigned int latitude = 0; latitude <= (unsigned int)w; latitude++)  // theta angle
         {
           float theta    = (float)latitude * theta_step;
-          float sinTheta = std::sinf(theta);
-          float cosTheta = std::cosf(theta);
+          float sinTheta = sinf(theta);
+          float cosTheta = cosf(theta);
 
           float radius = innerRadius + outerRadius * cosTheta;
 

@@ -25,8 +25,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <windows.h>
-
 #include <algorithm>
 #include <cassert>
 #include <nvh/nvprint.hpp>
@@ -37,7 +35,7 @@
 
 // See: https://github.com/KhronosGroup/Vulkan-Hpp#extensions--per-device-function-pointers
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE;
-static_assert(VK_HEADER_VERSION >= 126, "Vulkan version need 1.1.126.0 or greater");
+static_assert(VK_HEADER_VERSION >= 131, "Vulkan SDK version needs to be 1.2.131.1 or greater");
 
 namespace nvvkpp {
 
@@ -134,6 +132,11 @@ bool Context::initInstance(const ContextCreateInfo& info)
 
   if(info.verboseAvailable)
   {
+    uint32_t version = vk::enumerateInstanceVersion();
+    LOGI("_______________\n");
+    LOGI("Vulkan Version:\n");
+    LOGI(" - available:  %d.%d.%d\n", VK_VERSION_MAJOR(version), VK_VERSION_MINOR(version), VK_VERSION_PATCH(version));
+    LOGI(" - requesting: %d.%d.%d\n", info.apiMajor, info.apiMinor, 0);
     printAllLayers();
     printAllExtensions();
   }
@@ -308,6 +311,38 @@ bool Context::initDevice(uint32_t deviceIndex, const ContextCreateInfo& info)
   deviceCreateInfo.pEnabledFeatures = nullptr;
   deviceCreateInfo.pNext            = &enabledFeatures2;
 
+  // Vulkan == 1.1 used individual structs
+  // Vulkan >= 1.2  have per-version structs
+  struct Features11Old
+  {
+    vk::PhysicalDeviceMultiviewFeatures              multiview;
+    vk::PhysicalDevice16BitStorageFeatures           t16BitStorage;
+    vk::PhysicalDeviceSamplerYcbcrConversionFeatures samplerYcbcrConversion;
+    vk::PhysicalDeviceProtectedMemoryFeatures        protectedMemory;
+    vk::PhysicalDeviceShaderDrawParameterFeatures    drawParameters;
+    vk::PhysicalDeviceVariablePointerFeatures        variablePointers;
+  };
+
+  Features11Old                      features11old;
+  vk::PhysicalDeviceVulkan11Features features11;
+  vk::PhysicalDeviceVulkan12Features features12;
+
+  if(info.apiMajor == 1 && info.apiMinor == 1)
+  {
+    enabledFeatures2.pNext                     = &features11old.multiview;
+    features11old.multiview.pNext              = &features11old.t16BitStorage;
+    features11old.t16BitStorage.pNext          = &features11old.samplerYcbcrConversion;
+    features11old.samplerYcbcrConversion.pNext = &features11old.protectedMemory;
+    features11old.protectedMemory.pNext        = &features11old.drawParameters;
+    features11old.drawParameters.pNext         = &features11old.variablePointers;
+    features11old.variablePointers.pNext       = nullptr;
+  }
+  else if(info.apiMajor == 1 && info.apiMinor >= 2)
+  {
+    enabledFeatures2.pNext = &features11;
+    features11.pNext       = &features12;
+    features12.pNext       = nullptr;
+  }
 
   struct ExtensionHeader  // Helper struct to link extensions together
   {

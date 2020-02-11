@@ -140,7 +140,7 @@ public:
     m_allocator->setPriority(oldPriority);
 
     // Copy the data to memory
-    if(data_)
+    if(data_ != nullptr)
     {
       void* mapped = m_allocator->map(stageBuffer.allocation);
       memcpy(mapped, data_, size_);

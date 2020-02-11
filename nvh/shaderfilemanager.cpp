@@ -47,8 +47,8 @@ namespace nvh {
 
 std::string ShaderFileManager::format(const char* msg, ...)
 {
-  char              text[8192];
-  va_list           list;
+  char    text[8192];
+  va_list list;
 
   if(msg == 0)
     return std::string();
@@ -64,7 +64,7 @@ inline std::string ShaderFileManager::markerString(int line, std::string const& 
 {
   if(m_supportsExtendedInclude || m_forceLineFilenames)
   {
-  #if defined(_WIN32) && 1
+#if defined(_WIN32) && 1
     std::string fixedname;
     for(size_t i = 0; i < filename.size(); i++)
     {
@@ -78,9 +78,9 @@ inline std::string ShaderFileManager::markerString(int line, std::string const& 
         fixedname.append(1, c);
       }
     }
-  #else
+#else
     std::string fixedname = filename;
-  #endif
+#endif
     return ShaderFileManager::format("#line %d \"", line) + fixedname + std::string("\"\n");
   }
   else
@@ -105,32 +105,32 @@ std::string ShaderFileManager::getIncludeContent(IncludeID idx, std::string& fil
     return entry.content;
   }
 
-  std::string content = loadFile(entry.filename, false, m_directories, filename);
+  std::string content = loadFile(entry.filename, false, m_directories, filename, true);
   return content.empty() ? entry.content : content;
 }
 
-std::string ShaderFileManager::getContent(std::string const& name, std::string& filename)
+std::string ShaderFileManager::getContent(std::string const& filename, std::string& filenameFound)
 {
-  if(name.empty())
+  if(filename.empty())
   {
     return std::string();
   }
 
-  IncludeID idx = findInclude(name);
+  IncludeID idx = findInclude(filename);
 
   if(idx.isValid())
   {
-    return getIncludeContent(idx, filename);
+    return getIncludeContent(idx, filenameFound);
   }
 
   // fall back
-  filename = name;
-  return loadFile(name, false, m_directories, filename);
+  filenameFound = filename;
+  return loadFile(filename, false, m_directories, filenameFound, true);
 }
 
-std::string ShaderFileManager::manualInclude(std::string const& filenameorig, std::string& filename, std::string const& prepend, bool foundVersion)
+std::string ShaderFileManager::manualInclude(std::string const& filename, std::string& filenameFound, std::string const& prepend, bool foundVersion)
 {
-  std::string source = getContent(filenameorig, filename);
+  std::string source = getContent(filename, filenameFound);
 
   if(source.empty())
   {
@@ -145,7 +145,7 @@ std::string ShaderFileManager::manualInclude(std::string const& filenameorig, st
   text += prepend;
   if(m_lineMarkers)
   {
-    text += markerString(1, filename, 0);
+    text += markerString(1, filenameFound, 0);
   }
 
   int lineCount = 0;
@@ -189,22 +189,15 @@ std::string ShaderFileManager::manualInclude(std::string const& filenameorig, st
 
       std::string include = line.substr(firstQuote + 1, secondQuote - firstQuote - 1);
 
-      for(std::size_t i = 0; i < m_includes.size(); ++i)
+      std::string includeFound;
+      std::string includeContent = manualInclude(include, includeFound, std::string(), foundVersion);
+
+      if(!includeContent.empty())
       {
-        if(m_includes[i].name != include)
-          continue;
-
-        std::string includedFilename;
-        std::string sourceIncluded = manualInclude(m_includes[i].filename, includedFilename, std::string(), foundVersion);
-
-        if(!sourceIncluded.empty())
+        text += includeContent;
+        if(m_lineMarkers)
         {
-          text += sourceIncluded;
-          if(m_lineMarkers)
-          {
-            text += std::string("\n") + markerString(lineCount + 1, filename, 0);
-          }
-          break;
+          text += std::string("\n") + markerString(lineCount + 1, filenameFound, 0);
         }
       }
 
@@ -256,8 +249,8 @@ ShaderFileManager::IncludeID ShaderFileManager::findInclude(std::string const& n
 
 bool ShaderFileManager::loadIncludeContent(IncludeID idx)
 {
-  std::string filename;
-  m_includes[idx].content = getIncludeContent(idx, filename);
+  std::string filenameFound;
+  m_includes[idx].content = getIncludeContent(idx, filenameFound);
   return !m_includes[idx].content.empty();
 }
 

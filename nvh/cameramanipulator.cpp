@@ -57,14 +57,14 @@ void CameraManipulator::setLookat(const nvmath::vec3& eye, const nvmath::vec3& c
     m_current.ctr = center;
     m_current.up  = up;
     m_goal        = m_current;
-	m_start_time  = 0;
+    m_start_time  = 0;
   }
   else
   {
-    m_goal.eye = eye;
-    m_goal.ctr = center;
-    m_goal.up  = up;
-    m_snapshot = m_current;
+    m_goal.eye   = eye;
+    m_goal.ctr   = center;
+    m_goal.up    = up;
+    m_snapshot   = m_current;
     m_start_time = getSystemTime();
     findBezierPoints();
   }
@@ -580,4 +580,20 @@ double CameraManipulator::getSystemTime()
   return std::chrono::duration_cast<std::chrono::microseconds>(duration).count() / 1000.0;
 }
 
+//--------------------------------------------------------------------------------------------------
+// Return a string which can be included in help dialogs
+//
+const std::string& CameraManipulator::getHelp()
+{
+  static std::string helpText =
+      "LMB: rotate around the target\n"
+      "RMB: Dolly in/out\n"
+      "MMB: Pan along view plane\n"
+      "LMB + Shift: Dolly in/out\n"
+      "LMB + Ctrl: Pan\n"
+      "LMB + Alt: Look aroundPan\n"
+      "Mouse wheel: Dolly in/out\n"
+      "Mouse wheel + Shift: Zoom in/out\n";
+  return helpText;
+}
 }  // namespace nvh

@@ -91,11 +91,12 @@ if (WIN32)
   _find_version_path ( VULKANSDK_VERSION VULKANSDK_ROOT_DIR "${SEARCH_PATHS}" )
 endif()
 if (UNIX)
-    message ( STATUS "VulkanSDK search paths: ${SEARCH_PATHS}")
+  message ( STATUS "VulkanSDK search paths: ${SEARCH_PATHS}")
+  message ( STATUS "\$VULKAN_SDK: $ENV{VULKAN_SDK}")
   #_find_version_path ( VULKANSDK_VERSION VULKANSDK_ROOT_DIR "${SEARCH_PATHS}" )
   
   find_path(VULKANSDK_ROOT_DIR NAMES vulkan/vulkan.h HINTS "$ENV{VULKAN_SDK}/include")
- # find_library(VULKAN_LIB NAMES vulkan HINTS "$ENV{VULKAN_SDK}/lib")
+  find_library(VULKAN_LIB NAMES vulkan HINTS "$ENV{VULKAN_SDK}/lib")
   
   Message(STATUS "Vulkan Include : ${VULKANSDK_ROOT_DIR}")
   Message(STATUS "Vulkan Library : ${VULKAN_LIB}")
@@ -132,15 +133,20 @@ if (VULKANSDK_ROOT_DIR)
 
   if (UNIX)
     unset(VULKAN_LIB)
-    _find_files(VULKAN_LIB VULKANSDK_ROOT_DIR "lib/libvulkan.so" "lib/libvulkan.so" "")
-    _find_files(VULKANSTATIC_LIB VULKANSDK_ROOT_DIR "lib/libvulkan.so" "lib/libvulkan.so" "")
-    _find_files(VULKANSDK_SHADERC_LIB VULKANSDK_ROOT_DIR "lib/libshaderc_combined.so" "lib/libshaderc_combined.so" "")
+    find_library(VULKAN_LIB NAMES vulkan HINTS "$ENV{VULKAN_SDK}/lib")
+    get_filename_component(VULKAN_LIB_DIR ${VULKAN_LIB} DIRECTORY)
+    find_library(VULKANSDK_SHADERC_LIB "libshaderc_combined.a" HINTS ${VULKAN_LIB_DIR})
     unset(GLSLANGVALIDATOR)
-    _find_files(GLSLANGVALIDATOR VULKANSDK_ROOT_DIR "bin/glslangValidator" "bin/glslangValidator" "")
- 
-#  if (VULKANSDK_ROOT_DIR)
-#  Message("Using system for vulkan sdk.")
-#  endif()
+    find_file(GLSLANGVALIDATOR VULKANSDK_ROOT_DIR "glslangValidator" HINTS ${VULKANSDK_ROOT_DIR}"../bin/glslangValidator")
+
+#    Message(STATUS "Vulkan Lib Dir : ${VULKAN_LIB_DIR}")
+#    Message(STATUS "Vulkan Include : ${VULKANSDK_ROOT_DIR}")
+#    Message(STATUS "Vulkan Library : ${VULKAN_LIB}")
+#    Message(STATUS "Vulkan ShaderC Library : ${VULKANSDK_SHADERC_LIB}")
+
+#    if (VULKANSDK_ROOT_DIR)
+#          Message("Using system for vulkan sdk.")
+#    endif()
   
   endif(UNIX)
 

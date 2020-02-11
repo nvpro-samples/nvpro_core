@@ -38,6 +38,11 @@
   #include <windows.h>
   #include <windowsx.h>
   #include "resources.h"
+#elif defined LINUX
+  #define GLFW_EXPOSE_NATIVE_GLX
+  #define GLFW_EXPOSE_NATIVE_X11
+  #include <GLFW/glfw3native.h>
+  #include <GL/glx.h>
 #endif
 
 #include <fileformats/bmp.hpp>
@@ -46,7 +51,6 @@
 
 #include <stdio.h>
 #include <fcntl.h>
-#include <io.h>
 #include <iostream>
 #include <fstream>
 #include <algorithm>
@@ -453,10 +457,88 @@ namespace nvgl {
     m_internal->m_wglSwapIntervalEXT(i);
   }
 
+  void ContextWindow::swapBuffers() { SwapBuffers(m_internal->m_hDC); }
+#else
+
+  struct ContextWindowInternalGL
+  {
+    GLFWwindow* m_glfwwindow                       = nullptr;
+
+    bool init(const ContextWindowCreateInfo& settings, GLFWwindow* sourcewindow,
+              ContextWindow* ctxwindow)
+    {
+      m_glfwwindow = sourcewindow;
+      glfwMakeContextCurrent(m_glfwwindow);
+
+      return true;
+    }
+
+    void deinit() {}
+  };
+
+  void ContextWindow::makeContextCurrent() {
+    glfwMakeContextCurrent(m_internal->m_glfwwindow);
+  }
+
+  void ContextWindow::makeContextNonCurrent()
+  {
+    glfwMakeContextCurrent(NULL);
+  }
+
+
+  int ContextWindow::extensionSupported(const char* name)
+  {
+    // we are not using the glew query, as glew will only report
+    // those extension it knows about, not what the actual driver may support
+
+    int   i;
+    GLint count;
+
+    // Check if extension is in the modern OpenGL extensions string list
+    // This should be safe to use since GL 3.0 is around for a long time :)
+
+    glGetIntegerv(GL_NUM_EXTENSIONS, &count);
+
+    for(i = 0; i < count; i++)
+    {
+      const char* en = (const char*)glGetStringi(GL_EXTENSIONS, i);
+      if(!en)
+      {
+        return GL_FALSE;
+      }
+
+      if(strcmp(en, name) == 0)
+        return GL_TRUE;
+    }
+
+    // Check platform specifc gets
+    const char* exts = glXQueryExtensionsString(glfwGetX11Display(), 0);
+
+    if(!exts)
+    {
+      return GL_FALSE;
+    }
+
+    return stringInExtensionString(name, exts);
+  }
+
+  void* ContextWindow::sysGetProcAddress(const char* name)
+  {
+    void* p = (void*)glfwGetProcAddress(name);
+
+    return p;
+  }
+
+  void ContextWindow::swapInterval(int i)
+  {
+    glfwSwapInterval(i);
+  }
+
   void ContextWindow::swapBuffers()
   {
-    SwapBuffers(m_internal->m_hDC);
+    glfwSwapBuffers(m_internal->m_glfwwindow);
   }
+
 #endif
   //////////////////////////////////////////////////////////////////////////
 
@@ -487,9 +569,9 @@ namespace nvgl {
 
       const char* renderer = (const char*)glGetString(GL_RENDERER);
 
-      GLint major;
+      GLint major = 0;
       glGetIntegerv(GL_MAJOR_VERSION, &major);
-      GLint minor;
+      GLint minor = 0;
       glGetIntegerv(GL_MINOR_VERSION, &minor);
 
       if (major < settings.major || (major == settings.major && minor < settings.minor)) {

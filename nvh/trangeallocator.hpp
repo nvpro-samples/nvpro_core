@@ -30,7 +30,10 @@
 #include <algorithm>
 #include <assert.h>
 #include <stdint.h>
+#include <stdio.h>
+#if (defined(NV_X86) || defined(NV_X64)) && defined(_MSC_VER)
 #include <intrin.h>
+#endif
 
 namespace nvh {
 

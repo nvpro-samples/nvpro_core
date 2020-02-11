@@ -26,6 +26,7 @@
  */
 
 #pragma once
+#include <cmath>
 #include <vulkan/vulkan.hpp>
 
 namespace nvvkpp {
@@ -45,6 +46,11 @@ namespace image {
 **mipLevels**: Returns the number of mipmaps an image can have
 */
 inline uint32_t mipLevels(vk::Extent2D extent)
+{
+  return static_cast<uint32_t>(std::floor(std::log2(std::max(extent.width, extent.height)))) + 1;
+}
+
+inline uint32_t mipLevels(vk::Extent3D extent)
 {
   return static_cast<uint32_t>(std::floor(std::log2(std::max(extent.width, extent.height)))) + 1;
 }
@@ -82,12 +88,31 @@ inline void setImageLayout(const vk::CommandBuffer& cmdbuffer,
 
 **create2DDescriptor**: creates vk::create2DDescriptor
 
+**generateMipmaps**: generate all mipmaps for a vk::Image
+*/
+vk::ImageCreateInfo create3DInfo(const vk::Extent3D&        size,
+  const vk::Format&          format = vk::Format::eR8G8B8A8Unorm,
+  const vk::ImageUsageFlags& usage = vk::ImageUsageFlagBits::eSampled,
+  const bool&                mipmaps = false);
+
+vk::DescriptorImageInfo create3DDescriptor(const vk::Device&            device,
+  const vk::Image&             image,
+  const vk::SamplerCreateInfo& samplerCreateInfo = vk::SamplerCreateInfo(),
+  const vk::Format&            format = vk::Format::eR8G8B8A8Unorm,
+  const vk::ImageLayout& layout = vk::ImageLayout::eShaderReadOnlyOptimal);
+
+//--------------------------------------------------------------------------------------------------
+/**
+**create2DInfo**: creates a vk::ImageCreateInfo
+
+**create2DDescriptor**: creates vk::create2DDescriptor
+
 **generateMipmaps**: generate all mipmaps for a vk::Image 
 */
 vk::ImageCreateInfo create2DInfo(const vk::Extent2D&        size,
                                  const vk::Format&          format  = vk::Format::eR8G8B8A8Unorm,
                                  const vk::ImageUsageFlags& usage   = vk::ImageUsageFlagBits::eSampled,
-                                 const bool                 mipmaps = false);
+                                 const bool&                mipmaps = false);
 
 vk::DescriptorImageInfo create2DDescriptor(const vk::Device&            device,
                                            const vk::Image&             image,
@@ -103,15 +128,15 @@ void generateMipmaps(const vk::CommandBuffer& cmdBuf,
 //--------------------------------------------------------------------------------------------------
 // 2D Texture helper creation
 //
-vk::ImageCreateInfo createCubeInfo(const vk::Extent2D        size,
-                                   const vk::Format          format  = vk::Format::eR8G8B8A8Unorm,
-                                   const vk::ImageUsageFlags usage   = vk::ImageUsageFlagBits::eSampled,
-                                   const bool                mipmaps = false);
+vk::ImageCreateInfo createCubeInfo(const vk::Extent2D&        size,
+                                   const vk::Format&          format  = vk::Format::eR8G8B8A8Unorm,
+                                   const vk::ImageUsageFlags& usage   = vk::ImageUsageFlagBits::eSampled,
+                                   const bool&                mipmaps = false);
 
 vk::DescriptorImageInfo createCubeDescriptor(const vk::Device&            device,
                                              const vk::Image&             image,
                                              const vk::SamplerCreateInfo& samplerCreateInfo,
-                                             const vk::Format             format = vk::Format::eR8G8B8A8Unorm,
+                                             const vk::Format&            format = vk::Format::eR8G8B8A8Unorm,
                                              const vk::ImageLayout& layout = vk::ImageLayout::eShaderReadOnlyOptimal);
 
 

@@ -120,7 +120,7 @@ struct DebugUtil
     const vk::CommandBuffer& m_cmdBuf;
   };
 
-  ScopedCmdLabel scopeLabel(const vk::CommandBuffer& cmdBuf, const char* label)
+  static ScopedCmdLabel scopeLabel(const vk::CommandBuffer& cmdBuf, const char* label)
   {
     return ScopedCmdLabel(cmdBuf, label);
   }

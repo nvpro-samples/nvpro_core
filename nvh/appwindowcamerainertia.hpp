@@ -129,7 +129,7 @@ public:
   inline mat4f& viewMat() { return m_camera.m4_view; }
   inline bool&  nonStopRendering() { return m_realtime.bNonStopRendering; }
 
-  bool open(int posX, int posY, int width, int height, const char* title);
+  bool open(int posX, int posY, int width, int height, const char* title, bool requireGLContext) override;
 
   virtual void onWindowClose() override;
   virtual void onWindowResize(int w, int h) override;
@@ -161,7 +161,7 @@ public:
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-bool AppWindowCameraInertia::open(int posX, int posY, int width, int height, const char* title)
+bool AppWindowCameraInertia::open(int posX, int posY, int width, int height, const char* title, bool requireGLContext)
 {
   m_realtime.bNonStopRendering = true;
 
@@ -169,7 +169,7 @@ bool AppWindowCameraInertia::open(int posX, int posY, int width, int height, con
   m_projection = perspective(m_fov, r, m_near, m_far);
 
   ImGuiH::Init(width, height, this);
-  return NVPWindow::open(posX, posY, width, height, title);
+  return NVPWindow::open(posX, posY, width, height, title, requireGLContext);
 }
 
 void AppWindowCameraInertia::onWindowClose() {}

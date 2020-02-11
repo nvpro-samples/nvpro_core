@@ -3,6 +3,9 @@ if(POLICY CMP0074)
   cmake_policy(SET CMP0074 NEW)
 endif()
 
+set(CMAKE_CXX_STANDARD 14)
+set(OpenGL_GL_PREFERENCE GLVND)
+
 set(SUPPORT_SOCKETS OFF CACHE BOOL "add a socket protocol so samples can be controled remotely")
 set(SUPPORT_NVTOOLSEXT OFF CACHE BOOL "Use NSight for custom markers")
 
@@ -18,16 +21,20 @@ include_directories(${BASE_DIRECTORY}/shared_external)
 
 if (WIN32)
   include_directories(${BASE_DIRECTORY}/shared_external/glfw3/include)
-else()
-  find_package(glfw3 3.3 REQUIRED)
+else() 
+  find_package(glfw3 3.3 QUIET)
+  if (NOT glfw3_FOUND)
+    add_subdirectory(${BASE_DIRECTORY}/downloaded_resources/glfw-3.3.1 ${BASE_DIRECTORY}/build/build_glfw3)
+    include_directories(${BASE_DIRECTORY}/downloaded_resources/glfw-3.3.1/include)
+  endif()  
 endif()
-
-message(STATUS "BASE_DIRECTORY = ${BASE_DIRECTORY}")
-message(STATUS "CMAKE_CURRENT_SOURCE_DIR = ${CMAKE_CURRENT_SOURCE_DIR}")
 
 # Specify the list of directories to search for cmake modules.
 set(CMAKE_MODULE_PATH ${BASE_DIRECTORY}/shared_sources/cmake)
 set(CMAKE_FIND_ROOT_PATH "")
+
+message(STATUS "BASE_DIRECTORY = ${BASE_DIRECTORY}")
+message(STATUS "CMAKE_CURRENT_SOURCE_DIR = ${CMAKE_CURRENT_SOURCE_DIR}")
 
 if(CMAKE_SIZEOF_VOID_P EQUAL 8)
   set(ARCH "x64" CACHE STRING "CPU Architecture")
@@ -86,7 +93,7 @@ function(_make_relative FROM TO OUT)
       list(GET TO_LIST ${loop_var} t)
       #message(STATUS "f = ${f}")
       #message(STATUS "t = ${t}")
-      if (${f} STREQUAL ${t})
+      if (f STREQUAL t)
         set(begin ${loop_var})
         #message(STATUS "equal")
       else()
@@ -175,6 +182,7 @@ endmacro(_set_subsystem_windows)
 if(UNIX) 
   set(OS "linux")
   add_definitions(-DLINUX)
+  add_compile_options(-fpermissive)
 else(UNIX)
   if(APPLE)
   else(APPLE)
@@ -515,6 +523,7 @@ macro(_add_package_VulkanSDK)
         set( USING_VULKANSDK "YES")
       endif()
       add_definitions(-DUSEVULKANSDK)
+      add_definitions(-DGLFW_INCLUDE_VULKAN)
       include_directories(${VULKANSDK_INCLUDE_DIR})
       LIST(APPEND LIBRARIES_OPTIMIZED ${VULKAN_LIB} )
       LIST(APPEND LIBRARIES_DEBUG ${VULKAN_LIB} )
@@ -553,11 +562,6 @@ macro(_add_package_ShaderC)
         if(NOT USING_SHADERC)
           add_subdirectory(${BASE_DIRECTORY}/shared_sources/shaderc_wrapper ${CMAKE_BINARY_DIR}/shaderc_wrapper)
         endif()
-        if(hasParent)
-          set( USING_SHADERC "YES" PARENT_SCOPE)
-        else()
-          set( USING_SHADERC "YES")
-        endif()
         LIST(APPEND LIBRARIES_OPTIMIZED shaderc_wrapper)
         LIST(APPEND LIBRARIES_DEBUG shaderc_wrapper)
       else()
@@ -569,7 +573,11 @@ macro(_add_package_ShaderC)
           LIST(APPEND LIBRARIES_DEBUG ${VULKANSDK_SHADERC_LIB})
         endif()
       endif()
-
+      if(hasParent)
+        set( USING_SHADERC "YES" PARENT_SCOPE)
+      else()
+        set( USING_SHADERC "YES")
+      endif()
   else()
       Message(STATUS "--> NOT using package ShaderC")
   endif() 
@@ -850,14 +858,14 @@ Message(STATUS "NVCUDA_COMPILE_CUBIN ${options} ${oneValueArgs} ${multiValueArgs
     set( output "${NVCUDA_COMPILE_CUBIN_TARGET_PATH}/${input_we}.cubin" )
     LIST( APPEND CUBIN_FILES  ${output} )
     
-    message(STATUS "${CUDA_NVCC_EXECUTABLE} ${MACHINE} --cubin ${NVCUDA_COMPILE_CUBIN_NVCC_OPTIONS} ${input} -o ${output} WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}")
+    message(STATUS "${CUDA_NVCC_EXECUTABLE} ${MACHINE} --cubin ${NVCUDA_COMPILE_CUBIN_NVCC_OPTIONS} ${input} -o ${CMAKE_CURRENT_SOURCE_DIR}/${output}")
+    message(STATUS "WORKING_DIRECTORY: ${CMAKE_CURRENT_SOURCE_DIR}")
     
     add_custom_command(
-      OUTPUT  ${output}
+      OUTPUT  ${CMAKE_CURRENT_SOURCE_DIR}/${output}
       DEPENDS ${input}
-      COMMAND ${CUDA_NVCC_EXECUTABLE} ${MACHINE} --cubin ${NVCUDA_COMPILE_CUBIN_NVCC_OPTIONS} ${input} -o ${output} WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-      COMMAND ${CMAKE_COMMAND} -E echo ${NVCUDA_COMPILE_CUBIN_TARGET_PATH}
-      COMMAND ${CMAKE_COMMAND} -E copy ${output} "${NVCUDA_COMPILE_CUBIN_TARGET_PATH}/${input_we}.cubin"
+      COMMAND ${CUDA_NVCC_EXECUTABLE} ${MACHINE} --cubin ${NVCUDA_COMPILE_CUBIN_NVCC_OPTIONS} ${input} -o ${CMAKE_CURRENT_SOURCE_DIR}/${output} 
+      WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
     )
   ENDFOREACH( )
   
@@ -1031,6 +1039,9 @@ macro(_add_shared_sources_lib)
   # putting this into one of the other branches didn't work
   if(WIN32)
     add_definitions(-DVK_USE_PLATFORM_WIN32_KHR)
-    add_definitions(-DVULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1)
+  else()
+    add_definitions(-DVK_USE_PLATFORM_XLIB_KHR)
+    add_definitions(-DVK_USE_PLATFORM_XCB_KHR)
   endif(WIN32)
+  add_definitions(-DVULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1)
 endmacro()

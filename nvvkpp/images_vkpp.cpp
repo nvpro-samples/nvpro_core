@@ -107,14 +107,14 @@ void nvvkpp::image::setImageLayout(const vk::CommandBuffer&    cmdbuffer,
 vk::ImageCreateInfo nvvkpp::image::create2DInfo(const vk::Extent2D&        size,
                                                 const vk::Format&          format,
                                                 const vk::ImageUsageFlags& usage,
-                                                const bool                 mipmaps)
+                                                const bool&                mipmaps)
 {
   vk::ImageCreateInfo icInfo;
   icInfo.imageType   = vk::ImageType::e2D;
   icInfo.format      = format;
   icInfo.mipLevels   = mipmaps ? nvvkpp::image::mipLevels(size) : 1;
   icInfo.arrayLayers = 1;
-  icInfo.extent      = {size.width, size.height, 1};
+  icInfo.extent      = vk::Extent3D(size.width, size.height, 1);
   icInfo.usage       = usage | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst;
   return icInfo;
 }
@@ -136,14 +136,49 @@ vk::DescriptorImageInfo nvvkpp::image::create2DDescriptor(const vk::Device&     
   return texDesc;
 }
 
-vk::ImageCreateInfo nvvkpp::image::createCubeInfo(const vk::Extent2D size, const vk::Format format, const vk::ImageUsageFlags usage, const bool mipmaps)
+vk::ImageCreateInfo nvvkpp::image::create3DInfo(const vk::Extent3D&        size,
+  const vk::Format&          format,
+  const vk::ImageUsageFlags& usage,
+  const bool&                mipmaps)
+{
+  vk::ImageCreateInfo icInfo;
+  icInfo.imageType = vk::ImageType::e3D;
+  icInfo.format = format;
+  icInfo.mipLevels = mipmaps ? nvvkpp::image::mipLevels(size) : 1;
+  icInfo.arrayLayers = 1;
+  icInfo.extent = vk::Extent3D(size.width, size.height, size.width);
+  icInfo.usage = usage | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst;
+  return icInfo;
+}
+
+vk::DescriptorImageInfo nvvkpp::image::create3DDescriptor(const vk::Device&            device,
+  const vk::Image&             image,
+  const vk::SamplerCreateInfo& samplerCreateInfo,
+  const vk::Format&            format,
+  const vk::ImageLayout&       layout)
+{
+  vk::DescriptorImageInfo texDesc;
+  vk::ImageViewCreateInfo viewCreateInfo{ {},     image, vk::ImageViewType::e3D,
+                                         format, {},    {vk::ImageAspectFlagBits::eColor, 0, ~0u, 0, 1} };
+
+  texDesc.setSampler(device.createSampler(samplerCreateInfo));
+  texDesc.setImageView(device.createImageView(viewCreateInfo));
+  texDesc.setImageLayout(layout);
+
+  return texDesc;
+}
+
+vk::ImageCreateInfo nvvkpp::image::createCubeInfo(const vk::Extent2D&        size,
+                                                  const vk::Format&          format,
+                                                  const vk::ImageUsageFlags& usage,
+                                                  const bool&                mipmaps)
 {
   vk::ImageCreateInfo icInfo;
   icInfo.imageType   = vk::ImageType::e2D;
   icInfo.format      = format;
   icInfo.mipLevels   = mipmaps ? nvvkpp::image::mipLevels(size) : 1;
   icInfo.arrayLayers = 6;
-  icInfo.extent      = {size.width, size.height, 1};
+  icInfo.extent      = vk::Extent3D(size.width, size.height, 1);
   icInfo.usage       = usage | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst;
   icInfo.flags       = vk::ImageCreateFlagBits::eCubeCompatible;
 
@@ -153,7 +188,7 @@ vk::ImageCreateInfo nvvkpp::image::createCubeInfo(const vk::Extent2D size, const
 vk::DescriptorImageInfo nvvkpp::image::createCubeDescriptor(const vk::Device&            device,
                                                             const vk::Image&             image,
                                                             const vk::SamplerCreateInfo& samplerCreateInfo,
-                                                            const vk::Format             format,
+                                                            const vk::Format&            format,
                                                             const vk::ImageLayout&       layout)
 {
   vk::DescriptorImageInfo texDesc;
@@ -199,14 +234,14 @@ void nvvkpp::image::generateMipmaps(const vk::CommandBuffer& cmdBuf,
   {
 
     vk::ImageBlit blit;
-    blit.srcOffsets[0]                 = {0, 0, 0};
-    blit.srcOffsets[1]                 = {mipWidth, mipHeight, 1};
+    blit.srcOffsets[0]                 = vk::Offset3D(0, 0, 0);
+    blit.srcOffsets[1]                 = vk::Offset3D(mipWidth, mipHeight, 1);
     blit.srcSubresource.aspectMask     = vk::ImageAspectFlagBits::eColor;
     blit.srcSubresource.mipLevel       = i - 1;
     blit.srcSubresource.baseArrayLayer = 0;
     blit.srcSubresource.layerCount     = 1;
-    blit.dstOffsets[0]                 = {0, 0, 0};
-    blit.dstOffsets[1]                 = {mipWidth > 1 ? mipWidth / 2 : 1, mipHeight > 1 ? mipHeight / 2 : 1, 1};
+    blit.dstOffsets[0]                 = vk::Offset3D(0, 0, 0);
+    blit.dstOffsets[1] = vk::Offset3D(mipWidth > 1 ? mipWidth / 2 : 1, mipHeight > 1 ? mipHeight / 2 : 1, 1);
     blit.dstSubresource.aspectMask     = vk::ImageAspectFlagBits::eColor;
     blit.dstSubresource.mipLevel       = i;
     blit.dstSubresource.baseArrayLayer = 0;

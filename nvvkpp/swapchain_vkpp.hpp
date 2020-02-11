@@ -272,7 +272,16 @@ struct SwapChain
       presentInfo.pWaitSemaphores    = &waitSemaphore;
       presentInfo.waitSemaphoreCount = 1;
     }
-    return queue.presentKHR(presentInfo);
+    vk::Result res = vk::Result::eSuccess;
+    try
+    {
+      res = queue.presentKHR(presentInfo);
+    }
+    catch(vk::OutOfDateKHRError&)
+    {
+      res = vk::Result::eErrorOutOfDateKHR;
+    }
+    return res;
   }
 
   void deinit()

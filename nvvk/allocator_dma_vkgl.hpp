@@ -113,10 +113,10 @@ public:
                            const std::vector<T>& data,
                            VkMemoryPropertyFlags memProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
   {
-    VkDeviceSize size         = sizeof(T) * data.size();
     BufferDmaGL  resultBuffer = createBuffer(size, usage, memProps);
     if(data)
     {
+      VkDeviceSize size         = sizeof(T) * data.size();
       m_staging->cmdToBuffer(cmd, resultBuffer.buffer, 0, size, data.data());
     }
 

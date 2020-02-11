@@ -30,7 +30,9 @@
 
 #include <platform.h>
 #include <algorithm>
+#if (defined(NV_X86) || defined(NV_X64)) && defined(_MSC_VER)
 #include <intrin.h>
+#endif
 
 namespace nvh {
 
@@ -287,9 +289,9 @@ namespace nvh {
 
   /** \brief call Visitor( size_t index ) on all bits which are set. **/
   template <typename Visitor>
-  inline void BitArray::traverseBits( Visitor visitor )
+  inline void BitArray::traverseBits(Visitor visitor)
   {
-    bitTraverse(m_bits.get(), determineNumberOfElements(), visitor );
+    bitTraverse(m_bits, determineNumberOfElements(), visitor);
   }
 
   inline void BitArray::clearUnusedBits()

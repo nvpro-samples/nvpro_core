@@ -53,7 +53,7 @@ namespace nvvk {
   The ShaderModuleManager manages VkShaderModules stored in files (SPIR-V or GLSL)
 
   Using ShaderFileManager it will find the files and resolve #include for GLSL.
-  You must register includes to the base-class for this.
+  You must add include directories to the base-class for this.
 
   It also comes with some convenience functions to reload shaders etc.
   That is why we pass out the ShaderModuleID rather than a VkShaderModule directly.
@@ -72,7 +72,6 @@ namespace nvvk {
 
   // derived from ShaderFileManager
   mgr.addDirectory("shaders/");
-  mgr.registerInclude("noise.glsl");
 
   // all shaders get this injected after #version statement
   mgr.m_prepend = "#define USE_NOISE 1\n";
@@ -110,13 +109,12 @@ public:
   operator bool() const { return isValid(); }
   operator size_t() const { return m_value; }
 
-  friend bool operator==(const ShaderModuleID& lhs, const ShaderModuleID& rhs){ return rhs.m_value == lhs.m_value; }
+  friend bool operator==(const ShaderModuleID& lhs, const ShaderModuleID& rhs) { return rhs.m_value == lhs.m_value; }
 };
 
 class ShaderModuleManager : public nvh::ShaderFileManager
 {
 public:
-
   struct ShaderModule
   {
     ShaderModule()
@@ -130,7 +128,7 @@ public:
     bool           useNVextension;
   };
 
-  void init(VkDevice device);
+  void init(VkDevice device, int apiMajor = 1, int apiMinor = 1);
   void deinit();
 
   ShaderModuleID createShaderModule(uint32_t           type,
@@ -159,8 +157,6 @@ public:
   // also keep m_filetype in mind!
   bool m_preprocessOnly = false;
   bool m_useNVextension = false;
-  int  m_apiMajor       = 1;
-  int  m_apiMinor       = 1;
 
 
   //////////////////////////////////////////////////////////////////////////
@@ -186,8 +182,12 @@ public:
     m_usedSetupIF             = &m_defaultSetupIF;
     m_supportsExtendedInclude = true;
 #if USESHADERC
-    m_shadercCompiler = shaderc_compiler_initialize();
-    m_shadercOptions  = shaderc_compile_options_initialize();
+    s_shadercCompilerUsers++;
+    if(!s_shadercCompiler)
+    {
+      s_shadercCompiler = shaderc_compiler_initialize();
+    }
+    m_shadercOptions = shaderc_compile_options_initialize();
 #endif
   }
   ShaderModuleManager(VkDevice device)
@@ -195,8 +195,12 @@ public:
     m_usedSetupIF             = &m_defaultSetupIF;
     m_supportsExtendedInclude = true;
 #if USESHADERC
-    m_shadercCompiler = shaderc_compiler_initialize();
-    m_shadercOptions  = shaderc_compile_options_initialize();
+    s_shadercCompilerUsers++;
+    if(!s_shadercCompiler)
+    {
+      s_shadercCompiler = shaderc_compiler_initialize();
+    }
+    m_shadercOptions = shaderc_compile_options_initialize();
 #endif
     init(device);
   }
@@ -204,9 +208,11 @@ public:
   ~ShaderModuleManager()
   {
 #if USESHADERC
-    if(m_shadercCompiler)
+    s_shadercCompilerUsers--;
+    if(s_shadercCompiler && s_shadercCompilerUsers == 0)
     {
-      shaderc_compiler_release(m_shadercCompiler);
+      shaderc_compiler_release(s_shadercCompiler);
+      s_shadercCompiler = nullptr;
     }
     if(m_shadercOptions)
     {
@@ -229,13 +235,17 @@ private:
 
   static const VkShaderModule PREPROCESS_ONLY_MODULE;
 
-  VkDevice                     m_device    = VK_NULL_HANDLE;
-  DefaultInterface             m_defaultSetupIF;
-  SetupInterface*              m_usedSetupIF = nullptr;
+  VkDevice         m_device = VK_NULL_HANDLE;
+  DefaultInterface m_defaultSetupIF;
+  SetupInterface*  m_usedSetupIF = nullptr;
+
+  int  m_apiMajor       = 1;
+  int  m_apiMinor       = 1;
 
 #if USESHADERC
-  shaderc_compiler_t        m_shadercCompiler = nullptr;
-  shaderc_compile_options_t m_shadercOptions  = nullptr;
+  static shaderc_compiler_t s_shadercCompiler;
+  static uint32_t           s_shadercCompilerUsers;
+  shaderc_compile_options_t m_shadercOptions = nullptr;
 #endif
 
   std::vector<ShaderModule> m_shadermodules;

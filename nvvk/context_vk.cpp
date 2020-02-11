@@ -216,6 +216,16 @@ bool Context::initInstance(const ContextCreateInfo& info)
 
   uint32_t count = 0;
 
+  if (info.verboseUsed) {
+    uint32_t version;
+    VkResult result = vkEnumerateInstanceVersion(&version);
+    NVVK_CHECK(result);
+    LOGI("_______________\n");
+    LOGI("Vulkan Version:\n");
+    LOGI(" - available:  %d.%d.%d\n", VK_VERSION_MAJOR(version), VK_VERSION_MINOR(version), VK_VERSION_PATCH(version));
+    LOGI(" - requesting: %d.%d.%d\n", info.apiMajor, info.apiMinor, 0);
+  }
+
   {
     // Get all layers
     auto layerProperties = getInstanceLayers();
@@ -317,19 +327,37 @@ bool Context::initDevice(uint32_t deviceIndex, const ContextCreateInfo& info)
     m_physicalDevice = physicalDevices[deviceIndex];
   }
 
-  initPhysicalInfo(m_physicalInfo, m_physicalDevice);
+  initPhysicalInfo(m_physicalInfo, m_physicalDevice, info.apiMajor, info.apiMinor);
+
+  // features 
+
+  VkPhysicalDeviceFeatures2           features2{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
+  Features11Old                       features11old;
+
+  features2.features = m_physicalInfo.features10;
+  features11old.read(m_physicalInfo.features11);
+
+  if (info.apiMajor == 1 && info.apiMinor == 1) {
+    features2.pNext   = &features11old.multiview;
+  }
+  else if (info.apiMajor == 1 && info.apiMinor >= 2) {
+    features2.pNext = &m_physicalInfo.features11;
+    m_physicalInfo.features11.pNext = &m_physicalInfo.features12;
+    m_physicalInfo.features12.pNext = nullptr;
+  }
 
   std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
   std::vector<float>                   priorities;
   std::vector<void*>                   featureStructs;
 
-  bool queueFamilyGraphicsCompute = false;
+  bool queueFamilyGeneralPurpose = false;
   {
     for(auto& it : m_physicalInfo.queueProperties)
     {
-      if(it.queueFlags & (VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT | VK_QUEUE_TRANSFER_BIT))
+      if((it.queueFlags & (VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT | VK_QUEUE_TRANSFER_BIT))
+                       == (VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT | VK_QUEUE_TRANSFER_BIT))
       {
-        queueFamilyGraphicsCompute = true;
+        queueFamilyGeneralPurpose = true;
       }
       if(it.queueCount > priorities.size())
       {
@@ -348,9 +376,9 @@ bool Context::initDevice(uint32_t deviceIndex, const ContextCreateInfo& info)
     }
   }
 
-  if(!queueFamilyGraphicsCompute)
+  if(!queueFamilyGeneralPurpose)
   {
-    LOGW("could not find queue that supports graphics and compute");
+    LOGW("could not find queue that supports graphics, compute and transfer");
   }
 
   // allow all queues
@@ -388,22 +416,13 @@ bool Context::initDevice(uint32_t deviceIndex, const ContextCreateInfo& info)
     LOGI("\n");
   }
 
-  deviceCreateInfo.enabledExtensionCount   = static_cast<uint32_t>(m_usedDeviceExtensions.size());
-  deviceCreateInfo.ppEnabledExtensionNames = m_usedDeviceExtensions.data();
-
-  // Vulkan >= 1.1 uses pNext to enable features, and not pEnabledFeatures
-  deviceCreateInfo.pEnabledFeatures = nullptr;
-  deviceCreateInfo.pNext            = &m_physicalInfo.features2;
-
-
   struct ExtensionHeader  // Helper struct to link extensions together
   {
     VkStructureType sType;
     void*           pNext;
   };
 
-  // use the coreFeature chain to append extensions
-  ExtensionHeader* lastCoreFeature = nullptr;
+  // use the features2 chain to append extensions
   if(!featureStructs.empty())
   {
     // build up chain of all used extension features
@@ -414,7 +433,7 @@ bool Context::initDevice(uint32_t deviceIndex, const ContextCreateInfo& info)
     }
 
     // append to the end of current feature2 struct
-    lastCoreFeature = (ExtensionHeader*)&m_physicalInfo.features2;
+    ExtensionHeader* lastCoreFeature = (ExtensionHeader*)&features2;
     while(lastCoreFeature->pNext != nullptr)
     {
       lastCoreFeature = (ExtensionHeader*)lastCoreFeature->pNext;
@@ -422,14 +441,21 @@ bool Context::initDevice(uint32_t deviceIndex, const ContextCreateInfo& info)
     lastCoreFeature->pNext = featureStructs[0];
 
     // query support
-    vkGetPhysicalDeviceFeatures2(m_physicalDevice, &m_physicalInfo.features2);
+    vkGetPhysicalDeviceFeatures2(m_physicalDevice, &features2);
   }
 
   // disable some features
   if(info.disableRobustBufferAccess)
   {
-    m_physicalInfo.features2.features.robustBufferAccess = VK_FALSE;
+    features2.features.robustBufferAccess = VK_FALSE;
   }
+
+  deviceCreateInfo.enabledExtensionCount   = static_cast<uint32_t>(m_usedDeviceExtensions.size());
+  deviceCreateInfo.ppEnabledExtensionNames = m_usedDeviceExtensions.data();
+  
+  // Vulkan >= 1.1 uses pNext to enable features, and not pEnabledFeatures
+  deviceCreateInfo.pEnabledFeatures = nullptr;
+  deviceCreateInfo.pNext            = &features2;
 
   // device group information
   VkDeviceGroupDeviceCreateInfo deviceGroupCreateInfo{VK_STRUCTURE_TYPE_DEVICE_GROUP_DEVICE_CREATE_INFO};
@@ -466,12 +492,6 @@ bool Context::initDevice(uint32_t deviceIndex, const ContextCreateInfo& info)
   {
     deinit();
     return false;
-  }
-
-  // reset core feature chain
-  if(lastCoreFeature)
-  {
-    lastCoreFeature->pNext = nullptr;
   }
 
   load_VK_EXTENSION_SUBSET(m_instance, vkGetInstanceProcAddr, m_device, vkGetDeviceProcAddr);
@@ -648,9 +668,9 @@ void ContextCreateInfo::addInstanceLayer(const char* name, bool optional)
 // pFeatureStruct must be provided if it exists, it will be queried from physical device
 // and then passed in this state to device create info.
 //
-void ContextCreateInfo::addDeviceExtension(const char* name, bool optional, void* pFeatureStruct)
+void ContextCreateInfo::addDeviceExtension(const char* name, bool optional, void* pFeatureStruct, uint32_t version)
 {
-  deviceExtensions.emplace_back(name, optional, pFeatureStruct);
+  deviceExtensions.emplace_back(name, optional, pFeatureStruct, version);
 }
 
 void ContextCreateInfo::removeInstanceExtension(const char* name)
@@ -700,9 +720,9 @@ VkResult Context::fillFilteredNameArray(Context::NameArray&                   us
   for(auto itr = requested.begin(); itr != requested.end(); ++itr)
   {
     bool found = false;
-    for(const auto& propertie : properties)
+    for(const auto& property : properties)
     {
-      if(strcmp(itr->name, propertie.layerName) == 0)
+      if(strcmp(itr->name, property.layerName) == 0)
       {
         found = true;
         break;
@@ -730,9 +750,9 @@ VkResult Context::fillFilteredNameArray(Context::NameArray&                     
   for(const auto& itr : requested)
   {
     bool found = false;
-    for(const auto& propertie : properties)
+    for(const auto& property : properties)
     {
-      if(strcmp(itr.name, propertie.extensionName) == 0)
+      if(strcmp(itr.name, property.extensionName) == 0 && (itr.version == 0 || itr.version == property.specVersion))
       {
         found = true;
         break;
@@ -749,7 +769,7 @@ VkResult Context::fillFilteredNameArray(Context::NameArray&                     
     }
     else if(!itr.optional)
     {
-      LOGW("VK_ERROR_EXTENSION_NOT_PRESENT: %s\n", itr.name);
+      LOGW("VK_ERROR_EXTENSION_NOT_PRESENT: %s - %d\n", itr.name, itr.version);
       return VK_ERROR_EXTENSION_NOT_PRESENT;
     }
   }
@@ -757,7 +777,7 @@ VkResult Context::fillFilteredNameArray(Context::NameArray&                     
   return VK_SUCCESS;
 }
 
-void Context::initPhysicalInfo(PhysicalDeviceInfo& info, VkPhysicalDevice physicalDevice)
+void Context::initPhysicalInfo(PhysicalDeviceInfo& info, VkPhysicalDevice physicalDevice, uint32_t versionMajor, uint32_t versionMinor)
 {
   vkGetPhysicalDeviceMemoryProperties(physicalDevice, &info.memoryProperties);
   uint32_t count;
@@ -765,44 +785,36 @@ void Context::initPhysicalInfo(PhysicalDeviceInfo& info, VkPhysicalDevice physic
   info.queueProperties.resize(count);
   vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &count, info.queueProperties.data());
 
-  info.features2.sType                           = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-  info.coreFeatures.multiview.sType              = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MULTIVIEW_FEATURES;
-  info.coreFeatures.t16BitStorage.sType          = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_16BIT_STORAGE_FEATURES;
-  info.coreFeatures.samplerYcbcrConversion.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SAMPLER_YCBCR_CONVERSION_FEATURES;
-  info.coreFeatures.protectedMemory.sType        = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROTECTED_MEMORY_FEATURES;
-  info.coreFeatures.drawParameters.sType         = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETER_FEATURES;
-  info.coreFeatures.variablePointers.sType       = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VARIABLE_POINTER_FEATURES;
+  // for queries and device creation
+  VkPhysicalDeviceFeatures2           features2{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
+  VkPhysicalDeviceProperties2         properties2 = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
+  Properties11Old                     properties11old;
+  Features11Old                       features11old;
 
-  info.features2.pNext                           = &info.coreFeatures.multiview;
-  info.coreFeatures.multiview.pNext              = &info.coreFeatures.t16BitStorage;
-  info.coreFeatures.t16BitStorage.pNext          = &info.coreFeatures.samplerYcbcrConversion;
-  info.coreFeatures.samplerYcbcrConversion.pNext = &info.coreFeatures.protectedMemory;
-  info.coreFeatures.protectedMemory.pNext        = &info.coreFeatures.drawParameters;
-  info.coreFeatures.drawParameters.pNext         = &info.coreFeatures.variablePointers;
-  info.coreFeatures.variablePointers.pNext       = nullptr;
+  if (versionMajor == 1 && versionMinor == 1) {
+    features2.pNext   = &features11old.multiview;
+    properties2.pNext = &properties11old.maintenance3;
+  }
+  else if (versionMajor == 1 && versionMinor >= 2) {
+    features2.pNext = &info.features11;
+    info.features11.pNext = &info.features12;
+    info.features12.pNext = nullptr;
 
-  VkPhysicalDeviceProperties2 properties2;
+    properties2.pNext = &info.properties11;
+    info.properties11.pNext = &info.properties12;
+    info.properties12.pNext = nullptr;
+  }
 
-  properties2.sType                         = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
-  info.coreProperties.maintenance3.sType    = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_3_PROPERTIES;
-  info.coreProperties.deviceID.sType        = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES;
-  info.coreProperties.multiview.sType       = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MULTIVIEW_PROPERTIES;
-  info.coreProperties.protectedMemory.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROTECTED_MEMORY_PROPERTIES;
-  info.coreProperties.pointClipping.sType   = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_POINT_CLIPPING_PROPERTIES;
-  info.coreProperties.subgroup.sType        = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES;
-
-  properties2.pNext                         = &info.coreProperties.maintenance3;
-  info.coreProperties.maintenance3.pNext    = &info.coreProperties.deviceID;
-  info.coreProperties.deviceID.pNext        = &info.coreProperties.multiview;
-  info.coreProperties.multiview.pNext       = &info.coreProperties.protectedMemory;
-  info.coreProperties.protectedMemory.pNext = &info.coreProperties.pointClipping;
-  info.coreProperties.pointClipping.pNext   = &info.coreProperties.subgroup;
-  info.coreProperties.subgroup.pNext        = nullptr;
-
-  vkGetPhysicalDeviceFeatures2(physicalDevice, &info.features2);
+  vkGetPhysicalDeviceFeatures2(physicalDevice, &features2);
   vkGetPhysicalDeviceProperties2(physicalDevice, &properties2);
 
-  info.properties = properties2.properties;
+  info.properties10 = properties2.properties;
+  info.features10 = features2.features;
+
+  if (versionMajor == 1 && versionMinor == 1) {
+     properties11old.write(info.properties11);
+     features11old.write(info.features11);
+  }
 }
 
 void Context::initDebugReport()

@@ -243,7 +243,7 @@ void AppWindowProfiler::setVsync(bool state)
   m_vsync             = state;
 }
 
-int AppWindowProfiler::run(const std::string& title, int argc, const char** argv, int width, int height)
+int AppWindowProfiler::run(const std::string& title, int argc, const char** argv, int width, int height, bool requireGLContext)
 {
   m_config.winsize[0] = m_config.winsize[0] ? m_config.winsize[0] : width;
   m_config.winsize[1] = m_config.winsize[1] ? m_config.winsize[1] : height;
@@ -255,7 +255,7 @@ int AppWindowProfiler::run(const std::string& title, int argc, const char** argv
     return EXIT_FAILURE;
   }
 
-  if(!NVPWindow::open(m_config.winpos[0], m_config.winpos[1], m_config.winsize[0], m_config.winsize[1], title.c_str()))
+  if(!NVPWindow::open(m_config.winpos[0], m_config.winpos[1], m_config.winsize[0], m_config.winsize[1], title.c_str(), requireGLContext))
   {
     LOGE("Could not create window\n");
     return EXIT_FAILURE;

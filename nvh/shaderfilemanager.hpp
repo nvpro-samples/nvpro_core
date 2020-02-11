@@ -39,7 +39,7 @@ class ShaderFileManager
 {
 
   //////////////////////////////////////////////////////////////////////////
-  /*
+  /**
     # class nvh::ShaderFileManager
 
     The ShaderFileManager class is meant to be derived from to create the actual api-specific 
@@ -47,7 +47,7 @@ class ShaderFileManager
 
     The ShaderFileManager provides a system to find/load shader files.
     It also allows resolving #include instructions in HLSL/GLSL source files.
-    Such includes must be registered before, and can also point to strings in memory.
+    Such includes can be registered before pointing to strings in memory.
 
     Furthermore it handles injecting prepended strings (typically used for #defines) 
     after the #version statement of GLSL files.
@@ -98,7 +98,7 @@ public:
 
     bool isValid() const { return m_value != size_t(~0); }
 
-    operator bool() const { isValid(); }
+    operator bool() const { return isValid(); }
     operator size_t() const { return m_value; }
 
     friend bool operator==(const IncludeID& lhs, const IncludeID& rhs){ return rhs.m_value == lhs.m_value; }
@@ -131,7 +131,7 @@ public:
   };
 
 
-  // register files to be included, optionally provide content directly
+  // optionally register files to be included, optionally provide content directly rather than from disk
   //
   // name: name used within shader files
   // diskname = filename on disk (defaults to name if not set)

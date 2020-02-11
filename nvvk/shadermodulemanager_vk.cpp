@@ -43,6 +43,10 @@
 namespace nvvk {
 
 const VkShaderModule ShaderModuleManager::PREPROCESS_ONLY_MODULE = (VkShaderModule)~0;
+#if USESHADERC
+shaderc_compiler_t ShaderModuleManager::s_shadercCompiler      = nullptr;
+uint32_t           ShaderModuleManager::s_shadercCompilerUsers = 0;
+#endif
 
 std::string ShaderModuleManager::DefaultInterface::getTypeDefine(uint32_t type) const
 {
@@ -179,7 +183,7 @@ bool ShaderModuleManager::setupShaderModule(ShaderModule& module)
     if(definition.filetype == FILETYPE_GLSL && !module.useNVextension)
     {
       shaderc_shader_kind shaderkind = (shaderc_shader_kind)m_usedSetupIF->getTypeShadercKind(definition.type);
-      shaderc_compile_options_t options = (shaderc_compile_options_t)m_usedSetupIF->getShadercCompileOption(m_shadercCompiler);
+      shaderc_compile_options_t options = (shaderc_compile_options_t)m_usedSetupIF->getShadercCompileOption(s_shadercCompiler);
       if(!options)
       {
         if(m_apiMajor == 1 && m_apiMinor == 0)
@@ -190,12 +194,15 @@ bool ShaderModuleManager::setupShaderModule(ShaderModule& module)
         {
           shaderc_compile_options_set_target_env(m_shadercOptions, shaderc_target_env_vulkan, shaderc_env_version_vulkan_1_1);
         }
-        // BUG in shaderc with 1_1 so far
-        //shaderc_compile_options_set_optimization_level(m_shadercOptions, shaderc_optimization_level_performance);
+        else if(m_apiMajor == 1 && m_apiMinor == 2)
+        {
+          shaderc_compile_options_set_target_env(m_shadercOptions, shaderc_target_env_vulkan, shaderc_env_version_vulkan_1_2);
+        }
+        shaderc_compile_options_set_optimization_level(m_shadercOptions, shaderc_optimization_level_performance);
         options = m_shadercOptions;
       }
 
-      result = shaderc_compile_into_spv(m_shadercCompiler, definition.content.c_str(), definition.content.size(),
+      result = shaderc_compile_into_spv(s_shadercCompiler, definition.content.c_str(), definition.content.size(),
                                         shaderkind, definition.filename.c_str(), "main", options);
 
       if(!result)
@@ -240,9 +247,11 @@ bool ShaderModuleManager::setupShaderModule(ShaderModule& module)
   }
 }
 
-void ShaderModuleManager::init(VkDevice device)
+void ShaderModuleManager::init(VkDevice device, int apiMajor, int apiMinor)
 {
-  m_device    = device;
+  m_device = device;
+  m_apiMajor = apiMajor;
+  m_apiMinor = apiMinor;
 }
 
 void ShaderModuleManager::deinit()
@@ -273,10 +282,10 @@ ShaderModuleID ShaderModuleManager::createShaderModule(const Definition& definit
 }
 
 ShaderModuleID ShaderModuleManager::createShaderModule(uint32_t           type,
-                                                                            std::string const& filename,
-                                                                            std::string const& prepend,
-                                                                            FileType fileType /*= FILETYPE_DEFAULT*/,
-                                                                            std::string const& entryname /*= "main"*/)
+                                                       std::string const& filename,
+                                                       std::string const& prepend,
+                                                       FileType           fileType /*= FILETYPE_DEFAULT*/,
+                                                       std::string const& entryname /*= "main"*/)
 {
   Definition def;
   def.type     = type;

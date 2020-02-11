@@ -124,7 +124,7 @@ renderdoc or comparable tools.
 The **ProgramManager** manages OpenGL programs generated from shader files (GLSL)
 
 Using **ShaderFileManager** it will find the files and resolve #include for GLSL.
-You must register includes to the base-class for this.
+You must add include directories to the base-class for this.
 
 It also comes with some convenience functions to reload shaders etc.
 That is why we pass out the **ProgramID** rather than a GLuint directly.
@@ -143,7 +143,6 @@ ProgramManager mgr;
 
 // derived from ShaderFileManager
 mgr.addDirectory("/shaders/")
-mgr.registerInclude("noise.glsl");
 
 // injected after #version directive
 mgr.m_prepend = "#define USE_NOISE 1\n";

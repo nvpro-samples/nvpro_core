@@ -37,6 +37,8 @@
 #include <functional>
 #include <algorithm>
 #include <chrono>
+#include <float.h> // DBL_MAX
+#include <string.h> //memset
 
 #ifdef SUPPORT_NVTOOLSEXT
 #define NVTX_STDINT_TYPES_ALREADY_DEFINED

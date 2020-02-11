@@ -285,12 +285,33 @@ public:
     VkResult result;
     return createImage(createInfo, allocationID, memProps, result);
   }
+  VkImage createImage(const VkImageCreateInfo& createInfo, VkMemoryPropertyFlags memProps, VkResult& result)
+  {
+    AllocationID id;
+    return createImage(createInfo, id, memProps, result);
+  }
+  VkImage createImage(const VkImageCreateInfo& createInfo, VkMemoryPropertyFlags memProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+  {
+    AllocationID id;
+    return createImage(createInfo, id, memProps);
+  }
+
 
   VkBuffer createBuffer(const VkBufferCreateInfo& createInfo, AllocationID& allocationID, VkMemoryPropertyFlags memProps, VkResult& result);
   VkBuffer createBuffer(const VkBufferCreateInfo& createInfo, AllocationID& allocationID, VkMemoryPropertyFlags memProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
   {
     VkResult result;
     return createBuffer(createInfo, allocationID, memProps, result);
+  }
+  VkBuffer createBuffer(const VkBufferCreateInfo& createInfo, VkMemoryPropertyFlags memProps, VkResult& result)
+  {
+    AllocationID id;
+    return createBuffer(createInfo, id, memProps, result);
+  }
+  VkBuffer createBuffer(const VkBufferCreateInfo& createInfo, VkMemoryPropertyFlags memProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+  {
+    AllocationID id;
+    return createBuffer(createInfo, id, memProps);
   }
 
   VkBuffer createBuffer(VkDeviceSize size,

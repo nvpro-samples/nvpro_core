@@ -71,6 +71,10 @@ public:
   VkSurfaceKHR      m_surface;
   ProfilerVK        m_profilerVK;
 
+  int run(const std::string& name, int argc, const char** argv, int width, int height)
+  {
+    return AppWindowProfiler::run(name, argc, argv, width, height, false);
+  }
 
   virtual void        contextInit() override;
   virtual void        contextDeinit() override;

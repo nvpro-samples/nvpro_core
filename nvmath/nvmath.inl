@@ -422,7 +422,7 @@ inline vector3<T> mult(const matrix3<T>& M, const vector3<T>& v)
 template<class T>
 inline vector3<T> mult(const vector3<T>& v, const matrix3<T>& M)
 {
-    vector3<T>& u;
+    vector3<T> u;
     u.x = M.a00 * v.x + M.a10 * v.y + M.a20 * v.z;
     u.y = M.a01 * v.x + M.a11 * v.y + M.a21 * v.z;
     u.z = M.a02 * v.x + M.a12 * v.y + M.a22 * v.z;
@@ -603,7 +603,7 @@ inline matrix4<T> & add(const matrix4<T>& A, const matrix4<T>& B)
 template<class T>
 inline matrix3<T> & add(const matrix3<T>& A, const matrix3<T>& B)
 {
-    matrix3<T>& C;
+    matrix3<T> C;
     C.a00 = A.a00 + B.a00;
     C.a10 = A.a10 + B.a10;
     C.a20 = A.a20 + B.a20;

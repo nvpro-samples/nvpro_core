@@ -31,6 +31,8 @@
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
+static_assert(VK_HEADER_VERSION >= 131, "Vulkan SDK version needs to be 1.2.131.1 or greater");
+
 namespace nvvk {
 /**
 To run a Vulkan application, you need to create the Vulkan instance and device.
@@ -81,7 +83,8 @@ struct ContextCreateInfo
 
   void addInstanceExtension(const char* name, bool optional = false);
   void addInstanceLayer(const char* name, bool optional = false);
-  void addDeviceExtension(const char* name, bool optional = false, void* pFeatureStruct = nullptr);
+  // version = 0: don't care, otherwise check against equality (useful for provisional exts)
+  void addDeviceExtension(const char* name, bool optional = false, void* pFeatureStruct = nullptr, uint32_t version = 0);
 
   void removeInstanceExtension(const char* name);
   void removeInstanceLayer(const char* name);
@@ -116,15 +119,17 @@ struct ContextCreateInfo
 
   struct Entry
   {
-    Entry(const char* entryName, bool isOptional = false, void* pointerFeatureStruct = nullptr)
+    Entry(const char* entryName, bool isOptional = false, void* pointerFeatureStruct = nullptr, uint32_t checkVersion = 0)
         : name(entryName)
         , optional(isOptional)
         , pFeatureStruct(pointerFeatureStruct)
+        , version(checkVersion)
     {
     }
     const char* name{nullptr};
     bool        optional{false};
     void*       pFeatureStruct{nullptr};
+    uint32_t    version{0};
   };
 
   int apiMajor = 1;
@@ -134,7 +139,7 @@ struct ContextCreateInfo
   EntryArray instanceLayers;
   EntryArray instanceExtensions;
   EntryArray deviceExtensions;
-  void* deviceCreateInfoExt = nullptr;
+  void*      deviceCreateInfoExt = nullptr;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -192,41 +197,111 @@ class Context
 public:
   using NameArray = std::vector<const char*>;
 
+  // Vulkan == 1.1 used individual structs
+  // Vulkan >= 1.2  have per-version structs
+  struct Features11Old
+  {
+    VkPhysicalDeviceMultiviewFeatures    multiview{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MULTIVIEW_FEATURES};
+    VkPhysicalDevice16BitStorageFeatures t16BitStorage{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_16BIT_STORAGE_FEATURES};
+    VkPhysicalDeviceSamplerYcbcrConversionFeatures samplerYcbcrConversion{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SAMPLER_YCBCR_CONVERSION_FEATURES};
+    VkPhysicalDeviceProtectedMemoryFeatures protectedMemory{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROTECTED_MEMORY_FEATURES};
+    VkPhysicalDeviceShaderDrawParameterFeatures drawParameters{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETER_FEATURES};
+    VkPhysicalDeviceVariablePointerFeatures variablePointers{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VARIABLE_POINTER_FEATURES};
+
+    Features11Old()
+    {
+      multiview.pNext              = &t16BitStorage;
+      t16BitStorage.pNext          = &samplerYcbcrConversion;
+      samplerYcbcrConversion.pNext = &protectedMemory;
+      protectedMemory.pNext        = &drawParameters;
+      drawParameters.pNext         = &variablePointers;
+      variablePointers.pNext       = nullptr;
+    }
+
+    void read(const VkPhysicalDeviceVulkan11Features& features11)
+    {
+      multiview.multiview                              = features11.multiview;
+      multiview.multiviewGeometryShader                = features11.multiviewGeometryShader;
+      multiview.multiviewTessellationShader            = features11.multiviewTessellationShader;
+      t16BitStorage.storageBuffer16BitAccess           = features11.storageBuffer16BitAccess;
+      t16BitStorage.storageInputOutput16               = features11.storageInputOutput16;
+      t16BitStorage.storagePushConstant16              = features11.storagePushConstant16;
+      t16BitStorage.uniformAndStorageBuffer16BitAccess = features11.uniformAndStorageBuffer16BitAccess;
+      samplerYcbcrConversion.samplerYcbcrConversion    = features11.samplerYcbcrConversion;
+      protectedMemory.protectedMemory                  = features11.protectedMemory;
+      drawParameters.shaderDrawParameters              = features11.shaderDrawParameters;
+      variablePointers.variablePointers                = features11.variablePointers;
+      variablePointers.variablePointersStorageBuffer   = features11.variablePointersStorageBuffer;
+    }
+
+    void write(VkPhysicalDeviceVulkan11Features& features11)
+    {
+      features11.multiview                          = multiview.multiview;
+      features11.multiviewGeometryShader            = multiview.multiviewGeometryShader;
+      features11.multiviewTessellationShader        = multiview.multiviewTessellationShader;
+      features11.storageBuffer16BitAccess           = t16BitStorage.storageBuffer16BitAccess;
+      features11.storageInputOutput16               = t16BitStorage.storageInputOutput16;
+      features11.storagePushConstant16              = t16BitStorage.storagePushConstant16;
+      features11.uniformAndStorageBuffer16BitAccess = t16BitStorage.uniformAndStorageBuffer16BitAccess;
+      features11.samplerYcbcrConversion             = samplerYcbcrConversion.samplerYcbcrConversion;
+      features11.protectedMemory                    = protectedMemory.protectedMemory;
+      features11.shaderDrawParameters               = drawParameters.shaderDrawParameters;
+      features11.variablePointers                   = variablePointers.variablePointers;
+      features11.variablePointersStorageBuffer      = variablePointers.variablePointersStorageBuffer;
+    }
+  };
+  struct Properties11Old
+  {
+    VkPhysicalDeviceMaintenance3Properties maintenance3{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_3_PROPERTIES};
+    VkPhysicalDeviceIDProperties           deviceID{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES};
+    VkPhysicalDeviceMultiviewProperties    multiview{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MULTIVIEW_PROPERTIES};
+    VkPhysicalDeviceProtectedMemoryProperties protectedMemory{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROTECTED_MEMORY_PROPERTIES};
+    VkPhysicalDevicePointClippingProperties pointClipping{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_POINT_CLIPPING_PROPERTIES};
+    VkPhysicalDeviceSubgroupProperties      subgroup{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES};
+
+    Properties11Old()
+    {
+      maintenance3.pNext    = &deviceID;
+      deviceID.pNext        = &multiview;
+      multiview.pNext       = &protectedMemory;
+      protectedMemory.pNext = &pointClipping;
+      pointClipping.pNext   = &subgroup;
+      subgroup.pNext        = nullptr;
+    }
+
+    void write(VkPhysicalDeviceVulkan11Properties& properties11)
+    {
+      memcpy(properties11.deviceLUID, deviceID.deviceLUID, sizeof(properties11.deviceLUID));
+      memcpy(properties11.deviceUUID, deviceID.deviceUUID, sizeof(properties11.deviceUUID));
+      memcpy(properties11.driverUUID, deviceID.driverUUID, sizeof(properties11.driverUUID));
+      properties11.deviceLUIDValid                   = deviceID.deviceLUIDValid;
+      properties11.deviceNodeMask                    = deviceID.deviceNodeMask;
+      properties11.subgroupSize                      = subgroup.subgroupSize;
+      properties11.subgroupSupportedStages           = subgroup.supportedStages;
+      properties11.subgroupSupportedOperations       = subgroup.supportedOperations;
+      properties11.subgroupQuadOperationsInAllStages = subgroup.quadOperationsInAllStages;
+      properties11.pointClippingBehavior             = pointClipping.pointClippingBehavior;
+      properties11.maxMultiviewViewCount             = multiview.maxMultiviewViewCount;
+      properties11.maxMultiviewInstanceIndex         = multiview.maxMultiviewInstanceIndex;
+      properties11.protectedNoFault                  = protectedMemory.protectedNoFault;
+      properties11.maxPerSetDescriptors              = maintenance3.maxPerSetDescriptors;
+      properties11.maxMemoryAllocationSize           = maintenance3.maxMemoryAllocationSize;
+    }
+  };
+
   // This struct holds all core feature information for a physical device
   struct PhysicalDeviceInfo
   {
-
     VkPhysicalDeviceMemoryProperties     memoryProperties{};
-    VkPhysicalDeviceProperties           properties{};
-    VkPhysicalDeviceFeatures2            features2{};
     std::vector<VkQueueFamilyProperties> queueProperties;
 
-    // Vulkan 1.1 and beyond does not store properties/features within the
-    // default VkPhysicalDeviceProperties... classes but use individual structs similar
-    // to extensions.
-    // NEVER put extension structs in here, only core features
+    VkPhysicalDeviceFeatures         features10{};
+    VkPhysicalDeviceVulkan11Features features11{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES};
+    VkPhysicalDeviceVulkan12Features features12{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES};
 
-    struct CoreFeatures
-    {
-      VkPhysicalDeviceMultiviewFeatures              multiview{};
-      VkPhysicalDevice16BitStorageFeatures           t16BitStorage{};
-      VkPhysicalDeviceSamplerYcbcrConversionFeatures samplerYcbcrConversion{};
-      VkPhysicalDeviceProtectedMemoryFeatures        protectedMemory{};
-      VkPhysicalDeviceShaderDrawParameterFeatures    drawParameters{};
-      VkPhysicalDeviceVariablePointerFeatures        variablePointers{};
-    };
-    struct CoreProperties
-    {
-      VkPhysicalDeviceMaintenance3Properties    maintenance3{};
-      VkPhysicalDeviceIDProperties              deviceID{};
-      VkPhysicalDeviceMultiviewProperties       multiview{};
-      VkPhysicalDeviceProtectedMemoryProperties protectedMemory{};
-      VkPhysicalDevicePointClippingProperties   pointClipping{};
-      VkPhysicalDeviceSubgroupProperties        subgroup{};
-    };
-
-    CoreFeatures   coreFeatures;
-    CoreProperties coreProperties;
+    VkPhysicalDeviceProperties         properties10{};
+    VkPhysicalDeviceVulkan11Properties properties11{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_PROPERTIES};
+    VkPhysicalDeviceVulkan12Properties properties12{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_PROPERTIES};
   };
 
   struct Queue
@@ -285,20 +360,20 @@ private:
   // New Debug system
   PFN_vkCreateDebugUtilsMessengerEXT  m_createDebugUtilsMessengerEXT  = nullptr;
   PFN_vkDestroyDebugUtilsMessengerEXT m_destroyDebugUtilsMessengerEXT = nullptr;
-  VkDebugUtilsMessengerEXT            m_dbgMessenger                   = nullptr;
+  VkDebugUtilsMessengerEXT            m_dbgMessenger                  = nullptr;
 
 
   void initDebugReport();
 
-  VkResult fillFilteredNameArray(Context::NameArray&                   used,
-                                 const std::vector<VkLayerProperties>& properties,
-                                 const ContextCreateInfo::EntryArray&  requested);
-  VkResult fillFilteredNameArray(Context::NameArray&                       used,
-                                 const std::vector<VkExtensionProperties>& properties,
-                                 const ContextCreateInfo::EntryArray&      requested,
-                                 std::vector<void*>&                       featureStructs);
-  bool checkEntryArray(const std::vector<VkExtensionProperties>& properties, const ContextCreateInfo::EntryArray& requested, bool bVerbose);
-  static void initPhysicalInfo(PhysicalDeviceInfo& info, VkPhysicalDevice physicalDevice);
+  VkResult    fillFilteredNameArray(Context::NameArray&                   used,
+                                    const std::vector<VkLayerProperties>& properties,
+                                    const ContextCreateInfo::EntryArray&  requested);
+  VkResult    fillFilteredNameArray(Context::NameArray&                       used,
+                                    const std::vector<VkExtensionProperties>& properties,
+                                    const ContextCreateInfo::EntryArray&      requested,
+                                    std::vector<void*>&                       featureStructs);
+  bool        checkEntryArray(const std::vector<VkExtensionProperties>& properties, const ContextCreateInfo::EntryArray& requested, bool bVerbose);
+  static void initPhysicalInfo(PhysicalDeviceInfo& info, VkPhysicalDevice physicalDevice, uint32_t versionMajor, uint32_t versionMinor);
 };
 
 

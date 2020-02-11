@@ -252,7 +252,7 @@ public:
            && glfwGetWindowAttrib(m_internal, GLFW_ICONIFIED) == GLFW_FALSE && !isClosing();
   }
 
-  bool open(int posX, int posY, int width, int height, const char* title);  // creates internal window and opens it
+  virtual bool open(int posX, int posY, int width, int height, const char* title, bool requireGLContext);  // creates internal window and opens it
   void deinit();                                                            // destroys internal window
 
   void close();  //  triggers closing event, still needs deinit for final cleanup
@@ -268,7 +268,7 @@ public:
   // derived windows/apps should override to handle events
   virtual void onWindowClose() {}
   virtual void onWindowResize(int w, int h) {}
-  virtual void onWindowRefresh(){};
+  virtual void onWindowRefresh() {}
   virtual void onMouseMotion(int x, int y) {}
   virtual void onMouseWheel(int delta) {}
   virtual void onMouseButton(MouseButton button, ButtonAction action, int mods, int x, int y) {}

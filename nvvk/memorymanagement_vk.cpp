@@ -267,8 +267,8 @@ void DeviceMemoryAllocator::nvprintReport() const
 
 void DeviceMemoryAllocator::getTypeStats(uint32_t count[VK_MAX_MEMORY_TYPES], VkDeviceSize used[VK_MAX_MEMORY_TYPES], VkDeviceSize allocated[VK_MAX_MEMORY_TYPES]) const
 {
-  memset(used, 0, sizeof(used));
-  memset(allocated, 0, sizeof(allocated));
+  memset(used, 0, sizeof(used[0]) * VK_MAX_MEMORY_TYPES);
+  memset(allocated, 0, sizeof(allocated[0]) * VK_MAX_MEMORY_TYPES);
 
   for(const auto& block : m_blocks)
   {

@@ -100,7 +100,7 @@ struct TextureIDX
 {
   uint32_t index = ~0;
 
-  TextureIDX() {}
+  TextureIDX() = default;
   TextureIDX(uint32_t idx) { index = idx; }
   TextureIDX(int idx) { index = (uint32_t)idx; }
 
@@ -185,7 +185,7 @@ struct Primitive
 
   void setDimensions(const nvmath::vec3f& min, const nvmath::vec3f& max);
 
-  Primitive() {}
+  Primitive() = default;
   Primitive(uint32_t first, uint32_t count, uint32_t vOffset, uint32_t materialIndex)
       : m_firstIndex(first)
       , m_indexCount(count)
@@ -209,9 +209,9 @@ struct Mesh
   // Uniform block to push into buffer (currently ignored)
   struct UniformBlock
   {
-    nvmath::mat4f matrix;
-    nvmath::mat4f jointMatrix[64]{};
-    float         jointcount{0};
+    nvmath::mat4f                 matrix;
+    std::array<nvmath::mat4f, 64> jointMatrix;
+    float                         jointcount{0};
   } m_uniformBlock;
 };
 

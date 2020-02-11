@@ -34,6 +34,9 @@
 #include "nvh/cameramanipulator.hpp"
 #include "swapchain_vkpp.hpp"
 
+#ifdef LINUX
+#include <unistd.h>
+#endif
 
 #ifdef _WIN32
 #define GLFW_EXPOSE_NATIVE_WIN32
@@ -41,6 +44,7 @@
 #include "GLFW/glfw3.h"
 #include "GLFW/glfw3native.h"
 
+#include <cmath>
 
 namespace nvvkpp {
 static float const s_keyTau    = 0.10f;
@@ -173,11 +177,11 @@ public:
 
     // Depth/Stencil attachment is the same for all frame buffers
     // First one is set by the swapChain
-    vk::ImageView attachments[2];
+    std::array<vk::ImageView, 2> attachments;
     attachments[1] = m_depthView;
 
     // Create frame buffers for every swap chain image
-    m_framebuffers = m_swapChain.createFramebuffers({{}, m_renderPass, 2, attachments, m_size.width, m_size.height, 1});
+    m_framebuffers = m_swapChain.createFramebuffers({{}, m_renderPass, 2, attachments.data(), m_size.width, m_size.height, 1});
   }
 
   //--------------------------------------------------------------------------------------------------
@@ -338,15 +342,15 @@ public:
 
     // In case of using NVLINK
     const uint32_t deviceMask    = m_useNvlink ? 0b0000'0011 : 0b0000'0001;
-    const uint32_t deviceIndex[] = {0, 1};
+    const std::array<uint32_t,2>  deviceIndex = {0, 1};
 
     vk::DeviceGroupSubmitInfo deviceGroupSubmitInfo;
     deviceGroupSubmitInfo.setWaitSemaphoreCount(1);
     deviceGroupSubmitInfo.setCommandBufferCount(1);
     deviceGroupSubmitInfo.setPCommandBufferDeviceMasks(&deviceMask);
     deviceGroupSubmitInfo.setSignalSemaphoreCount(m_useNvlink ? 2 : 1);
-    deviceGroupSubmitInfo.setPSignalSemaphoreDeviceIndices(deviceIndex);
-    deviceGroupSubmitInfo.setPWaitSemaphoreDeviceIndices(deviceIndex);
+    deviceGroupSubmitInfo.setPSignalSemaphoreDeviceIndices(deviceIndex.data());
+    deviceGroupSubmitInfo.setPWaitSemaphoreDeviceIndices(deviceIndex.data());
 
     // Pipeline stage at which the queue submission will wait (via pWaitSemaphores)
     const vk::PipelineStageFlags waitStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
@@ -549,6 +553,9 @@ public:
       m_swapChain.update(m_size, m_vsync);
       createFrameBuffers();
     }
+
+    if(key == 'h' || key == '?')
+      m_showHelp = !m_showHelp;
   }
 
   //--------------------------------------------------------------------------------------------------
@@ -628,9 +635,9 @@ public:
     {
       nvmath::vec3f vct(i & 1 ? boxSize.x : -boxSize.x, i & 2 ? boxSize.y : -boxSize.y, i & 4 ? boxSize.z : -boxSize.z);
       vct              = mat * vct;
-      const float dist = std::max(fabs(vct.x), fabs(vct.y) / aspect);
+      const float dist = std::max(std::fabs(vct.x), std::fabs(vct.y) / aspect);
       radius           = std::max(radius, dist);
-      offset           = std::max(offset, fabs(vct.z));
+      offset           = std::max(offset, std::fabs(vct.z));
     }
 
     // Placing back the camera
@@ -646,7 +653,13 @@ public:
     glfwGetWindowSize(m_window, &w, &h);
     bool minimized(w == 0 || h == 0);
     if(minimized && doSleeping)
+    {
+#ifdef _WIN32
       Sleep(50);
+#else
+      usleep(50);
+#endif
+    }
     return minimized;
   }
 
@@ -729,6 +742,17 @@ protected:
     return ~0u;
   }
 
+  // Showing help
+  void uiDisplayHelp()
+  {
+    if(m_showHelp)
+    {
+      ImGui::BeginChild("Help", ImVec2(370, 120), true);
+      const std::string& helpText = CameraManip.getHelp();
+      ImGui::Text(helpText.c_str());
+      ImGui::EndChild();
+    }
+  }
 
   //--------------------------------------------------------------------------------------------------
 
@@ -765,6 +789,9 @@ protected:
   // Two different camera manipulators
   nvh::CameraManipulator::Inputs m_inputs;       // Camera manipulator, like in Maya, 3dsmax, Softimage, ...
   InertiaCamera                  m_inertCamera;  // Camera Inertia
+
+  // Other
+  bool m_showHelp{false};  // Show help, pressing
 };
 
 

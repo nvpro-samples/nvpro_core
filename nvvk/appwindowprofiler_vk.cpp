@@ -33,6 +33,8 @@
 #include <nvh/misc.hpp>
 #include <nvh/nvprint.hpp>
 
+#include <GLFW/glfw3.h>
+
 #ifdef _WIN32
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3native.h>
@@ -73,12 +75,7 @@ void AppWindowProfilerVK::contextInit()
   createInfo.hwnd                        = hWnd;
   result = vkCreateWin32SurfaceKHR(m_context.m_instance, &createInfo, nullptr, &m_surface);
 #else   // _WIN32
-  VkXcbSurfaceCreateInfoKHR createInfo = {};
-  createInfo.sType                     = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR;
-  createInfo.pNext                     = NULL;
-  createInfo.connection                = info.connection;
-  createInfo.window                    = info.window;
-  result = vkCreateXcbSurfaceKHR(m_context.m_instance, &createInfo, nullptr, &m_surface);
+  result = glfwCreateWindowSurface(m_context.m_instance, m_internal, NULL, &m_surface);
 #endif  // _WIN32
   assert(result == VK_SUCCESS);
 
@@ -145,7 +142,7 @@ void AppWindowProfilerVK::swapVsync(bool swapVsync)
 
 const char* AppWindowProfilerVK::contextGetDeviceName()
 {
-  return m_context.m_physicalInfo.properties.deviceName;
+  return m_context.m_physicalInfo.properties10.deviceName;
 }
 
 }  // namespace nvvk

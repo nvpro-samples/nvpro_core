@@ -353,6 +353,20 @@ keys[result[i]].objectSortKey < keys[result[i + 1]].objectSortKey
 // after each byte iteration)
 ```
 
+## shaderfilemanager.hpp
+
+### class **nvh::ShaderFileManager**
+
+The **ShaderFileManager** class is meant to be derived from to create the actual api-specific 
+shader/program managers.
+
+The **ShaderFileManager** provides a system to find/load shader files.
+It also allows resolving #include instructions in HLSL/GLSL source files.
+Such includes can be registered before pointing to strings in memory.
+
+Furthermore it handles injecting prepended strings (typically used for #defines) 
+after the #version statement of GLSL files.
+
 ## trangeallocator.hpp
 
 ### class **nvh::TRangeAllocator**

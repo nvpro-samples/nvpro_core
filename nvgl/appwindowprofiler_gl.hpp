@@ -76,7 +76,12 @@ namespace nvgl
     ContextWindow        m_contextWindow;
     
     nvgl::ProfilerGL       m_profilerGL;
-    
+
+
+    int run(const std::string& name, int argc, const char** argv, int width, int height)
+    {
+      return AppWindowProfiler::run(name, argc, argv, width, height, true);
+    }
 
     virtual void  contextInit() override;
     virtual void  contextDeinit() override;

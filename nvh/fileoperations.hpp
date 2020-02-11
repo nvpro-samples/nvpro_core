@@ -77,7 +77,7 @@ inline std::string findFile(const std::string& infilename, const std::vector<std
 inline std::string loadFile(const std::string& filename, bool binary)
 {
   std::string   result;
-  std::ifstream stream(filename, std::ios::ate | (binary ? std::ios::binary : 0));
+  std::ifstream stream(filename, std::ios::ate | (binary ? std::ios::binary : std::ios_base::openmode(0)));
 
   if(!stream.is_open())
   {
@@ -100,7 +100,7 @@ inline std::string loadFile(const char* filename, bool binary)
 inline std::string loadFile(const std::string&              filename,
                             bool                            binary,
                             const std::vector<std::string>& directories,
-                            std::string&                    filenameFound = std::string(),
+                            std::string&                    filenameFound,
                             bool                            warn          = false)
 {
   filenameFound = findFile(filename, directories);
@@ -116,6 +116,15 @@ inline std::string loadFile(const std::string&              filename,
   {
     return loadFile(filenameFound, binary);
   }
+}
+
+inline std::string loadFile(const std::string               filename,
+                            bool                            binary,
+                            const std::vector<std::string>& directories,
+                            bool                            warn = false)
+{
+  std::string filenameFound;
+  return loadFile(filename, binary, directories, filenameFound, warn);
 }
 
 // splits filename excluding path
