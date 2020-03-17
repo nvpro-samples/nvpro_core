@@ -156,6 +156,15 @@ public:
     // so for static usage without having to rebuild them each frame, we use one per frame buffer
     m_commandBuffers = m_device.allocateCommandBuffers({m_cmdPool, vk::CommandBufferLevel::ePrimary, m_swapChain.imageCount});
 
+#ifdef _DEBUG
+    for(size_t i = 0; i < m_commandBuffers.size(); i++)
+    {
+      std::string name = std::string("AppBase") + std::to_string(i);
+      m_device.setDebugUtilsObjectNameEXT(
+          {vk::ObjectType::eCommandBuffer, reinterpret_cast<const uint64_t&>(m_commandBuffers[i]), name.c_str()});
+    }
+#endif  // _DEBUG
+
     m_acquireComplete = m_device.createSemaphore({});
     m_renderComplete  = m_device.createSemaphore({});
 
@@ -182,6 +191,15 @@ public:
 
     // Create frame buffers for every swap chain image
     m_framebuffers = m_swapChain.createFramebuffers({{}, m_renderPass, 2, attachments.data(), m_size.width, m_size.height, 1});
+
+#ifdef _DEBUG
+    for(size_t i = 0; i < m_framebuffers.size(); i++)
+    {
+      std::string name = std::string("AppBase") + std::to_string(i);
+      m_device.setDebugUtilsObjectNameEXT(
+          {vk::ObjectType::eFramebuffer, reinterpret_cast<const uint64_t&>(m_framebuffers[i]), name.c_str()});
+    }
+#endif  // _DEBUG
   }
 
   //--------------------------------------------------------------------------------------------------
@@ -236,6 +254,11 @@ public:
     renderPassInfo.setPDependencies(subpassDependencies.data());
 
     m_renderPass = m_device.createRenderPass(renderPassInfo);
+
+#ifdef _DEBUG
+    m_device.setDebugUtilsObjectNameEXT(
+        {vk::ObjectType::eRenderPass, reinterpret_cast<const uint64_t&>(m_renderPass), "AppBase"});
+#endif  // _DEBUG
   }
 
   //--------------------------------------------------------------------------------------------------
@@ -341,8 +364,8 @@ public:
     m_device.resetFences(m_waitFences[m_curFramebuffer]);
 
     // In case of using NVLINK
-    const uint32_t deviceMask    = m_useNvlink ? 0b0000'0011 : 0b0000'0001;
-    const std::array<uint32_t,2>  deviceIndex = {0, 1};
+    const uint32_t                deviceMask  = m_useNvlink ? 0b0000'0011 : 0b0000'0001;
+    const std::array<uint32_t, 2> deviceIndex = {0, 1};
 
     vk::DeviceGroupSubmitInfo deviceGroupSubmitInfo;
     deviceGroupSubmitInfo.setWaitSemaphoreCount(1);
@@ -616,34 +639,7 @@ public:
   //
   void fitCamera(const nvmath::vec3f& boxMin, const nvmath::vec3f& boxMax, bool instantFit = true)
   {
-    nvmath::vec3f veye, vint, vup;
-    CameraManip.getLookat(veye, vint, vup);
-    const nvmath::vec3f viewdir = nvmath::normalize(veye - vint);
-
-    const nvmath::vec3f boxSize   = (boxMax - boxMin) * .5f;
-    const nvmath::vec3f boxCenter = boxMin + boxSize;
-
-    const float aspect = m_size.width / float(m_size.height);
-    const float fov    = nv_to_rad * CameraManip.getFov();
-
-    // Projecting the box to the camera
-    float         radius = 0;
-    float         offset = 0;
-    nvmath::mat4f mat    = nvmath::look_at(veye, boxCenter, vup);
-    mat.set_translate({0, 0, 0});
-    for(int i = 0; i < 8; i++)
-    {
-      nvmath::vec3f vct(i & 1 ? boxSize.x : -boxSize.x, i & 2 ? boxSize.y : -boxSize.y, i & 4 ? boxSize.z : -boxSize.z);
-      vct              = mat * vct;
-      const float dist = std::max(std::fabs(vct.x), std::fabs(vct.y) / aspect);
-      radius           = std::max(radius, dist);
-      offset           = std::max(offset, std::fabs(vct.z));
-    }
-
-    // Placing back the camera
-    const float dist = radius / tan(fov * .5f);
-    veye             = boxCenter + viewdir * (dist + offset);
-    CameraManip.setLookat(veye, boxCenter, vup, instantFit);
+    CameraManip.fit(boxMin, boxMax, instantFit);
   }
 
   // Return true if the window is minimized
@@ -724,6 +720,8 @@ public:
   const std::vector<vk::Framebuffer>&   getFramebuffers() { return m_framebuffers; }
   const std::vector<vk::CommandBuffer>& getCommandBuffers() { return m_commandBuffers; }
   uint32_t                              getCurFrame() { return m_curFramebuffer; }
+  vk::Format                            getColorFormat() { return m_colorFormat; }
+  vk::Format                            getDepthFormat() { return m_depthFormat; }
 
 protected:
   uint32_t getMemoryType(uint32_t typeBits, const vk::MemoryPropertyFlags& properties) const

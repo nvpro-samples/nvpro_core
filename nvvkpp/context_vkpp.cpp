@@ -30,6 +30,9 @@
 #include <nvh/nvprint.hpp>
 #include <regex>
 
+// needed for 'load_VK_EXTENSION_SUBSET'
+#include <nvvk/extensions_vk.hpp>
+
 #include "context_vkpp.hpp"
 #include "utilities_vkpp.hpp"
 
@@ -322,10 +325,23 @@ bool Context::initDevice(uint32_t deviceIndex, const ContextCreateInfo& info)
     vk::PhysicalDeviceShaderDrawParameterFeatures    drawParameters;
     vk::PhysicalDeviceVariablePointerFeatures        variablePointers;
   };
+  struct Properties11Old
+  {
+    vk::PhysicalDeviceMaintenance3Properties    maintenance3;
+    vk::PhysicalDeviceIDProperties              deviceID;
+    vk::PhysicalDeviceMultiviewProperties       multiview;
+    vk::PhysicalDeviceProtectedMemoryProperties protectedMemory;
+    vk::PhysicalDevicePointClippingProperties   pointClipping;
+    vk::PhysicalDeviceSubgroupProperties        subgroup;
+  };
 
-  Features11Old                      features11old;
-  vk::PhysicalDeviceVulkan11Features features11;
-  vk::PhysicalDeviceVulkan12Features features12;
+  Features11Old                        features11old;
+  Properties11Old                      properties11old;
+  vk::PhysicalDeviceVulkan11Features   features11;
+  vk::PhysicalDeviceVulkan12Features   features12;
+  vk::PhysicalDeviceVulkan11Properties properties11;
+  vk::PhysicalDeviceVulkan12Properties properties12;
+  vk::PhysicalDeviceProperties2        properties2;
 
   if(info.apiMajor == 1 && info.apiMinor == 1)
   {
@@ -336,12 +352,24 @@ bool Context::initDevice(uint32_t deviceIndex, const ContextCreateInfo& info)
     features11old.protectedMemory.pNext        = &features11old.drawParameters;
     features11old.drawParameters.pNext         = &features11old.variablePointers;
     features11old.variablePointers.pNext       = nullptr;
+
+    properties2.pNext                     = &properties11old.maintenance3;
+    properties11old.maintenance3.pNext    = &properties11old.deviceID;
+    properties11old.deviceID.pNext        = &properties11old.multiview;
+    properties11old.multiview.pNext       = &properties11old.protectedMemory;
+    properties11old.protectedMemory.pNext = &properties11old.pointClipping;
+    properties11old.pointClipping.pNext   = &properties11old.subgroup;
+    properties11old.subgroup.pNext        = nullptr;
   }
   else if(info.apiMajor == 1 && info.apiMinor >= 2)
   {
     enabledFeatures2.pNext = &features11;
     features11.pNext       = &features12;
     features12.pNext       = nullptr;
+
+    properties2.pNext  = &properties11;
+    properties11.pNext = &properties12;
+    properties12.pNext = nullptr;
   }
 
   struct ExtensionHeader  // Helper struct to link extensions together
@@ -375,6 +403,8 @@ bool Context::initDevice(uint32_t deviceIndex, const ContextCreateInfo& info)
 
   // Enabling features
   m_physicalDevice.getFeatures2(&enabledFeatures2);
+  // Enabling properties
+  m_physicalDevice.getProperties2(&properties2);
 
   // disable some features
   if(info.disableRobustBufferAccess)
@@ -410,6 +440,13 @@ bool Context::initDevice(uint32_t deviceIndex, const ContextCreateInfo& info)
   // Initialize function pointers
   VULKAN_HPP_DEFAULT_DISPATCHER.init(m_device);
 
+
+  // this call is done in order to allow non VKCPP calls to be ready
+  // in the case where C-only VK API, this function is invoked from within
+  // Context::initDevice, which obviouly is not required when using VKCPP
+  // however, to allow us accessing both CPP and C VK API,
+  // we must get it ready for C API use-case here
+  load_VK_EXTENSION_SUBSET(m_instance, vkGetInstanceProcAddr, m_device, vkGetDeviceProcAddr);
 
   // Now we have the device and instance, we can initialize the debug tool
   // get some default queues

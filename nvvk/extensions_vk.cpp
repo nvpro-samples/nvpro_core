@@ -33,6 +33,76 @@
 
 /* loaders */
 /* /////////////////////////////////// */
+#if VK_KHR_external_memory_fd
+static PFN_vkGetMemoryFdKHR pfn_vkGetMemoryFdKHR = 0;
+static PFN_vkGetMemoryFdPropertiesKHR pfn_vkGetMemoryFdPropertiesKHR = 0;
+
+VKAPI_ATTR VkResult VKAPI_CALL vkGetMemoryFdKHR(
+    VkDevice                                    device,
+    const VkMemoryGetFdInfoKHR* pGetFdInfo,
+    int* pFd)
+{
+  assert(pfn_vkGetMemoryFdKHR);
+  return pfn_vkGetMemoryFdKHR(device,pGetFdInfo,pFd);
+}
+VKAPI_ATTR VkResult VKAPI_CALL vkGetMemoryFdPropertiesKHR(
+    VkDevice                                    device,
+    VkExternalMemoryHandleTypeFlagBits          handleType,
+    int                                         fd,
+    VkMemoryFdPropertiesKHR* pMemoryFdProperties)
+{
+  assert(pfn_vkGetMemoryFdPropertiesKHR);
+  return pfn_vkGetMemoryFdPropertiesKHR(device,handleType,fd,pMemoryFdProperties);
+}
+
+int has_VK_KHR_external_memory_fd = 0;
+int load_VK_KHR_external_memory_fd(VkInstance instance, PFN_vkGetInstanceProcAddr getInstanceProcAddr, VkDevice device, PFN_vkGetDeviceProcAddr getDeviceProcAddr)
+{
+  pfn_vkGetMemoryFdKHR = (PFN_vkGetMemoryFdKHR)getDeviceProcAddr(device, "vkGetMemoryFdKHR");
+  pfn_vkGetMemoryFdPropertiesKHR = (PFN_vkGetMemoryFdPropertiesKHR)getDeviceProcAddr(device, "vkGetMemoryFdPropertiesKHR");
+  int success = 1;
+  success = success && (pfn_vkGetMemoryFdKHR != 0);
+  success = success && (pfn_vkGetMemoryFdPropertiesKHR != 0);
+  has_VK_KHR_external_memory_fd = success;
+  return success;
+}
+#endif
+
+/* /////////////////////////////////// */
+#if VK_KHR_external_semaphore_fd
+static PFN_vkImportSemaphoreFdKHR pfn_vkImportSemaphoreFdKHR = 0;
+static PFN_vkGetSemaphoreFdKHR pfn_vkGetSemaphoreFdKHR = 0;
+
+VKAPI_ATTR VkResult VKAPI_CALL vkImportSemaphoreFdKHR(
+    VkDevice                                    device,
+    const VkImportSemaphoreFdInfoKHR* pImportSemaphoreFdInfo)
+{
+  assert(pfn_vkImportSemaphoreFdKHR);
+  return pfn_vkImportSemaphoreFdKHR(device,pImportSemaphoreFdInfo);
+}
+VKAPI_ATTR VkResult VKAPI_CALL vkGetSemaphoreFdKHR(
+    VkDevice                                    device,
+    const VkSemaphoreGetFdInfoKHR* pGetFdInfo,
+    int* pFd)
+{
+  assert(pfn_vkGetSemaphoreFdKHR);
+  return pfn_vkGetSemaphoreFdKHR(device,pGetFdInfo,pFd);
+}
+
+int has_VK_KHR_external_semaphore_fd = 0;
+int load_VK_KHR_external_semaphore_fd(VkInstance instance, PFN_vkGetInstanceProcAddr getInstanceProcAddr, VkDevice device, PFN_vkGetDeviceProcAddr getDeviceProcAddr)
+{
+  pfn_vkImportSemaphoreFdKHR = (PFN_vkImportSemaphoreFdKHR)getDeviceProcAddr(device, "vkImportSemaphoreFdKHR");
+  pfn_vkGetSemaphoreFdKHR = (PFN_vkGetSemaphoreFdKHR)getDeviceProcAddr(device, "vkGetSemaphoreFdKHR");
+  int success = 1;
+  success = success && (pfn_vkImportSemaphoreFdKHR != 0);
+  success = success && (pfn_vkGetSemaphoreFdKHR != 0);
+  has_VK_KHR_external_semaphore_fd = success;
+  return success;
+}
+#endif
+
+/* /////////////////////////////////// */
 #if VK_KHR_push_descriptor
 static PFN_vkCmdPushDescriptorSetKHR pfn_vkCmdPushDescriptorSetKHR = 0;
 static PFN_vkCmdPushDescriptorSetWithTemplateKHR pfn_vkCmdPushDescriptorSetWithTemplateKHR = 0;
@@ -173,6 +243,55 @@ int load_VK_KHR_draw_indirect_count(VkInstance instance, PFN_vkGetInstanceProcAd
 #endif
 
 /* /////////////////////////////////// */
+#if VK_KHR_pipeline_executable_properties
+static PFN_vkGetPipelineExecutablePropertiesKHR pfn_vkGetPipelineExecutablePropertiesKHR = 0;
+static PFN_vkGetPipelineExecutableStatisticsKHR pfn_vkGetPipelineExecutableStatisticsKHR = 0;
+static PFN_vkGetPipelineExecutableInternalRepresentationsKHR pfn_vkGetPipelineExecutableInternalRepresentationsKHR = 0;
+
+VKAPI_ATTR VkResult VKAPI_CALL vkGetPipelineExecutablePropertiesKHR(
+    VkDevice                                    device,
+    const VkPipelineInfoKHR* pPipelineInfo,
+    uint32_t* pExecutableCount,
+    VkPipelineExecutablePropertiesKHR* pProperties)
+{
+  assert(pfn_vkGetPipelineExecutablePropertiesKHR);
+  return pfn_vkGetPipelineExecutablePropertiesKHR(device,pPipelineInfo,pExecutableCount,pProperties);
+}
+VKAPI_ATTR VkResult VKAPI_CALL vkGetPipelineExecutableStatisticsKHR(
+    VkDevice                                    device,
+    const VkPipelineExecutableInfoKHR* pExecutableInfo,
+    uint32_t* pStatisticCount,
+    VkPipelineExecutableStatisticKHR* pStatistics)
+{
+  assert(pfn_vkGetPipelineExecutableStatisticsKHR);
+  return pfn_vkGetPipelineExecutableStatisticsKHR(device,pExecutableInfo,pStatisticCount,pStatistics);
+}
+VKAPI_ATTR VkResult VKAPI_CALL vkGetPipelineExecutableInternalRepresentationsKHR(
+    VkDevice                                    device,
+    const VkPipelineExecutableInfoKHR* pExecutableInfo,
+    uint32_t* pInternalRepresentationCount,
+    VkPipelineExecutableInternalRepresentationKHR* pInternalRepresentations)
+{
+  assert(pfn_vkGetPipelineExecutableInternalRepresentationsKHR);
+  return pfn_vkGetPipelineExecutableInternalRepresentationsKHR(device,pExecutableInfo,pInternalRepresentationCount,pInternalRepresentations);
+}
+
+int has_VK_KHR_pipeline_executable_properties = 0;
+int load_VK_KHR_pipeline_executable_properties(VkInstance instance, PFN_vkGetInstanceProcAddr getInstanceProcAddr, VkDevice device, PFN_vkGetDeviceProcAddr getDeviceProcAddr)
+{
+  pfn_vkGetPipelineExecutablePropertiesKHR = (PFN_vkGetPipelineExecutablePropertiesKHR)getDeviceProcAddr(device, "vkGetPipelineExecutablePropertiesKHR");
+  pfn_vkGetPipelineExecutableStatisticsKHR = (PFN_vkGetPipelineExecutableStatisticsKHR)getDeviceProcAddr(device, "vkGetPipelineExecutableStatisticsKHR");
+  pfn_vkGetPipelineExecutableInternalRepresentationsKHR = (PFN_vkGetPipelineExecutableInternalRepresentationsKHR)getDeviceProcAddr(device, "vkGetPipelineExecutableInternalRepresentationsKHR");
+  int success = 1;
+  success = success && (pfn_vkGetPipelineExecutablePropertiesKHR != 0);
+  success = success && (pfn_vkGetPipelineExecutableStatisticsKHR != 0);
+  success = success && (pfn_vkGetPipelineExecutableInternalRepresentationsKHR != 0);
+  has_VK_KHR_pipeline_executable_properties = success;
+  return success;
+}
+#endif
+
+/* /////////////////////////////////// */
 #if VK_EXT_debug_marker
 static PFN_vkDebugMarkerSetObjectTagEXT pfn_vkDebugMarkerSetObjectTagEXT = 0;
 static PFN_vkDebugMarkerSetObjectNameEXT pfn_vkDebugMarkerSetObjectNameEXT = 0;
@@ -230,122 +349,6 @@ int load_VK_EXT_debug_marker(VkInstance instance, PFN_vkGetInstanceProcAddr getI
   success = success && (pfn_vkCmdDebugMarkerEndEXT != 0);
   success = success && (pfn_vkCmdDebugMarkerInsertEXT != 0);
   has_VK_EXT_debug_marker = success;
-  return success;
-}
-#endif
-
-/* /////////////////////////////////// */
-#if VK_NVX_device_generated_commands
-static PFN_vkCmdProcessCommandsNVX pfn_vkCmdProcessCommandsNVX = 0;
-static PFN_vkCmdReserveSpaceForCommandsNVX pfn_vkCmdReserveSpaceForCommandsNVX = 0;
-static PFN_vkCreateIndirectCommandsLayoutNVX pfn_vkCreateIndirectCommandsLayoutNVX = 0;
-static PFN_vkDestroyIndirectCommandsLayoutNVX pfn_vkDestroyIndirectCommandsLayoutNVX = 0;
-static PFN_vkCreateObjectTableNVX pfn_vkCreateObjectTableNVX = 0;
-static PFN_vkDestroyObjectTableNVX pfn_vkDestroyObjectTableNVX = 0;
-static PFN_vkRegisterObjectsNVX pfn_vkRegisterObjectsNVX = 0;
-static PFN_vkUnregisterObjectsNVX pfn_vkUnregisterObjectsNVX = 0;
-static PFN_vkGetPhysicalDeviceGeneratedCommandsPropertiesNVX pfn_vkGetPhysicalDeviceGeneratedCommandsPropertiesNVX = 0;
-
-VKAPI_ATTR void VKAPI_CALL vkCmdProcessCommandsNVX(
-    VkCommandBuffer                             commandBuffer,
-    const VkCmdProcessCommandsInfoNVX* pProcessCommandsInfo)
-{
-  assert(pfn_vkCmdProcessCommandsNVX);
-  pfn_vkCmdProcessCommandsNVX(commandBuffer,pProcessCommandsInfo);
-}
-VKAPI_ATTR void VKAPI_CALL vkCmdReserveSpaceForCommandsNVX(
-    VkCommandBuffer                             commandBuffer,
-    const VkCmdReserveSpaceForCommandsInfoNVX* pReserveSpaceInfo)
-{
-  assert(pfn_vkCmdReserveSpaceForCommandsNVX);
-  pfn_vkCmdReserveSpaceForCommandsNVX(commandBuffer,pReserveSpaceInfo);
-}
-VKAPI_ATTR VkResult VKAPI_CALL vkCreateIndirectCommandsLayoutNVX(
-    VkDevice                                    device,
-    const VkIndirectCommandsLayoutCreateInfoNVX* pCreateInfo,
-    const VkAllocationCallbacks* pAllocator,
-    VkIndirectCommandsLayoutNVX* pIndirectCommandsLayout)
-{
-  assert(pfn_vkCreateIndirectCommandsLayoutNVX);
-  return pfn_vkCreateIndirectCommandsLayoutNVX(device,pCreateInfo,pAllocator,pIndirectCommandsLayout);
-}
-VKAPI_ATTR void VKAPI_CALL vkDestroyIndirectCommandsLayoutNVX(
-    VkDevice                                    device,
-    VkIndirectCommandsLayoutNVX                 indirectCommandsLayout,
-    const VkAllocationCallbacks* pAllocator)
-{
-  assert(pfn_vkDestroyIndirectCommandsLayoutNVX);
-  pfn_vkDestroyIndirectCommandsLayoutNVX(device,indirectCommandsLayout,pAllocator);
-}
-VKAPI_ATTR VkResult VKAPI_CALL vkCreateObjectTableNVX(
-    VkDevice                                    device,
-    const VkObjectTableCreateInfoNVX* pCreateInfo,
-    const VkAllocationCallbacks* pAllocator,
-    VkObjectTableNVX* pObjectTable)
-{
-  assert(pfn_vkCreateObjectTableNVX);
-  return pfn_vkCreateObjectTableNVX(device,pCreateInfo,pAllocator,pObjectTable);
-}
-VKAPI_ATTR void VKAPI_CALL vkDestroyObjectTableNVX(
-    VkDevice                                    device,
-    VkObjectTableNVX                            objectTable,
-    const VkAllocationCallbacks* pAllocator)
-{
-  assert(pfn_vkDestroyObjectTableNVX);
-  pfn_vkDestroyObjectTableNVX(device,objectTable,pAllocator);
-}
-VKAPI_ATTR VkResult VKAPI_CALL vkRegisterObjectsNVX(
-    VkDevice                                    device,
-    VkObjectTableNVX                            objectTable,
-    uint32_t                                    objectCount,
-    const VkObjectTableEntryNVX* const* ppObjectTableEntries,
-    const uint32_t* pObjectIndices)
-{
-  assert(pfn_vkRegisterObjectsNVX);
-  return pfn_vkRegisterObjectsNVX(device,objectTable,objectCount,ppObjectTableEntries,pObjectIndices);
-}
-VKAPI_ATTR VkResult VKAPI_CALL vkUnregisterObjectsNVX(
-    VkDevice                                    device,
-    VkObjectTableNVX                            objectTable,
-    uint32_t                                    objectCount,
-    const VkObjectEntryTypeNVX* pObjectEntryTypes,
-    const uint32_t* pObjectIndices)
-{
-  assert(pfn_vkUnregisterObjectsNVX);
-  return pfn_vkUnregisterObjectsNVX(device,objectTable,objectCount,pObjectEntryTypes,pObjectIndices);
-}
-VKAPI_ATTR void VKAPI_CALL vkGetPhysicalDeviceGeneratedCommandsPropertiesNVX(
-    VkPhysicalDevice                            physicalDevice,
-    VkDeviceGeneratedCommandsFeaturesNVX* pFeatures,
-    VkDeviceGeneratedCommandsLimitsNVX* pLimits)
-{
-  assert(pfn_vkGetPhysicalDeviceGeneratedCommandsPropertiesNVX);
-  pfn_vkGetPhysicalDeviceGeneratedCommandsPropertiesNVX(physicalDevice,pFeatures,pLimits);
-}
-
-int has_VK_NVX_device_generated_commands = 0;
-int load_VK_NVX_device_generated_commands(VkInstance instance, PFN_vkGetInstanceProcAddr getInstanceProcAddr, VkDevice device, PFN_vkGetDeviceProcAddr getDeviceProcAddr)
-{
-  pfn_vkCmdProcessCommandsNVX = (PFN_vkCmdProcessCommandsNVX)getDeviceProcAddr(device, "vkCmdProcessCommandsNVX");
-  pfn_vkCmdReserveSpaceForCommandsNVX = (PFN_vkCmdReserveSpaceForCommandsNVX)getDeviceProcAddr(device, "vkCmdReserveSpaceForCommandsNVX");
-  pfn_vkCreateIndirectCommandsLayoutNVX = (PFN_vkCreateIndirectCommandsLayoutNVX)getDeviceProcAddr(device, "vkCreateIndirectCommandsLayoutNVX");
-  pfn_vkDestroyIndirectCommandsLayoutNVX = (PFN_vkDestroyIndirectCommandsLayoutNVX)getDeviceProcAddr(device, "vkDestroyIndirectCommandsLayoutNVX");
-  pfn_vkCreateObjectTableNVX = (PFN_vkCreateObjectTableNVX)getDeviceProcAddr(device, "vkCreateObjectTableNVX");
-  pfn_vkDestroyObjectTableNVX = (PFN_vkDestroyObjectTableNVX)getDeviceProcAddr(device, "vkDestroyObjectTableNVX");
-  pfn_vkRegisterObjectsNVX = (PFN_vkRegisterObjectsNVX)getDeviceProcAddr(device, "vkRegisterObjectsNVX");
-  pfn_vkUnregisterObjectsNVX = (PFN_vkUnregisterObjectsNVX)getDeviceProcAddr(device, "vkUnregisterObjectsNVX");
-  pfn_vkGetPhysicalDeviceGeneratedCommandsPropertiesNVX = (PFN_vkGetPhysicalDeviceGeneratedCommandsPropertiesNVX)getDeviceProcAddr(device, "vkGetPhysicalDeviceGeneratedCommandsPropertiesNVX");
-  int success = 1;
-  success = success && (pfn_vkCmdProcessCommandsNVX != 0);
-  success = success && (pfn_vkCmdReserveSpaceForCommandsNVX != 0);
-  success = success && (pfn_vkCreateIndirectCommandsLayoutNVX != 0);
-  success = success && (pfn_vkDestroyIndirectCommandsLayoutNVX != 0);
-  success = success && (pfn_vkCreateObjectTableNVX != 0);
-  success = success && (pfn_vkDestroyObjectTableNVX != 0);
-  success = success && (pfn_vkRegisterObjectsNVX != 0);
-  success = success && (pfn_vkUnregisterObjectsNVX != 0);
-  success = success && (pfn_vkGetPhysicalDeviceGeneratedCommandsPropertiesNVX != 0);
-  has_VK_NVX_device_generated_commands = success;
   return success;
 }
 #endif
@@ -944,6 +947,86 @@ int load_VK_EXT_host_query_reset(VkInstance instance, PFN_vkGetInstanceProcAddr 
 #endif
 
 /* /////////////////////////////////// */
+#if VK_NV_device_generated_commands
+static PFN_vkGetGeneratedCommandsMemoryRequirementsNV pfn_vkGetGeneratedCommandsMemoryRequirementsNV = 0;
+static PFN_vkCmdPreprocessGeneratedCommandsNV pfn_vkCmdPreprocessGeneratedCommandsNV = 0;
+static PFN_vkCmdExecuteGeneratedCommandsNV pfn_vkCmdExecuteGeneratedCommandsNV = 0;
+static PFN_vkCmdBindPipelineShaderGroupNV pfn_vkCmdBindPipelineShaderGroupNV = 0;
+static PFN_vkCreateIndirectCommandsLayoutNV pfn_vkCreateIndirectCommandsLayoutNV = 0;
+static PFN_vkDestroyIndirectCommandsLayoutNV pfn_vkDestroyIndirectCommandsLayoutNV = 0;
+
+VKAPI_ATTR void VKAPI_CALL vkGetGeneratedCommandsMemoryRequirementsNV(
+    VkDevice                                    device,
+    const VkGeneratedCommandsMemoryRequirementsInfoNV* pInfo,
+    VkMemoryRequirements2* pMemoryRequirements)
+{
+  assert(pfn_vkGetGeneratedCommandsMemoryRequirementsNV);
+  pfn_vkGetGeneratedCommandsMemoryRequirementsNV(device,pInfo,pMemoryRequirements);
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdPreprocessGeneratedCommandsNV(
+    VkCommandBuffer                             commandBuffer,
+    const VkGeneratedCommandsInfoNV* pGeneratedCommandsInfo)
+{
+  assert(pfn_vkCmdPreprocessGeneratedCommandsNV);
+  pfn_vkCmdPreprocessGeneratedCommandsNV(commandBuffer,pGeneratedCommandsInfo);
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdExecuteGeneratedCommandsNV(
+    VkCommandBuffer                             commandBuffer,
+    VkBool32                                    isPreprocessed,
+    const VkGeneratedCommandsInfoNV* pGeneratedCommandsInfo)
+{
+  assert(pfn_vkCmdExecuteGeneratedCommandsNV);
+  pfn_vkCmdExecuteGeneratedCommandsNV(commandBuffer,isPreprocessed,pGeneratedCommandsInfo);
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdBindPipelineShaderGroupNV(
+    VkCommandBuffer                             commandBuffer,
+    VkPipelineBindPoint                         pipelineBindPoint,
+    VkPipeline                                  pipeline,
+    uint32_t                                    groupIndex)
+{
+  assert(pfn_vkCmdBindPipelineShaderGroupNV);
+  pfn_vkCmdBindPipelineShaderGroupNV(commandBuffer,pipelineBindPoint,pipeline,groupIndex);
+}
+VKAPI_ATTR VkResult VKAPI_CALL vkCreateIndirectCommandsLayoutNV(
+    VkDevice                                    device,
+    const VkIndirectCommandsLayoutCreateInfoNV* pCreateInfo,
+    const VkAllocationCallbacks* pAllocator,
+    VkIndirectCommandsLayoutNV* pIndirectCommandsLayout)
+{
+  assert(pfn_vkCreateIndirectCommandsLayoutNV);
+  return pfn_vkCreateIndirectCommandsLayoutNV(device,pCreateInfo,pAllocator,pIndirectCommandsLayout);
+}
+VKAPI_ATTR void VKAPI_CALL vkDestroyIndirectCommandsLayoutNV(
+    VkDevice                                    device,
+    VkIndirectCommandsLayoutNV                  indirectCommandsLayout,
+    const VkAllocationCallbacks* pAllocator)
+{
+  assert(pfn_vkDestroyIndirectCommandsLayoutNV);
+  pfn_vkDestroyIndirectCommandsLayoutNV(device,indirectCommandsLayout,pAllocator);
+}
+
+int has_VK_NV_device_generated_commands = 0;
+int load_VK_NV_device_generated_commands(VkInstance instance, PFN_vkGetInstanceProcAddr getInstanceProcAddr, VkDevice device, PFN_vkGetDeviceProcAddr getDeviceProcAddr)
+{
+  pfn_vkGetGeneratedCommandsMemoryRequirementsNV = (PFN_vkGetGeneratedCommandsMemoryRequirementsNV)getDeviceProcAddr(device, "vkGetGeneratedCommandsMemoryRequirementsNV");
+  pfn_vkCmdPreprocessGeneratedCommandsNV = (PFN_vkCmdPreprocessGeneratedCommandsNV)getDeviceProcAddr(device, "vkCmdPreprocessGeneratedCommandsNV");
+  pfn_vkCmdExecuteGeneratedCommandsNV = (PFN_vkCmdExecuteGeneratedCommandsNV)getDeviceProcAddr(device, "vkCmdExecuteGeneratedCommandsNV");
+  pfn_vkCmdBindPipelineShaderGroupNV = (PFN_vkCmdBindPipelineShaderGroupNV)getDeviceProcAddr(device, "vkCmdBindPipelineShaderGroupNV");
+  pfn_vkCreateIndirectCommandsLayoutNV = (PFN_vkCreateIndirectCommandsLayoutNV)getDeviceProcAddr(device, "vkCreateIndirectCommandsLayoutNV");
+  pfn_vkDestroyIndirectCommandsLayoutNV = (PFN_vkDestroyIndirectCommandsLayoutNV)getDeviceProcAddr(device, "vkDestroyIndirectCommandsLayoutNV");
+  int success = 1;
+  success = success && (pfn_vkGetGeneratedCommandsMemoryRequirementsNV != 0);
+  success = success && (pfn_vkCmdPreprocessGeneratedCommandsNV != 0);
+  success = success && (pfn_vkCmdExecuteGeneratedCommandsNV != 0);
+  success = success && (pfn_vkCmdBindPipelineShaderGroupNV != 0);
+  success = success && (pfn_vkCreateIndirectCommandsLayoutNV != 0);
+  success = success && (pfn_vkDestroyIndirectCommandsLayoutNV != 0);
+  has_VK_NV_device_generated_commands = success;
+  return success;
+}
+#endif
+
+/* /////////////////////////////////// */
 #if VK_KHR_external_memory_win32 && defined(VK_USE_PLATFORM_WIN32_KHR)
 static PFN_vkGetMemoryWin32HandleKHR pfn_vkGetMemoryWin32HandleKHR = 0;
 static PFN_vkGetMemoryWin32HandlePropertiesKHR pfn_vkGetMemoryWin32HandlePropertiesKHR = 0;
@@ -1050,6 +1133,12 @@ int load_VK_KHR_external_fence_win32(VkInstance instance, PFN_vkGetInstanceProcA
 
 /* super load/reset */
 void load_VK_EXTENSION_SUBSET(VkInstance instance, PFN_vkGetInstanceProcAddr getInstanceProcAddr, VkDevice device, PFN_vkGetDeviceProcAddr getDeviceProcAddr) {
+  #if VK_KHR_external_memory_fd
+  load_VK_KHR_external_memory_fd(instance, getInstanceProcAddr, device, getDeviceProcAddr);
+  #endif
+  #if VK_KHR_external_semaphore_fd
+  load_VK_KHR_external_semaphore_fd(instance, getInstanceProcAddr, device, getDeviceProcAddr);
+  #endif
   #if VK_KHR_push_descriptor
   load_VK_KHR_push_descriptor(instance, getInstanceProcAddr, device, getDeviceProcAddr);
   #endif
@@ -1059,11 +1148,11 @@ void load_VK_EXTENSION_SUBSET(VkInstance instance, PFN_vkGetInstanceProcAddr get
   #if VK_KHR_draw_indirect_count
   load_VK_KHR_draw_indirect_count(instance, getInstanceProcAddr, device, getDeviceProcAddr);
   #endif
+  #if VK_KHR_pipeline_executable_properties
+  load_VK_KHR_pipeline_executable_properties(instance, getInstanceProcAddr, device, getDeviceProcAddr);
+  #endif
   #if VK_EXT_debug_marker
   load_VK_EXT_debug_marker(instance, getInstanceProcAddr, device, getDeviceProcAddr);
-  #endif
-  #if VK_NVX_device_generated_commands
-  load_VK_NVX_device_generated_commands(instance, getInstanceProcAddr, device, getDeviceProcAddr);
   #endif
   #if VK_EXT_debug_utils
   load_VK_EXT_debug_utils(instance, getInstanceProcAddr, device, getDeviceProcAddr);
@@ -1098,6 +1187,9 @@ void load_VK_EXTENSION_SUBSET(VkInstance instance, PFN_vkGetInstanceProcAddr get
   #if VK_EXT_host_query_reset
   load_VK_EXT_host_query_reset(instance, getInstanceProcAddr, device, getDeviceProcAddr);
   #endif
+  #if VK_NV_device_generated_commands
+  load_VK_NV_device_generated_commands(instance, getInstanceProcAddr, device, getDeviceProcAddr);
+  #endif
   #if VK_KHR_external_memory_win32 && defined(VK_USE_PLATFORM_WIN32_KHR)
   load_VK_KHR_external_memory_win32(instance, getInstanceProcAddr, device, getDeviceProcAddr);
   #endif
@@ -1109,6 +1201,18 @@ void load_VK_EXTENSION_SUBSET(VkInstance instance, PFN_vkGetInstanceProcAddr get
   #endif
 }
 void reset_VK_EXTENSION_SUBSET() {
+  #if VK_KHR_external_memory_fd
+  has_VK_KHR_external_memory_fd = 0;
+  PFN_vkGetMemoryFdKHR pfn_vkGetMemoryFdKHR = 0;
+  PFN_vkGetMemoryFdPropertiesKHR pfn_vkGetMemoryFdPropertiesKHR = 0;
+  #endif
+
+  #if VK_KHR_external_semaphore_fd
+  has_VK_KHR_external_semaphore_fd = 0;
+  PFN_vkImportSemaphoreFdKHR pfn_vkImportSemaphoreFdKHR = 0;
+  PFN_vkGetSemaphoreFdKHR pfn_vkGetSemaphoreFdKHR = 0;
+  #endif
+
   #if VK_KHR_push_descriptor
   has_VK_KHR_push_descriptor = 0;
   PFN_vkCmdPushDescriptorSetKHR pfn_vkCmdPushDescriptorSetKHR = 0;
@@ -1129,6 +1233,13 @@ void reset_VK_EXTENSION_SUBSET() {
   PFN_vkCmdDrawIndexedIndirectCountKHR pfn_vkCmdDrawIndexedIndirectCountKHR = 0;
   #endif
 
+  #if VK_KHR_pipeline_executable_properties
+  has_VK_KHR_pipeline_executable_properties = 0;
+  PFN_vkGetPipelineExecutablePropertiesKHR pfn_vkGetPipelineExecutablePropertiesKHR = 0;
+  PFN_vkGetPipelineExecutableStatisticsKHR pfn_vkGetPipelineExecutableStatisticsKHR = 0;
+  PFN_vkGetPipelineExecutableInternalRepresentationsKHR pfn_vkGetPipelineExecutableInternalRepresentationsKHR = 0;
+  #endif
+
   #if VK_EXT_debug_marker
   has_VK_EXT_debug_marker = 0;
   PFN_vkDebugMarkerSetObjectTagEXT pfn_vkDebugMarkerSetObjectTagEXT = 0;
@@ -1136,19 +1247,6 @@ void reset_VK_EXTENSION_SUBSET() {
   PFN_vkCmdDebugMarkerBeginEXT pfn_vkCmdDebugMarkerBeginEXT = 0;
   PFN_vkCmdDebugMarkerEndEXT pfn_vkCmdDebugMarkerEndEXT = 0;
   PFN_vkCmdDebugMarkerInsertEXT pfn_vkCmdDebugMarkerInsertEXT = 0;
-  #endif
-
-  #if VK_NVX_device_generated_commands
-  has_VK_NVX_device_generated_commands = 0;
-  PFN_vkCmdProcessCommandsNVX pfn_vkCmdProcessCommandsNVX = 0;
-  PFN_vkCmdReserveSpaceForCommandsNVX pfn_vkCmdReserveSpaceForCommandsNVX = 0;
-  PFN_vkCreateIndirectCommandsLayoutNVX pfn_vkCreateIndirectCommandsLayoutNVX = 0;
-  PFN_vkDestroyIndirectCommandsLayoutNVX pfn_vkDestroyIndirectCommandsLayoutNVX = 0;
-  PFN_vkCreateObjectTableNVX pfn_vkCreateObjectTableNVX = 0;
-  PFN_vkDestroyObjectTableNVX pfn_vkDestroyObjectTableNVX = 0;
-  PFN_vkRegisterObjectsNVX pfn_vkRegisterObjectsNVX = 0;
-  PFN_vkUnregisterObjectsNVX pfn_vkUnregisterObjectsNVX = 0;
-  PFN_vkGetPhysicalDeviceGeneratedCommandsPropertiesNVX pfn_vkGetPhysicalDeviceGeneratedCommandsPropertiesNVX = 0;
   #endif
 
   #if VK_EXT_debug_utils
@@ -1231,6 +1329,16 @@ void reset_VK_EXTENSION_SUBSET() {
   #if VK_EXT_host_query_reset
   has_VK_EXT_host_query_reset = 0;
   PFN_vkResetQueryPoolEXT pfn_vkResetQueryPoolEXT = 0;
+  #endif
+
+  #if VK_NV_device_generated_commands
+  has_VK_NV_device_generated_commands = 0;
+  PFN_vkGetGeneratedCommandsMemoryRequirementsNV pfn_vkGetGeneratedCommandsMemoryRequirementsNV = 0;
+  PFN_vkCmdPreprocessGeneratedCommandsNV pfn_vkCmdPreprocessGeneratedCommandsNV = 0;
+  PFN_vkCmdExecuteGeneratedCommandsNV pfn_vkCmdExecuteGeneratedCommandsNV = 0;
+  PFN_vkCmdBindPipelineShaderGroupNV pfn_vkCmdBindPipelineShaderGroupNV = 0;
+  PFN_vkCreateIndirectCommandsLayoutNV pfn_vkCreateIndirectCommandsLayoutNV = 0;
+  PFN_vkDestroyIndirectCommandsLayoutNV pfn_vkDestroyIndirectCommandsLayoutNV = 0;
   #endif
 
   #if VK_KHR_external_memory_win32 && defined(VK_USE_PLATFORM_WIN32_KHR)

@@ -38,6 +38,7 @@ struct DebugUtil
 #endif  // _DEBUG
   }
 
+  void setObjectName(const VkDeviceMemory& object, const char* name)            { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_DEVICE_MEMORY); }
   void setObjectName(const VkBuffer& object, const char* name)                  { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_BUFFER); }
   void setObjectName(const VkCommandBuffer& object, const char* name)           { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_COMMAND_BUFFER ); }
   void setObjectName(const VkImage& object, const char* name)                   { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_IMAGE); }

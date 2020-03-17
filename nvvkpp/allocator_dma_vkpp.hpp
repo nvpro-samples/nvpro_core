@@ -190,6 +190,8 @@ public:
   {
     ImageDma resultImage = createImage(info_, memUsage_);
 
+    vk::ImageSubresourceRange subresourceRange(vk::ImageAspectFlagBits::eColor, 0, info_.mipLevels, 0, 1);
+
     // Copy the data to staging buffer than to image
     if(data_ != nullptr)
     {
@@ -206,7 +208,6 @@ public:
       m_allocator->unmap(stageBuffer.allocation);
 
       // Copy buffer to image
-      vk::ImageSubresourceRange subresourceRange(vk::ImageAspectFlagBits::eColor, 0, info_.mipLevels, 0, 1);
       nvvkpp::image::setImageLayout(cmdBuff, resultImage.image, vk::ImageLayout::eUndefined,
                                     vk::ImageLayout::eTransferDstOptimal, subresourceRange);
       vk::BufferImageCopy bufferCopyRegion;
@@ -222,7 +223,10 @@ public:
     else
     {
       // Setting final image layout
-      nvvkpp::image::setImageLayout(cmdBuff, resultImage.image, vk::ImageLayout::eUndefined, layout_);
+      nvvkpp::image::setImageLayout(cmdBuff, resultImage.image, vk::ImageLayout::eUndefined,
+                                    vk::ImageLayout::eTransferDstOptimal, subresourceRange);
+      subresourceRange.levelCount = 1;
+      nvvkpp::image::setImageLayout(cmdBuff, resultImage.image, vk::ImageLayout::eUndefined, layout_, subresourceRange);
     }
 
     return resultImage;

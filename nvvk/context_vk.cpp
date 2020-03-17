@@ -109,16 +109,18 @@ static std::string ObjectTypeToString(VkObjectType value)
       return "DisplayModeKHR";
     case VK_OBJECT_TYPE_DEBUG_REPORT_CALLBACK_EXT:
       return "DebugReportCallbackEXT";
-    case VK_OBJECT_TYPE_OBJECT_TABLE_NVX:
-      return "ObjectTableNVX";
-    case VK_OBJECT_TYPE_INDIRECT_COMMANDS_LAYOUT_NVX:
-      return "IndirectCommandsLayoutNVX";
+#if VK_NV_device_generated_commands
+    case VK_OBJECT_TYPE_INDIRECT_COMMANDS_LAYOUT_NV:
+      return "IndirectCommandsLayoutNV";
+#endif
     case VK_OBJECT_TYPE_DEBUG_UTILS_MESSENGER_EXT:
       return "DebugUtilsMessengerEXT";
     case VK_OBJECT_TYPE_VALIDATION_CACHE_EXT:
       return "ValidationCacheEXT";
+#if VK_NV_ray_tracing
     case VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_NV:
       return "AccelerationStructureNV";
+#endif
     default:
       return "invalid";
   }
@@ -922,6 +924,7 @@ bool Context::hasMandatoryExtensions(VkPhysicalDevice physicalDevice, const Cont
   NVVK_CHECK(vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &count, nullptr));
   extensionProperties.resize(count);
   NVVK_CHECK(vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &count, extensionProperties.data()));
+  extensionProperties.resize(std::min(extensionProperties.size(), size_t(count)));
 
   return checkEntryArray(extensionProperties, info.deviceExtensions, bVerbose);
 }
@@ -980,6 +983,7 @@ std::vector<VkLayerProperties> Context::getInstanceLayers()
   NVVK_CHECK(vkEnumerateInstanceLayerProperties(&count, nullptr));
   layerProperties.resize(count);
   NVVK_CHECK(vkEnumerateInstanceLayerProperties(&count, layerProperties.data()));
+  layerProperties.resize(std::min(layerProperties.size(), size_t(count)));
   return layerProperties;
 }
 
@@ -990,6 +994,7 @@ std::vector<VkExtensionProperties> Context::getInstanceExtensions()
   NVVK_CHECK(vkEnumerateInstanceExtensionProperties(nullptr, &count, nullptr));
   extensionProperties.resize(count);
   NVVK_CHECK(vkEnumerateInstanceExtensionProperties(nullptr, &count, extensionProperties.data()));
+  extensionProperties.resize(std::min(extensionProperties.size(), size_t(count)));
   return extensionProperties;
 }
 
@@ -1000,6 +1005,7 @@ std::vector<VkExtensionProperties> Context::getDeviceExtensions(VkPhysicalDevice
   NVVK_CHECK(vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &count, nullptr));
   extensionProperties.resize(count);
   NVVK_CHECK(vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &count, extensionProperties.data()));
+  extensionProperties.resize(std::min(extensionProperties.size(), size_t(count)));
   return extensionProperties;
 }
 

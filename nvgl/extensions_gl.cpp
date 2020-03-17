@@ -57,6 +57,7 @@ int has_GL_ARB_shading_language_include = 0;
 int has_GL_ARB_texture_filter_minmax = 0;
 int has_GL_ARB_texture_float = 0;
 int has_GL_EXT_memory_object = 0;
+int has_GL_EXT_memory_object_fd = 0;
 int has_GL_EXT_memory_object_win32 = 0;
 int has_GL_EXT_semaphore = 0;
 int has_GL_EXT_semaphore_fd = 0;
@@ -158,6 +159,7 @@ void load_GL(nvGLLoaderGetProcFN fnGetProcAddress)
   has_GL_ARB_texture_filter_minmax = load_GL_ARB_texture_filter_minmax(fnGetProcAddress);
   has_GL_ARB_texture_float = load_GL_ARB_texture_float(fnGetProcAddress);
   has_GL_EXT_memory_object = load_GL_EXT_memory_object(fnGetProcAddress);
+  has_GL_EXT_memory_object_fd = load_GL_EXT_memory_object_fd(fnGetProcAddress);
   has_GL_EXT_memory_object_win32 = load_GL_EXT_memory_object_win32(fnGetProcAddress);
   has_GL_EXT_semaphore = load_GL_EXT_semaphore(fnGetProcAddress);
   has_GL_EXT_semaphore_fd = load_GL_EXT_semaphore_fd(fnGetProcAddress);
@@ -5633,6 +5635,25 @@ int load_GL_EXT_memory_object(nvGLLoaderGetProcFN fnGetProcAddress)
   success = success && (pfn_glNamedBufferStorageMemEXT != 0);
   success = success && (pfn_glTexStorageMem1DEXT != 0);
   success = success && (pfn_glTextureStorageMem1DEXT != 0);
+  return success;
+}
+
+/* /////////////////////////////////// */
+/* GL_EXT_memory_object_fd */
+
+static PFNGLIMPORTMEMORYFDEXTPROC pfn_glImportMemoryFdEXT = 0;
+
+GLAPI void APIENTRY glImportMemoryFdEXT(GLuint memory, GLuint64 size, GLenum handleType, GLint fd)
+{
+  assert(pfn_glImportMemoryFdEXT);
+  pfn_glImportMemoryFdEXT(memory,size,handleType,fd);
+}
+
+int load_GL_EXT_memory_object_fd(nvGLLoaderGetProcFN fnGetProcAddress)
+{
+  pfn_glImportMemoryFdEXT = (PFNGLIMPORTMEMORYFDEXTPROC)fnGetProcAddress("glImportMemoryFdEXT");
+  int success = has_extension("GL_EXT_memory_object_fd");
+  success = success && (pfn_glImportMemoryFdEXT != 0);
   return success;
 }
 

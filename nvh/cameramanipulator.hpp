@@ -29,15 +29,10 @@
 #pragma once
 
 #pragma warning(disable : 4201)
+#include <array>
 #include <nvmath/nvmath.h>
 #include <nvmath/nvmath_glsltypes.h>
 #include <string>
-#include <array>
-
-#ifdef LINUX
-// None is a macro defined in X.h
-#undef None
-#endif
 
 namespace nvh {
 /**
@@ -95,7 +90,7 @@ class CameraManipulator
 public:
   // clang-format off
     enum Modes { Examine, Fly, Walk, Trackball };
-    enum Actions { None, Orbit, Dolly, Pan, LookAround };
+    enum Actions { NoAction, Orbit, Dolly, Pan, LookAround };
     struct Inputs {bool lmb=false; bool mmb=false; bool rmb=false; 
                    bool shift=false; bool ctrl=false; bool alt=false;};
   // clang-format on
@@ -175,6 +170,8 @@ public:
   void   setDuration(double val) { m_duration = val; }
 
   const std::string& getHelp();
+
+  void fit(const nvmath::vec3f& boxMin, const nvmath::vec3f& boxMax, bool instantFit = true);
 
 protected:
   CameraManipulator();

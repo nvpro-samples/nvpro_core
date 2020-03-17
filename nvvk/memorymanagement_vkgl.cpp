@@ -31,6 +31,10 @@
 
 #include "memorymanagement_vkgl.hpp"
 
+#ifdef LINUX
+#include <unistd.h>
+#endif
+
 namespace nvvk {
 
 //////////////////////////////////////////////////////////////////////////
@@ -55,6 +59,8 @@ VkResult DeviceMemoryAllocatorGL::allocBlockMemory(BlockID id, VkMemoryAllocateI
   VkExportMemoryAllocateInfo exportInfo = {VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO};
 #ifdef VK_USE_PLATFORM_WIN32_KHR
   exportInfo.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
+#else
+  exportInfo.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
 #endif
 
   exportInfo.pNext = memInfo.pNext;
@@ -72,6 +78,11 @@ VkResult DeviceMemoryAllocatorGL::allocBlockMemory(BlockID id, VkMemoryAllocateI
   memGetHandle.memory                        = deviceMemory;
   memGetHandle.handleType                    = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
   result                                     = vkGetMemoryWin32HandleKHR(m_device, &memGetHandle, &blockGL.handle);
+#else
+  VkMemoryGetFdInfoKHR memGetHandle = {VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR};
+  memGetHandle.memory                        = deviceMemory;
+  memGetHandle.handleType                    = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
+  result                                     = vkGetMemoryFdKHR(m_device, &memGetHandle, &blockGL.handle);
 #endif
   if(result != VK_SUCCESS)
   {
@@ -81,7 +92,13 @@ VkResult DeviceMemoryAllocatorGL::allocBlockMemory(BlockID id, VkMemoryAllocateI
   GLint param = isDedicated ? GL_TRUE : GL_FALSE;
   glCreateMemoryObjectsEXT(1, &blockGL.memoryObject);
   glMemoryObjectParameterivEXT(blockGL.memoryObject, GL_DEDICATED_MEMORY_OBJECT_EXT, &param);
+#ifdef WIN32
   glImportMemoryWin32HandleEXT(blockGL.memoryObject, memInfo.allocationSize, GL_HANDLE_TYPE_OPAQUE_WIN32_EXT, blockGL.handle);
+#else
+  glImportMemoryFdEXT(blockGL.memoryObject, memInfo.allocationSize, GL_HANDLE_TYPE_OPAQUE_FD_EXT, blockGL.handle);
+  // the Fd got consumed
+  blockGL.handle = -1;
+#endif
 
   return result;
 }
@@ -99,6 +116,12 @@ void DeviceMemoryAllocatorGL::freeBlockMemory(BlockID id, VkDeviceMemory deviceM
 #ifdef VK_USE_PLATFORM_WIN32_KHR
   CloseHandle(blockGL.handle);
   blockGL.handle = NULL;
+#else
+  if (blockGL.handle != -1)
+  {
+    close(blockGL.handle);
+    blockGL.handle = -1;
+  }
 #endif
 }
 

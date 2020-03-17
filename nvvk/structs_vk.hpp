@@ -790,26 +790,6 @@ namespace nvvk {
     return VkCommandBufferInheritanceConditionalRenderingInfoEXT{VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_CONDITIONAL_RENDERING_INFO_EXT};
   }
 #endif
-#if VK_NVX_device_generated_commands
-  template<> inline VkDeviceGeneratedCommandsFeaturesNVX make<VkDeviceGeneratedCommandsFeaturesNVX>(){
-    return VkDeviceGeneratedCommandsFeaturesNVX{VK_STRUCTURE_TYPE_DEVICE_GENERATED_COMMANDS_FEATURES_NVX};
-  }
-  template<> inline VkDeviceGeneratedCommandsLimitsNVX make<VkDeviceGeneratedCommandsLimitsNVX>(){
-    return VkDeviceGeneratedCommandsLimitsNVX{VK_STRUCTURE_TYPE_DEVICE_GENERATED_COMMANDS_LIMITS_NVX};
-  }
-  template<> inline VkIndirectCommandsLayoutCreateInfoNVX make<VkIndirectCommandsLayoutCreateInfoNVX>(){
-    return VkIndirectCommandsLayoutCreateInfoNVX{VK_STRUCTURE_TYPE_INDIRECT_COMMANDS_LAYOUT_CREATE_INFO_NVX};
-  }
-  template<> inline VkCmdProcessCommandsInfoNVX make<VkCmdProcessCommandsInfoNVX>(){
-    return VkCmdProcessCommandsInfoNVX{VK_STRUCTURE_TYPE_CMD_PROCESS_COMMANDS_INFO_NVX};
-  }
-  template<> inline VkCmdReserveSpaceForCommandsInfoNVX make<VkCmdReserveSpaceForCommandsInfoNVX>(){
-    return VkCmdReserveSpaceForCommandsInfoNVX{VK_STRUCTURE_TYPE_CMD_RESERVE_SPACE_FOR_COMMANDS_INFO_NVX};
-  }
-  template<> inline VkObjectTableCreateInfoNVX make<VkObjectTableCreateInfoNVX>(){
-    return VkObjectTableCreateInfoNVX{VK_STRUCTURE_TYPE_OBJECT_TABLE_CREATE_INFO_NVX};
-  }
-#endif
 #if VK_NV_clip_space_w_scaling
   template<> inline VkPipelineViewportWScalingStateCreateInfoNV make<VkPipelineViewportWScalingStateCreateInfoNV>(){
     return VkPipelineViewportWScalingStateCreateInfoNV{VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_W_SCALING_STATE_CREATE_INFO_NV};

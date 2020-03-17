@@ -137,6 +137,8 @@ enum class InterpolationType
 //
 struct Material
 {
+  std::string m_name;
+
   // See: https://github.com/KhronosGroup/glTF/tree/master/specification/2.0
   // https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_materials_pbrSpecularGlossiness
   struct PushC
@@ -213,6 +215,8 @@ struct Mesh
     std::array<nvmath::mat4f, 64> jointMatrix;
     float                         jointcount{0};
   } m_uniformBlock;
+
+  std::string m_name;
 };
 
 
@@ -320,7 +324,7 @@ struct Scene
   void loadSkins(const tinygltf::Model& gltfModel);
   void loadMaterials(tinygltf::Model& gltfModel);
   void loadAnimations(const tinygltf::Model& gltfModel);
-  void getNodeDimensions(const gltf::Node* node, nvmath::vec3f& min, nvmath::vec3f& max);
+  void getNodeDimensions(const gltf::Node* node, nvmath::vec3f& min, nvmath::vec3f& max) const;
   void computeSceneDimensions();
   void updateAnimation(uint32_t index, float time);
   Node* nodeFromIndex(uint32_t index);

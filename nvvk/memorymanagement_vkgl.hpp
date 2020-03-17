@@ -90,7 +90,11 @@ public:
 protected:
   struct BlockGL
   {
-    void*  handle       = nullptr;
+#ifdef WIN32
+    void* handle = nullptr;
+#else
+    int handle = -1;
+#endif
     GLuint memoryObject = 0;
   };
 

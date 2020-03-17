@@ -4159,6 +4159,15 @@ GLAPI void APIENTRY glTextureStorageMem1DEXT (GLuint texture, GLsizei levels, GL
 #endif
 #endif /* GL_EXT_memory_object */
 
+#ifndef GL_EXT_memory_object_fd
+#define GL_EXT_memory_object_fd 1
+#define GL_HANDLE_TYPE_OPAQUE_FD_EXT      0x9586
+typedef void (APIENTRYP PFNGLIMPORTMEMORYFDEXTPROC) (GLuint memory, GLuint64 size, GLenum handleType, GLint fd);
+#ifdef GL_GLEXT_PROTOTYPES
+GLAPI void APIENTRY glImportMemoryFdEXT (GLuint memory, GLuint64 size, GLenum handleType, GLint fd);
+#endif
+#endif /* GL_EXT_memory_object_fd */
+
 #ifndef GL_EXT_memory_object_win32
 #define GL_EXT_memory_object_win32 1
 #define GL_HANDLE_TYPE_OPAQUE_WIN32_EXT   0x9587

@@ -29,6 +29,7 @@
 #define _nvmath_h_
 
 #include "nvmath_types.h"
+#include <type_traits>
 
 namespace nvmath {
 // clang-format off
@@ -301,7 +302,8 @@ template<class T>  vector4<T> lerp(const T & t, const vector4<T> & u, const vect
 // utilities
 template<class T>  T nv_min(const T & lambda, const T & n);
 template<class T>  T nv_max(const T & lambda, const T & n);
-template<class T>  T nv_clamp(const T u, const T min, const T max);
+template<class T>  T nv_clamp(typename std::remove_reference<typename std::remove_const<T>::type>::type u,
+                              const T min, const T max);
 template<class T>  T nv_random();
 
 template<class T>  quaternion<T> trackball(vector2<T> & pt1, vector2<T> & pt2, T trackballsize);

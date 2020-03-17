@@ -2403,8 +2403,9 @@ template<class T>
 inline T nv_max(const T & lambda, const T & n)
 { return (lambda > n ) ? lambda : n; }
 
-template<class T> 
-inline T nv_clamp(T u, const T min, const T max)
+template<class T>
+inline T nv_clamp(typename std::remove_reference<typename std::remove_const<T>::type>::type u,
+                  const T min, const T max)
 { u = (u < min) ? min : u; u = (u > max) ? max : u; return u; }
 
 #ifdef USEOPTIX

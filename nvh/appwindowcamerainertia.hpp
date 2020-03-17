@@ -64,15 +64,35 @@ struct POINT
   int y;
 };
 #endif
+struct ToggleInfo {
+  bool * p;
+  bool addToUI;
+  std::string desc;
+};
 #ifdef WINDOWINERTIACAMERA_EXTERN
-extern std::map<char, bool*> g_toggleMap;
+extern std::map<char, ToggleInfo> g_toggleMap;
 #else
-std::map<char, bool*> g_toggleMap;
+std::map<char, ToggleInfo> g_toggleMap;
 #endif
-inline void addToggleKey(char c, bool* target, const char* desc)
+inline void addToggleKey(char c, bool* target, const char* desc, bool addToUI = true)
 {
   LOGI(desc);
-  g_toggleMap[c] = target;
+  g_toggleMap[c].desc = desc;
+  g_toggleMap[c].p = target;
+  g_toggleMap[c].addToUI = addToUI;
+}
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
+inline void DrawToggles()
+{
+  for (auto &it : g_toggleMap) {
+    if (!it.second.addToUI)
+      continue;
+    bool *pB = it.second.p;
+    bool  prevValue = *pB;
+    ImGui::Checkbox(it.second.desc.c_str(), pB);
+  }
 }
 //-----------------------------------------------------------------------------
 // Derive the Window for this sample
@@ -140,7 +160,6 @@ public:
   virtual void onKeyboard(AppWindowCameraInertia::KeyCode key, ButtonAction action, int mods, int x, int y) override;
   virtual void onKeyboardChar(unsigned char key, int mods, int x, int y) override;
   
-
   virtual int idle();
 
   const char* getHelpText(int* lines = NULL)
@@ -173,7 +192,6 @@ bool AppWindowCameraInertia::open(int posX, int posY, int width, int height, con
 }
 
 void AppWindowCameraInertia::onWindowClose() {}
-
 
 //------------------------------------------------------------------------------
 //
@@ -360,10 +378,10 @@ void AppWindowCameraInertia::onKeyboardChar(unsigned char key, int mods, int x, 
   if(ImGuiH::key_char(key))
     return;
   // check registered toggles
-  std::map<char, bool*>::iterator it = g_toggleMap.find(key);
+  auto it = g_toggleMap.find(key);
   if(it != g_toggleMap.end())
   {
-    *it->second = *it->second ? false : true;
+    it->second.p[0] = it->second.p[0] ? false : true;
   }
 }
 

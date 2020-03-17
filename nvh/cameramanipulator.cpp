@@ -241,10 +241,10 @@ CameraManipulator::Actions CameraManipulator::mouseMove(int x, int y, const Inpu
   if(!inputs.lmb && !inputs.rmb && !inputs.mmb)
   {
     setMousePosition(x, y);
-    return None;  // no mouse button pressed
+    return NoAction;  // no mouse button pressed
   }
 
-  Actions curAction = None;
+  Actions curAction = NoAction;
   if(inputs.lmb)
   {
     if(((inputs.ctrl) && (inputs.shift)) || inputs.alt)
@@ -261,7 +261,7 @@ CameraManipulator::Actions CameraManipulator::mouseMove(int x, int y, const Inpu
   else if(inputs.rmb)
     curAction = Dolly;
 
-  if(curAction != None)
+  if(curAction != NoAction)
     motion(x, y, curAction);
 
   return curAction;
@@ -596,4 +596,40 @@ const std::string& CameraManipulator::getHelp()
       "Mouse wheel + Shift: Zoom in/out\n";
   return helpText;
 }
+
+//--------------------------------------------------------------------------------------------------
+// Fit the camera to the Bounding box
+//
+void CameraManipulator::fit(const nvmath::vec3f& boxMin, const nvmath::vec3f& boxMax, bool instantFit)
+{
+  nvmath::vec3f veye, vint, vup;
+  getLookat(veye, vint, vup);
+  const nvmath::vec3f viewdir = nvmath::normalize(veye - vint);
+
+  const nvmath::vec3f boxSize   = (boxMax - boxMin) * .5f;
+  const nvmath::vec3f boxCenter = boxMin + boxSize;
+
+  const float aspect = 1;
+  const float fov    = nv_to_rad * getFov();
+
+  // Projecting the box to the camera
+  float         radius = 0;
+  float         offset = 0;
+  nvmath::mat4f mat    = nvmath::look_at(veye, boxCenter, vup);
+  mat.set_translate({0, 0, 0});
+  for(int i = 0; i < 8; i++)
+  {
+    nvmath::vec3f vct(i & 1 ? boxSize.x : -boxSize.x, i & 2 ? boxSize.y : -boxSize.y, i & 4 ? boxSize.z : -boxSize.z);
+    vct              = mat * vct;
+    const float dist = std::max(std::fabs(vct.x), std::fabs(vct.y) / aspect);
+    radius           = std::max(radius, dist);
+    offset           = std::max(offset, std::fabs(vct.z));
+  }
+
+  // Placing back the camera
+  const float dist = radius / tan(fov * .5f);
+  veye             = boxCenter + viewdir * (dist + offset);
+  setLookat(veye, boxCenter, vup, instantFit);
+}
+
 }  // namespace nvh

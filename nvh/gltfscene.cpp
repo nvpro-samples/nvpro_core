@@ -253,7 +253,8 @@ void Scene::loadMeshes(const tinygltf::Model& tinyModel, std::vector<uint32_t>& 
   {
     nvmath::mat4f matrix;
     matrix.identity();
-    auto newMesh = new gltf::Mesh(matrix);
+    auto newMesh    = new gltf::Mesh(matrix);
+    newMesh->m_name = mesh.name;
 
     // Looping over all primitives in
     for(const tinygltf::Primitive& primitive : mesh.primitives)
@@ -382,24 +383,21 @@ void Scene::loadMeshes(const tinygltf::Model& tinyModel, std::vector<uint32_t>& 
 
         switch(indexAccessor.componentType)
         {
-          case TINYGLTF_PARAMETER_TYPE_UNSIGNED_INT:
-          {
+          case TINYGLTF_PARAMETER_TYPE_UNSIGNED_INT: {
             primitiveIndices32u.resize(indexAccessor.count);
             memcpy(primitiveIndices32u.data(), &buffer.data[indexAccessor.byteOffset + bufferView.byteOffset],
                    indexAccessor.count * sizeof(uint32_t));
             indexBuffer.insert(std::end(indexBuffer), std::begin(primitiveIndices32u), std::end(primitiveIndices32u));
             break;
           }
-          case TINYGLTF_PARAMETER_TYPE_UNSIGNED_SHORT:
-          {
+          case TINYGLTF_PARAMETER_TYPE_UNSIGNED_SHORT: {
             primitiveIndices16u.resize(indexAccessor.count);
             memcpy(primitiveIndices16u.data(), &buffer.data[indexAccessor.byteOffset + bufferView.byteOffset],
                    indexAccessor.count * sizeof(uint16_t));
             indexBuffer.insert(std::end(indexBuffer), std::begin(primitiveIndices16u), std::end(primitiveIndices16u));
             break;
           }
-          case TINYGLTF_PARAMETER_TYPE_UNSIGNED_BYTE:
-          {
+          case TINYGLTF_PARAMETER_TYPE_UNSIGNED_BYTE: {
             primitiveIndices8u.resize(indexAccessor.count);
             memcpy(primitiveIndices8u.data(), &buffer.data[indexAccessor.byteOffset + bufferView.byteOffset],
                    indexAccessor.count * sizeof(uint8_t));
@@ -514,6 +512,7 @@ void Scene::loadMaterials(tinygltf::Model& gltfModel)
   for(tinygltf::Material& mat : gltfModel.materials)
   {
     Material material{};
+    material.m_name = mat.name;
 
     if(mat.values.find("baseColorFactor") != mat.values.end())
     {
@@ -701,8 +700,7 @@ void Scene::loadAnimations(const tinygltf::Model& gltfModel)
 
         switch(accessor.type)
         {
-          case TINYGLTF_TYPE_VEC3:
-          {
+          case TINYGLTF_TYPE_VEC3: {
             auto buf = new nvmath::vec3f[accessor.count];
             memcpy(buf, &buffer.data[accessor.byteOffset + bufferView.byteOffset], accessor.count * sizeof(nvmath::vec3f));
             for(size_t index = 0; index < accessor.count; index++)
@@ -712,8 +710,7 @@ void Scene::loadAnimations(const tinygltf::Model& gltfModel)
             break;
           }
 
-          case TINYGLTF_TYPE_VEC4:
-          {
+          case TINYGLTF_TYPE_VEC4: {
             auto buf = new nvmath::vec4f[accessor.count];
             memcpy(buf, &buffer.data[accessor.byteOffset + bufferView.byteOffset], accessor.count * sizeof(nvmath::vec4f));
             for(size_t index = 0; index < accessor.count; index++)
@@ -723,8 +720,7 @@ void Scene::loadAnimations(const tinygltf::Model& gltfModel)
             break;
           }
 
-          default:
-          {
+          default: {
             std::cout << "unknown type" << std::endl;
             break;
           }
@@ -778,7 +774,7 @@ void Scene::loadAnimations(const tinygltf::Model& gltfModel)
 //--------------------------------------------------------------------------------------------------
 // Get the dimension of a node
 //
-void Scene::getNodeDimensions(const gltf::Node* node, nvmath::vec3f& min, nvmath::vec3f& max)
+void Scene::getNodeDimensions(const gltf::Node* node, nvmath::vec3f& min, nvmath::vec3f& max) const
 {
   if(node->m_mesh != ~0u)
   {
@@ -844,20 +840,17 @@ void Scene::updateAnimation(uint32_t index, float time)
         {
           switch(channel.m_path)
           {
-            case PathType::eTranslation:
-            {
+            case PathType::eTranslation: {
               nvmath::vec4f trans           = nvmath::mix(sampler.m_outputsVec4[i], sampler.m_outputsVec4[i + 1], u);
               channel.m_node->m_translation = nvmath::vec3f(trans);
               break;
             }
-            case PathType::eScale:
-            {
+            case PathType::eScale: {
               nvmath::vec4f trans     = nvmath::mix(sampler.m_outputsVec4[i], sampler.m_outputsVec4[i + 1], u);
               channel.m_node->m_scale = nvmath::vec3f(trans);
               break;
             }
-            case PathType::eRotation:
-            {
+            case PathType::eRotation: {
               nvmath::quatf q1;
               q1.x = sampler.m_outputsVec4[i].x;
               q1.y = sampler.m_outputsVec4[i].y;

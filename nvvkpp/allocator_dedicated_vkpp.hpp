@@ -418,7 +418,12 @@ protected:
   // Override the standard allocation
   vk::DeviceMemory AllocateMemory(vk::MemoryAllocateInfo& allocateInfo) override
   {
+#ifdef WIN32
     vk::ExportMemoryAllocateInfo memoryHandleEx(vk::ExternalMemoryHandleTypeFlagBits::eOpaqueWin32);
+#else
+    vk::ExportMemoryAllocateInfo memoryHandleEx(vk::ExternalMemoryHandleTypeFlagBits::eOpaqueFd);
+#endif
+
     allocateInfo.setPNext(&memoryHandleEx);  // <-- Enabling Export
     return m_device.allocateMemory(allocateInfo);
   }

@@ -13,6 +13,12 @@ if(WIN32)
   SET( MEMORY_LEAKS_CHECK OFF CACHE BOOL "Check for Memory leaks" )
 endif(WIN32)
 
+if(MSVC)
+  # Enable parallel builds by default on MSVC
+  string(APPEND CMAKE_C_FLAGS " /MP")
+  string(APPEND CMAKE_CXX_FLAGS " /MP")
+endif()
+
 set(RESOURCE_DIRECTORY "${BASE_DIRECTORY}/shared_sources/resources")
 add_definitions(-DRESOURCE_DIRECTORY="${RESOURCE_DIRECTORY}/")
 
@@ -23,9 +29,24 @@ if (WIN32)
   include_directories(${BASE_DIRECTORY}/shared_external/glfw3/include)
 else() 
   find_package(glfw3 3.3 QUIET)
+
   if (NOT glfw3_FOUND)
-    add_subdirectory(${BASE_DIRECTORY}/downloaded_resources/glfw-3.3.1 ${BASE_DIRECTORY}/build/build_glfw3)
-    include_directories(${BASE_DIRECTORY}/downloaded_resources/glfw-3.3.1/include)
+    set(GLFW3_ZIP ${BASE_DIRECTORY}/downloaded_resources/glfw-3.3.1.zip)
+    set(GLFW3_DIR ${BASE_DIRECTORY}/downloaded_resources/glfw-3.3.1)
+
+    if(NOT EXISTS ${GLFW3_DIR}/CMakeLists.txt)
+      if(NOT EXISTS ${GLFW3_DIR})
+      if(NOT EXISTS ${GLFW3_ZIP})
+        file(DOWNLOAD https://github.com/glfw/glfw/releases/download/3.3.1/glfw-3.3.1.zip ${GLFW3_ZIP}
+           TIMEOUT 60  # seconds
+           TLS_VERIFY ON)
+      endif()
+      execute_process(COMMAND ${CMAKE_COMMAND} -E tar -xf ${GLFW3_ZIP}
+              WORKING_DIRECTORY ${BASE_DIRECTORY}/downloaded_resources)
+      endif()
+    endif()
+    add_subdirectory(${GLFW3_DIR} ${BASE_DIRECTORY}/build/build_glfw3)
+    include_directories(${GLFW3_DIR}/include)
   endif()  
 endif()
 
@@ -689,6 +710,7 @@ macro(_add_package_Cuda)
       add_definitions(-DUSECUDA)
       include_directories(${CUDA_INCLUDE_DIRS})
       LIST(APPEND LIBRARIES_OPTIMIZED ${CUDA_LIBRARIES} )
+      LIST(APPEND LIBRARIES_DEBUG ${CUDA_LIBRARIES} )
       # STRANGE: default CUDA package finder from cmake doesn't give anything to find cuda.lib
       if(WIN32)
         if((ARCH STREQUAL "x86"))
@@ -704,6 +726,13 @@ macro(_add_package_Cuda)
           LIST(APPEND LIBRARIES_OPTIMIZED "${CUDA_TOOLKIT_ROOT_DIR}/lib/x64/cudart.lib" )
           LIST(APPEND LIBRARIES_OPTIMIZED "${CUDA_TOOLKIT_ROOT_DIR}/lib/x64/nvrtc.lib" )
         endif()
+      else()
+        LIST(APPEND LIBRARIES_DEBUG "libcuda.so" )
+        LIST(APPEND LIBRARIES_DEBUG "${CUDA_TOOLKIT_ROOT_DIR}/lib64/libcudart.so" )
+        LIST(APPEND LIBRARIES_DEBUG "${CUDA_TOOLKIT_ROOT_DIR}/lib64/libnvrtc.so" )
+        LIST(APPEND LIBRARIES_OPTIMIZED "libcuda.so" )
+        LIST(APPEND LIBRARIES_OPTIMIZED "${CUDA_TOOLKIT_ROOT_DIR}/lib64/libcudart.so" )
+        LIST(APPEND LIBRARIES_OPTIMIZED "${CUDA_TOOLKIT_ROOT_DIR}/lib64/libnvrtc.so" )
       endif()
       #LIST(APPEND PACKAGE_SOURCE_FILES ${CUDA_HEADERS} ) Not available anymore with cmake 3.3... we might have to list them by hand
       # source_group(CUDA FILES ${CUDA_HEADERS} )  Not available anymore with cmake 3.3
@@ -952,13 +981,13 @@ endmacro()
 macro(_compile_GLSL _SOURCE _OUTPUT SOURCE_LIST OUTPUT_LIST)
   LIST(APPEND ${SOURCE_LIST} ${_SOURCE})
   LIST(APPEND ${OUTPUT_LIST} ${_OUTPUT})
-  #Message(STATUS "${GLSLANGVALIDATOR} -o ${_OUTPUT} -V ${_SOURCE}")
+  #Message(STATUS "${GLSLANGVALIDATOR} --target-env vulkan1.1 -o ${_OUTPUT} ${_SOURCE}")
   #Message(STATUS "${_OUTPUT} : ${_SOURCE}")
   if(GLSLANGVALIDATOR)
     add_custom_command(
       OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/${_OUTPUT}
-      COMMAND echo ${GLSLANGVALIDATOR} -o ${_OUTPUT} -V ${_SOURCE}
-      COMMAND ${GLSLANGVALIDATOR} -o ${_OUTPUT} -V ${_SOURCE}
+      COMMAND echo ${GLSLANGVALIDATOR} --target-env vulkan1.1 -o ${_OUTPUT}  ${_SOURCE}
+      COMMAND ${GLSLANGVALIDATOR} --target-env vulkan1.1 -o ${_OUTPUT} ${_SOURCE}
       MAIN_DEPENDENCY ${_SOURCE}
       WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
       )

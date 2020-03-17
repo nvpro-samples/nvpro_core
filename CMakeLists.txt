@@ -156,6 +156,15 @@ add_library(shared_sources STATIC
   ${NVHELPERSOPTIX_FILES}
 )
 
+# Create precompiled header (added in CMake 3.16)
+if((${CMAKE_VERSION} VERSION_GREATER "3.16.0") OR (${CMAKE_VERSION} VERSION_EQUAL "3.16.0"))
+  target_precompile_headers(shared_sources PRIVATE
+    "<algorithm>"
+    "<vulkan/vulkan.hpp>"
+    "<vulkan/vulkan_core.h>"
+  )
+endif()
+
 if (MSVC)
   if (MSVC_VERSION EQUAL 1900)
     set(glfw3 ${BASE_DIRECTORY}/shared_external/glfw3/lib-vc2015/glfw3.lib)

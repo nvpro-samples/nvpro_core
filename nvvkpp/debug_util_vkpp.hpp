@@ -54,19 +54,20 @@ struct DebugUtil
 
 
   // clang-format off
+  void setObjectName(const vk::AccelerationStructureNV& object, const char* name) { setObjectName(object, name, vk::ObjectType::eAccelerationStructureNV); }
   void setObjectName(const vk::Buffer& object, const char* name)                  { setObjectName(object, name, vk::ObjectType::eBuffer); }
   void setObjectName(const vk::CommandBuffer& object, const char* name)           { setObjectName(object, name, vk::ObjectType::eCommandBuffer ); }
+  void setObjectName(const vk::DescriptorSet& object, const char* name)           { setObjectName(object, name, vk::ObjectType::eDescriptorSet); }
+  void setObjectName(const vk::DescriptorSetLayout& object, const char* name)     { setObjectName(object, name, vk::ObjectType::eDescriptorSetLayout); }
+  void setObjectName(const vk::Framebuffer& object, const char* name)             { setObjectName(object, name, vk::ObjectType::eFramebuffer); }
   void setObjectName(const vk::Image& object, const char* name)                   { setObjectName(object, name, vk::ObjectType::eImage); }
   void setObjectName(const vk::ImageView& object, const char* name)               { setObjectName(object, name, vk::ObjectType::eImageView); }
-  void setObjectName(const vk::RenderPass& object, const char* name)              { setObjectName(object, name, vk::ObjectType::eRenderPass); }
-  void setObjectName(const vk::ShaderModule& object, const char* name)            { setObjectName(object, name, vk::ObjectType::eShaderModule); }
   void setObjectName(const vk::Pipeline& object, const char* name)                { setObjectName(object, name, vk::ObjectType::ePipeline); }
-  void setObjectName(const vk::AccelerationStructureNV& object, const char* name) { setObjectName(object, name, vk::ObjectType::eAccelerationStructureNV); }
-  void setObjectName(const vk::DescriptorSetLayout& object, const char* name)     { setObjectName(object, name, vk::ObjectType::eDescriptorSetLayout); }
-  void setObjectName(const vk::DescriptorSet& object, const char* name)           { setObjectName(object, name, vk::ObjectType::eDescriptorSet); }
-  void setObjectName(const vk::Semaphore& object, const char* name)               { setObjectName(object, name, vk::ObjectType::eSemaphore); }
-  void setObjectName(const vk::SwapchainKHR& object, const char* name)            { setObjectName(object, name, vk::ObjectType::eSwapchainKHR); }
   void setObjectName(const vk::Queue& object, const char* name)                   { setObjectName(object, name, vk::ObjectType::eQueue); }
+  void setObjectName(const vk::RenderPass& object, const char* name)              { setObjectName(object, name, vk::ObjectType::eRenderPass); }
+  void setObjectName(const vk::Semaphore& object, const char* name)               { setObjectName(object, name, vk::ObjectType::eSemaphore); }
+  void setObjectName(const vk::ShaderModule& object, const char* name)            { setObjectName(object, name, vk::ObjectType::eShaderModule); }
+  void setObjectName(const vk::SwapchainKHR& object, const char* name)            { setObjectName(object, name, vk::ObjectType::eSwapchainKHR); }
   // clang-format on
 
 
