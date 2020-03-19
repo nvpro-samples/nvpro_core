@@ -33,14 +33,14 @@
 
 namespace nvvk {
 
-//////////////////////////////////////////////////////////////////////////
-
+//--------------------------------------------------------------------------------------------------
 /**
-  # functions in nvvk
+# functions in nvvk
 
-  - makeAccessMaskPipelineStageFlags : depending on accessMask returns appropriate VkPipelineStageFlagBits
-  - cmdBegin : wraps vkBeginCommandBuffer with VkCommandBufferUsageFlags and implicitly handles VkCommandBufferBeginInfo setup
-  - makeSubmitInfo : VkSubmitInfo struct setup using provided arrays of signals and commandbuffers, leaving rest zeroed
+- makeAccessMaskPipelineStageFlags : depending on accessMask returns appropriate VkPipelineStageFlagBits
+- cmdBegin : wraps vkBeginCommandBuffer with VkCommandBufferUsageFlags and implicitly handles VkCommandBufferBeginInfo setup
+- makeSubmitInfo : VkSubmitInfo struct setup using provided arrays of signals and commandbuffers, leaving rest zeroed
+- hasFrameCompleted : helper to test completion of a frame number when wrapping frame counters are used
 */
 
 // useful for barriers, derive all compatible stage flags from an access mask
@@ -49,18 +49,35 @@ uint32_t makeAccessMaskPipelineStageFlags(uint32_t accessMask);
 
 void cmdBegin(VkCommandBuffer cmd, VkCommandBufferUsageFlags flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-NV_INLINE VkSubmitInfo makeSubmitInfo(uint32_t numCmds, VkCommandBuffer* cmds, uint32_t numSignals, VkSemaphore* signals) {
-  VkSubmitInfo submitInfo = {VK_STRUCTURE_TYPE_SUBMIT_INFO};
-  submitInfo.pCommandBuffers = cmds;
-  submitInfo.commandBufferCount = numCmds;
-  submitInfo.pSignalSemaphores = signals;
+NV_INLINE VkSubmitInfo makeSubmitInfo(uint32_t numCmds, VkCommandBuffer* cmds, uint32_t numSignals, VkSemaphore* signals)
+{
+  VkSubmitInfo submitInfo         = {VK_STRUCTURE_TYPE_SUBMIT_INFO};
+  submitInfo.pCommandBuffers      = cmds;
+  submitInfo.commandBufferCount   = numCmds;
+  submitInfo.pSignalSemaphores    = signals;
   submitInfo.signalSemaphoreCount = numSignals;
 
   return submitInfo;
 }
 
-//////////////////////////////////////////////////////////////////////////
+// returns true if frameTest has been completed. frameTest must be in past or present, but not future.
+// Handles integer wrap-around, so abs(frameTest - frameCompleted) < s32_max
+NV_INLINE bool hasFrameCompleted(uint32_t frameTest, uint32_t frameCompleted)
+{
+  // check for wrap-around
+  const uint32_t halfUint32 = 0x7FFFFFFF;
+  bool     wrapped = (frameTest < halfUint32 && frameCompleted > halfUint32) || (frameTest > halfUint32 && frameCompleted < halfUint32);
+  if (wrapped) {
+    // since "completed" could either be around 0 or towards end of 32-bit, we shift all old numbers and assume
+    // that this is safe and gives us consistent comparison
+    return (frameTest + halfUint32) <= (frameCompleted + halfUint32);
+  }
+  else {
+    return frameTest <= frameCompleted;
+  }
+}
 
+//--------------------------------------------------------------------------------------------------
 /**
   # class nvvk::CmdPool
 
@@ -71,9 +88,7 @@ NV_INLINE VkSubmitInfo makeSubmitInfo(uint32_t numCmds, VkCommandBuffer* cmds, u
 class CmdPool
 {
 public:
-  void init(VkDevice                     device,
-            uint32_t                     familyIndex,
-            VkCommandPoolCreateFlags     flags     = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
+  void init(VkDevice device, uint32_t familyIndex, VkCommandPoolCreateFlags flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
   void deinit();
 
   VkCommandBuffer createCommandBuffer(VkCommandBufferLevel level = VK_COMMAND_BUFFER_LEVEL_PRIMARY);
@@ -86,15 +101,17 @@ public:
   // free cmdbuffer from this pool
   void destroy(VkCommandBuffer cmd);
 
+  // ends and submits to queue, waits for queue idle and destroys cmd
+  void endAndSubmitSynced(VkCommandBuffer cmd, VkQueue queue);
+
 private:
-  VkDevice                     m_device = VK_NULL_HANDLE;
-  uint32_t                     m_familyIndex = ~0;
-  VkCommandPool                m_commandPool = VK_NULL_HANDLE;
+  VkDevice      m_device      = VK_NULL_HANDLE;
+  uint32_t      m_familyIndex = ~0;
+  VkCommandPool m_commandPool = VK_NULL_HANDLE;
 };
 
 
-//////////////////////////////////////////////////////////////////////////
-
+//--------------------------------------------------------------------------------------------------
 /**
   # class nvvk::ScopeSubmitCmdPool
 
@@ -147,12 +164,12 @@ public:
   void end(VkCommandBuffer commandBuffer);
 
 private:
-  VkDevice                     m_device;
-  VkQueue                      m_queue;
-  uint32_t                     m_familyIndex;
-  VkCommandPool                m_commandPool;
+  VkDevice      m_device;
+  VkQueue       m_queue;
+  uint32_t      m_familyIndex;
+  VkCommandPool m_commandPool;
 };
-
+//--------------------------------------------------------------------------------------------------
 /**
   # class nvvk::ScopeSubmitCmdBuffer
 
@@ -186,14 +203,14 @@ private:
   VkCommandBuffer m_cmd;
 };
 
-//////////////////////////////////////////////////////////////////////////
+//--------------------------------------------------------------------------------------------------
 /**
   # classes **nvvk::Ring...**
 
   In real-time processing, the CPU typically generates commands 
   in advance to the GPU and send them in batches for exeuction.
 
-  To avoid having he CPU to wait for the GPU'S completion and let it "race ahead"
+  To avoid having the CPU to wait for the GPU'S completion and let it "race ahead"
   we make use of double, or tripple-buffering techniques, where we cycle through
   a pool of resources every frame. We know that those resources are currently 
   not in use by the GPU and can therefore manipulate them directly.
@@ -203,21 +220,31 @@ private:
 
   The "Ring" classes cycle through a pool of 3 resources, as that is typically
   the maximum latency drivers may let the CPU get in advance of the GPU.
+
+  There are two interfaces:
+  - **Cycle-based** means ring resources have to be in the same cycle as the master.
+  - **Frame-based** means ring resources pick an available cycle on their own. 
+    The availability is based on a monotonic (wrapping) frame counter, and
+    information in which frame resources were used, and what frames have been completed.
 */
 
 static const uint32_t MAX_RING_FRAMES = 3;
-
+//--------------------------------------------------------------------------------------------------
 /**
   ## class nvvk::RingFences
 
   Recycles a fixed number of fences, provides information in which cycle
-  we are currently at, and prevents accidental access to a cycle inflight.
+  we are currently at, and prevents accidental access to a cycle in-flight.
 
   A typical frame would start by waiting for older cycle's completion ("wait")
   and be ended by "advanceCycle".
 
-  Safely index other resources, for example ring buffers using the "getCycleIndex"
-  for the current frame.
+  Using the cycle-interface you can safely index other resources, for example ring buffers,
+  by querying "getCycleIndex".
+
+  The alternative frame-interface is that other utilities make use of 
+  the "getCurrentFrame" and "getCompletedFrame" functions in
+  combination with the "hasFrameCompleted" utility function.
 */
 
 class RingFences
@@ -232,31 +259,53 @@ public:
   void wait(uint64_t timeout = ~0ULL);
 
   // query current cycle index
-  uint32_t getCycleIndex() const { return m_frame % MAX_RING_FRAMES; }
-
+  uint32_t getCycleIndex() const { return m_frameCurrent % MAX_RING_FRAMES; }
   // call once per cycle at end of frame
   VkFence advanceCycle();
 
-private:
-  uint32_t                     m_frame;
-  uint32_t                     m_waited;
-  VkFence                      m_fences[MAX_RING_FRAMES];
-  VkDevice                     m_device;
-};
+  // the frame that we are currently preparing, changed on "advanceCycle"
+  uint32_t getCurrentFrame() const { return m_frameCurrent; }
+  // the frame that was last completed, changed on "wait"
+  uint32_t getCompletedFrame() const { return m_frameCompleted; }
+  // if you prefer this function name
+  VkFence advanceFrame() { return advanceCycle(); }
 
+  // tests if frameTest was completed, handles wrap-around in frame counters
+  bool hasFrameCompleted(uint32_t frameTest) const {
+    return nvvk::hasFrameCompleted(frameTest, m_frameCompleted);
+  }
+
+private:
+  uint32_t m_frameCurrent;
+  uint32_t m_frameCompleted;
+  uint32_t m_waited;
+  VkFence  m_fences[MAX_RING_FRAMES];
+  uint32_t m_fenceFrames[MAX_RING_FRAMES];
+  bool     m_fenceActive[MAX_RING_FRAMES];
+  VkDevice m_device;
+};
+//--------------------------------------------------------------------------------------------------
 /**
   ## class nvvk::RingCmdPool
 
   Manages a fixed cycle set of VkCommandBufferPools and
   one-shot command buffers allocated from them.
 
-  Every cycle a different command buffer pool is used for
-  providing the command buffers. Command buffers are automatically
-  deleted after a full cycle (MAX_RING_FRAMES) has been completed.
-
   The usage of multiple command buffer pools also means we get nice allocation
   behavior (linear allocation from frame start to frame end) without fragmentation.
   If we were using a single command pool, it would fragment easily.
+
+  **Cycle Interface:**  
+  Every cycle a different command buffer pool is used for
+  providing the command buffers. Command buffers are automatically
+  deleted after a full cycle (MAX_RING_FRAMES) has been completed.
+  You must use the "setCycle" function.
+
+  **Frame Interface:**  
+  Alternatively provide the frame number and a ready-to-use cycle is found 
+  through the "setFrame" function. We release all resources that were marked
+  as completed. This allows more graceful use of the pool, as you don't need
+  to keep cycles in lock-step with the master.
 
   Example:
 
@@ -265,7 +314,13 @@ private:
     // wait until we can use the new cycle (normally we never have to wait)
     ringFences.wait();
 
+  #if CYCLE_INTERFACE
+    // use cycle interface, keeps cycles in lockstep
     ringPool.setCycle( ringFences.getCycleIndex() )
+  #elif FRAME_INTERFACE
+    // use frame interface, doesn't rely on cycle index
+    ringPool.setFrame( ringFences.getCurrentFrame(), ringFences.getCompletedFrame() )
+  #endif
 
     VkCommandBuffer cmd = ringPool.createCommandBuffer(...)
     ... do stuff / submit etc...
@@ -280,15 +335,18 @@ private:
 class RingCmdPool
 {
 public:
-  void init(VkDevice                     device,
-            uint32_t                     queueFamilyIndex,
-            VkCommandPoolCreateFlags     flags     = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
+  void init(VkDevice device, uint32_t queueFamilyIndex, VkCommandPoolCreateFlags flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
   void deinit();
   void reset(VkCommandPoolResetFlags flags = 0);
 
   // call once per cycle prior creating command buffers
   // resets old pools etc.
   void setCycle(uint32_t cycleIndex);
+
+  // alternative interface, don't mix with setCycle
+  // call once per frame prior creating command buffers
+  // resets old pools etc.
+  void setFrame(uint32_t frameCurrent, uint32_t frameCompleted);
 
   // ensure proper cycle is set prior this
   VkCommandBuffer createCommandBuffer(VkCommandBufferLevel level);
@@ -305,16 +363,17 @@ private:
   {
     VkCommandPool                pool;
     std::vector<VkCommandBuffer> cmds;
+    uint32_t                     frameUsed;
   };
 
-  Cycle                        m_cycles[MAX_RING_FRAMES];
-  VkDevice                     m_device;
-  uint32_t                     m_index;
-  uint32_t                     m_dirty;
+  uint32_t m_index;
+  Cycle    m_cycles[MAX_RING_FRAMES];
+  VkDevice m_device;
+  uint32_t m_frameCurrent;
 };
 
 
-//////////////////////////////////////////////////////////////////////////
+//--------------------------------------------------------------------------------------------------
 /**
   # class nvvk::BatchSubmission
 

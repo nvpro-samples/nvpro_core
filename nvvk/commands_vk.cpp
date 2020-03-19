@@ -76,10 +76,12 @@ uint32_t makeAccessMaskPipelineStageFlags(uint32_t accessMask)
       0,
       VK_ACCESS_MEMORY_WRITE_BIT,
       0,
-      VK_ACCESS_COMMAND_PROCESS_READ_BIT_NVX,
-      VK_PIPELINE_STAGE_COMMAND_PROCESS_BIT_NVX,
-      VK_ACCESS_COMMAND_PROCESS_WRITE_BIT_NVX,
-      VK_PIPELINE_STAGE_COMMAND_PROCESS_BIT_NVX,
+#if VK_NV_device_generated_commands
+      VK_ACCESS_COMMAND_PREPROCESS_READ_BIT_NV,
+      VK_PIPELINE_STAGE_COMMAND_PREPROCESS_BIT_NV,
+      VK_ACCESS_COMMAND_PREPROCESS_WRITE_BIT_NV,
+      VK_PIPELINE_STAGE_COMMAND_PREPROCESS_BIT_NV,
+#endif
   };
 
   if(!accessMask)
@@ -165,6 +167,17 @@ void CmdPool::destroy(VkCommandBuffer cmd)
   vkFreeCommandBuffers(m_device, m_commandPool, 1, &cmd);
 }
 
+void CmdPool::endAndSubmitSynced(VkCommandBuffer cmd, VkQueue queue)
+{
+  vkEndCommandBuffer(cmd);
+  VkSubmitInfo submit = {VK_STRUCTURE_TYPE_SUBMIT_INFO};
+  submit.pCommandBuffers = &cmd;
+  submit.commandBufferCount = 1;
+  vkQueueSubmit(queue, 1, &submit, nullptr);
+  vkQueueWaitIdle(queue);
+  vkFreeCommandBuffers(m_device, m_commandPool, 1, &cmd);
+}
+
 //////////////////////////////////////////////////////////////////////////
 
 void ScopeSubmitCmdPool::end(VkCommandBuffer commandBuffer)
@@ -192,13 +205,15 @@ void ScopeSubmitCmdPool::end(VkCommandBuffer commandBuffer)
 void RingFences::init(VkDevice device)
 {
   m_device = device;
-  m_frame  = 0;
+  m_frameCurrent  = 0;
+  m_frameCompleted = ~0;
   m_waited = 0;
   for(uint32_t i = 0; i < MAX_RING_FRAMES; i++)
   {
     VkFenceCreateInfo info = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
     info.flags             = 0;
     VkResult result        = vkCreateFence(device, &info, nullptr, &m_fences[i]);
+    m_fenceActive[i] = false;
   }
 }
 
@@ -213,32 +228,58 @@ void RingFences::deinit()
 void RingFences::reset()
 {
   vkResetFences(m_device, MAX_RING_FRAMES, m_fences);
-  m_frame  = 0;
-  m_waited = m_frame;
+  m_frameCurrent  = 0;
+  m_frameCompleted = ~0;
+  m_waited = m_frameCurrent;
+  for(uint32_t i = 0; i < MAX_RING_FRAMES; i++)
+  {
+    m_fenceActive[i] = false;
+  }
 }
 
 void RingFences::wait(uint64_t timeout /*= ~0ULL*/)
 {
-  if(m_waited == m_frame || m_frame < MAX_RING_FRAMES)
+  if(m_waited == m_frameCurrent)
   {
     return;
   }
 
-  uint32_t waitIndex = (m_frame) % MAX_RING_FRAMES;
+  m_waited = m_frameCurrent;
 
-  VkResult result = vkWaitForFences(m_device, 1, &m_fences[waitIndex], VK_TRUE, timeout);
-  if(nvvk::checkResult(result, __FILE__, __LINE__))
-  {
-    exit(-1);
+  // mandatory wait, cycle must be completed
+  uint32_t waitIndex = (m_frameCurrent) % MAX_RING_FRAMES;
+
+  if (m_fenceActive[waitIndex]){
+    VkResult result = vkWaitForFences(m_device, 1, &m_fences[waitIndex], VK_TRUE, timeout);
+    if(nvvk::checkResult(result, __FILE__, __LINE__))
+    {
+      exit(-1);
+    }
+    m_fenceActive[waitIndex] = false;
+    m_frameCompleted = m_fenceFrames[waitIndex];
   }
-  m_waited = m_frame;
+
+  // test others for completion
+  for (uint32_t i = 1; i < MAX_RING_FRAMES; i++) {
+    waitIndex = (m_frameCurrent + i) % MAX_RING_FRAMES;
+    if (m_fenceActive[waitIndex]){
+      VkResult result = vkGetFenceStatus(m_device, m_fences[waitIndex]);
+      if (result == VK_SUCCESS) {
+        m_fenceActive[waitIndex] = true;
+        m_frameCompleted = m_fenceFrames[waitIndex];
+      }
+    }
+  }
 }
 
 VkFence RingFences::advanceCycle()
 {
-  VkFence fence = m_fences[m_frame % MAX_RING_FRAMES];
+  uint32_t cycle = m_frameCurrent % MAX_RING_FRAMES;
+  VkFence fence = m_fences[cycle];
   vkResetFences(m_device, 1, &fence);
-  m_frame++;
+  m_fenceFrames[cycle] = m_frameCurrent;
+  m_fenceActive[cycle] = true;
+  m_frameCurrent++;
 
   return fence;
 }
@@ -248,8 +289,8 @@ VkFence RingFences::advanceCycle()
 void RingCmdPool::init(VkDevice device, uint32_t queueFamilyIndex, VkCommandPoolCreateFlags flags)
 {
   m_device = device;
-  m_dirty  = 0;
   m_index  = 0;
+  m_frameCurrent = 0;
 
   for(uint32_t i = 0; i < MAX_RING_FRAMES; i++)
   {
@@ -258,6 +299,7 @@ void RingCmdPool::init(VkDevice device, uint32_t queueFamilyIndex, VkCommandPool
     info.flags                   = flags;
 
     VkResult result = vkCreateCommandPool(m_device, &info, nullptr, &m_cycles[i].pool);
+    m_cycles[i].frameUsed = 0;
   }
 }
 
@@ -275,28 +317,53 @@ void RingCmdPool::reset(VkCommandPoolResetFlags flags)
   for(uint32_t i = 0; i < MAX_RING_FRAMES; i++)
   {
     Cycle& cycle = m_cycles[i];
-    if(m_dirty & (1 << i))
+    if(!cycle.cmds.empty())
     {
       vkFreeCommandBuffers(m_device, cycle.pool, uint32_t(cycle.cmds.size()), cycle.cmds.data());
       vkResetCommandPool(m_device, cycle.pool, flags);
       cycle.cmds.clear();
     }
+    m_cycles[i].frameUsed = 0;
   }
-
-  m_dirty = 0;
+  m_index  = 0;
+  m_frameCurrent = 0;
 }
 
 void RingCmdPool::setCycle(uint32_t cycleIndex)
 {
-  if(m_dirty & (1 << cycleIndex))
+  Cycle& cycle = m_cycles[cycleIndex];
+
+  if(!cycle.cmds.empty())
   {
-    Cycle& cycle = m_cycles[cycleIndex];
     vkFreeCommandBuffers(m_device, cycle.pool, uint32_t(cycle.cmds.size()), cycle.cmds.data());
     vkResetCommandPool(m_device, cycle.pool, 0);
     cycle.cmds.clear();
-    m_dirty &= ~(1 << cycleIndex);
   }
   m_index = cycleIndex;
+}
+
+void RingCmdPool::setFrame(uint32_t frameCurrent, uint32_t frameCompleted)
+{
+  bool valid = false;
+  // test what cycles have completed, release them, make one of them active
+  for (uint32_t i = 0; i < MAX_RING_FRAMES; i++) {
+    Cycle& cycle = m_cycles[i];
+    bool isDirty = !cycle.cmds.empty();
+    if (isDirty && hasFrameCompleted(m_cycles[i].frameUsed, frameCompleted)) {
+      vkFreeCommandBuffers(m_device, cycle.pool, uint32_t(cycle.cmds.size()), cycle.cmds.data());
+      vkResetCommandPool(m_device, cycle.pool, 0);
+      cycle.cmds.clear();
+      m_index = i;
+      valid = true;
+    }
+    else if (!isDirty) {
+      m_index = i;
+      valid = true;
+    }
+  }
+  assert(valid);
+  m_frameCurrent = frameCurrent;
+  m_cycles[m_index].frameUsed = m_frameCurrent;
 }
 
 VkCommandBuffer RingCmdPool::createCommandBuffer(VkCommandBufferLevel level)
@@ -312,8 +379,8 @@ VkCommandBuffer RingCmdPool::createCommandBuffer(VkCommandBufferLevel level)
   vkAllocateCommandBuffers(m_device, &info, &cmd);
 
   cycle.cmds.push_back(cmd);
+  assert(cycle.frameUsed == m_frameCurrent);
 
-  m_dirty |= (1 << m_index);
   return cmd;
 }
 

@@ -211,8 +211,10 @@ public:
 
   // dump detailed stats via nvprintfLevel(LOGLEVEL_INFO
   void nvprintReport() const;
-  
-  void getTypeStats(uint32_t count[VK_MAX_MEMORY_TYPES], VkDeviceSize used[VK_MAX_MEMORY_TYPES], VkDeviceSize allocated[VK_MAX_MEMORY_TYPES]) const;
+
+  void getTypeStats(uint32_t     count[VK_MAX_MEMORY_TYPES],
+                    VkDeviceSize used[VK_MAX_MEMORY_TYPES],
+                    VkDeviceSize allocated[VK_MAX_MEMORY_TYPES]) const;
 
   VkDevice                                getDevice() const;
   VkPhysicalDevice                        getPhysicalDevice() const;
@@ -231,6 +233,34 @@ public:
   }
 
   float getPriority() const { return m_priority; }
+
+  // subsequent allocations (and creates) will use the provided flags
+  void setAllocateFlags(VkMemoryAllocateFlags flags, bool enabled)
+  {
+    if(enabled)
+    {
+      m_allocateFlags |= flags;
+    }
+    else
+    {
+      m_allocateFlags &= ~flags;
+    }
+  }
+
+  void setAllocateDeviceMask(uint32_t allocateDeviceMask, bool enabled)
+  {
+    if(enabled)
+    {
+      m_allocateDeviceMask |= allocateDeviceMask;
+    }
+    else
+    {
+      m_allocateDeviceMask &= ~allocateDeviceMask;
+    }
+  }
+
+  VkMemoryAllocateFlags getAllocateFlags() const { return m_allocateFlags; }
+  uint32_t              getAllocateDeviceMask() const { return m_allocateDeviceMask; }
 
   // make individual raw allocations.
   // there is also utilities that combine creation of buffers/images etc. with binding
@@ -375,10 +405,12 @@ protected:
 
     // to avoid management of pages via limits::bufferImageGranularity,
     // a memory block is either fully linear, or non-linear
-    bool  isLinear;
-    bool  isDedicated;
-    bool  isFirst;  // first memory block of a type
-    float priority;
+    bool                  isLinear;
+    bool                  isDedicated;
+    bool                  isFirst;  // first memory block of a type
+    float                 priority;
+    VkMemoryAllocateFlags allocateFlags;
+    uint32_t              allocateDeviceMask;
 
     uint32_t memoryTypeIndex;
     uint32_t allocationCount;
@@ -418,13 +450,14 @@ protected:
   VkPhysicalDeviceMemoryProperties m_memoryProperties;
   VkPhysicalDevice                 m_physicalDevice = VK_NULL_HANDLE;
 
-  float m_priority = DEFAULT_PRIORITY;
-
+  float                 m_priority           = DEFAULT_PRIORITY;
+  VkMemoryAllocateFlags m_allocateFlags      = 0;
+  uint32_t              m_allocateDeviceMask = 0;
 
   VkBufferUsageFlags m_defaultBufferUsageFlags  = 0;
   bool               m_forceDedicatedAllocation = false;
   bool               m_supportsPriority         = false;
-    // heuristic that doesn't immediately free the first memory block of a specific memorytype
+  // heuristic that doesn't immediately free the first memory block of a specific memorytype
   bool m_keepFirst = true;
 
   AllocationID allocInternal(const VkMemoryRequirements& memReqs,

@@ -163,6 +163,7 @@ staging.deinit();
 - **makeAccessMaskPipelineStageFlags** : depending on accessMask returns appropriate `VkPipelineStageFlagBits`
 - **cmdBegin** : wraps `vkBeginCommandBuffer` with `VkCommandBufferUsageFlags` and implicitly handles `VkCommandBufferBeginInfo` setup
 - **makeSubmitInfo** : `VkSubmitInfo` struct setup using provided arrays of signals and commandbuffers, leaving rest zeroed
+- **hasFrameCompleted** : helper to test completion of a frame number when wrapping frame counters are used
 
 
 ### class **nvvk::CmdPool**
@@ -222,7 +223,7 @@ Example:
 In real-time processing, the CPU typically generates commands 
 in advance to the GPU and send them in batches for exeuction.
 
-To avoid having he CPU to wait for the GPU'S completion and let it "race ahead"
+To avoid having the CPU to wait for the GPU'S completion and let it "race ahead"
 we make use of double, or tripple-buffering techniques, where we cycle through
 a pool of resources every frame. We know that those resources are currently 
 not in use by the GPU and can therefore manipulate them directly.
@@ -233,17 +234,27 @@ access of resources that are in-flight.
 The "Ring" classes cycle through a pool of 3 resources, as that is typically
 the maximum latency drivers may let the CPU get in advance of the GPU.
 
+There are two interfaces:
+- **Cycle-based** means ring resources have to be in the same cycle as the master.
+- **Frame-based** means ring resources pick an available cycle on their own. 
+  The availability is based on a monotonic (wrapping) frame counter, and
+  information in which frame resources were used, and what frames have been completed.
+
 
 #### class **nvvk::RingFences**
 
 Recycles a fixed number of fences, provides information in which cycle
-we are currently at, and prevents accidental access to a cycle inflight.
+we are currently at, and prevents accidental access to a cycle in-flight.
 
 A typical frame would start by waiting for older cycle's completion ("wait")
 and be ended by "advanceCycle".
 
-Safely index other resources, for example ring buffers using the "getCycleIndex"
-for the current frame.
+Using the cycle-interface you can safely index other resources, for example ring buffers,
+by querying "getCycleIndex".
+
+The alternative frame-interface is that other utilities make use of 
+the "getCurrentFrame" and "getCompletedFrame" functions in
+combination with the "hasFrameCompleted" utility function.
 
 
 #### class **nvvk::RingCmdPool**
@@ -251,13 +262,21 @@ for the current frame.
 Manages a fixed cycle set of `VkCommandBufferPools` and
 one-shot command buffers allocated from them.
 
-Every cycle a different command buffer pool is used for
-providing the command buffers. Command buffers are automatically
-deleted after a full cycle (MAX_RING_FRAMES) has been completed.
-
 The usage of multiple command buffer pools also means we get nice allocation
 behavior (linear allocation from frame start to frame end) without fragmentation.
 If we were using a single command pool, it would fragment easily.
+
+**Cycle Interface:**  
+Every cycle a different command buffer pool is used for
+providing the command buffers. Command buffers are automatically
+deleted after a full cycle (MAX_RING_FRAMES) has been completed.
+You must use the "setCycle" function.
+
+**Frame Interface:**  
+Alternatively provide the frame number and a ready-to-use cycle is found 
+through the "setFrame" function. We release all resources that were marked
+as completed. This allows more graceful use of the pool, as you don't need
+to keep cycles in lock-step with the master.
 
 Example:
 
@@ -266,7 +285,13 @@ Example:
   // wait until we can use the new cycle (normally we never have to wait)
   ringFences.wait();
 
+#if CYCLE_INTERFACE
+  // use cycle interface, keeps cycles in lockstep
   ringPool.setCycle( ringFences.getCycleIndex() )
+#elif FRAME_INTERFACE
+  // use frame interface, doesn't rely on cycle index
+  ringPool.setFrame( ringFences.getCurrentFrame(), ringFences.getCompletedFrame() )
+#endif
 
   VkCommandBuffer cmd = ringPool.createCommandBuffer(...)
   ... do stuff / submit etc...

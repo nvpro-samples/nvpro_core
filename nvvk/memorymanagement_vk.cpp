@@ -265,7 +265,9 @@ void DeviceMemoryAllocator::nvprintReport() const
   }
 }
 
-void DeviceMemoryAllocator::getTypeStats(uint32_t count[VK_MAX_MEMORY_TYPES], VkDeviceSize used[VK_MAX_MEMORY_TYPES], VkDeviceSize allocated[VK_MAX_MEMORY_TYPES]) const
+void DeviceMemoryAllocator::getTypeStats(uint32_t     count[VK_MAX_MEMORY_TYPES],
+                                         VkDeviceSize used[VK_MAX_MEMORY_TYPES],
+                                         VkDeviceSize allocated[VK_MAX_MEMORY_TYPES]) const
 {
   memset(used, 0, sizeof(used[0]) * VK_MAX_MEMORY_TYPES);
   memset(allocated, 0, sizeof(allocated[0]) * VK_MAX_MEMORY_TYPES);
@@ -330,7 +332,8 @@ AllocationID DeviceMemoryAllocator::allocInternal(const VkMemoryRequirements&   
       Block& block = m_blocks[i];
 
       // Ignore invalid or blocks with the wrong memory type
-      if(!block.mem || block.memoryTypeIndex != memInfo.memoryTypeIndex || isLinear != block.isLinear || block.priority != priority)
+      if(!block.mem || block.memoryTypeIndex != memInfo.memoryTypeIndex || isLinear != block.isLinear || block.priority != priority
+         || block.allocateFlags != m_allocateFlags || block.allocateDeviceMask != m_allocateDeviceMask)
       {
         continue;
       }
@@ -405,13 +408,24 @@ AllocationID DeviceMemoryAllocator::allocInternal(const VkMemoryRequirements&   
     memInfo.pNext        = &memPriority;
   }
 
+  VkMemoryAllocateFlagsInfo memFlags = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO};
+  if(m_allocateFlags)
+  {
+    memFlags.pNext      = memInfo.pNext;
+    memFlags.deviceMask = m_allocateDeviceMask;
+    memFlags.flags      = m_allocateFlags;
+    memFlags.pNext      = &memFlags;
+  }
+
   block.allocationSize  = block.range.alignedSize((uint32_t)block.allocationSize);
   block.priority        = priority;
   block.memoryTypeIndex = memInfo.memoryTypeIndex;
   block.range.init((uint32_t)block.allocationSize);
-  block.isLinear    = isLinear;
-  block.isFirst     = isFirst;
-  block.isDedicated = dedicated != nullptr;
+  block.isLinear           = isLinear;
+  block.isFirst            = isFirst;
+  block.isDedicated        = dedicated != nullptr;
+  block.allocateFlags      = m_allocateFlags;
+  block.allocateDeviceMask = m_allocateDeviceMask;
 
   result = allocBlockMemory(id, memInfo, block.mem);
 
