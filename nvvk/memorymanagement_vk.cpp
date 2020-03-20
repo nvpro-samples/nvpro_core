@@ -414,7 +414,7 @@ AllocationID DeviceMemoryAllocator::allocInternal(const VkMemoryRequirements&   
     memFlags.pNext      = memInfo.pNext;
     memFlags.deviceMask = m_allocateDeviceMask;
     memFlags.flags      = m_allocateFlags;
-    memFlags.pNext      = &memFlags;
+    memInfo.pNext       = &memFlags;
   }
 
   block.allocationSize  = block.range.alignedSize((uint32_t)block.allocationSize);
