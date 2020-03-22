@@ -315,7 +315,7 @@ VkDescriptorPool DescriptorSetReflection::createPool(VkDevice                   
     {
       if(itpool->type == it->descriptorType)
       {
-        itpool->descriptorCount += it->descriptorCount;
+        itpool->descriptorCount += it->descriptorCount * maxSets;
         found = true;
         break;
       }
@@ -324,7 +324,7 @@ VkDescriptorPool DescriptorSetReflection::createPool(VkDevice                   
     {
       VkDescriptorPoolSize poolSize;
       poolSize.type            = it->descriptorType;
-      poolSize.descriptorCount = it->descriptorCount;
+      poolSize.descriptorCount = it->descriptorCount * maxSets;
       poolSizes.push_back(poolSize);
     }
   }
