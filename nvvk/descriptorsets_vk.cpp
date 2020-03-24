@@ -300,14 +300,8 @@ VkDescriptorSetLayout DescriptorSetReflection::createLayout(VkDevice            
   return descriptorSetLayout;
 }
 
-VkDescriptorPool DescriptorSetReflection::createPool(VkDevice                     device,
-                                                     uint32_t                     maxSets /*= 1*/,
-                                                     const VkAllocationCallbacks* pAllocator /*= nullptr*/) const
+void DescriptorSetReflection::addRequiredPoolSizes(std::vector<VkDescriptorPoolSize>& poolSizes, uint32_t numSets) const 
 {
-  VkResult result;
-
-  // setup poolsizes for each descriptorType
-  std::vector<VkDescriptorPoolSize> poolSizes;
   for(auto it = m_bindings.cbegin(); it != m_bindings.cend(); ++it)
   {
     bool found = false;
@@ -315,7 +309,7 @@ VkDescriptorPool DescriptorSetReflection::createPool(VkDevice                   
     {
       if(itpool->type == it->descriptorType)
       {
-        itpool->descriptorCount += it->descriptorCount * maxSets;
+        itpool->descriptorCount += it->descriptorCount * numSets;
         found = true;
         break;
       }
@@ -324,10 +318,21 @@ VkDescriptorPool DescriptorSetReflection::createPool(VkDevice                   
     {
       VkDescriptorPoolSize poolSize;
       poolSize.type            = it->descriptorType;
-      poolSize.descriptorCount = it->descriptorCount * maxSets;
+      poolSize.descriptorCount = it->descriptorCount * numSets;
       poolSizes.push_back(poolSize);
     }
   }
+}
+
+VkDescriptorPool DescriptorSetReflection::createPool(VkDevice                     device,
+                                                     uint32_t                     maxSets /*= 1*/,
+                                                     const VkAllocationCallbacks* pAllocator /*= nullptr*/) const
+{
+  VkResult result;
+
+  // setup poolsizes for each descriptorType
+  std::vector<VkDescriptorPoolSize> poolSizes;
+  addRequiredPoolSizes(poolSizes, maxSets);
 
   VkDescriptorPool           descrPool;
   VkDescriptorPoolCreateInfo descrPoolInfo = {};
@@ -342,6 +347,7 @@ VkDescriptorPool DescriptorSetReflection::createPool(VkDevice                   
   assert(result == VK_SUCCESS);
   return descrPool;
 }
+
 
 VkDescriptorType DescriptorSetReflection::getType(uint32_t binding) const
 {

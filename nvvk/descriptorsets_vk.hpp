@@ -134,6 +134,9 @@ public:
   /// handle all the bound resources and allocate up to maxSets descriptor sets
   VkDescriptorPool createPool(VkDevice device, uint32_t maxSets = 1, const VkAllocationCallbacks* pAllocator = nullptr) const;
 
+  // appends the required poolsizes for N sets
+  void addRequiredPoolSizes(std::vector<VkDescriptorPoolSize>& poolSizes, uint32_t numSets) const;
+
   // if dstBinding is an array assumes all are provided
   VkWriteDescriptorSet getWrite(VkDescriptorSet dstSet, uint32_t dstBinding) const;
   VkWriteDescriptorSet getWrite(VkDescriptorSet dstSet, uint32_t dstBinding, const VkDescriptorImageInfo* pImageInfo) const;

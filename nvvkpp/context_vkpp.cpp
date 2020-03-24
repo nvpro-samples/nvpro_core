@@ -565,7 +565,7 @@ ContextCreateInfo::ContextCreateInfo(bool bUseValidation)
 {
   static VkPhysicalDeviceHostQueryResetFeaturesEXT s_physicalHostQueryResetFeaturesEXT = {
       VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_HOST_QUERY_RESET_FEATURES_EXT};
-  deviceExtensions.push_back({VK_EXT_HOST_QUERY_RESET_EXTENSION_NAME, true, &s_physicalHostQueryResetFeaturesEXT});
+  deviceExtensions.emplace_back(VK_EXT_HOST_QUERY_RESET_EXTENSION_NAME, true /*, &s_physicalHostQueryResetFeaturesEXT*/);
 #ifdef _DEBUG
   instanceExtensions.push_back({VK_EXT_DEBUG_UTILS_EXTENSION_NAME, true});
   instanceExtensions.push_back({VK_EXT_DEBUG_REPORT_EXTENSION_NAME, true});

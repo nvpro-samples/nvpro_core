@@ -191,10 +191,19 @@ vk::DescriptorImageInfo nvvkpp::image::createCubeDescriptor(const vk::Device&   
                                                             const vk::Format&            format,
                                                             const vk::ImageLayout&       layout)
 {
+  
+  vk::ImageSubresourceRange range;
+  range.setAspectMask(vk::ImageAspectFlagBits::eColor);
+  range.setBaseArrayLayer(0);
+  range.setBaseMipLevel(0);
+  range.setLayerCount(6);
+  range.setLevelCount(~0u);
+  vk::ImageViewCreateInfo viewCreateInfo;
+  viewCreateInfo.setFormat(format);
+  viewCreateInfo.setImage(image);
+  viewCreateInfo.setSubresourceRange(range);
+  viewCreateInfo.setViewType(vk::ImageViewType::eCube);
   vk::DescriptorImageInfo texDesc;
-  vk::ImageViewCreateInfo viewCreateInfo{{},     image, vk::ImageViewType::eCube,
-                                         format, {},    {vk::ImageAspectFlagBits::eColor, 0, ~0u, 0, 1}};
-
   texDesc.setSampler(device.createSampler(samplerCreateInfo));
   texDesc.setImageView(device.createImageView(viewCreateInfo));
   texDesc.setImageLayout(layout);

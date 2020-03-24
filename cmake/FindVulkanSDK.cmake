@@ -7,6 +7,7 @@ unset(VULKANSTATIC_LIB CACHE)
 unset(VULKANSDK_FOUND CACHE)
 unset(VULKANSDK_INCLUDE_DIR CACHE)
 unset(VULKANSDK_SHADERC_LIB CACHE)
+unset(GLSLANGVALIDATOR)
 # -------------------------------------------------------------------
 macro ( folder_list result curdir )
   FILE(GLOB children RELATIVE ${curdir} ${curdir}/*)
@@ -126,7 +127,6 @@ if (VULKANSDK_ROOT_DIR)
     _find_files( VULKAN_LIB VULKANSDK_ROOT_DIR "Lib/vulkan-1.lib" "Lib/vulkan-1.lib" "")
     # _find_files( VULKANSTATIC_LIB VULKANSDK_ROOT_DIR "Lib/VKstatic.1.lib" "Lib/VKstatic.1.lib" "")
     _find_files( VULKANSDK_SHADERC_LIB VULKANSDK_ROOT_DIR "Lib/shaderc_combined.lib" "Lib/shaderc_combined.lib" "")
-    unset(GLSLANGVALIDATOR)
     _find_files( GLSLANGVALIDATOR VULKANSDK_ROOT_DIR "bin/glslangValidator.exe" "bin/glslangValidator.exe" "")
     
   endif(WIN32)
@@ -136,7 +136,6 @@ if (VULKANSDK_ROOT_DIR)
     find_library(VULKAN_LIB NAMES vulkan HINTS "$ENV{VULKAN_SDK}/lib")
     get_filename_component(VULKAN_LIB_DIR ${VULKAN_LIB} DIRECTORY)
     find_library(VULKANSDK_SHADERC_LIB "libshaderc_combined.a" HINTS ${VULKAN_LIB_DIR})
-    unset(GLSLANGVALIDATOR)
     find_file(GLSLANGVALIDATOR VULKANSDK_ROOT_DIR "glslangValidator" HINTS ${VULKANSDK_ROOT_DIR}"../bin/glslangValidator")
 
 #    Message(STATUS "Vulkan Lib Dir : ${VULKAN_LIB_DIR}")
@@ -149,9 +148,6 @@ if (VULKANSDK_ROOT_DIR)
 #    endif()
   
   endif(UNIX)
-
-	#-------- Locate HEADERS
-	_find_files( VULKANSDK_HEADERS VULKANSDK_ROOT_DIR "vulkan.h" "vulkan.h" "include/vulkan/" )
 
   if(VULKAN_LIB)
 	  set( VULKANSDK_FOUND "YES" )      
@@ -169,7 +165,7 @@ include(FindPackageHandleStandardArgs)
 
 SET(VULKAN_LIB ${VULKAN_LIB} CACHE PATH "path")
 SET(VULKANSTATIC_LIB ${VULKANSTATIC_LIB} CACHE PATH "path")
-SET(VULKANSDK_INCLUDE_DIR "${VULKANSDK_ROOT_DIR}/include" CACHE PATH "path")
+SET(VULKANSDK_INCLUDE_DIR "${VULKANSDK_ROOT_DIR}/Include" CACHE PATH "path")
 SET(VULKANSDK_SHADERC_LIB ${VULKANSDK_SHADERC_LIB} CACHE PATH "path")
 
 find_package_handle_standard_args(VULKANSDK DEFAULT_MSG

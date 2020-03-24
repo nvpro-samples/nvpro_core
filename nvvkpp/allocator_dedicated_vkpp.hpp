@@ -84,6 +84,13 @@ struct AccelerationDedicated
   vk::DeviceMemory            allocation;
 };
 
+#if VK_KHR_ray_tracing
+struct AccelerationDedicatedKHR
+{
+  vk::AccelerationStructureKHR accel;
+  vk::DeviceMemory             allocation;
+};
+#endif
 
 //--------------------------------------------------------------------------------------------------
 // Allocator for buffers, images and acceleration structure using Pure Vulkan
@@ -119,10 +126,16 @@ public:
     vk::MemoryDedicatedRequirements d       = r.get<vk::MemoryDedicatedRequirements>();
     vk::MemoryRequirements&         memReqs = req2.memoryRequirements;
 
+    // Device Address
+    vk::MemoryAllocateFlagsInfo memFlagInfo;
+    if(info_.usage & vk::BufferUsageFlagBits::eShaderDeviceAddress)
+      memFlagInfo.setFlags(vk::MemoryAllocateFlagBits::eDeviceAddress);
+
     // 3. Allocate memory
     vk::MemoryAllocateInfo memAlloc;
     memAlloc.setAllocationSize(memReqs.size);
     memAlloc.setMemoryTypeIndex(getMemoryType(memReqs.memoryTypeBits, memUsage_));
+    memAlloc.setPNext(&memFlagInfo);
     resultBuffer.allocation = AllocateMemory(memAlloc);
     checkMemory(resultBuffer.allocation);
 
@@ -290,6 +303,45 @@ public:
     return resultAccel;
   }
 
+
+#if VK_KHR_ray_tracing
+  //--------------------------------------------------------------------------------------------------
+  // Create the acceleration structure
+  //
+  AccelerationDedicatedKHR createAcceleration(vk::AccelerationStructureCreateInfoKHR& accel_)
+  {
+    AccelerationDedicatedKHR resultAccel;
+    // 1. Create the acceleration structure
+    resultAccel.accel = m_device.createAccelerationStructureKHR(accel_);
+
+    // 2. Find memory requirements
+    vk::AccelerationStructureMemoryRequirementsInfoKHR memInfo;
+    memInfo.accelerationStructure = resultAccel.accel;
+    memInfo.setBuildType(vk::AccelerationStructureBuildTypeKHR::eDevice);
+    memInfo.setType(vk::AccelerationStructureMemoryRequirementsTypeKHR::eObject);
+    vk::MemoryRequirements2 memReqs = m_device.getAccelerationStructureMemoryRequirementsKHR(memInfo);
+
+    vk::MemoryAllocateFlagsInfo memFlagInfo;
+    memFlagInfo.setFlags(vk::MemoryAllocateFlagBits::eDeviceAddress);
+
+    // 3. Allocate memory
+    vk::MemoryAllocateInfo memAlloc;
+    memAlloc.setAllocationSize(memReqs.memoryRequirements.size);
+    memAlloc.setMemoryTypeIndex(getMemoryType(memReqs.memoryRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal));
+    //memAlloc.setPNext(&memFlagInfo);
+    resultAccel.allocation = AllocateMemory(memAlloc);
+
+    // 4. Bind memory with acceleration structure
+    vk::BindAccelerationStructureMemoryInfoKHR bind;
+    bind.setAccelerationStructure(resultAccel.accel);
+    bind.setMemory(resultAccel.allocation);
+    bind.setMemoryOffset(0);
+    m_device.bindAccelerationStructureMemoryKHR(bind);
+
+    return resultAccel;
+  }
+#endif
+
   //--------------------------------------------------------------------------------------------------
   // Flushing staging buffers, must be done after the command buffer is submitted
   void flushStaging(vk::Fence fence = vk::Fence())
@@ -323,6 +375,14 @@ public:
     m_device.destroyAccelerationStructureNV(a_.accel);
     m_device.freeMemory(a_.allocation);
   }
+
+#if VK_KHR_ray_tracing
+  void destroy(AccelerationDedicatedKHR& a_)
+  {
+    m_device.destroyAccelerationStructureKHR(a_.accel);
+    m_device.freeMemory(a_.allocation);
+  }
+#endif
 
   void destroy(TextureDedicated& t_)
   {
@@ -441,7 +501,7 @@ public:
     m_device           = device;
     m_physicalDevice   = physicalDevice;
     m_memoryProperties = m_physicalDevice.getMemoryProperties();
-    m_deviceMask = deviceMask;
+    m_deviceMask       = deviceMask;
   }
 
 protected:

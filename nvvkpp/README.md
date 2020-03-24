@@ -195,15 +195,12 @@ m_axis.display(cmdBuf, CameraManip.getMatrix(), windowSize);
 
 ## commands_vkpp.hpp
 
-There are three classes `SingleCommandBuffer`, `ScopeCommandBuffer` and `MultipleCommandBuffers`
-that aid command buffer creation and submission.
-
 ### class **nvvkpp::SingleCommandBuffer**
 
 With `SingleCommandBuffer`, you create the the command buffer by calling `createCommandBuffer()` and submit all the work by calling `flushCommandBuffer()`
 
 ~~~~ c++
-nvvk::SingleCommandBuffer sc(m_device, m_graphicsQueueIndex);
+nvvkpp::SingleCommandBuffer sc(m_device, m_graphicsQueueIndex);
 vk::CommandBuffer cmdBuf = sc.createCommandBuffer();
 ...
 sc.flushCommandBuffer(cmdBuf);
@@ -215,7 +212,7 @@ The `ScopeCommandBuffer` is similar, but the creation and flush is automatic. Th
 
 ~~~~ c++
 {
-  nvvk::ScopeCommandBuffer cmdBuf(m_device, m_graphicQueueIndex);
+  nvvkpp::ScopeCommandBuffer cmdBuf(m_device, m_graphicQueueIndex);
   functionWithCommandBufferInParameter(cmdBuf);
 } // internal functions are executed
 ~~~~
@@ -249,6 +246,169 @@ auto cmdBuf = m_cmdBufs.getCmdBuffer();
 auto fence = m_cmdBufs.submit();
 m_alloc.flushStaging(fence);
 ~~~~
+
+
+### functions in nvvk
+
+- **makeAccessMaskPipelineStageFlags** : depending on accessMask returns appropriate `vk::PipelineStageFlagBits`
+- **cmdBegin** : wraps `vkBeginCommandBuffer` with `vk::CommandBufferUsageFlags` and implicitly handles `vk::CommandBufferBeginInfo` setup
+- **makeSubmitInfo** : `vk::SubmitInfo` struct setup using provided arrays of signals and commandbuffers, leaving rest zeroed
+
+
+### class **nvvkpp::CmdPool**
+
+**CmdPool** stores a single `vk::CommandPool` and provides utility functions
+to create `vk::CommandBuffers` from it.
+
+
+### class **nvvkpp::ScopeSubmitCmdPool**
+
+**ScopeSubmitCmdPool** extends **CmdPool** and lives within a scope.
+It directly submits its commandbufers to the provided queue.
+Intent is for non-critical actions where performance is NOT required,
+as it waits until the device has completed the operation.
+
+Example:
+``` C++
+{
+  nvvkpp::ScopeSubmitCmdPool scopePool(...);
+
+  // some batch of work
+  {
+    vkCommandBuffer cmd = scopePool.begin();
+    ... record commands ...
+    // blocking operation
+    scopePool.end(cmd);
+  }
+
+  // other operations done here
+  {
+    vkCommandBuffer cmd = scopePool.begin();
+    ... record commands ...
+    // blocking operation
+    scopePool.end(cmd);
+  }
+}
+```
+
+
+### class **nvvkpp::ScopeSubmitCmdBuffer**
+
+Provides a single `vk::CommandBuffer` that lives within the scope
+and is directly submitted, deleted when the scope is left.
+
+Example:
+``` C++
+{
+  ScopeSubmitCmdBuffer cmd(device, queue, queueFamilyIndex);
+  ... do stuff
+  vkCmdCopyBuffer(cmd, ...);
+}
+```
+
+
+### classes **nvvkpp::Ring...**
+
+In real-time processing, the CPU typically generates commands
+in advance to the GPU and send them in batches for exeuction.
+
+To avoid having he CPU to wait for the GPU'S completion and let it "race ahead"
+we make use of double, or tripple-buffering techniques, where we cycle through
+a pool of resources every frame. We know that those resources are currently
+not in use by the GPU and can therefore manipulate them directly.
+
+Especially in Vulkan it is the developer's responsibility to avoid such
+access of resources that are in-flight.
+
+The "Ring" classes cycle through a pool of 3 resources, as that is typically
+the maximum latency drivers may let the CPU get in advance of the GPU.
+
+
+#### class **nvvkpp::RingFences**
+
+Recycles a fixed number of fences, provides information in which cycle
+we are currently at, and prevents accidental access to a cycle inflight.
+
+A typical frame would start by waiting for older cycle's completion ("wait")
+and be ended by "advanceCycle".
+
+Safely index other resources, for example ring buffers using the "getCycleIndex"
+for the current frame.
+
+
+#### class **nvvkpp::RingCmdPool**
+
+Manages a fixed cycle set of `vk::CommandBufferPools` and
+one-shot command buffers allocated from them.
+
+Every cycle a different command buffer pool is used for
+providing the command buffers. Command buffers are automatically
+deleted after a full cycle (MAX_RING_FRAMES) has been completed.
+
+The usage of multiple command buffer pools also means we get nice allocation
+behavior (linear allocation from frame start to frame end) without fragmentation.
+If we were using a single command pool, it would fragment easily.
+
+Example:
+
+~~~ C++
+{
+  // wait until we can use the new cycle (normally we never have to wait)
+  ringFences.wait();
+
+  ringPool.setCycle( ringFences.getCycleIndex() )
+
+  vk::CommandBuffer cmd = ringPool.createCommandBuffer(...)
+  ... do stuff / submit etc...
+
+  vk::Fence fence = ringFences.advanceCycle();
+  // use this fence in the submit
+  vkQueueSubmit(...)
+}
+~~~
+
+
+### class **nvvkpp::BatchSubmission**
+
+Batches the submission arguments of `vk::SubmitInfo` for vk::QueueSubmit.
+
+`vkQueueSubmit` is a rather costly operation (depending on OS)
+and should be avoided to be done too often (< 10). Therefore this utility
+class allows adding commandbuffers, semaphores etc. and submit in a batch.
+
+When using manual locks, it can also be useful to feed commandbuffers
+from different threads and then later kick it off.
+
+Example
+
+~~~ C++
+// within upload logic
+{
+  semTransfer = handleUpload(...);
+  // for example trigger async upload on transfer queue here
+  vkQueueSubmit(..);
+
+  // tell next frame's batch submission
+  // that its commandbuffers should wait for transfer
+  // to be completed
+  graphicsSubmission.enqueWait(semTransfer)
+}
+
+// within present logic
+{
+  // for example ensure the next frame waits until proper present semaphore was triggered
+  graphicsSubmission.enqueueWait(presentSemaphore);
+}
+
+// within drawing logic
+{
+  // enqeue some graphics work for submission
+  graphicsSubmission.enqueue(getSceneCmdBuffer());
+  graphicsSubmission.enqueue(getUiCmdBuffer());
+
+  graphicsSubmission.execute(frameFence);
+}
+~~~
 
 ## context_vkpp.hpp
 
@@ -391,6 +551,13 @@ Various Image Utilities
 
 
 **setImageLayout**, **accessFlagsForLayout**, **pipelineStageForLayout**: Transition Pipeline Layout tools
+
+
+**create2DInfo**: creates a `vk::ImageCreateInfo`
+
+**create2DDescriptor**: creates `vk::create2DDescriptor`
+
+**generateMipmaps**: generate all mipmaps for a vk::Image
 
 
 **create2DInfo**: creates a `vk::ImageCreateInfo`

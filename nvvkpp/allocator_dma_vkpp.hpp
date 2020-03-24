@@ -80,6 +80,14 @@ struct AccelerationDma
   nvvk::AllocationID          allocation{};
 };
 
+#ifdef VK_KHR_ray_tracing
+struct AccelerationDmaKHR
+{
+  vk::AccelerationStructureKHR accel;
+  nvvk::AllocationID           allocation{};
+};
+#endif  // VK_KHR_ray_tracing
+
 
 //--------------------------------------------------------------------------------------------------
 // Allocator for buffers, images and acceleration structure using Device Memory Allocator
@@ -269,6 +277,47 @@ public:
     return resultAccel;
   }
 
+#if VK_KHR_ray_tracing
+  //--------------------------------------------------------------------------------------------------
+  // Create the acceleration structure
+  //
+  AccelerationDmaKHR createAcceleration(vk::AccelerationStructureCreateInfoKHR& accel_)
+  {
+    AccelerationDmaKHR resultAccel;
+
+    // 1. Creating the acceleration structure
+    auto accel = m_device.createAccelerationStructureKHR(accel_);
+
+    // 2. Finding memory to allocate
+    vk::AccelerationStructureMemoryRequirementsInfoKHR memoryRequirementsInfo;
+    memoryRequirementsInfo.setAccelerationStructure(accel);
+    memoryRequirementsInfo.setBuildType(vk::AccelerationStructureBuildTypeKHR::eDevice);
+    const VkMemoryRequirements2 requirements = m_device.getAccelerationStructureMemoryRequirementsKHR(memoryRequirementsInfo);
+
+    // 3. Allocate memory
+    auto allocationID = m_allocator->alloc(requirements.memoryRequirements, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, true, nullptr);
+    nvvk::Allocation allocation = allocationID.isValid() ? m_allocator->getAllocation(allocationID) : nvvk::Allocation();
+    if(allocation.mem == VK_NULL_HANDLE)
+    {
+      m_device.destroy(accel);
+      return resultAccel;
+    }
+
+    // 4. Bind memory to acceleration structure
+    vk::BindAccelerationStructureMemoryInfoKHR bind;
+    bind.setAccelerationStructure(accel);
+    bind.setMemory(allocation.mem);
+    bind.setMemoryOffset(allocation.offset);
+    assert(allocation.offset % requirements.memoryRequirements.alignment == 0);
+    m_device.bindAccelerationStructureMemoryKHR(bind);
+
+    resultAccel.accel      = accel;
+    resultAccel.allocation = allocationID;
+    return resultAccel;
+  }
+#endif
+
+
   //--------------------------------------------------------------------------------------------------
   // Flushing staging buffers, must be done after the command buffer is submitted
   void flushStaging(vk::Fence fence = vk::Fence())
@@ -313,6 +362,15 @@ public:
     if(a_.allocation)
       m_allocator->free(a_.allocation);
   }
+
+#if VK_KHR_ray_tracing
+  void destroy(AccelerationDmaKHR& a_)
+  {
+    m_device.destroyAccelerationStructureKHR(a_.accel);
+    if(a_.allocation)
+      m_allocator->free(a_.allocation);
+  }
+#endif
 
   //--------------------------------------------------------------------------------------------------
   // Other
