@@ -442,6 +442,10 @@ ctxInfo.addInstanceExtension(VK_KHR_SURFACE_EXTENSION_NAME, false);
 ctxInfo.addInstanceExtension(VK_KHR_WIN32_SURFACE_EXTENSION_NAME, false);
 ctxInfo.addInstanceExtension(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
 ctxInfo.addDeviceExtension(VK_KHR_SWAPCHAIN_EXTENSION_NAME, false);
+// Enabling the extension feature
+vk::PhysicalDeviceRayTracingFeaturesKHR raytracingFeature;
+ctxInfo.addDeviceExtension(VK_KHR_RAY_TRACING_EXTENSION_NAME, false, &raytracingFeature);
+
 ~~~~
 
 then you are ready to create initialize `nvvk::Context`
@@ -583,6 +587,25 @@ pipelineGenerator.vertexInputState.attributeDescriptions = {
     {1, 0, vk::Format::eR32G32B32Sfloat, static_cast<uint32_t>(offsetof(Vertex, nrm))},
     {2, 0, vk::Format::eR32G32B32Sfloat, static_cast<uint32_t>(offsetof(Vertex, col))}};
 m_pipeline = pipelineGenerator.create();
+~~~~
+
+## raytraceKHR_vkpp.hpp
+
+Base functionality of raytracing
+
+This class does not implement all what you need to do raytracing, but
+helps creating the BLAS and TLAS, which then can be used by different
+raytracing usage.
+
+### Setup and Usage
+~~~~ C++
+m_rtBuilder.setup(device, memoryAllocator, queueIndex);
+// Create array of vk::GeometryNV
+m_rtBuilder.buildBlas(allBlas);
+// Create array of RaytracingBuilder::instance
+m_rtBuilder.buildTlas(instances);
+// Retrieve the acceleration structure
+const vk::AccelerationStructureNV& tlas = m.rtBuilder.getAccelerationStructure()
 ~~~~
 
 ## raytrace_vkpp.hpp

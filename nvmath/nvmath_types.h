@@ -895,7 +895,11 @@ public:
   void           to_euler_xyz(vector3<T>& r);
   void           to_euler_xyz(T* r);
   void           from_euler_xyz(vector3<T> r);
-  quaternion<T>& operator*=(const quaternion<T>& q);
+  quaternion<T>& operator*=(const quaternion<T>& q)
+  {
+    *this = *this * q;
+    return *this;
+  }
 
   T&       operator[](int i) { return comp[i]; }
   const T& operator[](int i) const { return comp[i]; }

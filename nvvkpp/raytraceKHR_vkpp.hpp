@@ -260,21 +260,20 @@ struct RaytracingBuilderKHR
   {
     m_tlas.flags = flags;
 
-    {
-      vk::AccelerationStructureCreateGeometryTypeInfoKHR geometryCreate{vk::GeometryTypeKHR::eInstances};
-      geometryCreate.setMaxPrimitiveCount(static_cast<uint32_t>(instances.size()));
-      geometryCreate.setAllowsTransforms(VK_TRUE);
+    vk::AccelerationStructureCreateGeometryTypeInfoKHR geometryCreate{vk::GeometryTypeKHR::eInstances};
+    geometryCreate.setMaxPrimitiveCount(static_cast<uint32_t>(instances.size()));
+    geometryCreate.setAllowsTransforms(VK_TRUE);
 
-      vk::AccelerationStructureCreateInfoKHR asCreateInfo{{}, vk::AccelerationStructureTypeKHR::eTopLevel};
-      asCreateInfo.setFlags(flags);
-      asCreateInfo.setMaxGeometryCount(1);
-      asCreateInfo.setPGeometryInfos(&geometryCreate);
+    vk::AccelerationStructureCreateInfoKHR asCreateInfo{{}, vk::AccelerationStructureTypeKHR::eTopLevel};
+    asCreateInfo.setFlags(flags);
+    asCreateInfo.setMaxGeometryCount(1);
+    asCreateInfo.setPGeometryInfos(&geometryCreate);
 
-      // Create the acceleration structure object and allocate the memory
-      // required to hold the TLAS data
-      m_tlas.as = m_alloc.createAcceleration(asCreateInfo);
-      m_debug.setObjectName(m_tlas.as.accel, "Tlas");
-    }
+    // Create the acceleration structure object and allocate the memory
+    // required to hold the TLAS data
+    m_tlas.as = m_alloc.createAcceleration(asCreateInfo);
+    m_debug.setObjectName(m_tlas.as.accel, "Tlas");
+
 
     // Compute the amount of scratch memory required by the acceleration
     // structure builder
@@ -296,10 +295,6 @@ struct RaytracingBuilderKHR
     {
       geometryInstances.push_back(instanceToVkGeometryInstanceKHR(inst));
     }
-
-    vk::AccelerationStructureCreateGeometryTypeInfoKHR geometryCreate{vk::GeometryTypeKHR::eInstances};
-    geometryCreate.setMaxPrimitiveCount(static_cast<uint32_t>(instances.size()));
-    geometryCreate.setAllowsTransforms(VK_TRUE);
 
     // Building the TLAS
     nvvkpp::SingleCommandBuffer genCmdBuf(m_device, m_queueIndex);

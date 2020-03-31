@@ -64,6 +64,10 @@ Example on how to populate information in it :
     ctxInfo.addInstanceExtension(VK_KHR_WIN32_SURFACE_EXTENSION_NAME, false);
     ctxInfo.addInstanceExtension(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
     ctxInfo.addDeviceExtension(VK_KHR_SWAPCHAIN_EXTENSION_NAME, false);
+    // Enabling the extension feature
+    vk::PhysicalDeviceRayTracingFeaturesKHR raytracingFeature;
+    ctxInfo.addDeviceExtension(VK_KHR_RAY_TRACING_EXTENSION_NAME, false, &raytracingFeature);
+
 ~~~~
 
 then you are ready to create initialize `nvvk::Context`

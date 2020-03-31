@@ -86,8 +86,11 @@ public:
   {
     m_device.waitIdle();
 
-    ImGui::ShutdownVK();
-    ImGui::DestroyContext();
+    if(ImGui::GetCurrentContext() != nullptr)
+    {
+      ImGui::ShutdownVK();
+      ImGui::DestroyContext();
+    }
 
     m_device.destroyRenderPass(m_renderPass);
     m_device.destroyImageView(m_depthView);

@@ -554,6 +554,8 @@ macro(_add_package_VulkanSDK)
 
       LIST(APPEND LIBRARIES_OPTIMIZED ${VULKAN_LIB} )
       LIST(APPEND LIBRARIES_DEBUG ${VULKAN_LIB} )
+      # for precompiled headers:
+      set(VULKAN_HEADERS "<vulkan/vulkan.hpp>" "<vulkan/vulkan_core.h>")
  else()
      Message(STATUS "--> NOT using package VulkanSDK")
  endif()

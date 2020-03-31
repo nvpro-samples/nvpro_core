@@ -98,6 +98,8 @@ struct AccelerationDedicatedKHR
 class AllocatorDedicated
 {
 public:
+  AllocatorDedicated(){};
+
   // All staging buffers must be cleared before
   ~AllocatorDedicated() { assert(m_stagingBuffers.empty()); }
 

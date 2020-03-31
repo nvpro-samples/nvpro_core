@@ -63,15 +63,18 @@ public:
   }
 
   auto findOption(const std::string& option) const { return std::find(m_tokens.begin(), m_tokens.end(), option); }
-  const std::string& getString(const std::string& option) const
+  const std::string getString(const std::string& option, std::string defaultString = "") const
   {
-    auto itr = findOption(option);
-    if(itr != m_tokens.end() && ++itr != m_tokens.end())
+    if(exist(option))
     {
-      return *itr;
+      auto itr = findOption(option);
+      if(itr != m_tokens.end() && ++itr != m_tokens.end())
+      {
+        return *itr;
+      }
     }
-    static const std::string emptyString;
-    return emptyString;
+
+    return defaultString;
   }
 
   std::vector<std::string> getString(const std::string& option, uint32_t nbElem) const
@@ -85,21 +88,35 @@ public:
     return items;
   }
 
-  int getInt(const std::string& option) const { return std::stoi(getString(option)); }
-
-  auto getInt2(const std::string& option) const
+  int getInt(const std::string& option, int defaultValue = 0) const
   {
-    std::array<int, 2> values = {-1, -1};
-    auto               items  = getString(option, 2);
-    if(items.size() == 2)
-    {
-      values[0] = std::stoi(items[0]);
-      values[1] = std::stoi(items[1]);
-    }
-    return values;
+    if(exist(option))
+      return std::stoi(getString(option));
+    return defaultValue;
   }
 
-  float getFloat(const std::string& option) const { return std::stof(getString(option)); }
+  auto getInt2(const std::string& option, std::array<int, 2> defaultValues = {0, 0}) const
+  {
+    if(exist(option))
+    {
+      auto items = getString(option, 2);
+      if(items.size() == 2)
+      {
+        defaultValues[0] = std::stoi(items[0]);
+        defaultValues[1] = std::stoi(items[1]);
+      }
+    }
+
+    return defaultValues;
+  }
+
+  float getFloat(const std::string& option, float defaultValue = 0.0f) const
+  {
+    if(exist(option))
+      return std::stof(getString(option));
+
+    return defaultValue;
+  }
 
   bool exist(const std::string& option) const { return findOption(option) != m_tokens.end(); }
 

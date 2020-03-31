@@ -160,18 +160,17 @@ add_library(shared_sources STATIC
 if((${CMAKE_VERSION} VERSION_GREATER "3.16.0") OR (${CMAKE_VERSION} VERSION_EQUAL "3.16.0"))
   target_precompile_headers(shared_sources PRIVATE
     "<algorithm>"
-    "<vulkan/vulkan.hpp>"
-    "<vulkan/vulkan_core.h>"
+    ${VULKAN_HEADERS}
   )
 endif()
 
 if (MSVC)
-  if (MSVC_VERSION EQUAL 1900)
-    set(glfw3 ${BASE_DIRECTORY}/shared_external/glfw3/lib-vc2015/glfw3.lib)
-  elseif ((MSVC_VERSION GREATER_EQUAL 1900) AND (MSVC_VERSION LESS 1920))
-    set(glfw3 ${BASE_DIRECTORY}/shared_external/glfw3/lib-vc2017/glfw3.lib)
-  elseif ((MSVC_VERSION GREATER_EQUAL 1920) AND (MSVC_VERSION LESS 1925))
+  if (MSVC_VERSION GREATER_EQUAL 1920)
     set(glfw3 ${BASE_DIRECTORY}/shared_external/glfw3/lib-vc2019/glfw3.lib)
+  elseif (MSVC_VERSION GREATER_EQUAL 1910)
+    set(glfw3 ${BASE_DIRECTORY}/shared_external/glfw3/lib-vc2017/glfw3.lib)
+  elseif (MSVC_VERSION GREATER_EQUAL 1900)
+    set(glfw3 ${BASE_DIRECTORY}/shared_external/glfw3/lib-vc2015/glfw3.lib)
   else()
     message( FATAL_ERROR "incompatible MSVC version with glfw3 binaries" )
   endif()
