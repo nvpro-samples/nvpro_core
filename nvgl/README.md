@@ -3,19 +3,19 @@
 Non-exhaustive list of utilities provided in the `nvgl` directory
 
 Table of Contents:
-- [appwindowprofiler_gl.hpp:](#appwindowprofiler_gl.hpp)
-  - class [nvgl::AppWindowProfilerGL](#class-nvgl::appwindowprofilergl)
-- [base_gl.hpp:](#base_gl.hpp)
-- [contextwindow_gl.hpp:](#contextwindow_gl.hpp)
-  - class [nvgl::ContextWindow](#class-nvgl::contextwindow)
-- [error_gl.hpp:](#error_gl.hpp)
-  - class [nvgl::CheckBufferResidency](#class-nvgl::checkbufferresidency)
-- [extensions_gl.hpp:](#extensions_gl.hpp)
-- [glsltypes_gl.hpp:](#glsltypes_gl.hpp)
-- [profiler_gl.hpp:](#profiler_gl.hpp)
-  - class [nvgl::ProfilerGL](#class-nvgl::profilergl)
-- [programmanager_gl.hpp:](#programmanager_gl.hpp)
-  - class [nvgl::ProgramManager](#class-nvgl::programmanager)
+- [appwindowprofiler_gl.hpp:](#appwindowprofiler_glhpp)
+  - class [nvgl::AppWindowProfilerGL](#class-nvglappwindowprofilergl)
+- [base_gl.hpp:](#base_glhpp)
+- [contextwindow_gl.hpp:](#contextwindow_glhpp)
+  - class [nvgl::ContextWindow](#class-nvglcontextwindow)
+- [error_gl.hpp:](#error_glhpp)
+  - class [nvgl::CheckBufferResidency](#class-nvglcheckbufferresidency)
+- [extensions_gl.hpp:](#extensions_glhpp)
+- [glsltypes_gl.hpp:](#glsltypes_glhpp)
+- [profiler_gl.hpp:](#profiler_glhpp)
+  - class [nvgl::ProfilerGL](#class-nvglprofilergl)
+- [programmanager_gl.hpp:](#programmanager_glhpp)
+  - class [nvgl::ProgramManager](#class-nvglprogrammanager)
 
 _____
 

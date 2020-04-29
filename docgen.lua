@@ -68,7 +68,7 @@ function extractComment(file, filename, symbols, toc)
   f:close()
   
   local function asLink(txt)
-    return "(#"..txt:gsub("#+%s+",""):gsub("%s+","-"):lower()..")"
+    return "(#"..txt:gsub("#+%s+",""):gsub("%s+","-"):gsub("[^%w_%-]",""):lower()..")"
   end
   
   local out = ""
