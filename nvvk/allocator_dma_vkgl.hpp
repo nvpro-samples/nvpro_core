@@ -37,8 +37,8 @@
 
 #pragma once
 
-#include <nvvk/memorymanagement_vkgl.hpp>
 #include <nvvk/images_vk.hpp>
+#include <nvvk/memorymanagement_vkgl.hpp>
 
 namespace nvvk {
 
@@ -90,10 +90,7 @@ public:
     m_staging.init(device, physicalDevice, stagingBlockSize);
   }
 
-  void deinit()
-  {
-    m_staging.deinit();
-  }
+  void deinit() { m_staging.deinit(); }
 
   // sets memory priority for VK_EXT_memory_priority
   void setPriority(float priority) { m_allocator->setPriority(priority); }
@@ -123,10 +120,10 @@ public:
                            const std::vector<T>& data,
                            VkMemoryPropertyFlags memProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
   {
-    BufferDmaGL  resultBuffer = createBuffer(size, usage, memProps);
+    BufferDmaGL resultBuffer = createBuffer(size, usage, memProps);
     if(data)
     {
-      VkDeviceSize size         = sizeof(T) * data.size();
+      VkDeviceSize size = sizeof(T) * data.size();
       m_staging->cmdToBuffer(cmd, resultBuffer.buffer, 0, size, data.data());
     }
 
@@ -177,8 +174,8 @@ public:
 
 
 private:
-  VkDevice                       m_device;
-  nvvk::DeviceMemoryAllocatorGL* m_allocator;
+  VkDevice                       m_device{VK_NULL_HANDLE};
+  nvvk::DeviceMemoryAllocatorGL* m_allocator{nullptr};
   nvvk::StagingMemoryManager     m_staging;
 };
 

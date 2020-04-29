@@ -114,7 +114,7 @@ struct DebugUtil
   ScopedCmdLabel scopeLabel(VkCommandBuffer cmdBuf, const char* label) { return ScopedCmdLabel(cmdBuf, label); }
 
 private:
-  VkDevice m_device;
+  VkDevice m_device{VK_NULL_HANDLE};
 };
 
 }  // namespace nvvk

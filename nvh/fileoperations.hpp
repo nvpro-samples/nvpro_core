@@ -27,6 +27,7 @@
 
 #pragma once
 
+#include <algorithm>  // std::max
 #include <fstream>
 #include <sstream>
 #include <vector>
@@ -101,7 +102,7 @@ inline std::string loadFile(const std::string&              filename,
                             bool                            binary,
                             const std::vector<std::string>& directories,
                             std::string&                    filenameFound,
-                            bool                            warn          = false)
+                            bool                            warn = false)
 {
   filenameFound = findFile(filename, directories);
   if(filenameFound.empty())
@@ -118,10 +119,7 @@ inline std::string loadFile(const std::string&              filename,
   }
 }
 
-inline std::string loadFile(const std::string               filename,
-                            bool                            binary,
-                            const std::vector<std::string>& directories,
-                            bool                            warn = false)
+inline std::string loadFile(const std::string filename, bool binary, const std::vector<std::string>& directories, bool warn = false)
 {
   std::string filenameFound;
   return loadFile(filename, binary, directories, filenameFound, warn);

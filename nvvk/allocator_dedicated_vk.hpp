@@ -531,9 +531,9 @@ protected:
   std::vector<GarbageCollection> m_garbageBuffers;
 
 
-  VkDevice                         m_device;
-  VkPhysicalDevice                 m_physicalDevice;
-  VkPhysicalDeviceMemoryProperties m_memoryProperties;
+  VkDevice                         m_device{VK_NULL_HANDLE};
+  VkPhysicalDevice                 m_physicalDevice{VK_NULL_HANDLE};
+  VkPhysicalDeviceMemoryProperties m_memoryProperties{};
   std::vector<BufferDedicated>     m_stagingBuffers;
   SamplerPool                      m_samplerPool;
 

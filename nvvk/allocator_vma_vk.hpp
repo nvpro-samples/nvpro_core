@@ -164,8 +164,8 @@ public:
   // Initialization of the allocator
   void init(VkDevice device, VkPhysicalDevice physicalDevice, VmaAllocator allocator, VkDeviceSize stagingBlockSize = NVVK_DEFAULT_STAGING_BLOCKSIZE)
   {
-    m_device      = device;
-    m_allocator   = allocator;
+    m_device    = device;
+    m_allocator = allocator;
     m_staging.init(device, physicalDevice, allocator, stagingBlockSize);
     m_samplerPool.init(device);
   }
@@ -357,7 +357,7 @@ public:
   AccelerationVmaNV createAcceleration(VkAccelerationStructureCreateInfoNV& createInfo, VmaMemoryUsage memUsage = VMA_MEMORY_USAGE_GPU_ONLY)
   {
     AccelerationVmaNV resultAccel;
-    VkResult        result;
+    VkResult          result;
 
     VkAccelerationStructureNV accel;
     result = vkCreateAccelerationStructureNV(m_device, &createInfo, nullptr, &accel);
@@ -565,7 +565,7 @@ public:
 
 
 private:
-  VkDevice                      m_device;
+  VkDevice                      m_device{VK_NULL_HANDLE};
   VmaAllocator                  m_allocator;
   nvvk::StagingMemoryManagerVma m_staging;
   nvvk::SamplerPool             m_samplerPool;

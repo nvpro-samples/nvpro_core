@@ -605,7 +605,7 @@ private:
   // Instance buffer containing the matrices and BLAS ids
   nvvk::Buffer m_instBuffer;
 
-  VkDevice m_device;
+  VkDevice m_device{VK_NULL_HANDLE};
   uint32_t m_queueIndex{0};
 
   nvvk::Allocator* m_alloc = nullptr;

@@ -137,8 +137,8 @@ public:
   // Initialization of the allocator
   void init(VkDevice device, VkPhysicalDevice physicalDevice, nvvk::DeviceMemoryAllocator* allocator, VkDeviceSize stagingBlockSize = NVVK_DEFAULT_STAGING_BLOCKSIZE)
   {
-    m_device      = device;
-    m_allocator   = allocator;
+    m_device    = device;
+    m_allocator = allocator;
     m_staging.init(allocator, stagingBlockSize);
     m_samplerPool.init(device);
   }
@@ -288,7 +288,7 @@ public:
   // Create the acceleration structure
   //
   AccelerationDmaNV createAcceleration(VkAccelerationStructureCreateInfoNV& accel,
-                                     VkMemoryPropertyFlags memProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+                                       VkMemoryPropertyFlags memProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
   {
     AccelerationDmaNV resultAccel;
     resultAccel.accel = m_allocator->createAccStructure(accel, resultAccel.allocation, memProps);
@@ -408,8 +408,8 @@ public:
 
 
 private:
-  VkDevice                      m_device;
-  nvvk::DeviceMemoryAllocator*  m_allocator;
+  VkDevice                      m_device{VK_NULL_HANDLE};
+  nvvk::DeviceMemoryAllocator*  m_allocator{nullptr};
   nvvk::StagingMemoryManagerDma m_staging;
   nvvk::SamplerPool             m_samplerPool;
 
