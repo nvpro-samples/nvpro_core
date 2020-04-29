@@ -72,7 +72,7 @@ _____
 
 This is the allocator specialization using only Vulkan where there will be one memory
 allocation for each buffer or image.
-See more details in description of [nvvk::AllocatorDma](#class-nvvk::AllocatorDma) for the
+See more details in description of [nvvk::AllocatorDma](#class-nvvkallocatordma) for the
 general use of allocator classes.
 
 > Note: this should be used only when really needed, as it is making one allocation per buffer,
@@ -182,7 +182,7 @@ on one of three possible defines that must be set prior to including:
 It also provides structs such as nvvk::Image **nvvk::Buffer** etc. that map to the appropriate
 structs, e.g. **nvvk::ImageDma**.
 
-See more details in description of [nvvk::AllocatorDma](#class-nvvk::AllocatorDma).
+See more details in description of [nvvk::AllocatorDma](#class-nvvkallocatordma).
 
 ## allocator_vma_vk.hpp
 
@@ -198,7 +198,7 @@ This utility class wraps the usage of [VMA](https://github.com/GPUOpen-Libraries
 as well as **nvvk::StagingMemoryManager** to have a simpler interface
 for handling resources with content uploads.
 
-See more details in description of [nvvk::AllocatorDma](#class-nvvk::AllocatorDma).
+See more details in description of [nvvk::AllocatorDma](#class-nvvkallocatordma).
 
 ## appbase_vkpp.hpp
 

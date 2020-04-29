@@ -41,7 +41,7 @@
 
   This is the allocator specialization using only Vulkan where there will be one memory
   allocation for each buffer or image.
-  See more details in description of [nvvk::AllocatorDma](#class-nvvk::AllocatorDma) for the
+  See more details in description of [nvvk::AllocatorDma](#class-nvvkallocatordma) for the
   general use of allocator classes.
 
   > Note: this should be used only when really needed, as it is making one allocation per buffer,

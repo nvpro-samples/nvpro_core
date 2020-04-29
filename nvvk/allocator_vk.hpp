@@ -51,7 +51,7 @@ on one of three possible defines that must be set prior to including:
 It also provides structs such as nvvk::Image nvvk::Buffer etc. that map to the appropriate
 structs, e.g. nvvk::ImageDma.
 
-See more details in description of [nvvk::AllocatorDma](#class-nvvk::AllocatorDma).
+See more details in description of [nvvk::AllocatorDma](#class-nvvkallocatordma).
 */
 
 #if defined(NVVK_ALLOC_DEDICATED) && !defined(NVVK_ALLOC_DMA) && !defined(NVVK_ALLOC_VMA)

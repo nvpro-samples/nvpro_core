@@ -148,7 +148,7 @@ protected:
   as well as nvvk::StagingMemoryManager to have a simpler interface
   for handling resources with content uploads.
 
-  See more details in description of [nvvk::AllocatorDma](#class-nvvk::AllocatorDma).
+  See more details in description of [nvvk::AllocatorDma](#class-nvvkallocatordma).
 
 */
 
