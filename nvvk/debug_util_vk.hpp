@@ -23,55 +23,60 @@ namespace nvvk {
 struct DebugUtil
 {
   DebugUtil() = default;
-  DebugUtil(const VkDevice& device) : m_device(device) {}
-
-  void setup(const VkDevice& device)
+  DebugUtil(VkDevice device)
+      : m_device(device)
   {
-    m_device   = device;
   }
+
+  void setup(VkDevice device) { m_device = device; }
 
   void setObjectName(const uint64_t object, const char* name, VkObjectType t)
   {
 #ifdef _DEBUG
-    VkDebugUtilsObjectNameInfoEXT s{ VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT , nullptr, t, object, name };
+    VkDebugUtilsObjectNameInfoEXT s{VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT, nullptr, t, object, name};
     vkSetDebugUtilsObjectNameEXT(m_device, &s);
 #endif  // _DEBUG
   }
+  // clang-format off
+  void setObjectName(VkDeviceMemory object, const char* name)            { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_DEVICE_MEMORY); }
+  void setObjectName(VkBuffer object, const char* name)                  { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_BUFFER); }
+  void setObjectName(VkBufferView object, const char* name)              { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_BUFFER_VIEW); }
+  void setObjectName(VkCommandBuffer object, const char* name)           { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_COMMAND_BUFFER ); }
+  void setObjectName(VkImage object, const char* name)                   { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_IMAGE); }
+  void setObjectName(VkImageView object, const char* name)               { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_IMAGE_VIEW); }
+  void setObjectName(VkRenderPass object, const char* name)              { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_RENDER_PASS); }
+  void setObjectName(VkShaderModule object, const char* name)            { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_SHADER_MODULE); }
+  void setObjectName(VkPipeline object, const char* name)                { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_PIPELINE); }
+  void setObjectName(VkAccelerationStructureNV object, const char* name) { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_NV); }
+  void setObjectName(VkDescriptorSetLayout object, const char* name)     { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT); }
+  void setObjectName(VkDescriptorSet object, const char* name)           { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_DESCRIPTOR_SET); }
+  void setObjectName(VkDescriptorPool object, const char* name)          { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_DESCRIPTOR_POOL); }
+  void setObjectName(VkSemaphore object, const char* name)               { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_SEMAPHORE); }
+  void setObjectName(VkSwapchainKHR object, const char* name)            { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_SWAPCHAIN_KHR); }
+  void setObjectName(VkQueue object, const char* name)                   { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_QUEUE); }
+  void setObjectName(VkFramebuffer object, const char* name)             { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_FRAMEBUFFER); }
+  // clang-format on
 
-  void setObjectName(const VkDeviceMemory& object, const char* name)            { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_DEVICE_MEMORY); }
-  void setObjectName(const VkBuffer& object, const char* name)                  { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_BUFFER); }
-  void setObjectName(const VkCommandBuffer& object, const char* name)           { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_COMMAND_BUFFER ); }
-  void setObjectName(const VkImage& object, const char* name)                   { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_IMAGE); }
-  void setObjectName(const VkImageView& object, const char* name)               { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_IMAGE_VIEW); }
-  void setObjectName(const VkRenderPass& object, const char* name)              { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_RENDER_PASS); }
-  void setObjectName(const VkShaderModule& object, const char* name)            { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_SHADER_MODULE); }
-  void setObjectName(const VkPipeline& object, const char* name)                { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_PIPELINE); }
-  void setObjectName(const VkAccelerationStructureNV& object, const char* name) { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_NV); }
-  void setObjectName(const VkDescriptorSetLayout& object, const char* name)     { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT); }
-  void setObjectName(const VkDescriptorSet& object, const char* name)           { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_DESCRIPTOR_SET); }
-  void setObjectName(const VkSemaphore& object, const char* name)               { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_SEMAPHORE); }
-  void setObjectName(const VkSwapchainKHR& object, const char* name)            { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_SWAPCHAIN_KHR); }
-  void setObjectName(const VkQueue& object, const char* name)                   { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_QUEUE); }
   //
   //---------------------------------------------------------------------------
   //
-  void beginLabel(const VkCommandBuffer& cmdBuf, const char* label)
+  void beginLabel(VkCommandBuffer cmdBuf, const char* label)
   {
 #ifdef _DEBUG
-    VkDebugUtilsLabelEXT s{ VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT, nullptr, label, {1.0f, 1.0f, 1.0f, 1.0f} };
+    VkDebugUtilsLabelEXT s{VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT, nullptr, label, {1.0f, 1.0f, 1.0f, 1.0f}};
     vkCmdBeginDebugUtilsLabelEXT(cmdBuf, &s);
 #endif  // _DEBUG
   }
-  void endLabel(const VkCommandBuffer& cmdBuf)
+  void endLabel(VkCommandBuffer cmdBuf)
   {
 #ifdef _DEBUG
     vkCmdEndDebugUtilsLabelEXT(cmdBuf);
 #endif  // _DEBUG
   }
-  void insertLabel(const VkCommandBuffer& cmdBuf, const char* label)
+  void insertLabel(VkCommandBuffer cmdBuf, const char* label)
   {
 #ifdef _DEBUG
-    VkDebugUtilsLabelEXT s{ VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT, nullptr, label, {1.0f, 1.0f, 1.0f, 1.0f} };
+    VkDebugUtilsLabelEXT s{VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT, nullptr, label, {1.0f, 1.0f, 1.0f, 1.0f}};
     vkCmdInsertDebugUtilsLabelEXT(cmdBuf, &s);
 #endif  // _DEBUG
   }
@@ -80,11 +85,11 @@ struct DebugUtil
   //
   struct ScopedCmdLabel
   {
-    ScopedCmdLabel(const VkCommandBuffer& cmdBuf, const char* label)
+    ScopedCmdLabel(VkCommandBuffer cmdBuf, const char* label)
         : m_cmdBuf(cmdBuf)
     {
 #ifdef _DEBUG
-      VkDebugUtilsLabelEXT s{ VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT, nullptr, label, {1.0f, 1.0f, 1.0f, 1.0f} };
+      VkDebugUtilsLabelEXT s{VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT, nullptr, label, {1.0f, 1.0f, 1.0f, 1.0f}};
       vkCmdBeginDebugUtilsLabelEXT(cmdBuf, &s);
 #endif  // _DEBUG
     }
@@ -97,22 +102,19 @@ struct DebugUtil
     void setLabel(const char* label)
     {
 #ifdef _DEBUG
-      VkDebugUtilsLabelEXT s{ VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT, nullptr, label, {1.0f, 1.0f, 1.0f, 1.0f} };
+      VkDebugUtilsLabelEXT s{VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT, nullptr, label, {1.0f, 1.0f, 1.0f, 1.0f}};
       vkCmdInsertDebugUtilsLabelEXT(m_cmdBuf, &s);
 #endif  // _DEBUG
     }
 
   private:
-    const VkCommandBuffer&  m_cmdBuf;
+    VkCommandBuffer m_cmdBuf;
   };
 
-  ScopedCmdLabel scopeLabel(const VkCommandBuffer& cmdBuf, const char* label)
-  {
-    return ScopedCmdLabel(cmdBuf, label);
-  }
+  ScopedCmdLabel scopeLabel(VkCommandBuffer cmdBuf, const char* label) { return ScopedCmdLabel(cmdBuf, label); }
 
 private:
-  VkDevice                m_device;
+  VkDevice m_device;
 };
 
 }  // namespace nvvk

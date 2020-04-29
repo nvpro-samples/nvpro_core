@@ -30,7 +30,7 @@
 -- HOW TO USE
 --
 -- 1. Setup environment variable NVVK_VULKAN_XML pointing to vk.xml
---    or modify the "or [[...]]" portion of VULKAN_XML below
+--    or use VULKAN_SDK >= 1.2.135.0
 --
 -- 2. Modify the whitelist of extensions you may want to use.
 --    Only those extensions that have functions will get a loader
@@ -47,8 +47,9 @@
 --
 --    within this directory.
 
-local VULKAN_XML = os.getenv("NVVK_VULKAN_XML") or [[E:\nv\vkxml\vk.xml]]
+local VULKAN_XML = os.getenv("NVVK_VULKAN_XML") or os.getenv("VULKAN_SDK").."/share/vulkan/registry/vk.xml"
 local extensionSubset = [[
+    VK_KHR_ray_tracing
     VK_KHR_push_descriptor
     VK_KHR_8bit_storage
     VK_KHR_create_renderpass2
@@ -145,7 +146,7 @@ local function extractFeatureDefs(features, filename, whitelist)
           </extension>
   ]]
   
-  local types   = handler.root.registry.types
+  local types      = handler.root.registry.types
   local commands   = handler.root.registry.commands
   local extensions = handler.root.registry.extensions.extension
   
@@ -195,41 +196,51 @@ local function extractFeatureDefs(features, filename, whitelist)
   }
   for _,v in ipairs(extensions) do
     local extname = v._attr.name
-    local extcmds = v.require and v.require.command
-    local exttypes = v.require and v.require.type
-    if (whitelist[extname] and extcmds) then
-      -- convert single entry to array
-      if (not extcmds[1]) then
-        extcmds = {extcmds}
-      end
-      -- extract commands used by extension
-      local cmds = {}
-      for _,c in ipairs(extcmds) do
-        local cname = c._attr.name
-        local cmd = lkcmds[cname]
-        assert(cmd, extname..":"..cname)
-        table.insert(cmds, {name=cname, cmd=cmd})
-      end
-      -- extract type aliasing 
-      -- we prefer to use the extensions original types
-      -- which may have been replaced through aliasing
+    local extrequires = v.require
+    if (extrequires and not extrequires[1]) then
+      extrequires = {extrequires}
+    end
+    
+    if (whitelist[extname]) then
       local alias = {}
-      if (exttypes) then
-        if (not exttypes[1]) then
-          exttypes = {exttypes}
-        end
-        for _,t in ipairs(exttypes) do
-          local tname = t._attr.name
-          local aname = lktypes[tname]
-          if (aname) then
-            alias[aname] = tname
+      local cmds = {}
+      local hascmds = false
+      for _,r in ipairs(extrequires) do
+        local extcmds = r.command
+        local exttypes = r.type
+        if (extcmds) then
+          -- convert single entry to array
+          if (not extcmds[1]) then
+            extcmds = {extcmds}
+          end
+          -- extract commands used by extension
+          for _,c in ipairs(extcmds) do
+            local cname = c._attr.name
+            local cmd = lkcmds[cname]
+            assert(cmd, extname..":"..cname)
+            table.insert(cmds, {name=cname, cmd=cmd})
+          end
+          -- extract type aliasing 
+          -- we prefer to use the extensions original types
+          -- which may have been replaced through aliasing
+          if (exttypes) then
+            if (not exttypes[1]) then
+              exttypes = {exttypes}
+            end
+            for _,t in ipairs(exttypes) do
+              local tname = t._attr.name
+              local aname = lktypes[tname]
+              if (aname) then
+                alias[aname] = tname
+              end
+            end
           end
         end
       end
-      --print(extname)
-      table.insert(features, {feature=extname, typ=v._attr.type, cmds=cmds, alias=alias, platform=platforms[v._attr.platform or "_"]})
-    elseif(whitelist[extname]) then
-      --print("out",extname)
+      if (cmds[1]) then
+        print(extname)
+        table.insert(features, {feature=extname, typ=v._attr.type, cmds=cmds, alias=alias, platform=platforms[v._attr.platform or "_"]})
+      end
     end
   end
   
@@ -297,7 +308,11 @@ local function generate(outfilename, header, whitelist)
         local typ = f.alias[p.type] or p.type
         -- handle qualifiers
         local p1 = p[1] == "const" and "const " or ""
-        local p2 = (p[2] == "*" or p[1] == "*") and "*" or (p[2] == "**" or p[1] == "**") and "**" or ""
+        local function pointer(a,b)
+          --local convert = {["*"] = "*", ["**"] = "**", ["* const*"] = "* const*",}
+          return (a or b or ""):find("*",0, true) and (a or b) or ""
+        end
+        local p2 = pointer(p[2],p[1])
         args = args.."    "..p1..typ..p2.." "..p.name..",\n"
         exec = exec..p.name..","
       end

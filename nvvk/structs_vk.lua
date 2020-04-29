@@ -48,7 +48,7 @@ local header =
 -- HOW TO USE
 --
 -- 1. Setup environment variable NVVK_VULKAN_XML pointing to vk.xml
---    or modify the "or [[...]]" portion of VULKAN_XML below
+--    or use VULKAN_SDK >= 1.2.135.0
 --
 -- 2. Modify the extension whitelist
 --
@@ -62,8 +62,9 @@ local header =
 --
 --    within this directory.
 
-local VULKAN_XML = os.getenv("NVVK_VULKAN_XML") or [[E:\nv\vkxml\vk.xml]]
+local VULKAN_XML = os.getenv("NVVK_VULKAN_XML") or os.getenv("VULKAN_SDK").."/share/vulkan/registry/vk.xml"
 local extensionSubset = [[
+    VK_KHR_ray_tracing
     VK_KHR_push_descriptor
     VK_KHR_8bit_storage
     VK_KHR_create_renderpass2
@@ -121,6 +122,17 @@ local function generate(outfilename, header, whitelist)
     ret.closestHitShader = VK_SHADER_UNUSED_NV;
     ret.anyHitShader = VK_SHADER_UNUSED_NV;
     ret.intersectionShader = VK_SHADER_UNUSED_NV;
+    return ret;
+  }
+]],
+    VkRayTracingShaderGroupCreateInfoKHR = 
+[[
+  template<> inline VkRayTracingShaderGroupCreateInfoKHR make<VkRayTracingShaderGroupCreateInfoKHR>(){
+    VkRayTracingShaderGroupCreateInfoKHR ret = {VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR};
+    ret.generalShader = VK_SHADER_UNUSED_KHR;
+    ret.closestHitShader = VK_SHADER_UNUSED_KHR;
+    ret.anyHitShader = VK_SHADER_UNUSED_KHR;
+    ret.intersectionShader = VK_SHADER_UNUSED_KHR;
     return ret;
   }
 ]],

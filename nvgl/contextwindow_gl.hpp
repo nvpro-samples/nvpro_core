@@ -94,6 +94,9 @@ namespace nvgl
     std::string   m_debugTitle;
     std::string   m_deviceName;
 
+    ContextWindow(ContextWindow const&) = delete;
+    ContextWindow& operator=(ContextWindow const&) = delete;
+
     ContextWindow();
 
     bool init(const ContextWindowCreateInfo* cflags, GLFWwindow* window, const char* dbgTitle = "test");

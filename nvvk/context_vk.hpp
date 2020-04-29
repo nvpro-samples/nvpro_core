@@ -195,6 +195,11 @@ Especially in the context of NVLink connected cards this is useful.
 class Context
 {
 public:
+  Context(Context const&) = delete;
+  Context& operator=(Context const&) = delete;
+
+  Context() = default;
+
   using NameArray = std::vector<const char*>;
 
   // Vulkan == 1.1 used individual structs

@@ -1,6 +1,35 @@
 # Generic Helpers
 
-non-exhaustive list of utilities provided in the `nvh` directory
+Non-exhaustive list of utilities provided in the `nvh` directory
+
+Table of Contents:
+- [appwindowprofiler.hpp:](#appwindowprofiler.hpp)
+  - class [nvh::AppWindowProfiler](#class-nvh::appwindowprofiler)
+- [bitarray.hpp:](#bitarray.hpp)
+  - class [nvh::BitArray](#class-nvh::bitarray)
+- [cameracontrol.hpp:](#cameracontrol.hpp)
+  - class [nvh::CameraControl](#class-nvh::cameracontrol)
+- [cameramanipulator.hpp:](#cameramanipulator.hpp)
+  - class [nvh::CameraManipulator](#class-nvh::cameramanipulator)
+- [fileoperations.hpp:](#fileoperations.hpp)
+- [geometry.hpp:](#geometry.hpp)
+- [gltfscene.hpp:](#gltfscene.hpp)
+- [inputparser.h:](#inputparser.h)
+  - class [nvh::InputParser](#class-nvh::inputparser)
+- [misc.hpp:](#misc.hpp)
+- [nvprint.hpp:](#nvprint.hpp)
+- [parametertools.hpp:](#parametertools.hpp)
+  - class [nvh::ParameterList](#class-nvh::parameterlist)
+  - class [nvh::ParameterSequence](#class-nvh::parametersequence)
+- [profiler.hpp:](#profiler.hpp)
+  - class [nvh::Profiler](#class-nvh::profiler)
+- [radixsort.hpp:](#radixsort.hpp)
+- [shaderfilemanager.hpp:](#shaderfilemanager.hpp)
+  - class [nvh::ShaderFileManager](#class-nvh::shaderfilemanager)
+- [trangeallocator.hpp:](#trangeallocator.hpp)
+  - class [nvh::TRangeAllocator](#class-nvh::trangeallocator)
+
+_____
 
 ## appwindowprofiler.hpp
 

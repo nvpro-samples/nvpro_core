@@ -249,6 +249,7 @@ bool ShaderModuleManager::setupShaderModule(ShaderModule& module)
 
 void ShaderModuleManager::init(VkDevice device, int apiMajor, int apiMinor)
 {
+  assert(!m_device);
   m_device = device;
   m_apiMajor = apiMajor;
   m_apiMinor = apiMinor;
@@ -257,6 +258,7 @@ void ShaderModuleManager::init(VkDevice device, int apiMajor, int apiMinor)
 void ShaderModuleManager::deinit()
 {
   deleteShaderModules();
+  m_device = VK_NULL_HANDLE;
 }
 
 ShaderModuleID ShaderModuleManager::createShaderModule(const Definition& definition)

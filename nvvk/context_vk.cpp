@@ -133,7 +133,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL debugMessengerCallback(VkDebugUtilsMessageSeverit
                                                       const VkDebugUtilsMessengerCallbackDataEXT* callbackData,
                                                       void*                                       userData)
 {
-  int  level = LOGLEVEL_INFO;
+  int level = LOGLEVEL_INFO;
   // repeating nvprintfLevel to help with breakpoints : so we can selectively break right after the print
   if(messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT)
   {
@@ -148,17 +148,17 @@ VKAPI_ATTR VkBool32 VKAPI_CALL debugMessengerCallback(VkDebugUtilsMessageSeverit
     level = LOGLEVEL_WARNING;
     nvprintfLevel(level, "WARNING: \n --> %s\n", callbackData->pMessageIdName, callbackData->pMessage);
   }
-  else if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
+  else if(messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
   {
     level = LOGLEVEL_ERROR;
     nvprintfLevel(level, "ERROR: %s \n --> %s", callbackData->pMessageIdName, callbackData->pMessage);
-    nvprintfLevel(level, "\n"); // placeholder for breakpoint
+    nvprintfLevel(level, "\n");  // placeholder for breakpoint
   }
-  else if (messageType & VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT)
+  else if(messageType & VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT)
   {
     nvprintfLevel(level, "GENERAL: %s \n --> %s\n", callbackData->pMessageIdName, callbackData->pMessage);
   }
-  else 
+  else
   {
     nvprintfLevel(level, "%s \n --> %s\n", callbackData->pMessageIdName, callbackData->pMessage);
   }
@@ -196,7 +196,7 @@ bool Context::init(const ContextCreateInfo& info)
 
   // Find all compatible devices
   auto compatibleDevices = getCompatibleDevices(info);
-  if (compatibleDevices.empty())
+  if(compatibleDevices.empty())
   {
     assert(!"No compatible device found");
     return false;
@@ -218,7 +218,8 @@ bool Context::initInstance(const ContextCreateInfo& info)
 
   uint32_t count = 0;
 
-  if (info.verboseUsed) {
+  if(info.verboseUsed)
+  {
     uint32_t version;
     VkResult result = vkEnumerateInstanceVersion(&version);
     NVVK_CHECK(result);
@@ -285,7 +286,7 @@ bool Context::initInstance(const ContextCreateInfo& info)
       LOGI("%s\n", it);
     }
   }
-  
+
   VkInstanceCreateInfo instanceCreateInfo{VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
   instanceCreateInfo.pApplicationInfo        = &applicationInfo;
   instanceCreateInfo.enabledExtensionCount   = static_cast<uint32_t>(m_usedInstanceExtensions.size());
@@ -331,19 +332,21 @@ bool Context::initDevice(uint32_t deviceIndex, const ContextCreateInfo& info)
 
   initPhysicalInfo(m_physicalInfo, m_physicalDevice, info.apiMajor, info.apiMinor);
 
-  // features 
+  // features
 
-  VkPhysicalDeviceFeatures2           features2{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
-  Features11Old                       features11old;
+  VkPhysicalDeviceFeatures2 features2{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
+  Features11Old             features11old;
 
   features2.features = m_physicalInfo.features10;
   features11old.read(m_physicalInfo.features11);
 
-  if (info.apiMajor == 1 && info.apiMinor == 1) {
-    features2.pNext   = &features11old.multiview;
+  if(info.apiMajor == 1 && info.apiMinor == 1)
+  {
+    features2.pNext = &features11old.multiview;
   }
-  else if (info.apiMajor == 1 && info.apiMinor >= 2) {
-    features2.pNext = &m_physicalInfo.features11;
+  else if(info.apiMajor == 1 && info.apiMinor >= 2)
+  {
+    features2.pNext                 = &m_physicalInfo.features11;
     m_physicalInfo.features11.pNext = &m_physicalInfo.features12;
     m_physicalInfo.features12.pNext = nullptr;
   }
@@ -357,7 +360,7 @@ bool Context::initDevice(uint32_t deviceIndex, const ContextCreateInfo& info)
     for(auto& it : m_physicalInfo.queueProperties)
     {
       if((it.queueFlags & (VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT | VK_QUEUE_TRANSFER_BIT))
-                       == (VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT | VK_QUEUE_TRANSFER_BIT))
+         == (VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT | VK_QUEUE_TRANSFER_BIT))
       {
         queueFamilyGeneralPurpose = true;
       }
@@ -454,7 +457,7 @@ bool Context::initDevice(uint32_t deviceIndex, const ContextCreateInfo& info)
 
   deviceCreateInfo.enabledExtensionCount   = static_cast<uint32_t>(m_usedDeviceExtensions.size());
   deviceCreateInfo.ppEnabledExtensionNames = m_usedDeviceExtensions.data();
-  
+
   // Vulkan >= 1.1 uses pNext to enable features, and not pEnabledFeatures
   deviceCreateInfo.pEnabledFeatures = nullptr;
   deviceCreateInfo.pNext            = &features2;
@@ -471,7 +474,8 @@ bool Context::initDevice(uint32_t deviceIndex, const ContextCreateInfo& info)
   }
 
   ExtensionHeader* deviceCreateChain = nullptr;
-  if (info.deviceCreateInfoExt) {
+  if(info.deviceCreateInfoExt)
+  {
     deviceCreateChain = (ExtensionHeader*)info.deviceCreateInfoExt;
     while(deviceCreateChain->pNext != nullptr)
     {
@@ -479,12 +483,12 @@ bool Context::initDevice(uint32_t deviceIndex, const ContextCreateInfo& info)
     }
     // override last of external chain
     deviceCreateChain->pNext = (void*)deviceCreateInfo.pNext;
-    deviceCreateInfo.pNext = info.deviceCreateInfoExt;
+    deviceCreateInfo.pNext   = info.deviceCreateInfoExt;
   }
 
   VkResult result = vkCreateDevice(m_physicalDevice, &deviceCreateInfo, nullptr, &m_device);
 
-  if (deviceCreateChain)
+  if(deviceCreateChain)
   {
     // reset last of external chain
     deviceCreateChain->pNext = nullptr;
@@ -597,8 +601,9 @@ void Context::deinit()
 {
   if(m_device)
   {
-    VkResult  result = vkDeviceWaitIdle(m_device);
-    if (nvvk::checkResult(result, __FILE__, __LINE__)) {
+    VkResult result = vkDeviceWaitIdle(m_device);
+    if(nvvk::checkResult(result, __FILE__, __LINE__))
+    {
       exit(-1);
     }
 
@@ -645,8 +650,6 @@ bool Context::hasDeviceExtension(const char* name) const
 //
 ContextCreateInfo::ContextCreateInfo(bool bUseValidation)
 {
-  static VkPhysicalDeviceHostQueryResetFeaturesEXT s_physicalHostQueryResetFeaturesEXT = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_HOST_QUERY_RESET_FEATURES_EXT};
-  deviceExtensions.push_back({VK_EXT_HOST_QUERY_RESET_EXTENSION_NAME,true, &s_physicalHostQueryResetFeaturesEXT});
 #ifdef _DEBUG
   instanceExtensions.push_back({VK_EXT_DEBUG_UTILS_EXTENSION_NAME, true});
   instanceExtensions.push_back({VK_EXT_DEBUG_REPORT_EXTENSION_NAME, true});
@@ -788,21 +791,27 @@ void Context::initPhysicalInfo(PhysicalDeviceInfo& info, VkPhysicalDevice physic
   vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &count, info.queueProperties.data());
 
   // for queries and device creation
-  VkPhysicalDeviceFeatures2           features2{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
-  VkPhysicalDeviceProperties2         properties2 = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
-  Properties11Old                     properties11old;
-  Features11Old                       features11old;
+  VkPhysicalDeviceFeatures2   features2{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
+  VkPhysicalDeviceProperties2 properties2 = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
+  Properties11Old             properties11old;
+  Features11Old               features11old;
 
-  if (versionMajor == 1 && versionMinor == 1) {
+  if(versionMajor == 1 && versionMinor == 1)
+  {
     features2.pNext   = &features11old.multiview;
     properties2.pNext = &properties11old.maintenance3;
   }
-  else if (versionMajor == 1 && versionMinor >= 2) {
-    features2.pNext = &info.features11;
+  else if(versionMajor == 1 && versionMinor >= 2)
+  {
+    features2.pNext       = &info.features11;
     info.features11.pNext = &info.features12;
     info.features12.pNext = nullptr;
 
-    properties2.pNext = &info.properties11;
+    info.properties12.driverID                     = VK_DRIVER_ID_NVIDIA_PROPRIETARY;
+    info.properties12.supportedDepthResolveModes   = VK_RESOLVE_MODE_MAX_BIT;
+    info.properties12.supportedStencilResolveModes = VK_RESOLVE_MODE_MAX_BIT;
+
+    properties2.pNext       = &info.properties11;
     info.properties11.pNext = &info.properties12;
     info.properties12.pNext = nullptr;
   }
@@ -811,11 +820,12 @@ void Context::initPhysicalInfo(PhysicalDeviceInfo& info, VkPhysicalDevice physic
   vkGetPhysicalDeviceProperties2(physicalDevice, &properties2);
 
   info.properties10 = properties2.properties;
-  info.features10 = features2.features;
+  info.features10   = features2.features;
 
-  if (versionMajor == 1 && versionMinor == 1) {
-     properties11old.write(info.properties11);
-     features11old.write(info.features11);
+  if(versionMajor == 1 && versionMinor == 1)
+  {
+    properties11old.write(info.properties11);
+    features11old.write(info.features11);
   }
 }
 
@@ -890,7 +900,7 @@ std::vector<int> Context::getCompatibleDevices(const ContextCreateInfo& info)
         compatible++;
       }
     }
-    else if (info.verboseCompatibleDevices)
+    else if(info.verboseCompatibleDevices)
     {
       VkPhysicalDeviceProperties props;
       vkGetPhysicalDeviceProperties(physicalDevice, &props);
@@ -900,7 +910,7 @@ std::vector<int> Context::getCompatibleDevices(const ContextCreateInfo& info)
   if(info.verboseCompatibleDevices)
   {
     LOGI("Physical devices found : ", compatible);
-    if (compatible > 0)
+    if(compatible > 0)
     {
       LOGI("%d\n", compatible);
     }
@@ -945,7 +955,7 @@ bool Context::checkEntryArray(const std::vector<VkExtensionProperties>& properti
 
     if(!found && !itr.optional)
     {
-      if (bVerbose)
+      if(bVerbose)
       {
         LOGW("Could NOT locate mandatory extension '%s'\n", itr.name);
       }

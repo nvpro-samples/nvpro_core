@@ -32,10 +32,10 @@
 #include <vector>
 
 #include <nvh/trangeallocator.hpp>
+#include <vulkan/vulkan_beta.h>
 #include <vulkan/vulkan_core.h>
 
 namespace nvvk {
-
 
 // safe-ish value for most desktop hw http://vulkan.gpuinfo.org/displayextensionproperty.php?name=maxMemoryAllocationSize
 #define NVVK_DEFAULT_MAX_MEMORY_ALLOCATIONSIZE (VkDeviceSize(2 * 1024) * 1024 * 1024)
@@ -170,13 +170,19 @@ class DeviceMemoryAllocator
 public:
   static const float DEFAULT_PRIORITY;
 
-#ifndef NDEBUG
+  DeviceMemoryAllocator(DeviceMemoryAllocator const&) = delete;
+  DeviceMemoryAllocator& operator=(DeviceMemoryAllocator const&) = delete;
+
+
   virtual ~DeviceMemoryAllocator()
   {
+#ifndef NDEBUG
     // If all memory was released properly, no blocks should be alive at this point
     assert(m_blocks.empty());
-  }
 #endif
+    deinit();
+  }
+
 
   // system related
 
@@ -372,6 +378,21 @@ public:
   }
 #endif
 
+#if VK_KHR_ray_tracing
+  VkAccelerationStructureKHR createAccStructure(const VkAccelerationStructureCreateInfoKHR& createInfo,
+                                                AllocationID&                               allocationID,
+                                                VkMemoryPropertyFlags                       memProps,
+                                                VkResult&                                   result);
+  VkAccelerationStructureKHR createAccStructure(const VkAccelerationStructureCreateInfoKHR& createInfo,
+                                                AllocationID&                               allocationID,
+                                                VkMemoryPropertyFlags memProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+  {
+    VkResult result;
+    return createAccStructure(createInfo, allocationID, memProps, result);
+  }
+#endif
+
+
 protected:
   static const VkMemoryDedicatedAllocateInfo* DEDICATED_PROXY;
   static int                                  s_allocDebugBias;
@@ -420,6 +441,7 @@ protected:
 
     Block& operator=(Block&&) = default;
     Block(Block&&)            = default;
+    Block(const Block&)       = default;
     Block()                   = default;
   };
 
@@ -509,8 +531,13 @@ protected:
   buffers and their allocations in an opaque fashion to assist
   asynchronous transfers between device and host.
 
-  The collection of such resources is represented by nvvk::StagingID.
-  The necessary memory is sub-allocated and recycled in blocks internally.
+  The collection of the transfer resources is represented by nvvk::StagingID.
+
+  The necessary buffer space is sub-allocated and recycled in blocks internally.
+  This way we avoid creating lots of small VkBuffers and avoid calling the Vulkan
+  API at all. While Vulkan is more efficient than previous APIs, creating lots
+  of objects for it, is still not good for overall performance. It will result 
+  into more cache misses and use more system memory over all.
 
   The default implementation will create one dedicated memory allocation per block.
   You can derive from this class and overload the virtual functions,
@@ -520,13 +547,17 @@ protected:
   - **freeBlockMemory**
 
   > **WARNING:**
-  > - cannot manage copy > 4 GB
+  > - cannot manage a copy > 4 GB
 
   Usage:
-  - Enqueue transfers into the provided VkCommandBuffer and then finalize the copy operations.
-  - You can either signal the completion of the operations manually by the nvvk::StagingID
-    or implicitly by associating the copy operations with a VkFence.
-  - The release of the resources allows to safely recycle the memory for future transfers.
+  - Enqueue transfers into your VkCommandBuffer and then finalize the copy operations.
+  - Associate the copy operations with a VkFence
+  - The release of the resources allows to safely recycle the buffer space for future transfers.
+  
+  > We use fences as a way to garbage collect here, however a more robust solution
+  > may be implementing some sort of ticketing/timeline system.
+  > If a fence is recycled, then this class may not be aware that the fence represents a different
+  > submission, likewise if the fence is deleted elsewhere problems can occur.
 
   Example :
 
@@ -545,54 +576,29 @@ protected:
 
   // OPTION A:
   // associate all previous copy operations with a fence
-  staging.finalizeCmds(myfence);
-
-  ...
-
+  staging.finalizeResources( fence );
+  ..
   // every once in a while call
-  staging.tryReleaseFenced();
+  staging.releaseResources();
 
   // OPTION B
-  // alternatively manage the resources and fence waiting yourself
-  sid = staging.finalizeCmds();
+  // alternatively manage the resource release yourself
+  sid = staging.finalizeResources();
 
-  ... need to ensure uploads completed
+  ... you need to ensure these uploads completed
 
-  staging.recycleTask(sid);
+  staging.releaseResources();
 
   ~~~
 */
-
-class StagingID
-{
-  friend class StagingMemoryManager;
-
-public:
-  bool isValid() const { return index != INVALID_ID_INDEX; }
-  bool isEqual(const StagingID& other) const { return index == other.index && generation == other.generation; }
-
-  operator bool() const { return isValid(); }
-
-  friend bool operator==(const StagingID& lhs, const StagingID& rhs) { return rhs.isEqual(lhs); }
-
-private:
-  uint32_t index      = INVALID_ID_INDEX;
-  uint32_t generation = 0;
-
-  void     invalidate() { index = INVALID_ID_INDEX; }
-  uint32_t instantiate(uint32_t inIndex)
-  {
-    uint32_t oldIndex = index;
-    index             = inIndex;
-    generation++;
-    return oldIndex;
-  }
-};
 
 class StagingMemoryManager
 {
 public:
   //////////////////////////////////////////////////////////////////////////
+
+  StagingMemoryManager(StagingMemoryManager const&) = delete;
+  StagingMemoryManager& operator=(StagingMemoryManager const&) = delete;
 
   StagingMemoryManager() {}
   StagingMemoryManager(VkDevice device, VkPhysicalDevice physicalDevice, VkDeviceSize stagingBlockSize = NVVK_DEFAULT_STAGING_BLOCKSIZE)
@@ -600,8 +606,11 @@ public:
     init(device, physicalDevice, stagingBlockSize);
   }
 
+  ~StagingMemoryManager() { deinit(); }
+
   void init(VkDevice device, VkPhysicalDevice physicalDevice, VkDeviceSize stagingBlockSize = NVVK_DEFAULT_STAGING_BLOCKSIZE);
   void deinit();
+
 
   // if true (default) we free the memory completely when released
   // otherwise we would keep blocks for re-use around, unless freeUnused() is called
@@ -631,17 +640,13 @@ public:
     return (T*)cmdToBuffer(cmd, buffer, offset, size, nullptr);
   }
 
-  // provides a handle for all staging resources by previous cmd operations
-  // since the last finalize.
-  // fence is optional, allows the usage of tryReleaseFenced
-  StagingID finalizeCmds(VkFence fence = VK_NULL_HANDLE);
+  // closes the batch of staging resources since last finalizeResources call
+  // and associates it with a fence for later release.
+  void finalizeResources(VkFence fence = VK_NULL_HANDLE);
 
-  // signals that outstanding copy operations have completed
-  // allows to reclaim internal staging memory
-  void release(StagingID stagingID);
-
-  // completes all tasks whose fence was triggered
-  void tryReleaseFenced();
+  // releases the staging resources whose fences have completed
+  // and those who had no fence at all
+  void releaseResources();
 
   // frees staging memory no longer in use
   void freeUnused() { free(true); }
@@ -649,27 +654,21 @@ public:
   float getUtilization(VkDeviceSize& allocatedSize, VkDeviceSize& usedSize) const;
 
 protected:
-  struct BlockID
-  {
-    uint32_t index      = INVALID_ID_INDEX;
-    uint32_t generation = 0;
+  // The implementation uses two major arrays:
+  // - Block stores VkBuffers that we sub-allocate the staging space from
+  // - StagingSet stores all such sub-allocations that were used
+  //   in one batch of operations. Each batch is closed with
+  //   finalizeResources, and typically associated with a fence.
+  //   As such the resources are given by for recycling if the fence completed.
 
-    bool     isEqual(const BlockID& other) const { return index == other.index && generation == other.generation; }
-    uint32_t instantiate(uint32_t newIndex)
-    {
-      uint32_t oldIndex = index;
-      index             = newIndex;
-      generation++;
-
-      return oldIndex;
-    }
-
-    friend bool operator==(const BlockID& lhs, const BlockID& rhs) { return rhs.isEqual(lhs); }
-  };
+  // To recycle Block and StagingSet structures within the arrays
+  // we use a linked list of array indices. The "index" element
+  // in the struct refers to the next free list item, or itself
+  // when in use.
 
   struct Block
   {
-    BlockID                   id;  // index to self, or next free item
+    uint32_t                  index  = INVALID_ID_INDEX;
     VkDeviceSize              size   = 0;
     VkBuffer                  buffer = VK_NULL_HANDLE;
     VkDeviceMemory            memory = VK_NULL_HANDLE;
@@ -679,74 +678,69 @@ protected:
 
   struct Entry
   {
-    BlockID  block;
+    uint32_t block;
     uint32_t offset;
     uint32_t size;
   };
 
   struct StagingSet
   {
-    StagingID          id;  // index to self, or next free item
+    uint32_t           index = INVALID_ID_INDEX;
     VkFence            fence = VK_NULL_HANDLE;
     std::vector<Entry> entries;
   };
 
-  VkDevice         m_device           = VK_NULL_HANDLE;
-  VkPhysicalDevice m_physicalDevice   = VK_NULL_HANDLE;
-  uint32_t         m_memoryTypeIndex  = ~0;
-  VkDeviceSize     m_stagingBlockSize = 0;
-  bool             m_freeOnRelease    = true;
+  VkDevice         m_device         = VK_NULL_HANDLE;
+  VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
+  uint32_t         m_memoryTypeIndex;
+  VkDeviceSize     m_stagingBlockSize;
+  bool             m_freeOnRelease;
 
   std::vector<Block>      m_blocks;
   std::vector<StagingSet> m_sets;
 
+  // active staging Index, must be valid at all items
+  uint32_t m_stagingIndex;
   // linked-list to next free staging set
-  uint32_t m_freeStagingIndex = INVALID_ID_INDEX;
+  uint32_t m_freeStagingIndex;
   // linked list to next free block
-  uint32_t m_freeBlockIndex = INVALID_ID_INDEX;
+  uint32_t m_freeBlockIndex;
 
-  VkDeviceSize m_allocatedSize = 0;
-  VkDeviceSize m_usedSize      = 0;
+  VkDeviceSize m_allocatedSize;
+  VkDeviceSize m_usedSize;
 
-  StagingID m_current;
+
+  uint32_t setIndexValue(uint32_t& index, uint32_t newValue)
+  {
+    uint32_t oldValue = index;
+    index             = newValue;
+    return oldValue;
+  }
 
   void free(bool unusedOnly);
   void freeBlock(Block& block);
 
-  StagingID createID();
+  uint32_t newStagingIndex();
 
   void* getStagingSpace(VkDeviceSize size, VkBuffer& buffer, VkDeviceSize& offset);
 
-  Block& getBlock(BlockID id)
+  Block& getBlock(uint32_t index)
   {
-    Block& block = m_blocks[id.index];
-    assert(block.id.isEqual(id));
+    Block& block = m_blocks[index];
+    assert(block.index == index);
     return block;
   }
+
+  void releaseResources(uint32_t stagingID);
 
   //////////////////////////////////////////////////////////////////////////
   // You can specialize the staging buffer allocation mechanism used.
   // The default is using one dedicated VkDeviceMemory per staging VkBuffer.
 
   // must fill block.buffer, memory, mapping
-  virtual VkResult allocBlockMemory(BlockID id, VkDeviceSize size, bool toDevice, Block& block);
-  virtual void     freeBlockMemory(BlockID id, const Block& block);
+  virtual VkResult allocBlockMemory(uint32_t id, VkDeviceSize size, bool toDevice, Block& block);
+  virtual void     freeBlockMemory(uint32_t id, const Block& block);
   virtual void     resizeBlocks(uint32_t num) {}
-};
-
-class ScopeStagingMemoryManager : public StagingMemoryManager
-{
-public:
-  ScopeStagingMemoryManager(VkDevice device, VkPhysicalDevice physicalDevice, VkDeviceSize stagingBlockSize = NVVK_DEFAULT_STAGING_BLOCKSIZE)
-  {
-    init(device, physicalDevice, stagingBlockSize);
-  }
-
-  ~ScopeStagingMemoryManager()
-  {
-    vkDeviceWaitIdle(m_device);
-    deinit();
-  }
 };
 
 //////////////////////////////////////////////////////////////////
@@ -771,44 +765,43 @@ public:
 class StagingMemoryManagerDma : public StagingMemoryManager
 {
 public:
-  StagingMemoryManagerDma(DeviceMemoryAllocator& memAllocator, VkDeviceSize stagingBlockSize = NVVK_DEFAULT_STAGING_BLOCKSIZE)
+  StagingMemoryManagerDma(DeviceMemoryAllocator* memAllocator, VkDeviceSize stagingBlockSize = NVVK_DEFAULT_STAGING_BLOCKSIZE)
   {
     init(memAllocator, stagingBlockSize);
   }
   StagingMemoryManagerDma() {}
 
-  void init(DeviceMemoryAllocator& memAllocator, VkDeviceSize stagingBlockSize = NVVK_DEFAULT_STAGING_BLOCKSIZE)
+  void init(DeviceMemoryAllocator* memAllocator, VkDeviceSize stagingBlockSize = NVVK_DEFAULT_STAGING_BLOCKSIZE)
   {
-    StagingMemoryManager::init(memAllocator.getDevice(), memAllocator.getPhysicalDevice(), stagingBlockSize);
-    m_memAllocator = &memAllocator;
+    StagingMemoryManager::init(memAllocator->getDevice(), memAllocator->getPhysicalDevice(), stagingBlockSize);
+    m_memAllocator = memAllocator;
   }
-
 
 protected:
   DeviceMemoryAllocator*    m_memAllocator;
   std::vector<AllocationID> m_blockAllocs;
 
-  VkResult allocBlockMemory(BlockID id, VkDeviceSize size, bool toDevice, Block& block) override
+  VkResult allocBlockMemory(uint32_t index, VkDeviceSize size, bool toDevice, Block& block) override
   {
     VkResult result;
     float    priority = m_memAllocator->setPriority();
     block.buffer      = m_memAllocator->createBuffer(
-        size, toDevice ? VK_BUFFER_USAGE_TRANSFER_SRC_BIT : VK_BUFFER_USAGE_TRANSFER_DST_BIT, m_blockAllocs[id.index],
+        size, toDevice ? VK_BUFFER_USAGE_TRANSFER_SRC_BIT : VK_BUFFER_USAGE_TRANSFER_DST_BIT, m_blockAllocs[index],
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | (toDevice ? VK_MEMORY_PROPERTY_HOST_COHERENT_BIT : VK_MEMORY_PROPERTY_HOST_CACHED_BIT),
         result);
     m_memAllocator->setPriority(priority);
     if(result == VK_SUCCESS)
     {
-      block.mapping = m_memAllocator->mapT<uint8_t>(m_blockAllocs[id.index]);
+      block.mapping = m_memAllocator->mapT<uint8_t>(m_blockAllocs[index]);
     }
 
     return result;
   }
-  void freeBlockMemory(BlockID id, const Block& block) override
+  void freeBlockMemory(uint32_t index, const Block& block) override
   {
     vkDestroyBuffer(m_device, block.buffer, nullptr);
-    m_memAllocator->unmap(m_blockAllocs[id.index]);
-    m_memAllocator->free(m_blockAllocs[id.index]);
+    m_memAllocator->unmap(m_blockAllocs[index]);
+    m_memAllocator->free(m_blockAllocs[index]);
   }
 
   void resizeBlocks(uint32_t num) override

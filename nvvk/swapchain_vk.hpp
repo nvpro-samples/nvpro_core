@@ -44,99 +44,12 @@ to synchronize the backbuffer access ourselves, meaning we
 must not write into images that the operating system uses for
 presenting the image on the desktop or monitor.
 
+For each swapchain image there is an imageView,
+and one read and write semaphore. Furthermore there
+is a utility function to setup the image transitions from 
+VK_IMAGE_LAYOUT_UNDEFINED to VK_IMAGE_LAYOUT_PRESENT_SRC_KHR.
 
-*/
-class SwapChain
-{
-private:
-  VkDevice                     m_device;
-  VkPhysicalDevice             m_physicalDevice;
-
-  VkQueue  m_queue;
-  uint32_t m_queueFamilyIndex;
-
-  VkSurfaceKHR    m_surface;
-  VkFormat        m_surfaceFormat;
-  VkColorSpaceKHR m_surfaceColor;
-
-  uint32_t       m_swapchainImageCount;
-  VkSwapchainKHR m_swapchain;
-
-  std::vector<VkImage>              m_swapchainImages;
-  std::vector<VkImageView>          m_swapchainImageViews;
-  std::vector<VkSemaphore>          m_swapchainSemaphores;
-  std::vector<VkImageMemoryBarrier> m_swapchainBarriers;
-#if _DEBUG
-  std::vector<std::string>          m_swapchainImageNames;
-  std::vector<std::string>          m_swapchainImageViewNames;
-  std::vector<std::string>          m_swapchainSemaphoreNames;
-#endif
-  // index for current image, returned by vkAcquireNextImageKHR
-  // vk spec: The order in which images are acquired is implementation-dependent, 
-  // and may be different than the order the images were presented
-  uint32_t m_currentImage;
-  // index for current semaphore, incremented by `SwapChain::present`
-  uint32_t m_currentSemaphore;
-  // incremented by `SwapChain::update`, use to update other resources/track
-  // changes
-  uint32_t m_changeID;
-  // surface width
-  uint32_t m_width;
-  // surface height
-  uint32_t m_height;
-  // if the swap operation is sync'ed with monitor
-  bool     m_vsync;
-
-  void deinitResources();
-
-public:
-  bool init(VkDevice device, VkPhysicalDevice physicalDevice, VkQueue queue, uint32_t queueFamilyIndex, VkSurfaceKHR surface, VkFormat format = VK_FORMAT_B8G8R8A8_UNORM);
-  void update(int width, int height, bool vsync);
-  void update(int width, int height) {
-    update(width, height, m_vsync);
-  }
-  void deinit();
-
-  // returns true on success
-  bool acquire();
-  void present(VkQueue queue);
-  void present() { present(m_queue); }
-
-  VkFormat    getFormat() const;
-  VkSemaphore getActiveReadSemaphore() const;
-  VkSemaphore getActiveWrittenSemaphore() const;
-  VkImage     getActiveImage() const;
-  VkImageView getActiveImageView() const;
-  VkImage     getImage(uint32_t i) const;
-  VkImageView getImageView(uint32_t i) const;
-  uint32_t    getActiveImageIndex() const;
-  uint32_t    getSwapchainImageCount() const { return m_swapchainImageCount; }
-  uint32_t    getWidth() const { return m_width; }
-  uint32_t    getHeight() const { return m_height; }
-  bool        getVsync() const { return m_vsync; }
-  VkQueue     getQueue() const { return m_queue; }
-  uint32_t    getQueueFamilyIndex() { return m_queueFamilyIndex; }
-
-  // from VK_IMAGE_LAYOUT_UNDEFINED to VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
-  // must apply resource transitions after update calls
-  const VkImageMemoryBarrier* getImageMemoryBarriers() const;
-  uint32_t                    getImageCount() const;
-  void                        cmdUpdateBarriers(VkCommandBuffer cmd) const;
-
-  void getActiveBarrier(VkAccessFlags         srcAccess,
-                        VkAccessFlags         dstAccess,
-                        VkImageLayout         oldLayout,
-                        VkImageLayout         newLayout,
-                        VkImageMemoryBarrier& barrier) const;
-
-  uint32_t getChangeID() const;
-
-  VkSwapchainKHR getSwapchain() const { return m_swapchain; }
-};
-}  // namespace nvvk
-
-/**
-To setup the swapchain :
+Example in combination with nvvk::Context :
 
 * get the window handle
 * create its related surface
@@ -209,8 +122,148 @@ A typical renderloop would look as follows:
   VkImage swapImage = m_swapChain.getActiveImage();
   vkCmdBlitImage(cmd, ... swapImage ...);
 
+  // setup submit
+  VkSubmitInfo submitInfo = {VK_STRUCTURE_TYPE_SUBMIT_INFO};
+  submitInfo.commandBufferCount = 1;
+  submitInfo.pCommandBuffers    = &cmd;
+
+  // we need to ensure to wait for the swapchain image to have been read already
+  // so we can safely blit into it
+
+  VkSemaphore swapchainReadSemaphore      = m_swapChain->getActiveReadSemaphore();
+  VkPipelineStageFlags swapchainReadFlags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+  submitInfo.waitSemaphoreCount = 1;
+  submitInfo.pWaitSemaphores    = &swapchainReadSemaphore;
+  submitInfo.pWaitDstStageMask  = &swapchainReadFlags);
+
+  // once this submit completed, it means we have written the swapchain image
+  VkSemaphore swapchainWrittenSemaphore = m_swapChain->getActiveWrittenSemaphore();
+  submitInfo.signalSemaphoreCount = 1;
+  submitInfo.pSignalSemaphores    = &swapchainWrittenSemaphore;
+
+  // submit it
+  vkQueueSubmit(m_queue, 1, &submitInfo, fence);
+
   // present via a queue that supports it
+  // this will also setup the dependency for the appropriate written semaphore
+  // and bump the semaphore cycle
   m_swapChain.present(m_queue);
 ~~~
-*/  
+
+*/
+class SwapChain
+{
+private:
+  struct Entry
+  {
+    VkImage     image{};
+    VkImageView imageView{};
+    // be aware semaphore index may not match active image index
+    VkSemaphore readSemaphore{};
+    VkSemaphore writtenSemaphore{};
+#if _DEBUG
+    std::string debugImageName;
+    std::string debugImageViewName;
+    std::string debugReadSemaphoreName;
+    std::string debugWrittenSemaphoreName;
+#endif
+  };
+
+  VkDevice         m_device         = VK_NULL_HANDLE;
+  VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
+
+  VkQueue  m_queue{};
+  uint32_t m_queueFamilyIndex{0};
+
+  VkSurfaceKHR    m_surface{};
+  VkFormat        m_surfaceFormat{};
+  VkColorSpaceKHR m_surfaceColor{};
+
+  uint32_t       m_imageCount{0};
+  VkSwapchainKHR m_swapchain{};
+
+  std::vector<Entry>                m_entries;
+  std::vector<VkImageMemoryBarrier> m_barriers;
+
+  // index for current image, returned by vkAcquireNextImageKHR
+  // vk spec: The order in which images are acquired is implementation-dependent,
+  // and may be different than the order the images were presented
+  uint32_t m_currentImage{0};
+  // index for current semaphore, incremented by `SwapChain::present`
+  uint32_t m_currentSemaphore{0};
+  // incremented by `SwapChain::update`, use to update other resources or track changes
+  uint32_t m_changeID{0};
+  // surface width
+  uint32_t m_width{0};
+  // surface height
+  uint32_t m_height{0};
+  // if the swap operation is sync'ed with monitor
+  bool m_vsync = false;
+
+  void deinitResources();
+
+public:
+  SwapChain(SwapChain const&) = delete;
+  SwapChain& operator=(SwapChain const&) = delete;
+
+  SwapChain() {}
+  SwapChain(VkDevice device, VkPhysicalDevice physicalDevice, VkQueue queue, uint32_t queueFamilyIndex, VkSurfaceKHR surface, VkFormat format = VK_FORMAT_B8G8R8A8_UNORM)
+  {
+    init(device, physicalDevice, queue, queueFamilyIndex, surface, format);
+  }
+  ~SwapChain() { deinit(); }
+
+  bool init(VkDevice device, VkPhysicalDevice physicalDevice, VkQueue queue, uint32_t queueFamilyIndex, VkSurfaceKHR surface, VkFormat format = VK_FORMAT_B8G8R8A8_UNORM);
+  void deinit();
+
+  // update the swapchain configuration
+  // (must be called at least once after init)
+  void update(int width, int height, bool vsync);
+  void update(int width, int height) { update(width, height, m_vsync); }
+
+  // returns true on success
+  // sets active index
+  // uses getActiveReadSemaphore()
+  bool acquire();
+
+  // returns true on success
+  // sets active index
+  // allows to provide your own semaphore
+  bool acquireCustom(VkSemaphore semaphore);
+
+  // all present functions bump semaphore cycle
+
+  // present on provided queue
+  void present(VkQueue queue);
+  // present using a default queue from init time
+  void present() { present(m_queue); }
+  // present via a custom function
+  // (e.g. when extending via VkDeviceGroupPresentInfoKHR)
+  // fills in defaults for provided presentInfo
+  // with getActiveImageIndex()
+  // and getActiveWrittenSemaphore()
+  void presentCustom(VkPresentInfoKHR& outPresentInfo);
+
+  VkSemaphore getActiveReadSemaphore() const;
+  VkSemaphore getActiveWrittenSemaphore() const;
+  VkImage     getActiveImage() const;
+  VkImageView getActiveImageView() const;
+  uint32_t    getActiveImageIndex() const { return m_currentImage; }
+
+  uint32_t       getImageCount() const { return m_imageCount; }
+  VkImage        getImage(uint32_t i) const;
+  VkImageView    getImageView(uint32_t i) const;
+  VkFormat       getFormat() const { return m_surfaceFormat; }
+  uint32_t       getWidth() const { return m_width; }
+  uint32_t       getHeight() const { return m_height; }
+  bool           getVsync() const { return m_vsync; }
+  VkSwapchainKHR getSwapchain() const { return m_swapchain; }
+
+  // does a vkCmdPipelineBarrier for VK_IMAGE_LAYOUT_UNDEFINED to VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+  // must apply resource transitions after update calls
+  void cmdUpdateBarriers(VkCommandBuffer cmd) const;
+
+  uint32_t getChangeID() const;
+};
+}  // namespace nvvk
 #endif

@@ -36,7 +36,11 @@ namespace nvvk {
 
 void ProfilerVK::init(VkDevice device, VkPhysicalDevice physicalDevice)
 {
+  assert(!m_device);
   m_device = device;
+#if 0
+  m_useCoreHostReset = supportsCoreHostReset;
+#endif
 
   VkPhysicalDeviceProperties properties;
   vkGetPhysicalDeviceProperties(physicalDevice, &properties);
@@ -65,7 +69,11 @@ void ProfilerVK::init(VkDevice device, VkPhysicalDevice physicalDevice)
 
 void ProfilerVK::deinit()
 {
-  vkDestroyQueryPool(m_device, m_queryPool, nullptr);
+  if(m_queryPool) {
+    vkDestroyQueryPool(m_device, m_queryPool, nullptr);
+    m_queryPool = VK_NULL_HANDLE;
+  }
+  m_device = VK_NULL_HANDLE;
 }
 
 void ProfilerVK::setMarkerUsage(bool state)
@@ -123,7 +131,16 @@ nvh::Profiler::SectionID ProfilerVK::beginSection(const char* name, VkCommandBuf
 
   if(useHostReset)
   {
-    vkResetQueryPoolEXT(m_device, m_queryPool, idx, 2);
+#if 0
+    if(m_useCoreHostReset)
+    {
+      vkResetQueryPool(m_device, m_queryPool, idx, 2);
+    }
+    else
+#endif
+    {
+      vkResetQueryPoolEXT(m_device, m_queryPool, idx, 2);
+    }
   }
   else
   {

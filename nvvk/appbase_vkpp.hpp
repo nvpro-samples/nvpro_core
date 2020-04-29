@@ -32,7 +32,7 @@
 #include "imgui/imgui_impl_vk.h"
 #include "nvh/camerainertia.hpp"
 #include "nvh/cameramanipulator.hpp"
-#include "swapchain_vkpp.hpp"
+#include "swapchain_vk.hpp"
 
 #ifdef LINUX
 #include <unistd.h>
@@ -45,17 +45,160 @@
 #include "GLFW/glfw3native.h"
 
 #include <cmath>
+#include <vector>
 
-namespace nvvkpp {
+namespace nvvk {
 static float const s_keyTau    = 0.10f;
 static float const s_cameraTau = 0.03f;
 static float const s_moveStep  = 0.2f;
 
 //--------------------------------------------------------------------------------------------------
 /**
- This is the base class for many examples. It does the basic for calling the initialization of
- Vulkan, the creation of the logical device, but also is a placeholder for the render passes and
- the swapchain
+
+# class nvvk::AppBase
+
+The framework comes with a few `App???` classes, these can serve as base classes for various samples.
+They might differ a bit in setup and functionality, but in principle aid the setup of context and window,
+as well as some common event processing.
+
+The nvvk::AppBase serves as the base class for many ray tracing examples and makes use of the Vulkan C++ API (`vulkan.hpp`).
+It does the basics for Vulkan, by holding a reference to the instance and device, but also comes with optional default setups 
+for the render passes and the swapchain.
+
+## Usage
+
+An example will derive from this class:
+
+~~~~ C++
+class MyExample : public AppBase 
+{
+};
+~~~~
+
+## Setup
+
+In the `main()` of the example, after creating the Vulkan instance and device, call `setup()`.
+This will hold the VkInstance, VkDevice, VkPhysicalDevice and create the VkQueue, VkPool, plus it
+will initialize all Vulkan extensions for the C++ API (vulkan.hpp).
+
+Prior to calling setup, if you are using the `nvvk::Context` class to create and initalize Vulkan instances,
+you may want to create a VkSurfaceKHR from the window (glfw for example) and call `setGCTQueueWithPresent()`.
+This will make sure the Queue indices are adapted.
+
+Creating the surface, will actually create the swapchain for displaying. Arguments are
+width and height, color and depth format, and vsync on/off. Defaults will create the best format.
+
+Before creating the framebuffers to display the results, a depth buffer has to be create which will
+be used by all framebuffers. Then we can create the framebuffer.
+
+**Note**: the imageView(s) are part of the swapchain. 
+
+There is also a 'default renderpass', which is a color/depth, clear both buffers.
+
+If the application is using Dear ImGui, there are convenient functions for initializing it and
+setting the callbacks (glfw). The first one to call is `initGUI(0)`, where the argument is the subpass
+where it will be use. Default is 0, but if the application creates a renderpass with multi-sampling and
+resolves in the second subpass, this makes it possible.
+
+Then call `setupGlfwCallbacks(window)` to have all the window callback: key, mouse, window resizing.
+By default AppBase will handle resizing of the window. It will recreate the images and framebuffers,
+but a sample may need to overload that function, or to be aware of that change, therefore can overload
+`onResize(width, height)`.
+
+Last setup for ImGui is to call `ImGui_ImplGlfw_InitForVulkan(window, true)`, where true is for the 
+callbacks for Imgui.
+
+**Note**: All the methods are virtual and can be overloaded if they are not doing the typical setup. 
+
+~~~~ C++
+MyExample example;
+
+const vk::SurfaceKHR surface = example.getVkSurface(vkctx.m_instance, window);
+vkctx.setGCTQueueWithPresent(surface);
+
+example.setup(vkctx.m_instance, vkctx.m_device, vkctx.m_physicalDevice, vkctx.m_queueGCT.familyIndex);
+example.createSurface(surface, SAMPLE_SIZE_WIDTH, SAMPLE_SIZE_HEIGHT);
+example.createDepthBuffer();
+example.createFrameBuffers();
+example.createRenderPass();
+example.initGUI(0);
+example.setupGlfwCallbacks(window);
+
+ImGui_ImplGlfw_InitForVulkan(window, true);
+~~~~
+
+## Drawing loop
+
+The drawing loop in the main() is the typicall loop you will find in glfw examples. Note that
+AppBase has a convenient function to tell if the window is minimize, therefore not doing any 
+work and contain a sleep(), so the CPU is not going crazy. 
+
+
+~~~~ C++
+// Window system loop
+while(!glfwWindowShouldClose(window))
+{
+  glfwPollEvents();
+  if(example.isMinimized())
+    continue;
+
+  example.display();  // infinitely drawing
+}
+~~~~
+
+## Display
+
+A typical display() function will need the following: 
+
+* Acquiring the next image: `prepareFrame()`
+* Get the command buffer for the frame. There are n command buffers equal to the number of in-flight frames.
+* Clearing values
+* Start rendering pass
+* Drawing
+* End rendering
+* Submitting frame to display
+
+~~~~ C++
+void MyExample::display()
+{
+  // Acquire 
+  prepareFrame();
+
+  // Command buffer for current frame
+  const vk::CommandBuffer& cmdBuff = m_commandBuffers[getCurFrame()];
+  cmdBuff.begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
+
+  // Clearing values
+  vk::ClearValue clearValues[2];
+  clearValues[0].setColor(std::array<float, 4>({0.1f, 0.1f, 0.4f, 0.f}));
+  clearValues[1].setDepthStencil({1.0f, 0});
+
+  // Begin rendering
+  vk::RenderPassBeginInfo renderPassBeginInfo{m_renderPass, m_framebuffers[getCurFrame()], {{}, m_size}, 2, clearValues};
+  cmdBuff.beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
+  
+  // .. draw scene ...
+
+  // Draw UI
+  ImGui::RenderDrawDataVK(cmdBuff, ImGui::GetDrawData());
+
+  // End rendering
+  cmdBuff.endRenderPass();
+
+  // End of the frame and present the one which is ready
+  cmdBuff.end();
+  submitFrame();
+}
+~~~~~
+
+## Closing
+
+Finally, all resources can be destroyed by calling `destroy()` at the end of main().
+
+~~~~ C++
+  example.destroy();
+~~~~
+
 */
 
 class AppBase
@@ -69,8 +212,17 @@ public:
   //--------------------------------------------------------------------------------------------------
   // Setup the low level Vulkan for various operations
   //
-  virtual void setup(const vk::Device& device, const vk::PhysicalDevice& physicalDevice, uint32_t graphicsQueueIndex)
+  virtual void setup(const vk::Instance& instance, const vk::Device& device, const vk::PhysicalDevice& physicalDevice, uint32_t graphicsQueueIndex)
   {
+    // Initialize function pointers
+    vk::DynamicLoader         dl;
+    PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr =
+        dl.getProcAddress<PFN_vkGetInstanceProcAddr>("vkGetInstanceProcAddr");
+    VULKAN_HPP_DEFAULT_DISPATCHER.init(vkGetInstanceProcAddr);
+    VULKAN_HPP_DEFAULT_DISPATCHER.init(instance);
+    VULKAN_HPP_DEFAULT_DISPATCHER.init(device);
+
+    m_instance           = instance;
     m_device             = device;
     m_physicalDevice     = physicalDevice;
     m_graphicsQueueIndex = graphicsQueueIndex;
@@ -97,10 +249,8 @@ public:
     m_device.destroyImage(m_depthImage);
     m_device.freeMemory(m_depthMemory);
     m_device.destroyPipelineCache(m_pipelineCache);
-    m_device.destroySemaphore(m_acquireComplete);
-    m_device.destroySemaphore(m_renderComplete);
 
-    for(uint32_t i = 0; i < m_swapChain.imageCount; i++)
+    for(uint32_t i = 0; i < m_swapChain.getImageCount(); i++)
     {
       m_device.destroyFence(m_waitFences[i]);
       m_device.destroyFramebuffer(m_framebuffers[i]);
@@ -109,6 +259,8 @@ public:
     m_swapChain.deinit();
 
     m_device.destroyCommandPool(m_cmdPool);
+    if(m_surface)
+      m_instance.destroySurfaceKHR(m_surface);
   }
 
 
@@ -121,8 +273,11 @@ public:
     m_window = window;
 
     VkSurfaceKHR surface{};
-    auto         err = glfwCreateWindowSurface(instance, window, nullptr, &surface);
-    assert(err == VK_SUCCESS);
+    VkResult     err = glfwCreateWindowSurface(instance, window, nullptr, &surface);
+    if(err != VK_SUCCESS)
+    {
+      assert(!"Failed to create a Window surface");
+    }
     m_surface = surface;
 
     return surface;
@@ -144,12 +299,12 @@ public:
     m_colorFormat = colorFormat;
     m_vsync       = vsync;
 
-    m_swapChain.init(m_physicalDevice, m_device, m_queue, m_graphicsQueueIndex, surface, colorFormat);
-    m_swapChain.update(m_size, vsync);
-
+    m_swapChain.init(m_device, m_physicalDevice, m_queue, m_graphicsQueueIndex, surface, static_cast<VkFormat>(colorFormat));
+    m_swapChain.update(m_size.width, m_size.height, vsync);
+    m_colorFormat = static_cast<vk::Format>(m_swapChain.getFormat());
 
     // Create Synchronization Primitives
-    m_waitFences.resize(m_swapChain.imageCount);
+    m_waitFences.resize(m_swapChain.getImageCount());
     for(auto& fence : m_waitFences)
     {
       fence = m_device.createFence({vk::FenceCreateFlagBits::eSignaled});
@@ -157,7 +312,8 @@ public:
 
     // Command buffers store a reference to the frame buffer inside their render pass info
     // so for static usage without having to rebuild them each frame, we use one per frame buffer
-    m_commandBuffers = m_device.allocateCommandBuffers({m_cmdPool, vk::CommandBufferLevel::ePrimary, m_swapChain.imageCount});
+    m_commandBuffers =
+        m_device.allocateCommandBuffers({m_cmdPool, vk::CommandBufferLevel::ePrimary, m_swapChain.getImageCount()});
 
 #ifdef _DEBUG
     for(size_t i = 0; i < m_commandBuffers.size(); i++)
@@ -167,9 +323,6 @@ public:
           {vk::ObjectType::eCommandBuffer, reinterpret_cast<const uint64_t&>(m_commandBuffers[i]), name.c_str()});
     }
 #endif  // _DEBUG
-
-    m_acquireComplete = m_device.createSemaphore({});
-    m_renderComplete  = m_device.createSemaphore({});
 
     // Setup camera
     CameraManip.setWindowSize(m_size.width, m_size.height);
@@ -187,13 +340,27 @@ public:
       m_device.destroyFramebuffer(framebuffer);
     }
 
-    // Depth/Stencil attachment is the same for all frame buffers
-    // First one is set by the swapChain
+    // Array of attachment (color, depth)
     std::array<vk::ImageView, 2> attachments;
-    attachments[1] = m_depthView;
 
     // Create frame buffers for every swap chain image
-    m_framebuffers = m_swapChain.createFramebuffers({{}, m_renderPass, 2, attachments.data(), m_size.width, m_size.height, 1});
+    vk::FramebufferCreateInfo framebufferCreateInfo;
+    framebufferCreateInfo.renderPass      = m_renderPass;
+    framebufferCreateInfo.attachmentCount = 2;
+    framebufferCreateInfo.width           = m_size.width;
+    framebufferCreateInfo.height          = m_size.height;
+    framebufferCreateInfo.layers          = 1;
+    framebufferCreateInfo.pAttachments    = attachments.data();
+
+    // Create frame buffers for every swap chain image
+    m_framebuffers.resize(m_swapChain.getImageCount());
+    for(uint32_t i = 0; i < m_swapChain.getImageCount(); i++)
+    {
+      attachments[0]    = m_swapChain.getImageView(i);
+      attachments[1]    = m_depthView;
+      m_framebuffers[i] = m_device.createFramebuffer(framebufferCreateInfo);
+    }
+
 
 #ifdef _DEBUG
     for(size_t i = 0; i < m_framebuffers.size(); i++)
@@ -343,18 +510,14 @@ public:
   void prepareFrame()
   {
     // Acquire the next image from the swap chain
-    const vk::Result res = m_swapChain.acquire(m_acquireComplete, &m_curFramebuffer);
-
-    // Recreate the swapchain if it's no longer compatible with the surface (OUT_OF_DATE) or no longer optimal for presentation (SUBOPTIMAL)
-    if((res == vk::Result::eErrorOutOfDateKHR) || (res == vk::Result::eSuboptimalKHR))
+    if(!m_swapChain.acquire())
     {
-      // Need new window size !!
-      onWindowResize(m_size.width, m_size.height);
+      assert(!"This shouldn't happen");
     }
 
     // Use a fence to wait until the command buffer has finished execution before using it again
-    const vk::Device device(m_device);
-    while(device.waitForFences(m_waitFences[m_curFramebuffer], VK_TRUE, 10000) == vk::Result::eTimeout)
+    uint32_t imageIndex = m_swapChain.getActiveImageIndex();
+    while(m_device.waitForFences(m_waitFences[imageIndex], VK_TRUE, 10000) == vk::Result::eTimeout)
     {
     }
   }
@@ -364,7 +527,8 @@ public:
   //
   void submitFrame()
   {
-    m_device.resetFences(m_waitFences[m_curFramebuffer]);
+    uint32_t imageIndex = m_swapChain.getActiveImageIndex();
+    m_device.resetFences(m_waitFences[imageIndex]);
 
     // In case of using NVLINK
     const uint32_t                deviceMask  = m_useNvlink ? 0b0000'0011 : 0b0000'0001;
@@ -378,36 +542,27 @@ public:
     deviceGroupSubmitInfo.setPSignalSemaphoreDeviceIndices(deviceIndex.data());
     deviceGroupSubmitInfo.setPWaitSemaphoreDeviceIndices(deviceIndex.data());
 
+    vk::Semaphore semaphoreRead  = m_swapChain.getActiveReadSemaphore();
+    vk::Semaphore semaphoreWrite = m_swapChain.getActiveWrittenSemaphore();
+
     // Pipeline stage at which the queue submission will wait (via pWaitSemaphores)
     const vk::PipelineStageFlags waitStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
     // The submit info structure specifies a command buffer queue submission batch
     vk::SubmitInfo submitInfo;
     submitInfo.setPWaitDstStageMask(&waitStageMask);  // Pointer to the list of pipeline stages that the semaphore waits will occur at
-    submitInfo.setPWaitSemaphores(&m_acquireComplete);  // Semaphore(s) to wait upon before the submitted command buffer starts executing
-    submitInfo.setWaitSemaphoreCount(1);                 // One wait semaphore
-    submitInfo.setPSignalSemaphores(&m_renderComplete);  // Semaphore(s) to be signaled when command buffers have completed
-    submitInfo.setSignalSemaphoreCount(1);               // One signal semaphore
-    submitInfo.setPCommandBuffers(&m_commandBuffers[m_curFramebuffer]);  // Command buffers(s) to execute in this batch (submission)
-    submitInfo.setCommandBufferCount(1);                                 // One command buffer
+    submitInfo.setPWaitSemaphores(&semaphoreRead);  // Semaphore(s) to wait upon before the submitted command buffer starts executing
+    submitInfo.setWaitSemaphoreCount(1);               // One wait semaphore
+    submitInfo.setPSignalSemaphores(&semaphoreWrite);  // Semaphore(s) to be signaled when command buffers have completed
+    submitInfo.setSignalSemaphoreCount(1);             // One signal semaphore
+    submitInfo.setPCommandBuffers(&m_commandBuffers[imageIndex]);  // Command buffers(s) to execute in this batch (submission)
+    submitInfo.setCommandBufferCount(1);                           // One command buffer
     submitInfo.setPNext(&deviceGroupSubmitInfo);
 
     // Submit to the graphics queue passing a wait fence
-    m_queue.submit(submitInfo, m_waitFences[m_curFramebuffer]);
+    m_queue.submit(submitInfo, m_waitFences[imageIndex]);
 
-    const vk::Result res = m_swapChain.present(m_curFramebuffer, m_renderComplete);
-    if(!((res == vk::Result::eSuccess) || (res == vk::Result::eSuboptimalKHR)))
-    {
-      if(res == vk::Result::eErrorOutOfDateKHR)
-      {
-        // Swap chain is no longer compatible with the surface and needs to be recreated
-        // Need new window size !!
-        onWindowResize(m_size.width, m_size.height);
-        return;
-      }
-    }
-
-    // Increasing the current frame buffer
-    //m_curFramebuffer = (m_curFramebuffer + 1) % m_swapChain.imageCount;
+    // Presenting frame
+    m_swapChain.present(m_queue);
   }
 
 
@@ -436,14 +591,18 @@ public:
     m_size.height = h;
 
     // Update imgui and camera
-    auto& imgui_io       = ImGui::GetIO();
-    imgui_io.DisplaySize = ImVec2(static_cast<float>(w), static_cast<float>(h));
+
+    if(ImGui::GetCurrentContext() != nullptr)
+    {
+      auto& imgui_io       = ImGui::GetIO();
+      imgui_io.DisplaySize = ImVec2(static_cast<float>(w), static_cast<float>(h));
+    }
     CameraManip.setWindowSize(w, h);
 
     m_device.waitIdle();
     m_queue.waitIdle();
 
-    m_swapChain.update(m_size, m_vsync);
+    m_swapChain.update(m_size.width, m_size.height, m_vsync);
     onResize(w, h);
     createDepthBuffer();
     createFrameBuffers();
@@ -456,7 +615,7 @@ public:
   //
   virtual void onMouseMotion(int x, int y)
   {
-    if(ImGui::GetIO().WantCaptureMouse)
+    if(ImGui::GetCurrentContext() != nullptr && ImGui::GetIO().WantCaptureMouse)
     {
       return;
     }
@@ -505,7 +664,7 @@ public:
   //
   virtual void onKeyboard(int key, int scancode, int action, int mods)
   {
-    const bool capture = ImGui::GetIO().WantCaptureKeyboard;
+    const bool capture = ImGui::GetCurrentContext() != nullptr && ImGui::GetIO().WantCaptureKeyboard;
     const bool pressed = action != GLFW_RELEASE;
 
     if(key == GLFW_KEY_LEFT_CONTROL)
@@ -565,7 +724,7 @@ public:
   //
   virtual void onKeyboardChar(unsigned char key)
   {
-    if(ImGui::GetIO().WantCaptureKeyboard)
+    if(ImGui::GetCurrentContext() != nullptr && ImGui::GetIO().WantCaptureKeyboard)
     {
       return;
     }
@@ -576,7 +735,7 @@ public:
       m_vsync = !m_vsync;
       m_device.waitIdle();
       m_queue.waitIdle();
-      m_swapChain.update(m_size, m_vsync);
+      m_swapChain.update(m_size.width, m_size.height, m_vsync);
       createFrameBuffers();
     }
 
@@ -592,7 +751,7 @@ public:
   {
     (void)mods;
 
-    if(ImGui::GetIO().WantCaptureMouse)
+    if(ImGui::GetCurrentContext() != nullptr && ImGui::GetIO().WantCaptureMouse)
     {
       return;
     }
@@ -612,7 +771,7 @@ public:
   //
   virtual void onMouseWheel(int delta)
   {
-    if(ImGui::GetIO().WantCaptureMouse)
+    if(ImGui::GetCurrentContext() != nullptr && ImGui::GetIO().WantCaptureMouse)
     {
       return;
     }
@@ -627,7 +786,7 @@ public:
   // Initialization of the GUI
   // - Need to be call after the device creation
   //
-  void initGUI(uint32_t subpassID)
+  void initGUI(uint32_t subpassID = 0)
   {
     assert(m_renderPass && "Render Pass must be set");
 
@@ -711,6 +870,7 @@ public:
 
   //--------------------------------------------------------------------------------------------------
   // Getters
+  vk::Instance                          getInstance() { return m_instance; }
   vk::Device                            getDevice() { return m_device; }
   vk::PhysicalDevice                    getPhysicalDevice() { return m_physicalDevice; }
   vk::Queue                             getQueue() { return m_queue; }
@@ -722,9 +882,9 @@ public:
   vk::SurfaceKHR                        getSurface() { return m_surface; }
   const std::vector<vk::Framebuffer>&   getFramebuffers() { return m_framebuffers; }
   const std::vector<vk::CommandBuffer>& getCommandBuffers() { return m_commandBuffers; }
-  uint32_t                              getCurFrame() { return m_curFramebuffer; }
-  vk::Format                            getColorFormat() { return m_colorFormat; }
-  vk::Format                            getDepthFormat() { return m_depthFormat; }
+  uint32_t                              getCurFrame() const { return m_swapChain.getActiveImageIndex(); }
+  vk::Format                            getColorFormat() const { return m_colorFormat; }
+  vk::Format                            getDepthFormat() const { return m_depthFormat; }
 
 protected:
   uint32_t getMemoryType(uint32_t typeBits, const vk::MemoryPropertyFlags& properties) const
@@ -749,8 +909,7 @@ protected:
     if(m_showHelp)
     {
       ImGui::BeginChild("Help", ImVec2(370, 120), true);
-      const std::string& helpText = CameraManip.getHelp();
-      ImGui::Text(helpText.c_str());
+      ImGui::Text("%s", CameraManip.getHelp().c_str());
       ImGui::EndChild();
     }
   }
@@ -758,6 +917,7 @@ protected:
   //--------------------------------------------------------------------------------------------------
 
   // Vulkan low level
+  vk::Instance       m_instance;
   vk::Device         m_device;
   vk::SurfaceKHR     m_surface;
   vk::PhysicalDevice m_physicalDevice;
@@ -766,22 +926,19 @@ protected:
   vk::CommandPool    m_cmdPool;
 
   // Drawing/Surface
-  nvvkpp::SwapChain              m_swapChain;
-  std::vector<vk::Framebuffer>   m_framebuffers;       // All framebuffers, correspond to the Swapchain
-  std::vector<vk::CommandBuffer> m_commandBuffers;     // Command buffer per nb element in Swapchain
-  std::vector<vk::Fence>         m_waitFences;         // Fences per nb element in Swapchain
-  vk::Semaphore                  m_acquireComplete;    // Swap chain image presentation
-  vk::Semaphore                  m_renderComplete;     // Command buffer submission and execution
-  vk::Image                      m_depthImage;         // Depth/Stencil
-  vk::DeviceMemory               m_depthMemory;        // Depth/Stencil
-  vk::ImageView                  m_depthView;          // Depth/Stencil
-  vk::RenderPass                 m_renderPass;         // Base render pass
-  vk::Extent2D                   m_size{0, 0};         // Size of the window
-  vk::PipelineCache              m_pipelineCache;      // Cache for pipeline/shaders
-  bool                           m_vsync{false};       // Swapchain with vsync
-  bool                           m_useNvlink{false};   // NVLINK usage
-  GLFWwindow*                    m_window{nullptr};    // GLFW Window
-  uint32_t                       m_curFramebuffer{0};  // Remember the current framebuffer in use
+  nvvk::SwapChain                m_swapChain;
+  std::vector<vk::Framebuffer>   m_framebuffers;      // All framebuffers, correspond to the Swapchain
+  std::vector<vk::CommandBuffer> m_commandBuffers;    // Command buffer per nb element in Swapchain
+  std::vector<vk::Fence>         m_waitFences;        // Fences per nb element in Swapchain
+  vk::Image                      m_depthImage;        // Depth/Stencil
+  vk::DeviceMemory               m_depthMemory;       // Depth/Stencil
+  vk::ImageView                  m_depthView;         // Depth/Stencil
+  vk::RenderPass                 m_renderPass;        // Base render pass
+  vk::Extent2D                   m_size{0, 0};        // Size of the window
+  vk::PipelineCache              m_pipelineCache;     // Cache for pipeline/shaders
+  bool                           m_vsync{false};      // Swapchain with vsync
+  bool                           m_useNvlink{false};  // NVLINK usage
+  GLFWwindow*                    m_window{nullptr};   // GLFW Window
 
   // Surface buffer formats
   vk::Format m_colorFormat{vk::Format::eB8G8R8A8Unorm};
@@ -793,7 +950,7 @@ protected:
 
   // Other
   bool m_showHelp{false};  // Show help, pressing
-};
+};                         // namespace nvvkpp
 
 
-}  // namespace nvvkpp
+}  // namespace nvvk

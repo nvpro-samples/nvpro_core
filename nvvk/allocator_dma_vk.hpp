@@ -26,9 +26,13 @@
  */
 #pragma once
 
-#include <nvvk/images_vk.hpp>
-#include <nvvk/memorymanagement_vk.hpp>
 #include <vulkan/vulkan_core.h>
+
+#include "images_vk.hpp"
+#include "memorymanagement_vk.hpp"
+#include "samplers_vk.hpp"
+#include <memory>
+
 
 /**
   # class nvvk::AllocatorDma
@@ -42,7 +46,7 @@
   resource handle as well as the allocator system's handle.
 
   This utility class wraps the usage of nvvk::DeviceMemoryAllocator
-  as well as nvvk::StagingMemoryManager to have a simpler interface
+  as well as nvvk::StagingMemoryManagerDma to have a simpler interface
   for handling resources with content uploads.
 
   > Note: These classes are foremost to showcase principle components that
@@ -51,8 +55,11 @@
   > not optimized nor meant for production code.
 
   ~~~ C++
-  AllocatorDma allocator;
-  allocator.init(memAllocator, staging);
+  DeviceMemoryAllocator memAllocator;
+  AllocatorDma          allocator;
+
+  memAllocator.init(device, physicalDevice);
+  allocator.init(device, physicalDevice, &memAllocator);
 
   ...
 
@@ -60,12 +67,12 @@
 
   // creates new resources and 
   // implicitly triggers staging transfer copy operations into cmd
-  BufferDma vbo = allocator.createBuffer(cmd, vboSize, vboUsage, vboData);
-  BufferDma ibo = allocator.createBuffer(cmd, iboSize, iboUsage, iboData);
+  BufferDma vbo = allocator.createBuffer(cmd, vboSize, vboData, vboUsage);
+  BufferDma ibo = allocator.createBuffer(cmd, iboSize, iboData, iboUsage);
 
   // use functions from staging memory manager
-  // here we associate the temporary staging space with a fence
-  allocator.finalizeStaging(fence);
+  // here we associate the temporary staging resources with a fence
+  allocator.finalizeStaging( fence );
 
   // submit cmd buffer with staging copy operations
   vkQueueSubmit(... cmd ... fence ...)
@@ -74,7 +81,7 @@
 
   // if you do async uploads you would
   // trigger garbage collection somewhere per frame
-  allocator.tryReleaseFencedStaging();
+  allocator.releaseStaging();
 
   ~~~
 */
@@ -94,12 +101,26 @@ struct ImageDma
   AllocationID allocation;
 };
 
-struct AccelerationDma
+struct TextureDma
+{
+  VkImage               image = VK_NULL_HANDLE;
+  AllocationID          allocation;
+  VkDescriptorImageInfo descriptor{};
+};
+
+struct AccelerationDmaNV
 {
   VkAccelerationStructureNV accel = VK_NULL_HANDLE;
   AllocationID              allocation;
 };
 
+#if VK_KHR_ray_tracing
+struct AccelerationDmaKHR
+{
+  VkAccelerationStructureKHR accel = VK_NULL_HANDLE;
+  AllocationID               allocation;
+};
+#endif
 
 //--------------------------------------------------------------------------------------------------
 // Allocator for buffers, images and acceleration structure using Device Memory Allocator
@@ -107,17 +128,32 @@ struct AccelerationDma
 class AllocatorDma
 {
 public:
+  AllocatorDma(AllocatorDma const&) = delete;
+  AllocatorDma& operator=(AllocatorDma const&) = delete;
+
+  AllocatorDma() = default;
+
   //--------------------------------------------------------------------------------------------------
   // Initialization of the allocator
-  void init(VkDevice device, nvvk::DeviceMemoryAllocator& allocator, nvvk::StagingMemoryManager& staging)
+  void init(VkDevice device, VkPhysicalDevice physicalDevice, nvvk::DeviceMemoryAllocator* allocator, VkDeviceSize stagingBlockSize = NVVK_DEFAULT_STAGING_BLOCKSIZE)
   {
-    m_device    = device;
-    m_allocator = &allocator;
-    m_staging   = &staging;
+    m_device      = device;
+    m_allocator   = allocator;
+    m_staging.init(allocator, stagingBlockSize);
+    m_samplerPool.init(device);
+  }
+
+  void deinit()
+  {
+    m_samplerPool.deinit();
+    m_staging.deinit();
   }
 
   // sets memory priority for VK_EXT_memory_priority
-  float setPriority(float priority = nvvk::DeviceMemoryAllocator::DEFAULT_PRIORITY) { return m_allocator->setPriority(priority); }
+  float setPriority(float priority = nvvk::DeviceMemoryAllocator::DEFAULT_PRIORITY)
+  {
+    return m_allocator->setPriority(priority);
+  }
 
   //--------------------------------------------------------------------------------------------------
   // Basic buffer creation
@@ -139,17 +175,13 @@ public:
 
   //--------------------------------------------------------------------------------------------------
   // Staging buffer creation, uploading data to device buffer
-  BufferDma createBuffer(VkCommandBuffer       cmd,
-                         VkDeviceSize          size,
-                         VkBufferUsageFlags    usage,
-                         const void*           data     = nullptr,
-                         VkMemoryPropertyFlags memProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+  BufferDma createBuffer(VkCommandBuffer cmd, VkDeviceSize size, const void* data, VkBufferUsageFlags usage, VkMemoryPropertyFlags memProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
   {
 
     BufferDma resultBuffer = createBuffer(size, usage, memProps);
     if(data)
     {
-      m_staging->cmdToBuffer(cmd, resultBuffer.buffer, 0, size, data);
+      m_staging.cmdToBuffer(cmd, resultBuffer.buffer, 0, size, data);
     }
 
     return resultBuffer;
@@ -158,17 +190,14 @@ public:
   //--------------------------------------------------------------------------------------------------
   // Staging buffer creation, uploading data to device buffer
   template <typename T>
-  BufferDma createBuffer(VkCommandBuffer       cmd,
-                         VkDeviceSize          size,
-                         VkBufferUsageFlags    usage,
-                         const std::vector<T>& data,
-                         VkMemoryPropertyFlags memProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+  BufferDma createBuffer(VkCommandBuffer cmd, const std::vector<T>& data, VkBufferUsageFlags usage, VkMemoryPropertyFlags memProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
   {
+    VkDeviceSize size         = sizeof(T) * data.size();
     BufferDma    resultBuffer = createBuffer(size, usage, memProps);
-    if(data)
+    if(!data.empty())
     {
-      VkDeviceSize size         = sizeof(T) * data.size();
-      m_staging->cmdToBuffer(cmd, resultBuffer.buffer, 0, size, data.data());
+      VkDeviceSize size = sizeof(T) * data.size();
+      m_staging.cmdToBuffer(cmd, resultBuffer.buffer, 0, size, data.data());
     }
 
     return resultBuffer;
@@ -187,10 +216,10 @@ public:
   // Create an image with data, data is assumed to be from first level & layer only
   //
   ImageDma createImage(VkCommandBuffer          cmd,
-                       const VkImageCreateInfo& info,
-                       VkImageLayout            layout,
                        VkDeviceSize             size,
                        const void*              data,
+                       const VkImageCreateInfo& info,
+                       VkImageLayout            layout   = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                        VkMemoryPropertyFlags    memProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
   {
     ImageDma resultImage;
@@ -199,47 +228,98 @@ public:
     // Copy the data to staging buffer than to image
     if(data != nullptr)
     {
-      // doing these transitions per copy is not efficient, should do in bulk for many images
+      // Copy buffer to image
+      VkImageSubresourceRange subresourceRange{};
+      subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+      subresourceRange.baseArrayLayer = 0;
+      subresourceRange.baseMipLevel   = 0;
+      subresourceRange.layerCount     = 1;
+      subresourceRange.levelCount     = info.mipLevels;
 
-      nvvk::cmdTransitionImage(cmd, resultImage.image, info.format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+      // doing these transitions per copy is not efficient, should do in bulk for many images
+      nvvk::cmdBarrierImageLayout(cmd, resultImage.image, VK_IMAGE_LAYOUT_UNDEFINED,
+                                  VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, subresourceRange);
 
       VkOffset3D               offset      = {0};
       VkImageSubresourceLayers subresource = {0};
       subresource.aspectMask               = VK_IMAGE_ASPECT_COLOR_BIT;
       subresource.layerCount               = 1;
 
-      m_staging->cmdToImage(cmd, resultImage.image, offset, info.extent, subresource, size, data);
+      m_staging.cmdToImage(cmd, resultImage.image, offset, info.extent, subresource, size, data);
 
       // Setting final image layout
-      nvvk::cmdTransitionImage(cmd, resultImage.image, info.format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, layout);
+      subresourceRange.levelCount = 1;
+      nvvk::cmdBarrierImageLayout(cmd, resultImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, layout);
     }
     else
     {
       // Setting final image layout
-      nvvk::cmdTransitionImage(cmd, resultImage.image, info.format, VK_IMAGE_LAYOUT_UNDEFINED, layout);
+      nvvk::cmdBarrierImageLayout(cmd, resultImage.image, VK_IMAGE_LAYOUT_UNDEFINED, layout);
     }
 
     return resultImage;
   }
 
   //--------------------------------------------------------------------------------------------------
+  // other variants could exist with a few defaults but we already have nvvk::makeImage2DViewCreateInfo()
+  // we could always override viewCreateInfo.image
+  TextureDma createTexture(const ImageDma& image, const VkImageViewCreateInfo& imageViewCreateInfo)
+  {
+    TextureDma resultTexture;
+    resultTexture.image                  = image.image;
+    resultTexture.allocation             = image.allocation;
+    resultTexture.descriptor.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+    assert(imageViewCreateInfo.image == image.image);
+    vkCreateImageView(m_device, &imageViewCreateInfo, nullptr, &resultTexture.descriptor.imageView);
+
+    return resultTexture;
+  }
+
+  TextureDma createTexture(const ImageDma& image, const VkImageViewCreateInfo& imageViewCreateInfo, const VkSamplerCreateInfo& samplerCreateInfo)
+  {
+    TextureDma resultTexture         = createTexture(image, imageViewCreateInfo);
+    resultTexture.descriptor.sampler = m_samplerPool.acquireSampler(samplerCreateInfo);
+
+    return resultTexture;
+  }
+
+  //--------------------------------------------------------------------------------------------------
   // Create the acceleration structure
   //
-  AccelerationDma createAcceleration(VkAccelerationStructureCreateInfoNV& accel,
+  AccelerationDmaNV createAcceleration(VkAccelerationStructureCreateInfoNV& accel,
                                      VkMemoryPropertyFlags memProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
   {
-    AccelerationDma resultAccel;
+    AccelerationDmaNV resultAccel;
     resultAccel.accel = m_allocator->createAccStructure(accel, resultAccel.allocation, memProps);
 
     return resultAccel;
   }
 
+#if VK_KHR_ray_tracing
+  AccelerationDmaKHR createAcceleration(VkAccelerationStructureCreateInfoKHR& accel,
+                                        VkMemoryPropertyFlags memProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+  {
+    AccelerationDmaKHR resultAccel;
+    resultAccel.accel = m_allocator->createAccStructure(accel, resultAccel.allocation, memProps);
+
+    return resultAccel;
+  }
+#endif
+
   //--------------------------------------------------------------------------------------------------
   // implicit staging operations triggered by create are managed here
 
-  StagingID finalizeStaging(VkFence fence = VK_NULL_HANDLE) { return m_staging->finalizeCmds(fence); }
-  void      releaseStaging(StagingID stagingID) { m_staging->release(stagingID); }
-  void      tryReleaseFencedStaging() { m_staging->tryReleaseFenced(); }
+  void finalizeStaging(VkFence fence = VK_NULL_HANDLE) { m_staging.finalizeResources(fence); }
+  void finalizeAndReleaseStaging(VkFence fence = VK_NULL_HANDLE)
+  {
+    m_staging.finalizeResources(fence);
+    m_staging.releaseResources();
+  }
+  void releaseStaging() { m_staging.releaseResources(); }
+
+  StagingMemoryManager*       getStaging() { return &m_staging; }
+  const StagingMemoryManager* getStaging() const { return &m_staging; }
 
   //--------------------------------------------------------------------------------------------------
   // Destroy
@@ -272,7 +352,24 @@ public:
     image = ImageDma();
   }
 
-  void destroy(AccelerationDma& accel)
+  void destroy(TextureDma& t_)
+  {
+    vkDestroyImageView(m_device, t_.descriptor.imageView, nullptr);
+    vkDestroyImage(m_device, t_.image, nullptr);
+
+    if(t_.descriptor.sampler)
+    {
+      m_samplerPool.releaseSampler(t_.descriptor.sampler);
+    }
+    if(t_.allocation)
+    {
+      m_allocator->free(t_.allocation);
+    }
+
+    t_ = TextureDma();
+  }
+
+  void destroy(AccelerationDmaNV& accel)
   {
     if(accel.accel)
     {
@@ -283,8 +380,25 @@ public:
       m_allocator->free(accel.allocation);
     }
 
-    accel = AccelerationDma();
+    accel = AccelerationDmaNV();
   }
+
+
+#if VK_KHR_ray_tracing
+  void destroy(AccelerationDmaKHR& accel)
+  {
+    if(accel.accel)
+    {
+      vkDestroyAccelerationStructureKHR(m_device, accel.accel, nullptr);
+    }
+    if(accel.allocation)
+    {
+      m_allocator->free(accel.allocation);
+    }
+
+    accel = AccelerationDmaKHR();
+  }
+#endif
 
   //--------------------------------------------------------------------------------------------------
   // Other
@@ -294,9 +408,59 @@ public:
 
 
 private:
-  VkDevice               m_device;
-  DeviceMemoryAllocator* m_allocator;
-  StagingMemoryManager*  m_staging;
+  VkDevice                      m_device;
+  nvvk::DeviceMemoryAllocator*  m_allocator;
+  nvvk::StagingMemoryManagerDma m_staging;
+  nvvk::SamplerPool             m_samplerPool;
+
+#ifdef VULKAN_HPP
+public:
+  virtual BufferDma createBuffer(const vk::BufferCreateInfo& info_, const vk::MemoryPropertyFlags memUsage_)
+  {
+    return createBuffer(static_cast<VkBufferCreateInfo>(info_), static_cast<VkMemoryPropertyFlags>(memUsage_));
+  }
+
+  BufferDma createBuffer(vk::DeviceSize size_, vk::BufferUsageFlags usage_, const vk::MemoryPropertyFlags memUsage_)
+  {
+    return createBuffer(static_cast<VkDeviceSize>(size_), static_cast<VkBufferUsageFlags>(usage_),
+                        static_cast<VkMemoryPropertyFlags>(memUsage_));
+  }
+
+  BufferDma createBuffer(const vk::CommandBuffer&    cmdBuf,
+                         const vk::DeviceSize&       size_,
+                         const void*                 data_,
+                         const vk::BufferUsageFlags& usage_,
+                         vk::MemoryPropertyFlags     memUsage_ = vk::MemoryPropertyFlagBits::eDeviceLocal)
+  {
+    return createBuffer(static_cast<VkCommandBuffer>(cmdBuf), static_cast<VkDeviceSize>(size_), data_,
+                        static_cast<VkBufferUsageFlags>(usage_), static_cast<VkMemoryPropertyFlags>(memUsage_));
+  }
+
+  template <typename T>
+  BufferDma createBuffer(const vk::CommandBuffer&    cmdBuff,
+                         const std::vector<T>&       data_,
+                         const vk::BufferUsageFlags& usage_,
+                         vk::MemoryPropertyFlags     memUsage_ = vk::MemoryPropertyFlagBits::eDeviceLocal)
+  {
+    return createBuffer(cmdBuff, sizeof(T) * data_.size(), data_.data(), usage_, memUsage_);
+  }
+
+  ImageDma createImage(const vk::ImageCreateInfo& info_, const vk::MemoryPropertyFlags memUsage_)
+  {
+    return createImage(static_cast<VkImageCreateInfo>(info_), static_cast<VkMemoryPropertyFlags>(memUsage_));
+  }
+
+  ImageDma createImage(const vk::CommandBuffer& cmdBuff, size_t size_, const void* data_, const vk::ImageCreateInfo& info_, const vk::ImageLayout& layout_)
+  {
+    return createImage(static_cast<VkCommandBuffer>(cmdBuff), size_, data_, static_cast<VkImageCreateInfo>(info_),
+                       static_cast<VkImageLayout>(layout_));
+  }
+
+  AccelerationDmaNV createAcceleration(vk::AccelerationStructureCreateInfoNV& accel_)
+  {
+    return createAcceleration(static_cast<VkAccelerationStructureCreateInfoNV&>(accel_));
+  }
+#endif
 };
 
 }  // namespace nvvk

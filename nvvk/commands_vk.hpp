@@ -40,7 +40,6 @@ namespace nvvk {
 - makeAccessMaskPipelineStageFlags : depending on accessMask returns appropriate VkPipelineStageFlagBits
 - cmdBegin : wraps vkBeginCommandBuffer with VkCommandBufferUsageFlags and implicitly handles VkCommandBufferBeginInfo setup
 - makeSubmitInfo : VkSubmitInfo struct setup using provided arrays of signals and commandbuffers, leaving rest zeroed
-- hasFrameCompleted : helper to test completion of a frame number when wrapping frame counters are used
 */
 
 // useful for barriers, derive all compatible stage flags from an access mask
@@ -49,7 +48,7 @@ uint32_t makeAccessMaskPipelineStageFlags(uint32_t accessMask);
 
 void cmdBegin(VkCommandBuffer cmd, VkCommandBufferUsageFlags flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-NV_INLINE VkSubmitInfo makeSubmitInfo(uint32_t numCmds, VkCommandBuffer* cmds, uint32_t numSignals, VkSemaphore* signals)
+inline VkSubmitInfo makeSubmitInfo(uint32_t numCmds, VkCommandBuffer* cmds, uint32_t numSignals, VkSemaphore* signals)
 {
   VkSubmitInfo submitInfo         = {VK_STRUCTURE_TYPE_SUBMIT_INFO};
   submitInfo.pCommandBuffers      = cmds;
@@ -60,144 +59,193 @@ NV_INLINE VkSubmitInfo makeSubmitInfo(uint32_t numCmds, VkCommandBuffer* cmds, u
   return submitInfo;
 }
 
-// returns true if frameTest has been completed. frameTest must be in past or present, but not future.
-// Handles integer wrap-around, so abs(frameTest - frameCompleted) < s32_max
-NV_INLINE bool hasFrameCompleted(uint32_t frameTest, uint32_t frameCompleted)
-{
-  // check for wrap-around
-  const uint32_t halfUint32 = 0x7FFFFFFF;
-  bool     wrapped = (frameTest < halfUint32 && frameCompleted > halfUint32) || (frameTest > halfUint32 && frameCompleted < halfUint32);
-  if (wrapped) {
-    // since "completed" could either be around 0 or towards end of 32-bit, we shift all old numbers and assume
-    // that this is safe and gives us consistent comparison
-    return (frameTest + halfUint32) <= (frameCompleted + halfUint32);
-  }
-  else {
-    return frameTest <= frameCompleted;
-  }
-}
-
 //--------------------------------------------------------------------------------------------------
 /**
-  # class nvvk::CmdPool
+  # class nvvk::CommandPool
 
-  CmdPool stores a single VkCommandPool and provides utility functions
+  CommandPool stores a single VkCommandPool and provides utility functions
   to create VkCommandBuffers from it.
+
+  Example:
+  ``` C++
+  {
+    nvvk::CommandPool cmdPool;
+    cmdPool.init(...);
+
+    // some setup/one shot work
+    {
+      vkCommandBuffer cmd = scopePool.createAndBegin();
+      ... record commands ...
+      // trigger execution with a blocking operation
+      // not recommended for performance
+      // but useful for sample setup
+      scopePool.submitAndWait(cmd, queue);
+    }
+
+    // other cmds you may batch, or recycle
+    std::vector<VkCommandBuffer> cmds;
+    {
+      vkCommandBuffer cmd = scopePool.createAndBegin();
+      ... record commands ...
+      cmds.push_back(cmd);
+    }
+    {
+      vkCommandBuffer cmd = scopePool.createAndBegin();
+      ... record commands ...
+      cmds.push_back(cmd);
+    }
+
+    // do some form of batched submission of cmds
+
+    // after completion destroy cmd
+    cmdPool.destroy(cmds.size(), cmds.data());
+    cmdPool.deinit();
+  }
+  ```
 */
 
-class CmdPool
+class CommandPool
 {
 public:
-  void init(VkDevice device, uint32_t familyIndex, VkCommandPoolCreateFlags flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
+  CommandPool(CommandPool const&) = delete;
+  CommandPool& operator=(CommandPool const&) = delete;
+
+  CommandPool() {}
+  ~CommandPool() { deinit(); }
+
+  // if defaultQueue is null, uses first queue from familyIndex as default
+  CommandPool(VkDevice                 device,
+              uint32_t                 familyIndex,
+              VkCommandPoolCreateFlags flags        = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
+              VkQueue                  defaultQueue = VK_NULL_HANDLE)
+  {
+    init(device, familyIndex, flags, defaultQueue);
+  }
+
+  // if defaultQueue is null, uses first queue from familyIndex as default
+  void init(VkDevice                 device,
+            uint32_t                 familyIndex,
+            VkCommandPoolCreateFlags flags        = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
+            VkQueue                  defaultQueue = VK_NULL_HANDLE);
   void deinit();
 
-  VkCommandBuffer createCommandBuffer(VkCommandBufferLevel level = VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+#ifdef VULKAN_HPP
+  void init(vk::Device device, uint32_t familyIndex, vk::CommandPoolCreateFlags flags, vk::Queue defaultQueue = nullptr)
+  {
+    init(device, familyIndex, (VkCommandPoolCreateFlags)flags, defaultQueue);
+  }
+  CommandPool(VkDevice device, uint32_t familyIndex, vk::CommandPoolCreateFlags flags, vk::Queue defaultQueue = nullptr)
+  {
+    init(device, familyIndex, (VkCommandPoolCreateFlags)flags, defaultQueue);
+  }
+#endif
 
-  // allocates and begins cmdbuffer
-  VkCommandBuffer createAndBegin(VkCommandBufferLevel            level            = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-                                 VkCommandBufferInheritanceInfo* pInheritanceInfo = nullptr,
-                                 VkCommandBufferUsageFlags       flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-  // free cmdbuffer from this pool
-  void destroy(VkCommandBuffer cmd);
+  VkCommandBuffer createCommandBuffer(VkCommandBufferLevel      level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+                                      bool                      begin = true,
+                                      VkCommandBufferUsageFlags flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+                                      const VkCommandBufferInheritanceInfo* pInheritanceInfo = nullptr);
+#ifdef VULKAN_HPP
+  // ensure proper cycle is set prior this
+  VkCommandBuffer createCommandBuffer(vk::CommandBufferLevel      level,
+                                      bool                        begin = true,
+                                      vk::CommandBufferUsageFlags flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit,
+                                      const vk::CommandBufferInheritanceInfo* pInheritanceInfo = nullptr)
+  {
+    return createCommandBuffer((VkCommandBufferLevel)level, begin, (VkCommandBufferUsageFlags)flags,
+                               (const VkCommandBufferInheritanceInfo*)pInheritanceInfo);
+  }
+#endif
 
-  // ends and submits to queue, waits for queue idle and destroys cmd
-  void endAndSubmitSynced(VkCommandBuffer cmd, VkQueue queue);
+  // free cmdbuffers from this pool
+  void destroy(size_t count, const VkCommandBuffer* cmds);
+  void destroy(const std::vector<VkCommandBuffer>& cmds) { destroy(cmds.size(), cmds.data()); }
+  void destroy(VkCommandBuffer cmd) { destroy(1, &cmd); }
+
+  // ends and submits to queue, waits for queue idle and destroys cmds
+  void submitAndWait(size_t count, const VkCommandBuffer* cmds, VkQueue queue);
+  void submitAndWait(const std::vector<VkCommandBuffer>& cmds, VkQueue queue)
+  {
+    submitAndWait(cmds.size(), cmds.data(), queue);
+  }
+  void submitAndWait(VkCommandBuffer cmd, VkQueue queue) { submitAndWait(1, &cmd, queue); }
+
+  // ends and submits to default queue, waits for queue idle and destroys cmds
+  void submitAndWait(size_t count, const VkCommandBuffer* cmds) { submitAndWait(count, cmds, m_queue); }
+  void submitAndWait(const std::vector<VkCommandBuffer>& cmds) { submitAndWait(cmds.size(), cmds.data(), m_queue); }
+  void submitAndWait(VkCommandBuffer cmd) { submitAndWait(1, &cmd, m_queue); }
+  VkCommandPool getCommandPool() const { return m_commandPool; }
+
+#ifdef VULKAN_HPP
+  void destroy(size_t count, const vk::CommandBuffer* cmds) { destroy(count, (const VkCommandBuffer*)cmds); }
+  void destroy(const std::vector<vk::CommandBuffer>& cmds)
+  {
+    destroy(cmds.size(), (const VkCommandBuffer*)cmds.data());
+  }
+  void submitAndWait(size_t count, const vk::CommandBuffer* cmds, VkQueue queue)
+  {
+    submitAndWait(count, (const VkCommandBuffer*)cmds, queue);
+  }
+  void submitAndWait(const std::vector<vk::CommandBuffer>& cmds, VkQueue queue)
+  {
+    submitAndWait(cmds.size(), (const VkCommandBuffer*)cmds.data(), queue);
+  }
+  void submitAndWait(size_t count, const vk::CommandBuffer* cmds)
+  {
+    submitAndWait(count, (const VkCommandBuffer*)cmds, m_queue);
+  }
+  void submitAndWait(const std::vector<vk::CommandBuffer>& cmds)
+  {
+    submitAndWait(cmds.size(), (const VkCommandBuffer*)cmds.data(), m_queue);
+  }
+#endif
 
 private:
   VkDevice      m_device      = VK_NULL_HANDLE;
-  uint32_t      m_familyIndex = ~0;
+  VkQueue       m_queue       = VK_NULL_HANDLE;
   VkCommandPool m_commandPool = VK_NULL_HANDLE;
 };
 
 
 //--------------------------------------------------------------------------------------------------
 /**
-  # class nvvk::ScopeSubmitCmdPool
-
-  ScopeSubmitCmdPool extends CmdPool and lives within a scope.
-  It directly submits its commandbufers to the provided queue.
-  Intent is for non-critical actions where performance is NOT required,
-  as it waits until the device has completed the operation.
-
-  Example:
-  ``` C++
-  {
-    nvvk::ScopeSubmitCmdPool scopePool(...);
-
-    // some batch of work
-    {
-      vkCommandBuffer cmd = scopePool.begin();
-      ... record commands ...
-      // blocking operation
-      scopePool.end(cmd);
-    }
-
-    // other operations done here
-    {
-      vkCommandBuffer cmd = scopePool.begin();
-      ... record commands ...
-      // blocking operation
-      scopePool.end(cmd);
-    }
-  }
-  ```
-*/
-
-class ScopeSubmitCmdPool : private CmdPool
-{
-public:
-  ScopeSubmitCmdPool(VkDevice device, VkQueue queue, uint32_t familyIndex)
-  {
-    init(device, familyIndex, VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
-    m_queue = queue;
-  }
-
-  ~ScopeSubmitCmdPool() { deinit(); }
-
-  VkCommandBuffer begin()
-  {
-    return CmdPool::createAndBegin(VK_COMMAND_BUFFER_LEVEL_PRIMARY, nullptr, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
-  }
-
-  // ends cmdbuffer, submits it on queue and waits for queue to be finished, frees cmdbuffer
-  void end(VkCommandBuffer commandBuffer);
-
-private:
-  VkDevice      m_device;
-  VkQueue       m_queue;
-  uint32_t      m_familyIndex;
-  VkCommandPool m_commandPool;
-};
-//--------------------------------------------------------------------------------------------------
-/**
-  # class nvvk::ScopeSubmitCmdBuffer
+  # class nvvk::ScopeCommandBuffer
 
   Provides a single VkCommandBuffer that lives within the scope
-  and is directly submitted, deleted when the scope is left.
+  and is directly submitted and deleted when the scope is left.
+  Not recommended for efficiency, since it results in a blocking
+  operation, but aids sample writing.
 
   Example:
   ``` C++
   {
-    ScopeSubmitCmdBuffer cmd(device, queue, queueFamilyIndex);
+    ScopeCommandBuffer cmd(device, queueFamilyIndex, queue);
     ... do stuff
     vkCmdCopyBuffer(cmd, ...);
   }
   ```
 */
 
-class ScopeSubmitCmdBuffer : public ScopeSubmitCmdPool
+class ScopeCommandBuffer : public CommandPool
 {
 public:
-  ScopeSubmitCmdBuffer(VkDevice device, VkQueue queue, uint32_t familyIndex)
-      : ScopeSubmitCmdPool(device, queue, familyIndex)
+  // if queue is null, uses first queue from familyIndex
+  ScopeCommandBuffer(VkDevice device, uint32_t familyIndex, VkQueue queue = VK_NULL_HANDLE)
   {
-    m_cmd = begin();
+    CommandPool::init(device, familyIndex, VK_COMMAND_POOL_CREATE_TRANSIENT_BIT, queue);
+    m_cmd = createCommandBuffer();
   }
 
-  ~ScopeSubmitCmdBuffer() { end(m_cmd); }
+  ~ScopeCommandBuffer()
+  {
+    submitAndWait(m_cmd);
+    CommandPool::deinit();
+  }
 
   operator VkCommandBuffer() const { return m_cmd; };
+#ifdef VULKAN_HPP
+  operator vk::CommandBuffer() const { return (vk::CommandBuffer)m_cmd; };
+#endif
 
 private:
   VkCommandBuffer m_cmd;
@@ -208,7 +256,7 @@ private:
   # classes **nvvk::Ring...**
 
   In real-time processing, the CPU typically generates commands 
-  in advance to the GPU and send them in batches for exeuction.
+  in advance to the GPU and send them in batches for execution.
 
   To avoid having the CPU to wait for the GPU'S completion and let it "race ahead"
   we make use of double, or tripple-buffering techniques, where we cycle through
@@ -218,17 +266,13 @@ private:
   Especially in Vulkan it is the developer's responsibility to avoid such
   access of resources that are in-flight.
 
-  The "Ring" classes cycle through a pool of 3 resources, as that is typically
-  the maximum latency drivers may let the CPU get in advance of the GPU.
-
-  There are two interfaces:
-  - **Cycle-based** means ring resources have to be in the same cycle as the master.
-  - **Frame-based** means ring resources pick an available cycle on their own. 
-    The availability is based on a monotonic (wrapping) frame counter, and
-    information in which frame resources were used, and what frames have been completed.
+  The "Ring" classes cycle through a pool of resources. The default value
+  is set to allow two frames in-flight, assuming one fence is used per-frame.
 */
 
-static const uint32_t MAX_RING_FRAMES = 3;
+// typically the driver will not let the CPU race ahead more than two frames of GPU
+// during swapchain operations.
+static const uint32_t DEFAULT_RING_SIZE = 3;
 //--------------------------------------------------------------------------------------------------
 /**
   ## class nvvk::RingFences
@@ -236,142 +280,177 @@ static const uint32_t MAX_RING_FRAMES = 3;
   Recycles a fixed number of fences, provides information in which cycle
   we are currently at, and prevents accidental access to a cycle in-flight.
 
-  A typical frame would start by waiting for older cycle's completion ("wait")
-  and be ended by "advanceCycle".
-
-  Using the cycle-interface you can safely index other resources, for example ring buffers,
-  by querying "getCycleIndex".
-
-  The alternative frame-interface is that other utilities make use of 
-  the "getCurrentFrame" and "getCompletedFrame" functions in
-  combination with the "hasFrameCompleted" utility function.
+  A typical frame would start by "setCycleAndWait", which waits for the
+  requested cycle to be available.
 */
 
 class RingFences
 {
 public:
-  void init(VkDevice device);
+  RingFences(RingFences const&) = delete;
+  RingFences& operator=(RingFences const&) = delete;
+
+  RingFences() {}
+  RingFences(VkDevice device, uint32_t ringSize = DEFAULT_RING_SIZE) { init(device, ringSize); }
+  ~RingFences() { deinit(); }
+
+  void init(VkDevice device, uint32_t ringSize = DEFAULT_RING_SIZE);
   void deinit();
-  void reset();
-
-  // waits until current cycle can be safely used
-  // can call multiple times, will skip wait if already used in same frame
-  void wait(uint64_t timeout = ~0ULL);
-
-  // query current cycle index
-  uint32_t getCycleIndex() const { return m_frameCurrent % MAX_RING_FRAMES; }
-  // call once per cycle at end of frame
-  VkFence advanceCycle();
-
-  // the frame that we are currently preparing, changed on "advanceCycle"
-  uint32_t getCurrentFrame() const { return m_frameCurrent; }
-  // the frame that was last completed, changed on "wait"
-  uint32_t getCompletedFrame() const { return m_frameCompleted; }
-  // if you prefer this function name
-  VkFence advanceFrame() { return advanceCycle(); }
-
-  // tests if frameTest was completed, handles wrap-around in frame counters
-  bool hasFrameCompleted(uint32_t frameTest) const {
-    return nvvk::hasFrameCompleted(frameTest, m_frameCompleted);
+  void reset()
+  {
+    VkDevice device   = m_device;
+    uint32_t ringSize = m_cycleSize;
+    deinit();
+    init(device, ringSize);
   }
 
+  // ensures the availability of the passed cycle
+  void setCycleAndWait(uint32_t cycle);
+  // get current cycle fence
+  VkFence getFence();
+
+  // query current cycle index
+  uint32_t getCycleIndex() const { return m_cycleIndex; }
+  uint32_t getCycleSize() const { return m_cycleSize; }
+
 private:
-  uint32_t m_frameCurrent;
-  uint32_t m_frameCompleted;
-  uint32_t m_waited;
-  VkFence  m_fences[MAX_RING_FRAMES];
-  uint32_t m_fenceFrames[MAX_RING_FRAMES];
-  bool     m_fenceActive[MAX_RING_FRAMES];
-  VkDevice m_device;
+  struct Entry
+  {
+    VkFence fence;
+    bool    active;
+  };
+
+  uint32_t           m_cycleIndex{0};
+  uint32_t           m_cycleSize{0};
+  std::vector<Entry> m_fences;
+  VkDevice           m_device = VK_NULL_HANDLE;
 };
 //--------------------------------------------------------------------------------------------------
 /**
-  ## class nvvk::RingCmdPool
+  ## class nvvk::RingCommandPool
 
   Manages a fixed cycle set of VkCommandBufferPools and
   one-shot command buffers allocated from them.
 
   The usage of multiple command buffer pools also means we get nice allocation
   behavior (linear allocation from frame start to frame end) without fragmentation.
-  If we were using a single command pool, it would fragment easily.
+  If we were using a single command pool over multiple frames, it could fragment easily.
 
-  **Cycle Interface:**  
-  Every cycle a different command buffer pool is used for
-  providing the command buffers. Command buffers are automatically
-  deleted after a full cycle (MAX_RING_FRAMES) has been completed.
-  You must use the "setCycle" function.
-
-  **Frame Interface:**  
-  Alternatively provide the frame number and a ready-to-use cycle is found 
-  through the "setFrame" function. We release all resources that were marked
-  as completed. This allows more graceful use of the pool, as you don't need
-  to keep cycles in lock-step with the master.
+  You must ensure cycle is available manually, typically by keeping in sync
+  with ring fences.
 
   Example:
 
   ~~~ C++
   {
-    // wait until we can use the new cycle (normally we never have to wait)
-    ringFences.wait();
+    frame++;
 
-  #if CYCLE_INTERFACE
-    // use cycle interface, keeps cycles in lockstep
-    ringPool.setCycle( ringFences.getCycleIndex() )
-  #elif FRAME_INTERFACE
-    // use frame interface, doesn't rely on cycle index
-    ringPool.setFrame( ringFences.getCurrentFrame(), ringFences.getCompletedFrame() )
-  #endif
+    // wait until we can use the new cycle 
+    // (very rare if we use the fence at then end once per-frame)
+    ringFences.setCycleAndWait( frame );
 
-    VkCommandBuffer cmd = ringPool.createCommandBuffer(...)
+    // update cycle state, allows recycling of old resources
+    ringPool.setCycle( frame );
+
+    VkCommandBuffer cmd = ringPool.createCommandBuffer(...);
     ... do stuff / submit etc...
 
-    VkFence fence = ringFences.advanceCycle();
+    VkFence fence = ringFences.getFence();
     // use this fence in the submit
-    vkQueueSubmit(...)
+    vkQueueSubmit(...fence..);
   }
   ~~~
 */
 
-class RingCmdPool
+class RingCommandPool
 {
 public:
-  void init(VkDevice device, uint32_t queueFamilyIndex, VkCommandPoolCreateFlags flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
+  RingCommandPool(RingCommandPool const&) = delete;
+  RingCommandPool& operator=(RingCommandPool const&) = delete;
+
+  RingCommandPool(VkDevice                 device,
+                  uint32_t                 queueFamilyIndex,
+                  VkCommandPoolCreateFlags flags    = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
+                  uint32_t                 ringSize = DEFAULT_RING_SIZE)
+  {
+    init(device, queueFamilyIndex, flags, ringSize);
+  }
+  RingCommandPool() {}
+  ~RingCommandPool() { deinit(); }
+
+  void init(VkDevice                 device,
+            uint32_t                 queueFamilyIndex,
+            VkCommandPoolCreateFlags flags    = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
+            uint32_t                 ringSize = DEFAULT_RING_SIZE);
   void deinit();
-  void reset(VkCommandPoolResetFlags flags = 0);
 
-  // call once per cycle prior creating command buffers
+#ifdef VULKAN_HPP
+  void init(vk::Device device, uint32_t queueFamilyIndex, vk::CommandPoolCreateFlags flags, uint32_t ringSize = DEFAULT_RING_SIZE)
+  {
+    init(device, queueFamilyIndex, (VkCommandPoolCreateFlags)flags, ringSize);
+  }
+  RingCommandPool(vk::Device device, uint32_t queueFamilyIndex, vk::CommandPoolCreateFlags flags, uint32_t ringSize = DEFAULT_RING_SIZE)
+  {
+    init(device, queueFamilyIndex, (VkCommandPoolCreateFlags)flags, ringSize);
+  }
+#endif
+
+  void reset()
+  {
+    VkDevice                 device           = m_device;
+    VkCommandPoolCreateFlags flags            = m_flags;
+    uint32_t                 queueFamilyIndex = m_familyIndex;
+    uint32_t                 ringSize         = m_cycleSize;
+    deinit();
+    init(device, queueFamilyIndex, flags, ringSize);
+  }
+
+  // call when cycle has changed, prior creating command buffers
   // resets old pools etc.
-  void setCycle(uint32_t cycleIndex);
+  void setCycle(uint32_t cycle);
 
-  // alternative interface, don't mix with setCycle
-  // call once per frame prior creating command buffers
-  // resets old pools etc.
-  void setFrame(uint32_t frameCurrent, uint32_t frameCompleted);
-
-  // ensure proper cycle is set prior this
-  VkCommandBuffer createCommandBuffer(VkCommandBufferLevel level);
-
-  VkCommandBuffer createAndBegin(VkCommandBufferLevel            level            = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-                                 VkCommandBufferInheritanceInfo* pInheritanceInfo = nullptr,
-                                 VkCommandBufferUsageFlags       flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+  // ensure proper cycle or frame is set prior these
+  VkCommandBuffer createCommandBuffer(VkCommandBufferLevel      level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+                                      bool                      begin = true,
+                                      VkCommandBufferUsageFlags flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+                                      const VkCommandBufferInheritanceInfo* pInheritanceInfo = nullptr);
 
   // pointer is only valid until next create
   const VkCommandBuffer* createCommandBuffers(VkCommandBufferLevel level, uint32_t count);
 
-private:
-  struct Cycle
+#ifdef VULKAN_HPP
+  // ensure proper cycle is set prior this
+  VkCommandBuffer createCommandBuffer(vk::CommandBufferLevel      level,
+                                      bool                        begin = true,
+                                      vk::CommandBufferUsageFlags flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit,
+                                      const vk::CommandBufferInheritanceInfo* pInheritanceInfo = nullptr)
+  {
+    return createCommandBuffer((VkCommandBufferLevel)level, begin, (VkCommandBufferUsageFlags)flags,
+                               (const VkCommandBufferInheritanceInfo*)pInheritanceInfo);
+  }
+
+  // pointer is only valid until next create
+  const vk::CommandBuffer* createCommandBuffers(vk::CommandBufferLevel level, uint32_t count)
+  {
+    return (const vk::CommandBuffer*)createCommandBuffers((VkCommandBufferLevel)level, count);
+  }
+#endif
+
+
+protected:
+  struct Entry
   {
     VkCommandPool                pool;
     std::vector<VkCommandBuffer> cmds;
-    uint32_t                     frameUsed;
   };
 
-  uint32_t m_index;
-  Cycle    m_cycles[MAX_RING_FRAMES];
-  VkDevice m_device;
-  uint32_t m_frameCurrent;
+  uint32_t                 m_cycleIndex{0};
+  uint32_t                 m_cycleSize{0};
+  std::vector<Entry>       m_pools;
+  VkDevice                 m_device = VK_NULL_HANDLE;
+  VkCommandPoolCreateFlags m_flags{0};
+  uint32_t                 m_familyIndex{0};
 };
-
 
 //--------------------------------------------------------------------------------------------------
 /**
@@ -380,8 +459,9 @@ private:
   Batches the submission arguments of VkSubmitInfo for VkQueueSubmit.
 
   vkQueueSubmit is a rather costly operation (depending on OS)
-  and should be avoided to be done too often (< 10). Therefore this utility
-  class allows adding commandbuffers, semaphores etc. and submit in a batch.
+  and should be avoided to be done too often (e.g. < 10 per frame). Therefore 
+  this utility class allows adding commandbuffers, semaphores etc. and
+  submit them later in a batch.
 
   When using manual locks, it can also be useful to feed commandbuffers
   from different threads and then later kick it off.
@@ -393,7 +473,7 @@ private:
     {
       semTransfer = handleUpload(...);
       // for example trigger async upload on transfer queue here
-      vkQueueSubmit(..);
+      vkQueueSubmit(... semTransfer ...);
 
       // tell next frame's batch submission 
       // that its commandbuffers should wait for transfer
@@ -409,7 +489,7 @@ private:
 
     // within drawing logic
     {
-      // enqeue some graphics work for submission
+      // enqueue some graphics work for submission
       graphicsSubmission.enqueue(getSceneCmdBuffer());
       graphicsSubmission.enqueue(getUiCmdBuffer());
 
@@ -428,6 +508,12 @@ private:
   std::vector<VkCommandBuffer>      m_commands;
 
 public:
+  BatchSubmission(BatchSubmission const&) = delete;
+  BatchSubmission& operator=(BatchSubmission const&) = delete;
+
+  BatchSubmission() {}
+  BatchSubmission(VkQueue queue) { init(queue); }
+
   uint32_t getCommandBufferCount() const { return uint32_t(m_commands.size()); }
   VkQueue  getQueue() const { return m_queue; }
 
@@ -438,10 +524,161 @@ public:
   void enqueue(VkCommandBuffer cmdbuffer);
   void enqueueSignal(VkSemaphore sem);
   void enqueueWait(VkSemaphore sem, VkPipelineStageFlags flag);
+#ifdef VULKAN_HPP
+  void enqueue(uint32_t num, const vk::CommandBuffer* cmdbuffers) { enqueue(num, (const VkCommandBuffer*)cmdbuffers); }
+  void enqueueWait(vk::Semaphore sem, vk::PipelineStageFlags flag) { enqueueWait(sem, (VkPipelineStageFlags)flag); }
+#endif
 
   // submits the work and resets internal state
   VkResult execute(VkFence fence = nullptr, uint32_t deviceMask = 0);
 
   void waitIdle() const { vkQueueWaitIdle(m_queue); }
 };
+
+//////////////////////////////////////////////////////////////////////////
+/**
+  # class nvvk::FencedCommandPools
+
+  This container class contains the typical utilities to handle
+  command submission. It contains RingFences, RingCommandPool and BatchSubmission
+  with a convenient interface.
+
+*/
+class FencedCommandPools : private RingFences, private RingCommandPool, private BatchSubmission
+{
+public:
+  FencedCommandPools(FencedCommandPools const&) = delete;
+  FencedCommandPools& operator=(FencedCommandPools const&) = delete;
+
+  FencedCommandPools() {}
+  ~FencedCommandPools() { deinit(); }
+
+  FencedCommandPools(VkDevice                 device,
+                     VkQueue                  queue,
+                     uint32_t                 queueFamilyIndex,
+                     VkCommandPoolCreateFlags flags    = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
+                     uint32_t                 ringSize = DEFAULT_RING_SIZE)
+  {
+    init(device, queue, queueFamilyIndex, flags, ringSize);
+  }
+
+  void init(VkDevice                 device,
+            VkQueue                  queue,
+            uint32_t                 queueFamilyIndex,
+            VkCommandPoolCreateFlags flags    = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
+            uint32_t                 ringSize = DEFAULT_RING_SIZE)
+  {
+    RingFences::init(device, ringSize);
+    RingCommandPool::init(device, queueFamilyIndex, flags, ringSize);
+    BatchSubmission::init(queue);
+  }
+#ifdef VULKAN_HPP
+  FencedCommandPools(vk::Device device, vk::Queue queue, uint32_t queueFamilyIndex, vk::CommandPoolCreateFlags flags, uint32_t ringSize = DEFAULT_RING_SIZE)
+  {
+    init(device, queue, queueFamilyIndex, (VkCommandPoolCreateFlags)flags, ringSize);
+  }
+  void init(vk::Device device, vk::Queue queue, uint32_t queueFamilyIndex, vk::CommandPoolCreateFlags flags, uint32_t ringSize = DEFAULT_RING_SIZE)
+  {
+    init(device, queue, queueFamilyIndex, (VkCommandPoolCreateFlags)flags, ringSize);
+  }
+#endif
+
+  void deinit()
+  {
+    RingFences::deinit();
+    RingCommandPool::deinit();
+    //BatchSubmission::deinit();
+  }
+
+  void reset()
+  {
+    waitIdle();
+    RingFences::reset();
+    RingCommandPool::reset();
+  }
+
+  void enqueue(uint32_t num, const VkCommandBuffer* cmdbuffers) { BatchSubmission::enqueue(num, cmdbuffers); }
+  void enqueue(VkCommandBuffer cmdbuffer) { BatchSubmission::enqueue(cmdbuffer); }
+  void enqueueSignal(VkSemaphore sem) { BatchSubmission::enqueueSignal(sem); }
+  void enqueueWait(VkSemaphore sem, VkPipelineStageFlags flag) { BatchSubmission::enqueueWait(sem, flag); }
+#ifdef VULKAN_HPP
+  void enqueue(uint32_t num, const vk::CommandBuffer* cmdbuffers)
+  {
+    BatchSubmission::enqueue(num, (const VkCommandBuffer*)cmdbuffers);
+  }
+  void enqueueWait(vk::Semaphore sem, vk::PipelineStageFlags flag)
+  {
+    BatchSubmission::enqueueWait(sem, (VkPipelineStageFlags)flag);
+  }
+#endif
+  VkResult execute(uint32_t deviceMask = 0) { return BatchSubmission::execute(getFence(), deviceMask); }
+
+  void waitIdle() const { BatchSubmission::waitIdle(); }
+
+  void setCycleAndWait(uint32_t cycle)
+  {
+    RingFences::setCycleAndWait(cycle);
+    RingCommandPool::setCycle(cycle);
+  }
+
+  // ensure proper cycle is set prior this
+  VkCommandBuffer createCommandBuffer(VkCommandBufferLevel      level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+                                      bool                      begin = true,
+                                      VkCommandBufferUsageFlags flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+                                      const VkCommandBufferInheritanceInfo* pInheritanceInfo = nullptr)
+  {
+    return RingCommandPool::createCommandBuffer(level, begin, flags, pInheritanceInfo);
+  }
+
+  // pointer is only valid until next create
+  const VkCommandBuffer* createCommandBuffers(VkCommandBufferLevel level, uint32_t count)
+  {
+    return RingCommandPool::createCommandBuffers(level, count);
+  }
+
+#ifdef VULKAN_HPP
+  // ensure proper cycle is set prior this
+  VkCommandBuffer createCommandBuffer(vk::CommandBufferLevel      level,
+                                      bool                        begin = true,
+                                      vk::CommandBufferUsageFlags flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit,
+                                      const vk::CommandBufferInheritanceInfo* pInheritanceInfo = nullptr)
+  {
+    return RingCommandPool::createCommandBuffer((VkCommandBufferLevel)level, begin, (VkCommandBufferUsageFlags)flags,
+                                                (const VkCommandBufferInheritanceInfo*)pInheritanceInfo);
+  }
+
+  // pointer is only valid until next create
+  const vk::CommandBuffer* createCommandBuffers(vk::CommandBufferLevel level, uint32_t count)
+  {
+    return (const vk::CommandBuffer*)createCommandBuffers((VkCommandBufferLevel)level, count);
+  }
+#endif
+
+
+  struct ScopedCmd
+  {
+    FencedCommandPools* pCmdPools;
+    VkCommandBuffer     cmd;
+
+    ScopedCmd(FencedCommandPools& cp)
+    {
+      pCmdPools = &cp;
+      cmd       = cp.createCommandBuffer();
+    }
+    ~ScopedCmd()
+    {
+      vkEndCommandBuffer(cmd);
+      pCmdPools->enqueue(cmd);
+      pCmdPools->execute();
+      pCmdPools->waitIdle();
+    }
+
+    operator VkCommandBuffer() { return cmd; }
+#ifdef VULKAN_HPP
+    operator vk::CommandBuffer() const { return (vk::CommandBuffer)cmd; };
+#endif
+  };
+};
+
+
 }  // namespace nvvk

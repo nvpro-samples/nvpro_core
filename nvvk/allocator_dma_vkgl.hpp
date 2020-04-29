@@ -76,13 +76,23 @@ struct ImageDmaGL
 class AllocatorDmaGL
 {
 public:
+  AllocatorDmaGL(AllocatorDmaGL const&) = delete;
+  AllocatorDmaGL& operator=(AllocatorDmaGL const&) = delete;
+
+  AllocatorDmaGL() = default;
+
   //--------------------------------------------------------------------------------------------------
   // Initialization of the allocator
-  void init(VkDevice device, nvvk::DeviceMemoryAllocatorGL& allocator, nvvk::StagingMemoryManager& staging)
+  void init(VkDevice device, VkPhysicalDevice physicalDevice, nvvk::DeviceMemoryAllocatorGL* allocator, VkDeviceSize stagingBlockSize = NVVK_DEFAULT_STAGING_BLOCKSIZE)
   {
     m_device    = device;
-    m_allocator = &allocator;
-    m_staging   = &staging;
+    m_allocator = allocator;
+    m_staging.init(device, physicalDevice, stagingBlockSize);
+  }
+
+  void deinit()
+  {
+    m_staging.deinit();
   }
 
   // sets memory priority for VK_EXT_memory_priority
@@ -141,9 +151,16 @@ public:
   //--------------------------------------------------------------------------------------------------
   // implicit staging operations triggered by create are managed here
 
-  StagingID finalizeStaging(VkFence fence = VK_NULL_HANDLE) { return m_staging->finalizeCmds(fence); }
-  void      releaseStaging(StagingID stagingID) {m_staging->release(stagingID);}
-  void      tryReleaseFencedStaging() {m_staging->tryReleaseFenced();}
+  void finalizeStaging(VkFence fence = VK_NULL_HANDLE) { m_staging.finalizeResources(fence); }
+  void finalizeAndReleaseStaging(VkFence fence = VK_NULL_HANDLE)
+  {
+    m_staging.finalizeResources(fence);
+    m_staging.releaseResources();
+  }
+  void releaseStaging() { m_staging.releaseResources(); }
+
+  StagingMemoryManager&       getStaging() { return m_staging; }
+  const StagingMemoryManager& getStaging() const { return m_staging; }
 
   //--------------------------------------------------------------------------------------------------
   // Destroy
@@ -160,9 +177,9 @@ public:
 
 
 private:
-  VkDevice                 m_device;
-  DeviceMemoryAllocatorGL* m_allocator;
-  StagingMemoryManager*    m_staging;
+  VkDevice                       m_device;
+  nvvk::DeviceMemoryAllocatorGL* m_allocator;
+  nvvk::StagingMemoryManager     m_staging;
 };
 
 }  // namespace nvvk

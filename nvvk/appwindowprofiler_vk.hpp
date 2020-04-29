@@ -43,6 +43,8 @@ namespace nvvk {
 
   AppWindowProfilerVK derives from nvh::AppWindowProfiler
   and overrides the context and swapbuffer functions.
+  The nvh class itself provides several utilities and 
+  command line options to run automated benchmarks etc.
   
   To influence the vulkan instance/device creation modify 
   `m_contextInfo` prior running AppWindowProfiler::run,

@@ -44,7 +44,7 @@ nvvk::BufferDmaGL AllocatorDmaGL::createBuffer(VkCommandBuffer       cmd,
   BufferDmaGL resultBuffer = createBuffer(size, usage, memProps);
   if(data)
   {
-    m_staging->cmdToBuffer(cmd, resultBuffer.buffer, 0, size, data);
+    m_staging.cmdToBuffer(cmd, resultBuffer.buffer, 0, size, data);
   }
 
   return resultBuffer;
@@ -88,22 +88,22 @@ nvvk::ImageDmaGL AllocatorDmaGL::createImage(VkCommandBuffer          cmd,
   // Copy the data to staging buffer than to image
   if(data != nullptr)
   {
-    nvvk::cmdTransitionImage(cmd, resultImage.image, info.format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    nvvk::cmdBarrierImageLayout(cmd, resultImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
     VkOffset3D               offset      = {0};
     VkImageSubresourceLayers subresource = {0};
     subresource.aspectMask               = VK_IMAGE_ASPECT_COLOR_BIT;
     subresource.layerCount               = 1;
 
-    m_staging->cmdToImage(cmd, resultImage.image, offset, info.extent, subresource, size, data);
+    m_staging.cmdToImage(cmd, resultImage.image, offset, info.extent, subresource, size, data);
 
     // Setting final image layout
-    nvvk::cmdTransitionImage(cmd, resultImage.image, info.format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, layout);
+    nvvk::cmdBarrierImageLayout(cmd, resultImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, layout);
   }
   else
   {
     // Setting final image layout
-    nvvk::cmdTransitionImage(cmd, resultImage.image, info.format, VK_IMAGE_LAYOUT_UNDEFINED, layout);
+    nvvk::cmdBarrierImageLayout(cmd, resultImage.image, VK_IMAGE_LAYOUT_UNDEFINED, layout);
   }
 
   return resultImage;

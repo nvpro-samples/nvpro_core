@@ -45,4 +45,13 @@ bool checkResult(VkResult result, const char* file, int32_t line);
 #define NVVK_CHECK(result)          nvvk::checkResult(result, __FILE__, __LINE__)
 #endif
 
+#ifdef VULKAN_HPP
+inline bool checkResult(vk::Result result, const char* message = nullptr) {
+  return checkResult((VkResult)result, message);
+}
+inline bool checkResult(vk::Result result, const char* file, int32_t line) {
+  return checkResult((VkResult)result, file, line);
+}
+#endif
+
 }  // namespace nvvk

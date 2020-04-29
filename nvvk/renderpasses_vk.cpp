@@ -70,14 +70,14 @@ VkFormat findDepthStencilFormat(VkPhysicalDevice physicalDevice)
 
 //////////////////////////////////////////////////////////////////////////
 
-VkRenderPass createRenderPass(VkDevice               device,
-                              std::vector<VkFormat>  colorAttachmentFormats,
-                              VkFormat               depthAttachmentFormat,
-                              uint32_t               subpassCount /*= 1*/,
-                              bool                   clearColor /*= true*/,
-                              bool                   clearDepth /*= true*/,
-                              VkImageLayout          initialLayout /*= VK_IMAGE_LAYOUT_UNDEFINED*/,
-                              VkImageLayout          finalLayout /*= VK_IMAGE_LAYOUT_PRESENT_SRC_KHR*/)
+VkRenderPass createRenderPass(VkDevice                     device,
+                              const std::vector<VkFormat>& colorAttachmentFormats,
+                              VkFormat                     depthAttachmentFormat,
+                              uint32_t                     subpassCount /*= 1*/,
+                              bool                         clearColor /*= true*/,
+                              bool                         clearDepth /*= true*/,
+                              VkImageLayout                initialLayout /*= VK_IMAGE_LAYOUT_UNDEFINED*/,
+                              VkImageLayout                finalLayout /*= VK_IMAGE_LAYOUT_PRESENT_SRC_KHR*/)
 {
 
   std::vector<VkAttachmentDescription> allAttachments;

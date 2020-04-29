@@ -1,4 +1,4 @@
-/* Copyright (c) 2014-2019, NVIDIA CORPORATION. All rights reserved.
+/* Copyright (c) 2020, NVIDIA CORPORATION. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,31 +25,91 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-//--------------------------------------------------------------------------------------------------
-/**
- Display an Axis representing the orientation of the camera in the bottom left corner of the window.
- - Initialize the Axis using `init()`
- - Add `display()` in a inline rendering pass, one of the lass command
+#include "gizmos_vk.hpp"
+
+namespace nvvk {
+
+
+// glsl_shader.vert, compiled with:
+// # glslangValidator -o axis.vert.h -V axis.vert -vn s_vert_spv
+/*************************************************
+#version 450 core
+
+layout(push_constant) uniform uPushConstant
+{
+  mat4 transform;
+}
+pc;
+
+out gl_PerVertex
+{
+  vec4 gl_Position;
+};
+
+layout(location = 0) out interpolant
+{
+  vec4 Color;
+} Out;
+
+const float asize = 1.0f;
+const float atip  = 0.2f;
+const float abase = 0.75f;
+
+vec3 arrow_vert[7];
+
+void main()
+{
+  arrow_vert[0] = vec3(asize, 0, 0);
+  arrow_vert[1] = vec3(abase, atip, 0);
+  arrow_vert[2] = vec3(abase, -atip * 0.5f, -atip * 0.87f);
+  arrow_vert[3] = vec3(abase, -atip * 0.5f, atip * 0.87f);
+  arrow_vert[4] = vec3(abase, atip, 0);
+  arrow_vert[5] = vec3(asize, 0, 0);  // To draw the line
+  arrow_vert[6] = vec3(0, 0, 0);      // ...
+
+ vec3 pos = arrow_vert[gl_VertexIndex];
+  //Out.Color = aColor;
+  if(gl_InstanceIndex == 0)
+  {
+    Out.Color   = vec4(1, 0, 0, 1);
+    gl_Position = pc.transform * vec4(pos.xyz, 1);
+  }
+  else if(gl_InstanceIndex == 1)
+  {
+    Out.Color   = vec4(0, 1, 0, 1);
+    gl_Position = pc.transform * vec4(pos.yxz, 1);
+  }
+  else
+  {
+    Out.Color   = vec4(0, 0, 1, 1);
+    gl_Position = pc.transform * vec4(pos.yzx, 1);
+  }
+}
  
- Example:  
- ~~~~~~ C++
- m_axis.display(cmdBuf, CameraManip.getMatrix(), windowSize);
- ~~~~~~ 
-*/
-
-#pragma once
-#include <array>
-#include <nvmath/nvmath.h>
-
-#include <vulkan/vulkan.hpp>
-
-#include <nvmath/nvmath.h>
-#include <nvvkpp/pipeline_vkpp.hpp>  // Using the Pipeline Generator Utility
+*********************/
 
 
-namespace nvvkpp {
+// glsl_shader.frag, compiled with:
+// # glslangValidator -V -x -o glsl_shader.frag.u32 glsl_shader.frag
+/*************************************************
+#version 450 core
+layout(location = 0) out vec4 fColor;
 
-static std::vector<uint32_t> s_vert_spv = {
+
+layout(location = 0) in interpolant
+{
+  vec4 Color;
+} In;
+
+void main()
+{
+  fColor = In.Color;
+}
+
+
+*********************/
+
+static std::vector<uint32_t> s_axis_vert_spv = {
     0x07230203, 0x00010000, 0x00080007, 0x0000006c, 0x00000000, 0x00020011, 0x00000001, 0x0006000b, 0x00000001,
     0x4c534c47, 0x6474732e, 0x3035342e, 0x00000000, 0x0003000e, 0x00000000, 0x00000001, 0x0009000f, 0x00000000,
     0x00000004, 0x6e69616d, 0x00000000, 0x0000002c, 0x00000030, 0x00000039, 0x0000003f, 0x00030003, 0x00000002,
@@ -126,7 +186,7 @@ static std::vector<uint32_t> s_vert_spv = {
     0x00000052, 0x000200f8, 0x00000052, 0x000200f9, 0x00000035, 0x000200f8, 0x00000035, 0x000100fd, 0x00010038};
 
 
-static std::vector<uint32_t> s_frag_spv = {
+static std::vector<uint32_t> s_axis_frag_spv = {
     0x07230203, 0x00010000, 0x00080007, 0x00000012, 0x00000000, 0x00020011, 0x00000001, 0x0006000b, 0x00000001,
     0x4c534c47, 0x6474732e, 0x3035342e, 0x00000000, 0x0003000e, 0x00000000, 0x00000001, 0x0007000f, 0x00000004,
     0x00000004, 0x6e69616d, 0x00000000, 0x00000009, 0x0000000c, 0x00030010, 0x00000004, 0x00000007, 0x00030003,
@@ -142,92 +202,55 @@ static std::vector<uint32_t> s_frag_spv = {
     0x00000010, 0x0000000c, 0x0000000e, 0x0004003d, 0x00000007, 0x00000011, 0x00000010, 0x0003003e, 0x00000009,
     0x00000011, 0x000100fd, 0x00010038};
 
-
-class AxisVK
+void AxisVK::createAxisObject(VkRenderPass renderPass, uint32_t subpass)
 {
-public:
-  void init(const vk::Device& device, const vk::RenderPass& renderPass, uint32_t subpass = 0, float axisSize = 40.f)
-  {
-    m_device   = device;
-    m_axisSize = axisSize;
-    createAxisObject(renderPass, subpass);
-  }
+  // The shader need Push Constants: the transformation matrix
+  const VkPushConstantRange push_constants{VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(nvmath::mat4f)};
 
-  void display(const vk::CommandBuffer& cmdBuf, const nvmath::mat4f& transform, const vk::Extent2D& screenSize)
-  {
-    cmdBuf.bindPipeline(vk::PipelineBindPoint::eGraphics, m_pipelineTriangleFan);
+  VkPipelineLayoutCreateInfo layout_info{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
+  layout_info.pushConstantRangeCount = 1;
+  layout_info.pPushConstantRanges    = &push_constants;
+  vkCreatePipelineLayout(m_device, &layout_info, nullptr, &m_pipelineLayout);
 
-    // Setup viewport:
-    cmdBuf.setViewport(0, {vk::Viewport(0, 0, screenSize.width, screenSize.height, 0, 1)});
-    cmdBuf.setScissor(0, {{{0, 0}, screenSize}});
+  // Creation of the pipeline
+  VkShaderModule smVertex;
+  VkShaderModule smFrag;
 
-    // Set the orthographic matrix in the bottom left corner
-    {
-      const float         pixelW   = m_axisSize / screenSize.width;
-      const float         pixelH   = m_axisSize / screenSize.height;
-      const nvmath::mat4f matOrtho = {pixelW * .8f,  0.0f,          0.0f,  0.0f,  //
-                                      0.0f,          -pixelH * .8f, 0.0f,  0.0f,  //
-                                      0.0f,          0.0f,          -0.1f, 0.0f,  //
-                                      -1.f + pixelW, 1.f - pixelH,  0.5f,  1.0f};
-
-      nvmath::mat4f modelView = transform;
-      modelView.set_translate({0, 0, 0});
-      modelView = matOrtho * modelView;
-      // Push the matrix to the shader
-      cmdBuf.pushConstants<nvmath::mat4f>(m_pipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, modelView);
-    }
-
-    // Draw 3 times the tip of the arrow, the shader is flipping the orientation and setting the color
-    cmdBuf.draw(6, 3, 0, 0);
-    // Now draw the line of the arrow using the last 2 vertex of the buffer (offset 5)
-    cmdBuf.bindPipeline(vk::PipelineBindPoint::eGraphics, m_pipelineLines);
-    cmdBuf.draw(2, 3, 5, 0);
-  }
-
-  void destroy()
-  {
-    m_device.destroyPipeline(m_pipelineTriangleFan);
-    m_device.destroyPipeline(m_pipelineLines);
-    m_device.destroyPipelineLayout(m_pipelineLayout);
-  }
+  VkShaderModuleCreateInfo createInfo{VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
+  createInfo.codeSize = sizeof(uint32_t) * s_axis_vert_spv.size();
+  createInfo.pCode    = reinterpret_cast<const uint32_t*>(s_axis_vert_spv.data());
+  vkCreateShaderModule(m_device, &createInfo, nullptr, &smVertex);
+  createInfo.codeSize = sizeof(uint32_t) * s_axis_frag_spv.size();
+  createInfo.pCode    = reinterpret_cast<const uint32_t*>(s_axis_frag_spv.data());
+  vkCreateShaderModule(m_device, &createInfo, nullptr, &smFrag);
 
 
-private:
-  void createAxisObject(const vk::RenderPass& renderPass, uint32_t subpass)
-  {
-    // The shader need Push Constants: the transformation matrix
-    const vk::PushConstantRange  push_constants(vk::ShaderStageFlagBits::eVertex, 0, sizeof(nvmath::mat4f));
-    vk::PipelineLayoutCreateInfo layout_info;
-    layout_info.setPushConstantRangeCount(1);
-    layout_info.setPPushConstantRanges(&push_constants);
-    m_pipelineLayout = m_device.createPipelineLayout(layout_info);
+  nvvk::GraphicsPipelineState gps;
 
-    // Creation of the pipeline
-    nvvkpp::GraphicsPipelineGenerator gpb(m_device, m_pipelineLayout, renderPass);
-    gpb.addShader(s_vert_spv, vk::ShaderStageFlagBits::eVertex);
-    gpb.addShader(s_frag_spv, vk::ShaderStageFlagBits::eFragment);
-    gpb.inputAssemblyState.setTopology(vk::PrimitiveTopology::eTriangleFan);
-    gpb.depthStencilState = {true};
-    gpb.rasterizationState.setCullMode(vk::CullModeFlagBits::eNone);
-    gpb.subpass = subpass;
+  gps.inputAssemblyState.topology = (VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN);
 
-    // First pipeline is to draw triangle fan
-    m_pipelineTriangleFan = gpb.create();
 
-    // Second pipeline is to draw lines
-    gpb.inputAssemblyState.setTopology(vk::PrimitiveTopology::eLineList);
-    m_pipelineLines = gpb.create();
-  }
+  gps.depthStencilState.depthTestEnable   = true;
+  gps.depthStencilState.stencilTestEnable = false;
+  gps.depthStencilState.depthCompareOp    = VK_COMPARE_OP_LESS_OR_EQUAL;
 
-  vk::Pipeline       m_pipelineTriangleFan = {};
-  vk::Pipeline       m_pipelineLines       = {};
-  vk::PipelineLayout m_pipelineLayout      = {};
-  float              m_axisSize            = 40.f;  // Size in pixel
+  nvvk::GraphicsPipelineGenerator gpg(m_device, m_pipelineLayout, renderPass, gps);
 
-  vk::Device m_device;
-};
+  gpg.addShader(smVertex, VK_SHADER_STAGE_VERTEX_BIT);
+  gpg.addShader(smFrag, VK_SHADER_STAGE_FRAGMENT_BIT);
 
-}  // namespace nvvkpp
+  m_pipelineTriangleFan = gpg.createPipeline();
+
+  gps.inputAssemblyState.topology = (VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN);
+
+  m_pipelineLines = gpg.createPipeline();
+
+
+  vkDestroyShaderModule(m_device, smVertex, nullptr);
+  vkDestroyShaderModule(m_device, smFrag, nullptr);
+}
+
+}  // namespace nvvk
 
 
 // glsl_shader.vert, compiled with:

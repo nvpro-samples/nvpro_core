@@ -29,115 +29,48 @@
 
 namespace nvvk {
 
-  //////////////////////////////////////////////////////////////////////////
-
-VkDescriptorSetLayout createDescriptorSetLayout(VkDevice                            device,
-                                                size_t                              numBindings,
-                                                const VkDescriptorSetLayoutBinding* bindings,
-                                                VkDescriptorSetLayoutCreateFlags    flags /*= 0*/)
-{
-  VkResult                        result;
-  VkDescriptorSetLayoutCreateInfo descriptorSetEntry = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
-  descriptorSetEntry.bindingCount                    = uint32_t(numBindings);
-  descriptorSetEntry.pBindings                       = bindings;
-  descriptorSetEntry.flags                           = flags;
-
-  VkDescriptorSetLayout descriptorSetLayout;
-  result = vkCreateDescriptorSetLayout(device, &descriptorSetEntry, nullptr, &descriptorSetLayout);
-  assert(result == VK_SUCCESS);
-
-  return descriptorSetLayout;
-}
-
-VkDescriptorPool createDescriptorPool(VkDevice device, size_t poolSizeCount, const VkDescriptorPoolSize* poolSizes, uint32_t maxSets)
-{
-  VkResult result;
-
-  VkDescriptorPool           descrPool;
-  VkDescriptorPoolCreateInfo descrPoolInfo = {};
-  descrPoolInfo.sType                      = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-  descrPoolInfo.pNext                      = nullptr;
-  descrPoolInfo.maxSets                    = maxSets;
-  descrPoolInfo.poolSizeCount              = uint32_t(poolSizeCount);
-  descrPoolInfo.pPoolSizes                 = poolSizes;
-
-  // scene pool
-  result = vkCreateDescriptorPool(device, &descrPoolInfo, nullptr, &descrPool);
-  assert(result == VK_SUCCESS);
-  return descrPool;
-}
-
-VkDescriptorSet allocateDescriptorSet(VkDevice device, VkDescriptorPool pool, VkDescriptorSetLayout layout)
-{
-  VkResult                    result;
-  VkDescriptorSetAllocateInfo allocInfo = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
-  allocInfo.descriptorPool              = pool;
-  allocInfo.descriptorSetCount          = 1;
-  allocInfo.pSetLayouts                 = &layout;
-
-  VkDescriptorSet set;
-  result = vkAllocateDescriptorSets(device, &allocInfo, &set);
-  assert(result == VK_SUCCESS);
-  return set;
-}
-
-void allocateDescriptorSets(VkDevice device, VkDescriptorPool pool, VkDescriptorSetLayout layout, uint32_t count, std::vector<VkDescriptorSet>& sets)
-{
-  sets.resize(count);
-  std::vector<VkDescriptorSetLayout> layouts(count, layout);
-
-  VkResult                    result;
-  VkDescriptorSetAllocateInfo allocInfo = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
-  allocInfo.descriptorPool              = pool;
-  allocInfo.descriptorSetCount          = count;
-  allocInfo.pSetLayouts                 = layouts.data();
-
-  result = vkAllocateDescriptorSets(device, &allocInfo, sets.data());
-  assert(result == VK_SUCCESS);
-}
-
 //////////////////////////////////////////////////////////////////////////
 
 void DescriptorSetContainer::init(VkDevice device)
 {
-  m_device    = device;
+  m_device = device;
 }
 
 void DescriptorSetContainer::setBindings(const std::vector<VkDescriptorSetLayoutBinding>& bindings)
 {
-  m_reflection.setBindings(bindings);
+  m_bindings.setBindings(bindings);
 }
 
 void DescriptorSetContainer::addBinding(uint32_t           binding,
-                                         VkDescriptorType   descriptorType,
-                                         uint32_t           descriptorCount,
-                                         VkShaderStageFlags stageFlags,
-                                         const VkSampler*   pImmutableSamplers /*= nullptr*/)
+                                        VkDescriptorType   descriptorType,
+                                        uint32_t           descriptorCount,
+                                        VkShaderStageFlags stageFlags,
+                                        const VkSampler*   pImmutableSamplers /*= nullptr*/)
 {
-  m_reflection.addBinding(binding, descriptorType, descriptorCount, stageFlags, pImmutableSamplers);
+  m_bindings.addBinding(binding, descriptorType, descriptorCount, stageFlags, pImmutableSamplers);
 }
 
 void DescriptorSetContainer::addBinding(VkDescriptorSetLayoutBinding binding)
 {
-  m_reflection.addBinding(binding);
+  m_bindings.addBinding(binding);
 }
 
 VkDescriptorSetLayout DescriptorSetContainer::initLayout(VkDescriptorSetLayoutCreateFlags flags /*= 0*/)
 {
-  m_layout = m_reflection.createLayout(m_device, flags, nullptr);
+  m_layout = m_bindings.createLayout(m_device, flags);
   return m_layout;
 }
 
 VkDescriptorPool DescriptorSetContainer::initPool(uint32_t numAllocatedSets)
 {
-  m_pool = m_reflection.createPool(m_device, numAllocatedSets, nullptr);
+  m_pool = m_bindings.createPool(m_device, numAllocatedSets);
   allocateDescriptorSets(m_device, m_pool, m_layout, numAllocatedSets, m_descriptorSets);
   return m_pool;
 }
 
 VkPipelineLayout DescriptorSetContainer::initPipeLayout(uint32_t                    numRanges /*= 0*/,
-                                            const VkPushConstantRange*  ranges /*= nullptr*/,
-                                            VkPipelineLayoutCreateFlags flags /*= 0*/)
+                                                        const VkPushConstantRange*  ranges /*= nullptr*/,
+                                                        VkPipelineLayoutCreateFlags flags /*= 0*/)
 {
   VkResult                   result;
   VkPipelineLayoutCreateInfo layoutCreateInfo = {VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
@@ -154,7 +87,7 @@ VkPipelineLayout DescriptorSetContainer::initPipeLayout(uint32_t                
 
 void DescriptorSetContainer::deinitPool()
 {
-  if (!m_descriptorSets.empty())
+  if(!m_descriptorSets.empty())
   {
     m_descriptorSets.clear();
   }
@@ -185,107 +118,12 @@ void DescriptorSetContainer::deinit()
 {
   deinitLayout();
   deinitPool();
-}
-
-VkWriteDescriptorSet DescriptorSetContainer::getWrite(uint32_t dstSetIdx, uint32_t dstBinding, const VkDescriptorImageInfo* pImageInfo) const
-{
-  return m_reflection.getWrite(m_descriptorSets[dstSetIdx], dstBinding, pImageInfo);
-}
-
-VkWriteDescriptorSet DescriptorSetContainer::getWrite(uint32_t dstSetIdx, uint32_t dstBinding, const VkDescriptorBufferInfo* pBufferInfo) const
-{
-  return m_reflection.getWrite(m_descriptorSets[dstSetIdx], dstBinding, pBufferInfo);
-}
-
-VkWriteDescriptorSet DescriptorSetContainer::getWrite(uint32_t dstSetIdx, uint32_t dstBinding, const VkBufferView* pTexelBufferView) const
-{
-  return m_reflection.getWrite(m_descriptorSets[dstSetIdx], dstBinding, pTexelBufferView);
-}
-
-VkWriteDescriptorSet DescriptorSetContainer::getWrite(uint32_t dstSetIdx, uint32_t dstBinding, const void* pNext) const
-{
-  return m_reflection.getWrite(m_descriptorSets[dstSetIdx], dstBinding, pNext);
-}
-
-VkWriteDescriptorSet DescriptorSetContainer::getWrite(uint32_t                                           dstSetIdx,
-                                                       uint32_t                                           dstBinding,
-                                                       const VkWriteDescriptorSetAccelerationStructureNV* pAccel) const
-{
-  return m_reflection.getWrite(m_descriptorSets[dstSetIdx], dstBinding, pAccel);
-}
-
-VkWriteDescriptorSet DescriptorSetContainer::getWrite(uint32_t                                         dstSetIdx,
-                                                      uint32_t                                         dstBinding,
-                                                      const VkWriteDescriptorSetInlineUniformBlockEXT* pInline) const
-{
-  return m_reflection.getWrite(m_descriptorSets[dstSetIdx], dstBinding, pInline);
-}
-
-VkWriteDescriptorSet DescriptorSetContainer::getWriteElement(uint32_t                     dstSetIdx,
-                                                              uint32_t                     dstBinding,
-                                                              uint32_t                     arrayElement,
-                                                              const VkDescriptorImageInfo* pImageInfo) const
-{
-  return m_reflection.getWriteElement(m_descriptorSets[dstSetIdx], dstBinding, arrayElement, pImageInfo);
-}
-
-VkWriteDescriptorSet DescriptorSetContainer::getWriteElement(uint32_t            dstSetIdx,
-                                                              uint32_t            dstBinding,
-                                                              uint32_t            arrayElement,
-                                                              const VkBufferView* pTexelBufferView) const
-{
-  return m_reflection.getWriteElement(m_descriptorSets[dstSetIdx], dstBinding, arrayElement, pTexelBufferView);
-}
-
-VkWriteDescriptorSet DescriptorSetContainer::getWriteElement(uint32_t dstSetIdx, uint32_t dstBinding, uint32_t arrayElement, const void* pNext) const
-{
-  return m_reflection.getWriteElement(m_descriptorSets[dstSetIdx], dstBinding, arrayElement, pNext);
-}
-
-VkWriteDescriptorSet DescriptorSetContainer::getWriteElement(uint32_t                      dstSetIdx,
-                                                              uint32_t                      dstBinding,
-                                                              uint32_t                      arrayElement,
-                                                              const VkDescriptorBufferInfo* pBufferInfo) const
-{
-  return m_reflection.getWriteElement(m_descriptorSets[dstSetIdx], dstBinding, arrayElement, pBufferInfo);
-}
-
-VkWriteDescriptorSet DescriptorSetContainer::getWriteElement(uint32_t dstSetIdx,
-                                                              uint32_t dstBinding,
-                                                              uint32_t arrayElement,
-                                                              const VkWriteDescriptorSetAccelerationStructureNV* pAccel) const
-{
-  return m_reflection.getWriteElement(m_descriptorSets[dstSetIdx], dstBinding, arrayElement, pAccel);
-}
-
-VkWriteDescriptorSet DescriptorSetContainer::getWriteElement(uint32_t dstSetIdx,
-                                                              uint32_t dstBinding,
-                                                              uint32_t arrayElement,
-                                                              const VkWriteDescriptorSetInlineUniformBlockEXT* pInline) const
-{
-  return m_reflection.getWriteElement(m_descriptorSets[dstSetIdx], dstBinding, arrayElement, pInline);
+  m_device = nullptr;
 }
 
 //////////////////////////////////////////////////////////////////////////
 
-void DescriptorSetReflection::addBinding(uint32_t binding, VkDescriptorType type, uint32_t count, VkShaderStageFlags stageFlags, const VkSampler* pImmutableSampler)
-{
-  m_bindings.push_back({binding, type, count, stageFlags, pImmutableSampler});
-}
-
-void DescriptorSetReflection::addBinding(VkDescriptorSetLayoutBinding binding)
-{
-  m_bindings.push_back(binding);
-}
-
-void DescriptorSetReflection::setBindings(const std::vector<VkDescriptorSetLayoutBinding>& bindings)
-{
-  m_bindings = bindings;
-}
-
-VkDescriptorSetLayout DescriptorSetReflection::createLayout(VkDevice                         device,
-                                                            VkDescriptorSetLayoutCreateFlags flags,
-                                                            const VkAllocationCallbacks*     pAllocator) const
+VkDescriptorSetLayout DescriptorSetBindings::createLayout(VkDevice device, VkDescriptorSetLayoutCreateFlags flags) const
 {
   VkResult                        result;
   VkDescriptorSetLayoutCreateInfo descriptorSetEntry = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
@@ -294,13 +132,13 @@ VkDescriptorSetLayout DescriptorSetReflection::createLayout(VkDevice            
   descriptorSetEntry.flags                           = flags;
 
   VkDescriptorSetLayout descriptorSetLayout;
-  result = vkCreateDescriptorSetLayout(device, &descriptorSetEntry, pAllocator, &descriptorSetLayout);
+  result = vkCreateDescriptorSetLayout(device, &descriptorSetEntry, nullptr, &descriptorSetLayout);
   assert(result == VK_SUCCESS);
 
   return descriptorSetLayout;
 }
 
-void DescriptorSetReflection::addRequiredPoolSizes(std::vector<VkDescriptorPoolSize>& poolSizes, uint32_t numSets) const 
+void DescriptorSetBindings::addRequiredPoolSizes(std::vector<VkDescriptorPoolSize>& poolSizes, uint32_t numSets) const
 {
   for(auto it = m_bindings.cbegin(); it != m_bindings.cend(); ++it)
   {
@@ -324,9 +162,7 @@ void DescriptorSetReflection::addRequiredPoolSizes(std::vector<VkDescriptorPoolS
   }
 }
 
-VkDescriptorPool DescriptorSetReflection::createPool(VkDevice                     device,
-                                                     uint32_t                     maxSets /*= 1*/,
-                                                     const VkAllocationCallbacks* pAllocator /*= nullptr*/) const
+VkDescriptorPool DescriptorSetBindings::createPool(VkDevice device, uint32_t maxSets /*= 1*/) const
 {
   VkResult result;
 
@@ -343,13 +179,13 @@ VkDescriptorPool DescriptorSetReflection::createPool(VkDevice                   
   descrPoolInfo.pPoolSizes                 = poolSizes.data();
 
   // scene pool
-  result = vkCreateDescriptorPool(device, &descrPoolInfo, pAllocator, &descrPool);
+  result = vkCreateDescriptorPool(device, &descrPoolInfo, nullptr, &descrPool);
   assert(result == VK_SUCCESS);
   return descrPool;
 }
 
 
-VkDescriptorType DescriptorSetReflection::getType(uint32_t binding) const
+VkDescriptorType DescriptorSetBindings::getType(uint32_t binding) const
 {
   for(size_t i = 0; i < m_bindings.size(); i++)
   {
@@ -362,7 +198,7 @@ VkDescriptorType DescriptorSetReflection::getType(uint32_t binding) const
   return VK_DESCRIPTOR_TYPE_MAX_ENUM;
 }
 
-uint32_t DescriptorSetReflection::getCount(uint32_t binding) const
+uint32_t DescriptorSetBindings::getCount(uint32_t binding) const
 {
   for(size_t i = 0; i < m_bindings.size(); i++)
   {
@@ -375,26 +211,7 @@ uint32_t DescriptorSetReflection::getCount(uint32_t binding) const
   return ~0;
 }
 
-VkWriteDescriptorSet DescriptorSetReflection::getWrite(VkDescriptorSet dstSet, uint32_t dstBinding) const
-{
-  VkWriteDescriptorSet writeSet = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
-  writeSet.descriptorType       = VK_DESCRIPTOR_TYPE_MAX_ENUM;
-  for(size_t i = 0; i < m_bindings.size(); i++)
-  {
-    if(m_bindings[i].binding == dstBinding)
-    {
-      writeSet.descriptorCount = m_bindings[i].descriptorCount;
-      writeSet.descriptorType  = m_bindings[i].descriptorType;
-      writeSet.dstBinding      = dstBinding;
-      writeSet.dstSet          = dstSet;
-      return writeSet;
-    }
-  }
-  assert(0 && "binding not found");
-  return writeSet;
-}
-
-VkWriteDescriptorSet DescriptorSetReflection::getWriteElement(VkDescriptorSet dstSet, uint32_t dstBinding, uint32_t arrayElement) const
+VkWriteDescriptorSet DescriptorSetBindings::makeWrite(VkDescriptorSet dstSet, uint32_t dstBinding, uint32_t arrayElement) const
 {
   VkWriteDescriptorSet writeSet = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
   writeSet.descriptorType       = VK_DESCRIPTOR_TYPE_MAX_ENUM;
@@ -414,9 +231,32 @@ VkWriteDescriptorSet DescriptorSetReflection::getWriteElement(VkDescriptorSet ds
   return writeSet;
 }
 
-VkWriteDescriptorSet DescriptorSetReflection::getWrite(VkDescriptorSet dstSet, uint32_t dstBinding, const VkDescriptorImageInfo* pImageInfo) const
+VkWriteDescriptorSet DescriptorSetBindings::makeWriteArray(VkDescriptorSet dstSet, uint32_t dstBinding) const
 {
-  VkWriteDescriptorSet writeSet = getWrite(dstSet, dstBinding);
+  VkWriteDescriptorSet writeSet = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+  writeSet.descriptorType       = VK_DESCRIPTOR_TYPE_MAX_ENUM;
+  for(size_t i = 0; i < m_bindings.size(); i++)
+  {
+    if(m_bindings[i].binding == dstBinding)
+    {
+      writeSet.descriptorCount = m_bindings[i].descriptorCount;
+      writeSet.descriptorType  = m_bindings[i].descriptorType;
+      writeSet.dstBinding      = dstBinding;
+      writeSet.dstSet          = dstSet;
+      writeSet.dstArrayElement = 0;
+      return writeSet;
+    }
+  }
+  assert(0 && "binding not found");
+  return writeSet;
+}
+
+VkWriteDescriptorSet DescriptorSetBindings::makeWrite(VkDescriptorSet              dstSet,
+                                                      uint32_t                     dstBinding,
+                                                      const VkDescriptorImageInfo* pImageInfo,
+                                                      uint32_t                     arrayElement) const
+{
+  VkWriteDescriptorSet writeSet = makeWrite(dstSet, dstBinding, arrayElement);
   assert(writeSet.descriptorType == VK_DESCRIPTOR_TYPE_SAMPLER || writeSet.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
          || writeSet.descriptorType == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE || writeSet.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE
          || writeSet.descriptorType == VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT);
@@ -425,9 +265,12 @@ VkWriteDescriptorSet DescriptorSetReflection::getWrite(VkDescriptorSet dstSet, u
   return writeSet;
 }
 
-VkWriteDescriptorSet DescriptorSetReflection::getWrite(VkDescriptorSet dstSet, uint32_t dstBinding, const VkDescriptorBufferInfo* pBufferInfo) const
+VkWriteDescriptorSet DescriptorSetBindings::makeWrite(VkDescriptorSet               dstSet,
+                                                      uint32_t                      dstBinding,
+                                                      const VkDescriptorBufferInfo* pBufferInfo,
+                                                      uint32_t                      arrayElement) const
 {
-  VkWriteDescriptorSet writeSet = getWrite(dstSet, dstBinding);
+  VkWriteDescriptorSet writeSet = makeWrite(dstSet, dstBinding, arrayElement);
   assert(writeSet.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER || writeSet.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC
          || writeSet.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER
          || writeSet.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC);
@@ -436,52 +279,48 @@ VkWriteDescriptorSet DescriptorSetReflection::getWrite(VkDescriptorSet dstSet, u
   return writeSet;
 }
 
-VkWriteDescriptorSet DescriptorSetReflection::getWrite(VkDescriptorSet dstSet, uint32_t dstBinding, const VkBufferView* pTexelBufferView) const
+VkWriteDescriptorSet DescriptorSetBindings::makeWrite(VkDescriptorSet     dstSet,
+                                                      uint32_t            dstBinding,
+                                                      const VkBufferView* pTexelBufferView,
+                                                      uint32_t            arrayElement) const
 {
-  VkWriteDescriptorSet writeSet = getWrite(dstSet, dstBinding);
-  assert(writeSet.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER);
+  VkWriteDescriptorSet writeSet = makeWrite(dstSet, dstBinding, arrayElement);
+  assert(writeSet.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER
+         || writeSet.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER);
 
   writeSet.pTexelBufferView = pTexelBufferView;
   return writeSet;
 }
 
-VkWriteDescriptorSet DescriptorSetReflection::getWrite(VkDescriptorSet dstSet, uint32_t dstBinding, const void* pNext) const
+VkWriteDescriptorSet DescriptorSetBindings::makeWrite(VkDescriptorSet                                    dstSet,
+                                                      uint32_t                                           dstBinding,
+                                                      const VkWriteDescriptorSetAccelerationStructureNV* pAccel,
+                                                      uint32_t arrayElement) const
 {
-  VkWriteDescriptorSet writeSet = getWrite(dstSet, dstBinding);
-  assert(writeSet.descriptorType != VK_DESCRIPTOR_TYPE_MAX_ENUM);
-
-  writeSet.pNext = pNext;
-  return writeSet;
-}
-
-VkWriteDescriptorSet DescriptorSetReflection::getWrite(VkDescriptorSet                                    dstSet,
-                                                       uint32_t                                           dstBinding,
-                                                       const VkWriteDescriptorSetAccelerationStructureNV* pAccel) const
-{
-  VkWriteDescriptorSet writeSet = getWrite(dstSet, dstBinding);
+  VkWriteDescriptorSet writeSet = makeWrite(dstSet, dstBinding);
   assert(writeSet.descriptorType == VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV);
 
   writeSet.pNext = pAccel;
   return writeSet;
 }
 
-VkWriteDescriptorSet DescriptorSetReflection::getWrite(VkDescriptorSet                                  dstSet,
-                                                       uint32_t                                         dstBinding,
-                                                       const VkWriteDescriptorSetInlineUniformBlockEXT* pInline) const
+VkWriteDescriptorSet DescriptorSetBindings::makeWrite(VkDescriptorSet                                  dstSet,
+                                                      uint32_t                                         dstBinding,
+                                                      const VkWriteDescriptorSetInlineUniformBlockEXT* pInline,
+                                                      uint32_t arrayElement) const
 {
-  VkWriteDescriptorSet writeSet = getWrite(dstSet, dstBinding);
+  VkWriteDescriptorSet writeSet = makeWrite(dstSet, dstBinding);
   assert(writeSet.descriptorType == VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK_EXT);
 
   writeSet.pNext = pInline;
   return writeSet;
 }
 
-VkWriteDescriptorSet DescriptorSetReflection::getWriteElement(VkDescriptorSet              dstSet,
-                                                              uint32_t                     dstBinding,
-                                                              uint32_t                     arrayElement,
-                                                              const VkDescriptorImageInfo* pImageInfo) const
+VkWriteDescriptorSet DescriptorSetBindings::makeWriteArray(VkDescriptorSet              dstSet,
+                                                           uint32_t                     dstBinding,
+                                                           const VkDescriptorImageInfo* pImageInfo) const
 {
-  VkWriteDescriptorSet writeSet = getWriteElement(dstSet, dstBinding, arrayElement);
+  VkWriteDescriptorSet writeSet = makeWriteArray(dstSet, dstBinding);
   assert(writeSet.descriptorType == VK_DESCRIPTOR_TYPE_SAMPLER || writeSet.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
          || writeSet.descriptorType == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE || writeSet.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE
          || writeSet.descriptorType == VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT);
@@ -490,12 +329,11 @@ VkWriteDescriptorSet DescriptorSetReflection::getWriteElement(VkDescriptorSet   
   return writeSet;
 }
 
-VkWriteDescriptorSet DescriptorSetReflection::getWriteElement(VkDescriptorSet               dstSet,
-                                                              uint32_t                      dstBinding,
-                                                              uint32_t                      arrayElement,
-                                                              const VkDescriptorBufferInfo* pBufferInfo) const
+VkWriteDescriptorSet DescriptorSetBindings::makeWriteArray(VkDescriptorSet               dstSet,
+                                                           uint32_t                      dstBinding,
+                                                           const VkDescriptorBufferInfo* pBufferInfo) const
 {
-  VkWriteDescriptorSet writeSet = getWriteElement(dstSet, dstBinding, arrayElement);
+  VkWriteDescriptorSet writeSet = makeWriteArray(dstSet, dstBinding);
   assert(writeSet.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER || writeSet.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC
          || writeSet.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER
          || writeSet.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC);
@@ -504,49 +342,31 @@ VkWriteDescriptorSet DescriptorSetReflection::getWriteElement(VkDescriptorSet   
   return writeSet;
 }
 
-VkWriteDescriptorSet DescriptorSetReflection::getWriteElement(VkDescriptorSet     dstSet,
-                                                              uint32_t            dstBinding,
-                                                              uint32_t            arrayElement,
-                                                              const VkBufferView* pTexelBufferView) const
+VkWriteDescriptorSet DescriptorSetBindings::makeWriteArray(VkDescriptorSet dstSet, uint32_t dstBinding, const VkBufferView* pTexelBufferView) const
 {
-  VkWriteDescriptorSet writeSet = getWriteElement(dstSet, dstBinding, arrayElement);
+  VkWriteDescriptorSet writeSet = makeWriteArray(dstSet, dstBinding);
   assert(writeSet.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER);
 
   writeSet.pTexelBufferView = pTexelBufferView;
   return writeSet;
 }
 
-VkWriteDescriptorSet DescriptorSetReflection::getWriteElement(VkDescriptorSet dstSet,
-                                                              uint32_t        dstBinding,
-                                                              uint32_t        arrayElement,
-                                                              const void*     pNext) const
+VkWriteDescriptorSet DescriptorSetBindings::makeWriteArray(VkDescriptorSet dstSet,
+                                                           uint32_t        dstBinding,
+                                                           const VkWriteDescriptorSetAccelerationStructureNV* pAccel) const
 {
-  VkWriteDescriptorSet writeSet = getWriteElement(dstSet, dstBinding, arrayElement);
-  assert(writeSet.descriptorType == VK_DESCRIPTOR_TYPE_MAX_ENUM);
-
-  writeSet.pNext = pNext;
-  return writeSet;
-}
-
-
-VkWriteDescriptorSet DescriptorSetReflection::getWriteElement(VkDescriptorSet dstSet,
-                                                              uint32_t        dstBinding,
-                                                              uint32_t        arrayElement,
-                                                              const VkWriteDescriptorSetAccelerationStructureNV* pAccel) const
-{
-  VkWriteDescriptorSet writeSet = getWriteElement(dstSet, dstBinding, arrayElement);
+  VkWriteDescriptorSet writeSet = makeWriteArray(dstSet, dstBinding);
   assert(writeSet.descriptorType == VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV);
 
   writeSet.pNext = pAccel;
   return writeSet;
 }
 
-VkWriteDescriptorSet DescriptorSetReflection::getWriteElement(VkDescriptorSet dstSet,
-                                                              uint32_t        dstBinding,
-                                                              uint32_t        arrayElement,
-                                                              const VkWriteDescriptorSetInlineUniformBlockEXT* pInline) const
+VkWriteDescriptorSet DescriptorSetBindings::makeWriteArray(VkDescriptorSet                                  dstSet,
+                                                           uint32_t                                         dstBinding,
+                                                           const VkWriteDescriptorSetInlineUniformBlockEXT* pInline) const
 {
-  VkWriteDescriptorSet writeSet = getWriteElement(dstSet, dstBinding, arrayElement);
+  VkWriteDescriptorSet writeSet = makeWriteArray(dstSet, dstBinding);
   assert(writeSet.descriptorType == VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK_EXT);
 
   writeSet.pNext = pInline;
@@ -558,7 +378,7 @@ VkWriteDescriptorSet DescriptorSetReflection::getWriteElement(VkDescriptorSet ds
 
 static void s_test()
 {
-  TDescriptorSetContainer<1,1> test;
+  TDescriptorSetContainer<1, 1> test;
   test.init(0);
   test.deinit();
 }

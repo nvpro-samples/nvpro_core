@@ -130,6 +130,9 @@ namespace nvgl
     // don't create actual program, treat filename as raw
     bool        m_rawOnly;
 
+    ProgramManager(ProgramManager const&) = delete;
+    ProgramManager& operator=(ProgramManager const&) = delete;
+
     ProgramManager() 
       : m_preprocessOnly(false)
       , m_preferCache(false)

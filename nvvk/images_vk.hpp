@@ -27,26 +27,32 @@
 
 #pragma once
 
-#include <platform.h>
-
-#include <array>
 #include <vulkan/vulkan_core.h>
 
-namespace nvvk {
+#include <algorithm>
+#include <cmath>
 
+namespace nvvk {
 //////////////////////////////////////////////////////////////////////////
 /**
-  # functions in nvvk
+    # functions in nvvk
 
-  - makeImageMemoryBarrier : returns VkImageMemoryBarrier for an image based on provided layouts and access flags.
-  - makeImageMemoryBarrierReversed : returns VkImageMemoryBarrier that revereses the src/dst fields of the provided barrier.
-  - setupImageMemoryBarrier : same as makeImageMemoryBarrier but in-place operation on the reference.
-  - reverseImageMemoryBarrier : same as makeImageMemoryBarrierReversed but in-place operation on the reference.
-  - createImage2D : wraps vkCreateImage for basic 2d images
-  - createImage2DView : wraps vkCreateImageView for basic 2d images
-  - cmdTransitionImage : sets up the VkImageMemoryBarrier for layout transitions and triggers vkCmdPipelineBarrier
-  - cmdBlitImage : wraps vkCmdBlitImage
-*/
+    - makeImageMemoryBarrier : returns VkImageMemoryBarrier for an image based on provided layouts and access flags.
+    - mipLevels : return number of mips for 2d/3d extent
+
+    - accessFlagsForImageLayout : helps resource transtions
+    - pipelineStageForLayout : helps resource transitions
+    - cmdBarrierImageLayout : inserts barrier for image transition
+
+    - cmdGenerateMipmaps : basic mipmap creation for images (meant for one-shot operations)
+
+    - makeImage2DCreateInfo : aids 2d image creation
+    - makeImage3DCreateInfo : aids 3d descriptor set updating
+    - makeImageCubeCreateInfo : aids cube descriptor set updating
+    - makeImageViewCreateInfo : aids common image view creation, derives info from VkImageCreateInfo
+    - makeImage2DViewCreateInfo : aids 2d image view creation
+  */
+
 VkImageMemoryBarrier makeImageMemoryBarrier(VkImage            image,
                                             VkAccessFlags      srcAccess,
                                             VkAccessFlags      dstAccess,
@@ -54,163 +60,140 @@ VkImageMemoryBarrier makeImageMemoryBarrier(VkImage            image,
                                             VkImageLayout      newLayout,
                                             VkImageAspectFlags aspectMask = VK_IMAGE_ASPECT_COLOR_BIT);
 
-VkImageMemoryBarrier makeImageMemoryBarrierReversed(const VkImageMemoryBarrier& barrier);
 
-void setupImageMemoryBarrier(VkImageMemoryBarrier& barrier,
-                             VkImage               image,
-                             VkAccessFlags         srcAccess,
-                             VkAccessFlags         dstAccess,
-                             VkImageLayout         oldLayout,
-                             VkImageLayout         newLayout,
-                             VkImageAspectFlags    aspectMask = VK_IMAGE_ASPECT_COLOR_BIT);
-void reverseImageMemoryBarrier(VkImageMemoryBarrier& barrier);
-
-//////////////////////////////////////////////////////////////////////////
-
-VkImage createImage2D(VkDevice              device,
-                      uint32_t              width,
-                      uint32_t              height,
-                      VkFormat              format,
-                      VkImageUsageFlags     usage      = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-                      uint32_t              levels     = 1,                      
-                      VkSampleCountFlagBits samples    = VK_SAMPLE_COUNT_1_BIT,
-                      VkImageTiling         tiling     = VK_IMAGE_TILING_OPTIMAL,
-                      const void*           pNextImage = nullptr);
-
-VkImageView createImage2DView(VkDevice           device,
-                              VkImage            image,
-                              VkFormat           format,
-                              VkImageAspectFlags aspectFlags    = VK_IMAGE_ASPECT_COLOR_BIT,
-                              uint32_t           levels         = 1,
-                              const void*        pNextImageView = nullptr);
-
-void cmdTransitionImage(VkCommandBuffer commandBuffer,
-                        VkImage         image,
-                        VkFormat        format,
-                        VkImageLayout   oldLayout,
-                        VkImageLayout   newLayout,
-                        uint32_t        baseMipLevel   = 0,
-                        uint32_t        levelCount     = VK_REMAINING_MIP_LEVELS,
-                        uint32_t        baseArrayLayer = 0,
-                        uint32_t        layerCount     = VK_REMAINING_ARRAY_LAYERS,
-                        const void*     pNextBarrier   = nullptr);
-
-void cmdBlitImage(VkCommandBuffer    cmdBuf,
-                  VkImage            imageFrom,
-                  std::array<int, 2> sizeFrom,
-                  VkImage            imageTo,
-                  std::array<int, 2> sizeTo,
-                  VkFilter           filter = VK_FILTER_LINEAR);
-
-//////////////////////////////////////////////////////////////////////////
-/**
-# class DedicatedImage
-
-DedicatedImages have their own dedicated device memory allocation.
-This can be beneficial for render pass attachments.
-
-Also provides utility function setup the initial image layout.
-*/
-class DedicatedImage
+//--------------------------------------------------------------------------------------------------
+inline uint32_t mipLevels(VkExtent2D extent)
 {
-public:
-  VkDevice                     m_device    = {};  // Logical device, help for many operations
-  VkImage                      m_image     = {};  // Vulkan image representation (handle)
-  VkImageView                  m_imageView = {};  // view of the image (optional)
-  VkDeviceMemory               m_memory    = {};  // Device allocation of the image
-  VkFormat                     m_format    = {};  // Format when created
-
-  operator VkImage() const { return m_image; }
-  operator VkImageView() const { return m_imageView; }
-
-  void init(VkDevice                     device,
-            VkPhysicalDevice             physical,
-            const VkImageCreateInfo&     createInfo,
-            VkMemoryPropertyFlags        memoryPropertyFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-            const void*                  pNextMemory         = nullptr);
-
-  void initWithView(VkDevice                     device,
-                    VkPhysicalDevice             physical,
-                    uint32_t                     width,
-                    uint32_t                     height,
-                    uint32_t                     layers,
-                    VkFormat                     format,
-                    VkImageUsageFlags            usage               = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-                    VkImageTiling                tiling              = VK_IMAGE_TILING_OPTIMAL,
-                    VkMemoryPropertyFlags        memoryPropertyFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                    VkSampleCountFlagBits        samples             = VK_SAMPLE_COUNT_1_BIT,
-                    VkImageAspectFlags           aspect              = VK_IMAGE_ASPECT_COLOR_BIT,
-                    const void*                  pNextImage          = nullptr,
-                    const void*                  pNextMemory         = nullptr,
-                    const void*                  pNextImageView      = nullptr);
-
-  void initView(const VkImageCreateInfo& imageInfo, VkImageAspectFlags aspect, VkImageViewType viewType, const void* pNextImageView = nullptr);
-  void deinit();
-
-  void cmdInitialTransition(VkCommandBuffer cmd, VkImageLayout layout, VkAccessFlags access);
-};
-
-//////////////////////////////////////////////////////////////////////////
-
-NV_INLINE VkImageMemoryBarrier makeImageMemoryBarrier(VkImage            img,
-                                                      VkAccessFlags      srcAccess,
-                                                      VkAccessFlags      dstAccess,
-                                                      VkImageLayout      oldLayout,
-                                                      VkImageLayout      newLayout,
-                                                      VkImageAspectFlags aspectMask)
-{
-  VkImageMemoryBarrier barrier        = {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
-  barrier.srcAccessMask               = srcAccess;
-  barrier.dstAccessMask               = dstAccess;
-  barrier.oldLayout                   = oldLayout;
-  barrier.newLayout                   = newLayout;
-  barrier.dstQueueFamilyIndex         = VK_QUEUE_FAMILY_IGNORED;
-  barrier.srcQueueFamilyIndex         = VK_QUEUE_FAMILY_IGNORED;
-  barrier.image                       = img;
-  barrier.subresourceRange            = {0};
-  barrier.subresourceRange.aspectMask = aspectMask;
-  barrier.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
-  barrier.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
-
-  return barrier;
+  return static_cast<uint32_t>(std::floor(std::log2(std::max(extent.width, extent.height)))) + 1;
 }
 
-NV_INLINE VkImageMemoryBarrier makeImageMemoryBarrierReversed(const VkImageMemoryBarrier& barrierIn)
+inline uint32_t mipLevels(VkExtent3D extent)
 {
-  VkImageMemoryBarrier barrier = barrierIn;
-  std::swap(barrier.oldLayout, barrier.newLayout);
-  std::swap(barrier.srcAccessMask, barrier.dstAccessMask);
-  std::swap(barrier.dstQueueFamilyIndex, barrier.srcQueueFamilyIndex);
-  return barrier;
+  return static_cast<uint32_t>(std::floor(std::log2(std::max(extent.width, extent.height)))) + 1;
 }
 
-NV_INLINE void setupImageMemoryBarrier(VkImageMemoryBarrier& barrier,
-                                       VkImage               image,
-                                       VkAccessFlags         srcAccess,
-                                       VkAccessFlags         dstAccess,
-                                       VkImageLayout         oldLayout,
-                                       VkImageLayout         newLayout,
-                                       VkImageAspectFlags    aspectMask /*= VK_IMAGE_ASPECT_COLOR_BIT*/)
+//--------------------------------------------------------------------------------------------------
+// Transition Pipeline Layout tools
+
+VkAccessFlags        accessFlagsForImageLayout(VkImageLayout layout);
+VkPipelineStageFlags pipelineStageForLayout(VkImageLayout layout);
+
+void cmdBarrierImageLayout(VkCommandBuffer                cmdbuffer,
+                           VkImage                        image,
+                           VkImageLayout                  oldImageLayout,
+                           VkImageLayout                  newImageLayout,
+                           const VkImageSubresourceRange& subresourceRange);
+
+void cmdBarrierImageLayout(VkCommandBuffer cmdbuffer, VkImage image, VkImageLayout oldImageLayout, VkImageLayout newImageLayout, VkImageAspectFlags aspectMask);
+
+inline void cmdBarrierImageLayout(VkCommandBuffer cmdbuffer, VkImage image, VkImageLayout oldImageLayout, VkImageLayout newImageLayout)
 {
-  barrier                             = {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
-  barrier.srcAccessMask               = srcAccess;
-  barrier.dstAccessMask               = dstAccess;
-  barrier.oldLayout                   = oldLayout;
-  barrier.newLayout                   = newLayout;
-  barrier.dstQueueFamilyIndex         = VK_QUEUE_FAMILY_IGNORED;
-  barrier.srcQueueFamilyIndex         = VK_QUEUE_FAMILY_IGNORED;
-  barrier.image                       = image;
-  barrier.subresourceRange            = {0};
-  barrier.subresourceRange.aspectMask = aspectMask;
-  barrier.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
-  barrier.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
+  cmdBarrierImageLayout(cmdbuffer, image, oldImageLayout, newImageLayout, VK_IMAGE_ASPECT_COLOR_BIT);
 }
 
-NV_INLINE void reverseImageMemoryBarrier(VkImageMemoryBarrier& barrier)
+
+VkImageCreateInfo makeImage3DCreateInfo(const VkExtent3D& size,
+                                        VkFormat          format  = VK_FORMAT_R8G8B8A8_UNORM,
+                                        VkImageUsageFlags usage   = VK_IMAGE_USAGE_SAMPLED_BIT,
+                                        bool              mipmaps = false);
+
+
+VkImageCreateInfo makeImage2DCreateInfo(const VkExtent2D& size,
+                                        VkFormat          format  = VK_FORMAT_R8G8B8A8_UNORM,
+                                        VkImageUsageFlags usage   = VK_IMAGE_USAGE_SAMPLED_BIT,
+                                        bool              mipmaps = false);
+
+VkImageCreateInfo makeImageCubeCreateInfo(const VkExtent2D& size,
+                                          VkFormat          format  = VK_FORMAT_R8G8B8A8_UNORM,
+                                          VkImageUsageFlags usage   = VK_IMAGE_USAGE_SAMPLED_BIT,
+                                          bool              mipmaps = false);
+
+// derives format and view type from imageInfo, special case for IMAGE_2D to treat as cube
+// view enables all mips and layers
+VkImageViewCreateInfo makeImageViewCreateInfo(VkImage image, const VkImageCreateInfo& imageInfo, bool isCube = false);
+
+
+VkImageViewCreateInfo makeImage2DViewCreateInfo(VkImage            image,
+                                                VkFormat           format         = VK_FORMAT_R8G8B8A8_UNORM,
+                                                VkImageAspectFlags aspectFlags    = VK_IMAGE_ASPECT_COLOR_BIT,
+                                                uint32_t           levels         = VK_REMAINING_MIP_LEVELS,
+                                                const void*        pNextImageView = nullptr);
+
+void cmdGenerateMipmaps(VkCommandBuffer cmdBuf, VkImage image, VkFormat imageFormat, const VkExtent2D& size, uint32_t mipLevels);
+#ifdef VULKAN_HPP
+
+inline void cmdBarrierImageLayout(vk::CommandBuffer                cmdbuffer,
+                                  vk::Image                        image,
+                                  vk::ImageLayout                  oldImageLayout,
+                                  vk::ImageLayout                  newImageLayout,
+                                  const vk::ImageSubresourceRange& subresourceRange)
 {
-  std::swap(barrier.oldLayout, barrier.newLayout);
-  std::swap(barrier.srcAccessMask, barrier.dstAccessMask);
-  std::swap(barrier.dstQueueFamilyIndex, barrier.srcQueueFamilyIndex);
+  cmdBarrierImageLayout(static_cast<VkCommandBuffer>(cmdbuffer), static_cast<VkImage>(image),
+                        static_cast<VkImageLayout>(oldImageLayout), static_cast<VkImageLayout>(newImageLayout),
+                        static_cast<const VkImageSubresourceRange&>(subresourceRange));
 }
+
+inline void cmdBarrierImageLayout(vk::CommandBuffer    cmdbuffer,
+                                  vk::Image            image,
+                                  vk::ImageLayout      oldImageLayout,
+                                  vk::ImageLayout      newImageLayout,
+                                  vk::ImageAspectFlags aspectMask)
+{
+  cmdBarrierImageLayout(static_cast<VkCommandBuffer>(cmdbuffer), static_cast<VkImage>(image),
+                        static_cast<VkImageLayout>(oldImageLayout), static_cast<VkImageLayout>(newImageLayout),
+                        static_cast<VkImageAspectFlags>(aspectMask));
+}
+
+inline void cmdBarrierImageLayout(vk::CommandBuffer cmdbuffer, vk::Image image, vk::ImageLayout oldImageLayout, vk::ImageLayout newImageLayout)
+{
+  cmdBarrierImageLayout(cmdbuffer, image, oldImageLayout, newImageLayout, vk::ImageAspectFlagBits::eColor);
+}
+
+
+inline vk::ImageCreateInfo makeImage2DCreateInfo(vk::Extent2D        size,
+                                                 vk::Format          format  = vk::Format::eR8G8B8A8Unorm,
+                                                 vk::ImageUsageFlags usage   = vk::ImageUsageFlagBits::eSampled,
+                                                 bool                mipmaps = false)
+{
+  return makeImage2DCreateInfo(static_cast<VkExtent2D>(size), static_cast<VkFormat>(format),
+                               static_cast<VkImageUsageFlags>(usage), mipmaps);
+}
+
+inline vk::ImageViewCreateInfo makeImage2DViewCreateInfo(vk::Image            image,
+                                                         vk::Format           format,
+                                                         vk::ImageAspectFlags aspectFlags = vk::ImageAspectFlagBits::eColor,
+                                                         uint32_t             levels      = VK_REMAINING_MIP_LEVELS,
+                                                         const void*          pNextImageView = nullptr)
+{
+  return makeImage2DViewCreateInfo(static_cast<VkImage>(image), static_cast<VkFormat>(format),
+                                   static_cast<VkImageAspectFlags>(aspectFlags), levels, pNextImageView);
+}
+
+inline vk::ImageCreateInfo makeImageCubeCreateInfo(const vk::Extent2D& size,
+                                                   vk::Format          format,
+                                                   vk::ImageUsageFlags usage   = vk::ImageUsageFlagBits::eSampled,
+                                                   bool                mipmaps = false)
+{
+  return makeImageCubeCreateInfo(static_cast<VkExtent2D>(size), static_cast<VkFormat>(format),
+                                 static_cast<VkImageUsageFlags>(usage), mipmaps);
+}
+
+inline void cmdGenerateMipmaps(vk::CommandBuffer cmdBuf, vk::Image image, vk::Format imageFormat, const vk::Extent2D& size, uint32_t mipLevels)
+{
+  cmdGenerateMipmaps(static_cast<VkCommandBuffer>(cmdBuf), static_cast<VkImage>(image),
+                     static_cast<VkFormat>(imageFormat), static_cast<VkExtent2D>(size), mipLevels);
+}
+
+inline vk::ImageCreateInfo makeImage3DCreateInfo(const vk::Extent3D& size,
+                                                 vk::Format          format,
+                                                 vk::ImageUsageFlags usage   = vk::ImageUsageFlagBits::eSampled,
+                                                 bool                mipmaps = false)
+{
+  return makeImage3DCreateInfo(static_cast<VkExtent3D>(size), static_cast<VkFormat>(format),
+                               static_cast<VkImageUsageFlags>(usage), mipmaps);
+}
+
+#endif
+
 
 }  // namespace nvvk

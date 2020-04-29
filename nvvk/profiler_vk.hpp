@@ -53,7 +53,7 @@ namespace nvvk {
   Example:
 
   ``` c++
-  nvv::ProfilerVK profiler;
+  nvvk::ProfilerVK profiler;
   std::string     profilerStats;
 
   profiler.init(device, physicalDevice);
@@ -90,11 +90,10 @@ namespace nvvk {
 
   ```
 */
-  
+
 class ProfilerVK : public nvh::Profiler
 {
 public:
-
   // hostReset usage depends on VK_EXT_host_query_reset
   // mandatory for transfer-only queues
 
@@ -119,10 +118,16 @@ public:
   };
 
   // recurring, must be within beginFrame/endFrame
-  Section timeRecurring(const char* name, VkCommandBuffer cmd, bool hostReset = false) { return Section(*this, name, cmd, false, hostReset); }
+  Section timeRecurring(const char* name, VkCommandBuffer cmd, bool hostReset = false)
+  {
+    return Section(*this, name, cmd, false, hostReset);
+  }
 
   // singleShot, results are available after FRAME_DELAY many endFrame
-  Section timeSingle(const char* name, VkCommandBuffer cmd, bool hostReset = false) { return Section(*this, name, cmd, true, hostReset); }
+  Section timeSingle(const char* name, VkCommandBuffer cmd, bool hostReset = false)
+  {
+    return Section(*this, name, cmd, true, hostReset);
+  }
 
   //////////////////////////////////////////////////////////////////////////
 
@@ -137,6 +142,8 @@ public:
     init(device, physicalDevice);
   }
 
+  ~ProfilerVK() { deinit(); }
+
   void init(VkDevice device, VkPhysicalDevice physicalDevice);
   void deinit();
 
@@ -146,18 +153,20 @@ public:
   SectionID beginSection(const char* name, VkCommandBuffer cmd, bool singleShot = false, bool hostReset = false);
   void      endSection(SectionID slot, VkCommandBuffer cmd);
 
-  bool      getSectionTime(SectionID i, uint32_t queryFrame, double& gpuTime);
+  bool getSectionTime(SectionID i, uint32_t queryFrame, double& gpuTime);
 
 private:
   void resize();
   bool m_useMarkers = false;
+#if 0
+  bool m_useCoreHostReset = false;
+#endif
 
-
-  VkDevice                     m_device        = VK_NULL_HANDLE;
-  VkQueryPool                  m_queryPool     = VK_NULL_HANDLE;
-  uint32_t                     m_queryPoolSize = 0;
-  float                        m_frequency     = 1.0f;
-  uint64_t                     m_queueFamilyMask = ~0;
+  VkDevice    m_device                = VK_NULL_HANDLE;
+  VkQueryPool m_queryPool             = VK_NULL_HANDLE;
+  uint32_t    m_queryPoolSize         = 0;
+  float       m_frequency             = 1.0f;
+  uint64_t    m_queueFamilyMask       = ~0;
   
 };
 }  // namespace nvvk

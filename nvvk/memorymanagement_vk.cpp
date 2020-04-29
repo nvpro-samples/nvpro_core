@@ -109,6 +109,15 @@ nvvk::AllocationID DeviceMemoryAllocator::createID(Allocation& allocation, Block
 
   m_allocations.push_back(info);
 
+#if 0
+  // debug some specific id, useful to track allocation leaks
+  if(info.id.index == 1)
+  {
+    int i = 0;
+    i     = i;
+  }
+#endif
+
   return info.id;
 }
 
@@ -125,6 +134,7 @@ const float DeviceMemoryAllocator::DEFAULT_PRIORITY = 0.5f;
 
 void DeviceMemoryAllocator::init(VkDevice device, VkPhysicalDevice physicalDevice, VkDeviceSize blockSize, VkDeviceSize maxSize)
 {
+  assert(!m_device);
   m_device            = device;
   m_physicalDevice    = physicalDevice;
   m_blockSize         = blockSize;
@@ -160,6 +170,9 @@ void DeviceMemoryAllocator::freeAll()
 
 void DeviceMemoryAllocator::deinit()
 {
+  if(!m_device)
+    return;
+
   for(const auto& it : m_blocks)
   {
     if(it.mapped)
@@ -197,6 +210,7 @@ void DeviceMemoryAllocator::deinit()
 
   m_freeBlockIndex      = INVALID_ID_INDEX;
   m_freeAllocationIndex = INVALID_ID_INDEX;
+  m_device              = VK_NULL_HANDLE;
 }
 
 VkDeviceSize DeviceMemoryAllocator::getMaxAllocationSize() const
@@ -702,24 +716,86 @@ VkAccelerationStructureNV DeviceMemoryAllocator::createAccStructure(const VkAcce
 }
 #endif
 
+
+#if VK_KHR_ray_tracing
+VkAccelerationStructureKHR DeviceMemoryAllocator::createAccStructure(const VkAccelerationStructureCreateInfoKHR& createInfo,
+                                                                     AllocationID&         allocationID,
+                                                                     VkMemoryPropertyFlags memProps,
+                                                                     VkResult&             result)
+{
+  VkAccelerationStructureKHR accel;
+  result = vkCreateAccelerationStructureKHR(m_device, &createInfo, nullptr, &accel);
+  if(result != VK_SUCCESS)
+  {
+    return VK_NULL_HANDLE;
+  }
+
+  VkMemoryRequirements2                            memReqs = {VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2};
+  VkAccelerationStructureMemoryRequirementsInfoKHR memInfo{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_INFO_KHR};
+  memInfo.accelerationStructure = accel;
+  vkGetAccelerationStructureMemoryRequirementsKHR(m_device, &memInfo, &memReqs);
+
+  allocationID = alloc(memReqs.memoryRequirements, memProps, true, m_forceDedicatedAllocation ? DEDICATED_PROXY : nullptr);
+
+  Allocation allocation = allocationID.isValid() ? getAllocation(allocationID) : Allocation();
+
+  if(allocation.mem == VK_NULL_HANDLE)
+  {
+    vkDestroyAccelerationStructureKHR(m_device, accel, nullptr);
+    result = VK_ERROR_OUT_OF_POOL_MEMORY;
+    return VK_NULL_HANDLE;
+  }
+
+  VkBindAccelerationStructureMemoryInfoKHR bind = {VK_STRUCTURE_TYPE_BIND_ACCELERATION_STRUCTURE_MEMORY_INFO_KHR};
+  bind.accelerationStructure                    = accel;
+  bind.memory                                   = allocation.mem;
+  bind.memoryOffset                             = allocation.offset;
+
+  assert(allocation.offset % memReqs.memoryRequirements.alignment == 0);
+
+  result = vkBindAccelerationStructureMemoryKHR(m_device, 1, &bind);
+  if(result != VK_SUCCESS)
+  {
+    vkDestroyAccelerationStructureKHR(m_device, accel, nullptr);
+    free(allocationID);
+    allocationID = AllocationID();
+    return VK_NULL_HANDLE;
+  }
+
+  return accel;
+}
+#endif
+
+
 //////////////////////////////////////////////////////////////////////////
 
 void StagingMemoryManager::init(VkDevice device, VkPhysicalDevice physicalDevice, VkDeviceSize stagingBlockSize /*= 64 * 1024 * 1024*/)
 {
+  assert(!m_device);
   m_device           = device;
   m_physicalDevice   = physicalDevice;
   m_stagingBlockSize = stagingBlockSize;
+  m_memoryTypeIndex  = ~0;
+  m_freeOnRelease    = true;
 
-  assert(m_sets.empty());
-  assert(m_blocks.empty());
+  m_freeStagingIndex = INVALID_ID_INDEX;
+  m_freeBlockIndex   = INVALID_ID_INDEX;
+  m_usedSize         = 0;
+  m_allocatedSize    = 0;
+
+  m_stagingIndex = newStagingIndex();
 }
 
 void StagingMemoryManager::deinit()
 {
+  if(!m_device)
+    return;
+
   free(false);
 
   m_sets.clear();
-  m_freeStagingIndex = INVALID_ID_INDEX;
+  m_blocks.clear();
+  m_device = VK_NULL_HANDLE;
 }
 
 bool StagingMemoryManager::fitsInAllocated(VkDeviceSize size) const
@@ -800,55 +876,44 @@ void* StagingMemoryManager::cmdToBuffer(VkCommandBuffer cmd, VkBuffer buffer, Vk
   return data ? nullptr : (void*)mapping;
 }
 
-StagingID StagingMemoryManager::finalizeCmds(VkFence fence)
+void StagingMemoryManager::finalizeResources(VkFence fence)
 {
-  if(!m_current.isValid())
-  {
-    m_current = createID();
-  }
+  if(m_sets[m_stagingIndex].entries.empty())
+    return;
 
-  StagingID current             = m_current;
-  m_sets[m_current.index].fence = fence;
-
-  m_current.invalidate();
-
-  return current;
+  m_sets[m_stagingIndex].fence = fence;
+  m_stagingIndex               = newStagingIndex();
 }
 
 
 void* StagingMemoryManager::getStagingSpace(VkDeviceSize size, VkBuffer& buffer, VkDeviceSize& offset)
 {
-  if(!m_current.isValid())
-  {
-    m_current = createID();
-  }
-
   uint32_t usedOffset;
   uint32_t usedSize;
   uint32_t usedAligned;
 
-  BlockID id;
+  uint32_t blockIndex = INVALID_ID_INDEX;
 
   for(uint32_t i = 0; i < (uint32_t)m_blocks.size(); i++)
   {
     Block& block = m_blocks[i];
     if(block.buffer && block.range.subAllocate((uint32_t)size, 16, usedOffset, usedAligned, usedSize))
     {
-      id = block.id;
+      blockIndex = block.index;
 
       offset = usedAligned;
       buffer = block.buffer;
     }
   }
 
-  if(id.index == INVALID_ID_INDEX)
+  if(blockIndex == INVALID_ID_INDEX)
   {
     if(m_freeBlockIndex != INVALID_ID_INDEX)
     {
       Block& block     = m_blocks[m_freeBlockIndex];
-      m_freeBlockIndex = block.id.instantiate(m_freeBlockIndex);
+      m_freeBlockIndex = setIndexValue(block.index, m_freeBlockIndex);
 
-      id = block.id;
+      blockIndex = block.index;
     }
     else
     {
@@ -856,16 +921,16 @@ void* StagingMemoryManager::getStagingSpace(VkDeviceSize size, VkBuffer& buffer,
       m_blocks.resize(m_blocks.size() + 1);
       resizeBlocks((uint32_t)m_blocks.size());
       Block& block = m_blocks[newIndex];
-      block.id.instantiate(newIndex);
+      block.index  = newIndex;
 
-      id = block.id;
+      blockIndex = newIndex;
     }
 
-    Block& block = m_blocks[id.index];
+    Block& block = m_blocks[blockIndex];
     block.size   = std::max(m_stagingBlockSize, size);
     block.size   = block.range.alignedSize((uint32_t)block.size);
 
-    VkResult result = allocBlockMemory(id, block.size, true, block);
+    VkResult result = allocBlockMemory(blockIndex, block.size, true, block);
     NVVK_CHECK(result);
 
     m_allocatedSize += block.size;
@@ -879,15 +944,15 @@ void* StagingMemoryManager::getStagingSpace(VkDeviceSize size, VkBuffer& buffer,
 
   // append used space to current staging set list
   m_usedSize += usedSize;
-  m_sets[m_current.index].entries.push_back({id, usedOffset, usedSize});
+  m_sets[m_stagingIndex].entries.push_back({blockIndex, usedOffset, usedSize});
 
-  return m_blocks[id.index].mapping + offset;
+  return m_blocks[blockIndex].mapping + offset;
 }
 
-void StagingMemoryManager::release(StagingID stagingID)
+void StagingMemoryManager::releaseResources(uint32_t stagingID)
 {
-  StagingSet& set = m_sets[stagingID.index];
-  assert(set.id.isEqual(stagingID));
+  StagingSet& set = m_sets[stagingID];
+  assert(set.index == stagingID);
 
   // free used allocation ranges
   for(auto& itentry : set.entries)
@@ -903,23 +968,19 @@ void StagingMemoryManager::release(StagingID stagingID)
     }
   }
   set.entries.clear();
-  set.fence = VK_NULL_HANDLE;
 
-  // setup free-list
-  m_freeStagingIndex = set.id.instantiate(m_freeStagingIndex);
+  // update the set.index with the current head of the free list
+  // pop its old value
+  m_freeStagingIndex = setIndexValue(set.index, m_freeStagingIndex);
 }
 
-void StagingMemoryManager::tryReleaseFenced()
+void StagingMemoryManager::releaseResources()
 {
   for(auto& itset : m_sets)
   {
-    if(itset.fence)
+    if(!itset.entries.empty() && (!itset.fence || vkGetFenceStatus(m_device, itset.fence) == VK_SUCCESS))
     {
-      VkResult result = vkGetFenceStatus(m_device, itset.fence);
-      if(result == VK_SUCCESS)
-      {
-        release(itset.id);
-      }
+      releaseResources(itset.index);
     }
   }
 }
@@ -954,34 +1015,37 @@ void StagingMemoryManager::free(bool unusedOnly)
 void StagingMemoryManager::freeBlock(Block& block)
 {
   m_allocatedSize -= block.size;
-  freeBlockMemory(block.id, block);
+  freeBlockMemory(block.index, block);
   block.memory  = VK_NULL_HANDLE;
   block.buffer  = VK_NULL_HANDLE;
   block.mapping = nullptr;
   block.range.deinit();
-  m_freeBlockIndex = block.id.instantiate(m_freeBlockIndex);
+  // update the block.index with the current head of the free list
+  // pop its old value
+  m_freeBlockIndex = setIndexValue(block.index, m_freeBlockIndex);
 }
 
-StagingID StagingMemoryManager::createID()
+uint32_t StagingMemoryManager::newStagingIndex()
 {
   // find free slot
   if(m_freeStagingIndex != INVALID_ID_INDEX)
   {
-    uint32_t newIndex  = m_freeStagingIndex;
-    m_freeStagingIndex = m_sets[newIndex].id.instantiate(newIndex);
-    return m_sets[newIndex].id;
+    uint32_t newIndex = m_freeStagingIndex;
+    // this updates the free link-list
+    m_freeStagingIndex = setIndexValue(m_sets[newIndex].index, newIndex);
+    return m_sets[newIndex].index;
   }
 
   // otherwise push to end
   StagingSet info;
-  info.id.instantiate((uint32_t)m_sets.size());
+  info.index = (uint32_t)m_sets.size();
 
   m_sets.push_back(info);
 
-  return info.id;
+  return info.index;
 }
 
-VkResult StagingMemoryManager::allocBlockMemory(BlockID id, VkDeviceSize size, bool toDevice, Block& block)
+VkResult StagingMemoryManager::allocBlockMemory(uint32_t index, VkDeviceSize size, bool toDevice, Block& block)
 {
   VkResult           result;
   VkBufferCreateInfo createInfo = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
@@ -1071,7 +1135,7 @@ VkResult StagingMemoryManager::allocBlockMemory(BlockID id, VkDeviceSize size, b
   return result;
 }
 
-void StagingMemoryManager::freeBlockMemory(BlockID id, const Block& block)
+void StagingMemoryManager::freeBlockMemory(uint32_t index, const Block& block)
 {
   vkDestroyBuffer(m_device, block.buffer, nullptr);
   vkUnmapMemory(m_device, block.memory);

@@ -46,13 +46,48 @@ VkFormat findDepthStencilFormat(VkPhysicalDevice physicalDevice);
 
 //////////////////////////////////////////////////////////////////////////
 
-VkRenderPass createRenderPass(VkDevice               device,
-                              std::vector<VkFormat>  colorAttachmentFormats,
-                              VkFormat               depthAttachmentFormat,
-                              uint32_t               subpassCount       = 1,
-                              bool                   clearColor         = true,
-                              bool                   clearDepth         = true,
-                              VkImageLayout          initialLayout      = VK_IMAGE_LAYOUT_UNDEFINED,
-                              VkImageLayout          finalLayout        = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+VkRenderPass createRenderPass(VkDevice                     device,
+                              const std::vector<VkFormat>& colorAttachmentFormats,
+                              VkFormat                     depthAttachmentFormat,
+                              uint32_t                     subpassCount  = 1,
+                              bool                         clearColor    = true,
+                              bool                         clearDepth    = true,
+                              VkImageLayout                initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+                              VkImageLayout                finalLayout   = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+
+
+#ifdef VULKAN_HPP
+inline vk::Format findDepthFormat(vk::PhysicalDevice physicalDevice)
+{
+  return (vk::Format)findDepthFormat((VkPhysicalDevice)physicalDevice);
+}
+
+inline vk::Format findDepthStencilFormat(vk::PhysicalDevice physicalDevice)
+{
+  return (vk::Format)findDepthStencilFormat((VkPhysicalDevice)physicalDevice);
+}
+
+inline vk::Format findSupportedFormat(vk::PhysicalDevice             physicalDevice,
+                                      const std::vector<vk::Format>& candidates,
+                                      vk::ImageTiling                tiling,
+                                      vk::FormatFeatureFlags         features)
+{
+  return (vk::Format)findSupportedFormat((VkPhysicalDevice)physicalDevice, (const std::vector<VkFormat>&)candidates,
+                                         (VkImageTiling)tiling, (VkFormatFeatureFlags)features);
+}
+inline vk::RenderPass createRenderPass(vk::Device                     device,
+                                       const std::vector<vk::Format>& colorAttachmentFormats,
+                                       vk::Format                     depthAttachmentFormat,
+                                       uint32_t                       subpassCount  = 1,
+                                       bool                           clearColor    = true,
+                                       bool                           clearDepth    = true,
+                                       vk::ImageLayout                initialLayout = vk::ImageLayout::eUndefined,
+                                       vk::ImageLayout                finalLayout   = vk::ImageLayout::ePresentSrcKHR)
+{
+  return (vk::RenderPass)createRenderPass((VkDevice)device, (const std::vector<VkFormat>&)colorAttachmentFormats,
+                                          (VkFormat)depthAttachmentFormat, subpassCount, clearColor, clearDepth,
+                                          (VkImageLayout)initialLayout, (VkImageLayout)finalLayout);
+}
+#endif
 
 }  // namespace nvvk

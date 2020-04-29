@@ -156,7 +156,7 @@ inline unsigned int MTRand::randInt() {
         reload();
     --left;
 
-    register unsigned int s1;
+    unsigned int s1;
     s1 = *pNext++;
     s1 ^= (s1 >> 11);
     s1 ^= (s1 << 7) & 0x9d2c5680U;
@@ -235,9 +235,9 @@ inline void MTRand::seed(unsigned int oneSeed) {
  **/
 inline void MTRand::seed(unsigned int bigSeed[], unsigned int seedLength) {
     initialize(19650218UL);
-    register int i(1);
-    register unsigned int j(0);
-    register int k((N > static_cast<int>(seedLength)) ? N : static_cast<int>(seedLength));
+    int i(1);
+    unsigned int j(0);
+    int k((N > static_cast<int>(seedLength)) ? N : static_cast<int>(seedLength));
 
     for ( ; k; --k) {
         state[i] = state[i] ^ ((state[i - 1] ^ (state[i - 1] >> 30)) * 1664525U);
@@ -278,9 +278,9 @@ inline void MTRand::seed(unsigned int bigSeed[], unsigned int seedLength) {
  * Matsumoto.
  **/
 inline void MTRand::initialize(unsigned int seed) {
-    register unsigned int *s(state);
-    register unsigned int *r(state);
-    register int i(1);
+    unsigned int *s(state);
+    unsigned int *r(state);
+    int i(1);
     *s++ = seed & 0xffffffffU;
     for ( ; i < N; ++i) {
         *s++ = (1812433253U * (*r ^ (*r >> 30)) + i) & 0xffffffffU;
@@ -293,8 +293,8 @@ inline void MTRand::initialize(unsigned int seed) {
  * (matthew.bellew@home.com).
  **/
 inline void MTRand::reload() {
-    register unsigned int *p(state);
-    register int i;
+    unsigned int *p(state);
+    int i;
     for (i = N - M; i--; ++p)
         *p = twist(p[M], p[0], p[1]);
     for (i = M; --i; ++p)

@@ -32,19 +32,20 @@
 
 
 #if _DEBUG
-  #include <nvvk/debug_util_vk.hpp>
-  static nvvk::DebugUtil s_debug; 
+#include <nvvk/debug_util_vk.hpp>
+static nvvk::DebugUtil s_debug;
 #endif
 
 namespace nvvk {
 bool SwapChain::init(VkDevice device, VkPhysicalDevice physicalDevice, VkQueue queue, uint32_t queueFamilyIndex, VkSurfaceKHR surface, VkFormat format)
 {
+  assert(!m_device);
   m_device           = device;
   m_physicalDevice   = physicalDevice;
   m_swapchain        = VK_NULL_HANDLE;
   m_queue            = queue;
   m_queueFamilyIndex = queueFamilyIndex;
-  m_changeID      = 0;
+  m_changeID         = 0;
   m_currentSemaphore = 0;
 #if _DEBUG
   s_debug.setup(device);
@@ -120,6 +121,10 @@ void SwapChain::update(int width, int height, bool vsync)
     //demo->height = surfCapabilities.currentExtent.height;
   }
 
+  // test against valid size, typically hit when windows are minimized, the app must
+  // prevent triggering this code accordingly
+  assert(swapchainExtent.width && swapchainExtent.height);
+
   // everyone must support FIFO mode
   VkPresentModeKHR swapchainPresentMode = VK_PRESENT_MODE_FIFO_KHR;
   // no vsync try to find a faster alternative to FIFO
@@ -189,75 +194,57 @@ void SwapChain::update(int width, int height, bool vsync)
   // presentable images once the platform is done with them.
   if(oldSwapchain != VK_NULL_HANDLE)
   {
-    for(size_t i = 0; i < m_swapchainImageViews.size(); i++)
+    for(auto it : m_entries)
     {
-      vkDestroyImageView(m_device, m_swapchainImageViews[i], nullptr);
+      vkDestroyImageView(m_device, it.imageView, nullptr);
+      vkDestroySemaphore(m_device, it.readSemaphore, nullptr);
+      vkDestroySemaphore(m_device, it.writtenSemaphore, nullptr);
     }
     vkDestroySwapchainKHR(m_device, oldSwapchain, nullptr);
   }
 
-  err = vkGetSwapchainImagesKHR(m_device, m_swapchain, &m_swapchainImageCount, nullptr);
+  err = vkGetSwapchainImagesKHR(m_device, m_swapchain, &m_imageCount, nullptr);
   assert(!err);
 
-  m_swapchainImages.resize(m_swapchainImageCount);
+  m_entries.resize(m_imageCount);
+  m_barriers.resize(m_imageCount);
 
-  err = vkGetSwapchainImagesKHR(m_device, m_swapchain, &m_swapchainImageCount, m_swapchainImages.data());
+  std::vector<VkImage> images(m_imageCount);
+
+  err = vkGetSwapchainImagesKHR(m_device, m_swapchain, &m_imageCount, images.data());
   assert(!err);
   //
   // Image views
   //
-  m_swapchainImageViews.resize(m_swapchainImageCount);
-#if _DEBUG
-  m_swapchainImageNames.resize(m_swapchainImageCount * 2, "swapchainImage");
-  m_swapchainImageViewNames.resize(m_swapchainImageCount * 2, "swapchainImageView");
-#endif
-  for(uint32_t i = 0; i < m_swapchainImageCount; i++)
+  for(uint32_t i = 0; i < m_imageCount; i++)
   {
-    VkImageViewCreateInfo ci = {VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-                                NULL,
-                                0,
-                                m_swapchainImages[i],
-                                VK_IMAGE_VIEW_TYPE_2D,
-                                m_surfaceFormat,
-                                {VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A},
-                                {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1}};
-    err                      = vkCreateImageView(m_device, &ci, nullptr, &m_swapchainImageViews[i]);
-#if _DEBUG
-    m_swapchainImageNames[i] += std::to_string(i);
-    s_debug.setObjectName(m_swapchainImages[i], m_swapchainImageNames[i].c_str());
-    m_swapchainImageViewNames[i] += std::to_string(i);
-    s_debug.setObjectName(m_swapchainImageViews[i], m_swapchainImageViewNames[i].c_str());
-#endif
-  }
+    Entry& entry = m_entries[i];
 
+    // image
+    entry.image = images[i];
 
-  bool deleteOld = !m_swapchainSemaphores.empty();
-  m_swapchainSemaphores.resize(m_swapchainImageCount * 2, VK_NULL_HANDLE);
-#if _DEBUG
-  m_swapchainSemaphoreNames.resize(m_swapchainImageCount * 2, "swapchainSemaphore");
-#endif
+    // imageview
+    VkImageViewCreateInfo viewCreateInfo = {VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+                                            NULL,
+                                            0,
+                                            entry.image,
+                                            VK_IMAGE_VIEW_TYPE_2D,
+                                            m_surfaceFormat,
+                                            {VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A},
+                                            {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1}};
 
-  for(uint32_t i = 0; i < m_swapchainImageCount * 2; i++)
-  {
-    VkSemaphoreCreateInfo semCreateInfo = {VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
-    if(deleteOld)
-    {
-      vkDestroySemaphore(m_device, m_swapchainSemaphores[i], nullptr);
-    }
-    err = vkCreateSemaphore(m_device, &semCreateInfo, nullptr, &m_swapchainSemaphores[i]);
-#if _DEBUG
-    if(i & 1)
-      m_swapchainSemaphoreNames[i] = "ActiveWrittenSemaphore_" + std::to_string(i);
-    else
-      m_swapchainSemaphoreNames[i] = "ActiveReadSemaphore_" + std::to_string(i);
-    s_debug.setObjectName(m_swapchainSemaphores[i], m_swapchainSemaphoreNames[i].c_str() );
-#endif
+    err = vkCreateImageView(m_device, &viewCreateInfo, nullptr, &entry.imageView);
     assert(!err);
-  }
 
-  m_swapchainBarriers.resize(m_swapchainImageCount);
-  for(uint32_t i = 0; i < m_swapchainImageCount; i++)
-  {
+    // semaphore
+    VkSemaphoreCreateInfo semCreateInfo = {VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
+
+    err = vkCreateSemaphore(m_device, &semCreateInfo, nullptr, &entry.readSemaphore);
+    assert(!err);
+    err = vkCreateSemaphore(m_device, &semCreateInfo, nullptr, &entry.writtenSemaphore);
+    assert(!err);
+
+    // initial barriers
     VkImageSubresourceRange range = {0};
     range.aspectMask              = VK_IMAGE_ASPECT_COLOR_BIT;
     range.baseMipLevel            = 0;
@@ -271,11 +258,23 @@ void SwapChain::update(int width, int height, bool vsync)
     memBarrier.srcAccessMask        = 0;
     memBarrier.oldLayout            = VK_IMAGE_LAYOUT_UNDEFINED;
     memBarrier.newLayout            = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-    memBarrier.image                = m_swapchainImages[i];
+    memBarrier.image                = entry.image;
     memBarrier.subresourceRange     = range;
 
-    m_swapchainBarriers[i] = memBarrier;
+    m_barriers[i] = memBarrier;
+
+#if _DEBUG
+    entry.debugImageName            = "swapchainImage:" + std::to_string(i);
+    entry.debugImageViewName        = "swapchainImageView:" + std::to_string(i);
+    entry.debugReadSemaphoreName    = "swapchainReadSemaphore:" + std::to_string(i);
+    entry.debugWrittenSemaphoreName = "swapchainWrittenSemaphore:" + std::to_string(i);
+    s_debug.setObjectName(entry.image, entry.debugImageName.c_str());
+    s_debug.setObjectName(entry.imageView, entry.debugImageViewName.c_str());
+    s_debug.setObjectName(entry.readSemaphore, entry.debugReadSemaphoreName.c_str());
+    s_debug.setObjectName(entry.writtenSemaphore, entry.debugWrittenSemaphoreName.c_str());
+#endif
   }
+
 
   m_width  = width;
   m_height = height;
@@ -287,26 +286,30 @@ void SwapChain::update(int width, int height, bool vsync)
 
 void SwapChain::deinitResources()
 {
+  if(!m_device)
+    return;
+
   VkResult result = vkDeviceWaitIdle(m_device);
-  if (nvvk::checkResult(result, __FILE__, __LINE__)) {
+  if(nvvk::checkResult(result, __FILE__, __LINE__))
+  {
     exit(-1);
   }
 
-  for(size_t i = 0; i < m_swapchainImageViews.size(); i++)
+  for(auto it : m_entries)
   {
-    vkDestroyImageView(m_device, m_swapchainImageViews[i], nullptr);
+    vkDestroyImageView(m_device, it.imageView, nullptr);
+    vkDestroySemaphore(m_device, it.readSemaphore, nullptr);
+    vkDestroySemaphore(m_device, it.writtenSemaphore, nullptr);
   }
 
-  vkDestroySwapchainKHR(m_device, m_swapchain, nullptr);
-
-  for(size_t i = 0; i < m_swapchainSemaphores.size(); i++)
+  if(m_swapchain)
   {
-    vkDestroySemaphore(m_device, m_swapchainSemaphores[i], nullptr);
+    vkDestroySwapchainKHR(m_device, m_swapchain, nullptr);
+    m_swapchain = VK_NULL_HANDLE;
   }
 
-  m_swapchain = VK_NULL_HANDLE;
-  m_swapchainSemaphores.clear();
-  m_swapchainBarriers.clear();
+  m_entries.clear();
+  m_barriers.clear();
 }
 
 void SwapChain::deinit()
@@ -316,16 +319,20 @@ void SwapChain::deinit()
   m_physicalDevice = 0;
   m_device         = 0;
   m_surface        = 0;
-  m_changeID    = 0;
+  m_changeID       = 0;
 }
 
 bool SwapChain::acquire()
 {
+  return acquireCustom(getActiveReadSemaphore());
+}
+
+bool SwapChain::acquireCustom(VkSemaphore semaphore)
+{
   // try recreation a few times
   for(int i = 0; i < 2; i++)
   {
-    VkSemaphore semaphore = getActiveReadSemaphore();
-    VkResult    result;
+    VkResult result;
     result = vkAcquireNextImageKHR(m_device, m_swapchain, UINT64_MAX, semaphore, (VkFence)0, &m_currentImage);
 
     if(result == VK_SUCCESS)
@@ -350,88 +357,60 @@ bool SwapChain::acquire()
 
 VkSemaphore SwapChain::getActiveWrittenSemaphore() const
 {
-  return m_swapchainSemaphores[(m_currentSemaphore % m_swapchainImageCount) * 2 + 1];
+  return m_entries[(m_currentSemaphore % m_imageCount)].writtenSemaphore;
 }
 
 VkSemaphore SwapChain::getActiveReadSemaphore() const
 {
-  return m_swapchainSemaphores[(m_currentSemaphore % m_swapchainImageCount) * 2 + 0];
+  return m_entries[(m_currentSemaphore % m_imageCount)].readSemaphore;
 }
 
 VkImage SwapChain::getActiveImage() const
 {
-  return m_swapchainImages[m_currentImage];
+  return m_entries[m_currentImage].image;
 }
 
 VkImageView SwapChain::getActiveImageView() const
 {
-  return m_swapchainImageViews[m_currentImage];
+  return m_entries[m_currentImage].imageView;
 }
 
 VkImage SwapChain::getImage(uint32_t i) const
 {
-  if(i >= m_swapchainImageCount)
+  if(i >= m_imageCount)
     return nullptr;
-  return m_swapchainImages[i];
-}
-
-uint32_t SwapChain::getActiveImageIndex() const
-{
-  return m_currentImage;
+  return m_entries[i].image;
 }
 
 void SwapChain::present(VkQueue queue)
 {
   VkResult         result;
-  VkPresentInfoKHR presentInfo = {VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
-  VkSemaphore      written     = getActiveWrittenSemaphore();
-  presentInfo.swapchainCount   = 1;
-  if(written)
-  {
-    presentInfo.waitSemaphoreCount = 1;
-    presentInfo.pWaitSemaphores    = &written;
-  }
-  presentInfo.pSwapchains   = &m_swapchain;
-  presentInfo.pImageIndices = &m_currentImage;
+  VkPresentInfoKHR presentInfo;
+
+  presentCustom(presentInfo);
 
   result = vkQueuePresentKHR(queue, &presentInfo);
   //assert(result == VK_SUCCESS); // can fail on application exit
+}
+
+void SwapChain::presentCustom(VkPresentInfoKHR& presentInfo)
+{
+  VkSemaphore& written = m_entries[(m_currentSemaphore % m_imageCount)].writtenSemaphore;
+
+  presentInfo                    = {VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
+  presentInfo.swapchainCount     = 1;
+  presentInfo.waitSemaphoreCount = 1;
+  presentInfo.pWaitSemaphores    = &written;
+  presentInfo.pSwapchains        = &m_swapchain;
+  presentInfo.pImageIndices      = &m_currentImage;
 
   m_currentSemaphore++;
-}
-
-VkFormat SwapChain::getFormat() const
-{
-  return m_surfaceFormat;
-}
-
-uint32_t SwapChain::getImageCount() const
-{
-  return m_swapchainImageCount;
 }
 
 void SwapChain::cmdUpdateBarriers(VkCommandBuffer cmd) const
 {
   vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, NULL, 0, NULL,
-                       getImageCount(), getImageMemoryBarriers());
-}
-
-void SwapChain::getActiveBarrier(VkAccessFlags         srcAccess,
-                                 VkAccessFlags         dstAccess,
-                                 VkImageLayout         oldLayout,
-                                 VkImageLayout         newLayout,
-                                 VkImageMemoryBarrier& barrier) const
-{
-  barrier                             = {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
-  barrier.srcAccessMask               = srcAccess;
-  barrier.dstAccessMask               = dstAccess;
-  barrier.oldLayout                   = oldLayout;
-  barrier.newLayout                   = newLayout;
-  barrier.image                       = getActiveImage();
-  barrier.subresourceRange            = {0};
-  barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-  barrier.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
-  barrier.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
+                       m_imageCount, m_barriers.data());
 }
 
 uint32_t SwapChain::getChangeID() const
@@ -439,16 +418,11 @@ uint32_t SwapChain::getChangeID() const
   return m_changeID;
 }
 
-const VkImageMemoryBarrier* SwapChain::getImageMemoryBarriers() const
-{
-  return m_swapchainBarriers.data();
-}
-
 VkImageView SwapChain::getImageView(uint32_t i) const
 {
-  if(i >= m_swapchainImageCount)
+  if(i >= m_imageCount)
     return nullptr;
-  return m_swapchainImageViews[i];
+  return m_entries[i].imageView;
 }
 
 }  // namespace nvvk

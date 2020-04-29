@@ -7,6 +7,7 @@ unset(VULKANSTATIC_LIB CACHE)
 unset(VULKANSDK_FOUND CACHE)
 unset(VULKANSDK_INCLUDE_DIR CACHE)
 unset(VULKANSDK_SHADERC_LIB CACHE)
+unset(VULKANSDK_SHADERC_DLL CACHE)
 unset(GLSLANGVALIDATOR)
 # -------------------------------------------------------------------
 macro ( folder_list result curdir )
@@ -126,7 +127,8 @@ if (VULKANSDK_ROOT_DIR)
 	  #-------- Locate LIBS
     _find_files( VULKAN_LIB VULKANSDK_ROOT_DIR "Lib/vulkan-1.lib" "Lib/vulkan-1.lib" "")
     # _find_files( VULKANSTATIC_LIB VULKANSDK_ROOT_DIR "Lib/VKstatic.1.lib" "Lib/VKstatic.1.lib" "")
-    _find_files( VULKANSDK_SHADERC_LIB VULKANSDK_ROOT_DIR "Lib/shaderc_combined.lib" "Lib/shaderc_combined.lib" "")
+    _find_files( VULKANSDK_SHADERC_LIB VULKANSDK_ROOT_DIR "Lib/shaderc_shared.lib" "Lib/shaderc_shared.lib" "")
+    _find_files( VULKANSDK_SHADERC_DLL VULKANSDK_ROOT_DIR "Bin/shaderc_shared.dll" "Bin/shaderc_shared.dll" "")
     _find_files( GLSLANGVALIDATOR VULKANSDK_ROOT_DIR "bin/glslangValidator.exe" "bin/glslangValidator.exe" "")
     
   endif(WIN32)

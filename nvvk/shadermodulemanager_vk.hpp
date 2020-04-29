@@ -35,7 +35,6 @@
 #include <vulkan/vulkan_core.h>
 
 #if USESHADERC
-#define SHADERC_SHAREDLIB
 #define NV_EXTENSIONS
 #include <shaderc/shaderc.h>
 #undef NV_EXTENSIONS
@@ -129,6 +128,8 @@ public:
   };
 
   void init(VkDevice device, int apiMajor = 1, int apiMinor = 1);
+
+  // also calls deleteShaderModules
   void deinit();
 
   ShaderModuleID createShaderModule(uint32_t           type,
@@ -177,6 +178,10 @@ public:
 
   void setSetupIF(SetupInterface* setupIF);
 
+
+  ShaderModuleManager(ShaderModuleManager const&) = delete;
+  ShaderModuleManager& operator=(ShaderModuleManager const&) = delete;
+
   ShaderModuleManager()
   {
     m_usedSetupIF             = &m_defaultSetupIF;
@@ -207,6 +212,7 @@ public:
 
   ~ShaderModuleManager()
   {
+    deinit();
 #if USESHADERC
     s_shadercCompilerUsers--;
     if(s_shadercCompiler && s_shadercCompilerUsers == 0)

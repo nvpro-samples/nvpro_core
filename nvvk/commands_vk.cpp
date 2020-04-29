@@ -37,50 +37,50 @@ namespace nvvk {
 uint32_t makeAccessMaskPipelineStageFlags(uint32_t accessMask)
 {
   static const uint32_t accessPipes[] = {
-      VK_ACCESS_INDIRECT_COMMAND_READ_BIT,
-      VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT,
-      VK_ACCESS_INDEX_READ_BIT,
-      VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
-      VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT,
-      VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
-      VK_ACCESS_UNIFORM_READ_BIT,
-      VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT | VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT
-          | VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-      VK_ACCESS_INPUT_ATTACHMENT_READ_BIT,
-      VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-      VK_ACCESS_SHADER_READ_BIT,
-      VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT | VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT
-          | VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-      VK_ACCESS_SHADER_WRITE_BIT,
-      VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT | VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT
-          | VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-      VK_ACCESS_COLOR_ATTACHMENT_READ_BIT,
-      VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-      VK_ACCESS_COLOR_ATTACHMENT_READ_NONCOHERENT_BIT_EXT,
-      VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-      VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-      VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-      VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT,
-      VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
-      VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-      VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
-      VK_ACCESS_TRANSFER_READ_BIT,
-      VK_PIPELINE_STAGE_TRANSFER_BIT,
-      VK_ACCESS_TRANSFER_WRITE_BIT,
-      VK_PIPELINE_STAGE_TRANSFER_BIT,
-      VK_ACCESS_HOST_READ_BIT,
-      VK_PIPELINE_STAGE_HOST_BIT,
-      VK_ACCESS_HOST_WRITE_BIT,
-      VK_PIPELINE_STAGE_HOST_BIT,
-      VK_ACCESS_MEMORY_READ_BIT,
-      0,
-      VK_ACCESS_MEMORY_WRITE_BIT,
-      0,
+    VK_ACCESS_INDIRECT_COMMAND_READ_BIT,
+    VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT,
+    VK_ACCESS_INDEX_READ_BIT,
+    VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
+    VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT,
+    VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
+    VK_ACCESS_UNIFORM_READ_BIT,
+    VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT | VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT
+        | VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+    VK_ACCESS_INPUT_ATTACHMENT_READ_BIT,
+    VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+    VK_ACCESS_SHADER_READ_BIT,
+    VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT | VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT
+        | VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+    VK_ACCESS_SHADER_WRITE_BIT,
+    VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT | VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT
+        | VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+    VK_ACCESS_COLOR_ATTACHMENT_READ_BIT,
+    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+    VK_ACCESS_COLOR_ATTACHMENT_READ_NONCOHERENT_BIT_EXT,
+    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+    VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+    VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT,
+    VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
+    VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+    VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
+    VK_ACCESS_TRANSFER_READ_BIT,
+    VK_PIPELINE_STAGE_TRANSFER_BIT,
+    VK_ACCESS_TRANSFER_WRITE_BIT,
+    VK_PIPELINE_STAGE_TRANSFER_BIT,
+    VK_ACCESS_HOST_READ_BIT,
+    VK_PIPELINE_STAGE_HOST_BIT,
+    VK_ACCESS_HOST_WRITE_BIT,
+    VK_PIPELINE_STAGE_HOST_BIT,
+    VK_ACCESS_MEMORY_READ_BIT,
+    0,
+    VK_ACCESS_MEMORY_WRITE_BIT,
+    0,
 #if VK_NV_device_generated_commands
-      VK_ACCESS_COMMAND_PREPROCESS_READ_BIT_NV,
-      VK_PIPELINE_STAGE_COMMAND_PREPROCESS_BIT_NV,
-      VK_ACCESS_COMMAND_PREPROCESS_WRITE_BIT_NV,
-      VK_PIPELINE_STAGE_COMMAND_PREPROCESS_BIT_NV,
+    VK_ACCESS_COMMAND_PREPROCESS_READ_BIT_NV,
+    VK_PIPELINE_STAGE_COMMAND_PREPROCESS_BIT_NV,
+    VK_ACCESS_COMMAND_PREPROCESS_WRITE_BIT_NV,
+    VK_PIPELINE_STAGE_COMMAND_PREPROCESS_BIT_NV,
 #endif
   };
 
@@ -115,260 +115,203 @@ void cmdBegin(VkCommandBuffer cmd, VkCommandBufferUsageFlags flags)
 
 //////////////////////////////////////////////////////////////////////////
 
-void CmdPool::init(VkDevice device, uint32_t familyIndex, VkCommandPoolCreateFlags flags)
+void CommandPool::init(VkDevice device, uint32_t familyIndex, VkCommandPoolCreateFlags flags, VkQueue defaultQueue)
 {
+  assert(!m_device);
   m_device                     = device;
-  VkCommandPoolCreateInfo info = {};
-  info.sType                   = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+  VkCommandPoolCreateInfo info = {VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
   info.flags                   = flags;
   info.queueFamilyIndex        = familyIndex;
   vkCreateCommandPool(m_device, &info, nullptr, &m_commandPool);
+  if(defaultQueue)
+  {
+    m_queue = defaultQueue;
+  }
+  else
+  {
+    vkGetDeviceQueue(device, familyIndex, 0, &m_queue);
+  }
 }
 
-void CmdPool::deinit()
+void CommandPool::deinit()
 {
   if(m_commandPool)
+  {
     vkDestroyCommandPool(m_device, m_commandPool, nullptr);
-  m_commandPool = VK_NULL_HANDLE;
+    m_commandPool = VK_NULL_HANDLE;
+  }
+  m_device = VK_NULL_HANDLE;
 }
 
-VkCommandBuffer CmdPool::createCommandBuffer(VkCommandBufferLevel level)
+VkCommandBuffer CommandPool::createCommandBuffer(VkCommandBufferLevel level /*= VK_COMMAND_BUFFER_LEVEL_PRIMARY*/,
+                                                 bool                 begin,
+                                                 VkCommandBufferUsageFlags flags /*= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT*/,
+                                                 const VkCommandBufferInheritanceInfo* pInheritanceInfo /*= nullptr*/)
 {
-  VkCommandBufferAllocateInfo allocInfo = {};
-  allocInfo.sType                       = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+  VkCommandBufferAllocateInfo allocInfo = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
   allocInfo.level                       = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
   allocInfo.commandPool                 = m_commandPool;
   allocInfo.commandBufferCount          = 1;
 
-  VkCommandBuffer commandBuffer;
-  vkAllocateCommandBuffers(m_device, &allocInfo, &commandBuffer);
+  VkCommandBuffer cmd;
+  vkAllocateCommandBuffers(m_device, &allocInfo, &cmd);
 
-  return commandBuffer;
-}
+  if(begin)
+  {
+    VkCommandBufferBeginInfo beginInfo = {};
+    beginInfo.sType                    = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags                    = flags;
+    beginInfo.pInheritanceInfo         = pInheritanceInfo;
 
-VkCommandBuffer CmdPool::createAndBegin(VkCommandBufferLevel            level /*= VK_COMMAND_BUFFER_LEVEL_PRIMARY*/,
-                                        VkCommandBufferInheritanceInfo* pInheritanceInfo /*= nullptr*/,
-                                        VkCommandBufferUsageFlags flags /*= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT*/)
-{
-  VkCommandBuffer cmd = createCommandBuffer(level);
-
-  VkCommandBufferBeginInfo beginInfo = {};
-  beginInfo.sType                    = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-  beginInfo.flags                    = flags;
-  beginInfo.pInheritanceInfo         = pInheritanceInfo;
-
-  vkBeginCommandBuffer(cmd, &beginInfo);
+    vkBeginCommandBuffer(cmd, &beginInfo);
+  }
 
   return cmd;
 }
 
-void CmdPool::destroy(VkCommandBuffer cmd)
+void CommandPool::destroy(size_t count, const VkCommandBuffer* cmds)
 {
-  vkFreeCommandBuffers(m_device, m_commandPool, 1, &cmd);
+  vkFreeCommandBuffers(m_device, m_commandPool, (uint32_t)count, cmds);
 }
 
-void CmdPool::endAndSubmitSynced(VkCommandBuffer cmd, VkQueue queue)
+void CommandPool::submitAndWait(size_t count, const VkCommandBuffer* cmds, VkQueue queue)
 {
-  vkEndCommandBuffer(cmd);
-  VkSubmitInfo submit = {VK_STRUCTURE_TYPE_SUBMIT_INFO};
-  submit.pCommandBuffers = &cmd;
-  submit.commandBufferCount = 1;
-  vkQueueSubmit(queue, 1, &submit, nullptr);
-  vkQueueWaitIdle(queue);
-  vkFreeCommandBuffers(m_device, m_commandPool, 1, &cmd);
-}
+  for(size_t i = 0; i < count; i++)
+  {
+    vkEndCommandBuffer(cmds[i]);
+  }
 
-//////////////////////////////////////////////////////////////////////////
-
-void ScopeSubmitCmdPool::end(VkCommandBuffer commandBuffer)
-{
-  vkEndCommandBuffer(commandBuffer);
-
-  VkSubmitInfo submitInfo       = {};
-  submitInfo.sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-  submitInfo.commandBufferCount = 1;
-  submitInfo.pCommandBuffers    = &commandBuffer;
-
-  vkQueueSubmit(m_queue, 1, &submitInfo, VK_NULL_HANDLE);
-  VkResult result = vkQueueWaitIdle(m_queue);
+  VkSubmitInfo submit       = {VK_STRUCTURE_TYPE_SUBMIT_INFO};
+  submit.pCommandBuffers    = cmds;
+  submit.commandBufferCount = (uint32_t)count;
+  vkQueueSubmit(queue, 1, &submit, VK_NULL_HANDLE);
+  VkResult result = vkQueueWaitIdle(queue);
   if(nvvk::checkResult(result, __FILE__, __LINE__))
   {
     exit(-1);
   }
-
-  CmdPool::destroy(commandBuffer);
+  vkFreeCommandBuffers(m_device, m_commandPool, (uint32_t)count, cmds);
 }
 
 //////////////////////////////////////////////////////////////////////////
 
-
-void RingFences::init(VkDevice device)
+void RingFences::init(VkDevice device, uint32_t ringSize)
 {
-  m_device = device;
-  m_frameCurrent  = 0;
-  m_frameCompleted = ~0;
-  m_waited = 0;
-  for(uint32_t i = 0; i < MAX_RING_FRAMES; i++)
+  assert(!m_device);
+  m_device     = device;
+  m_cycleIndex = 0;
+  m_cycleSize  = ringSize;
+
+  m_fences.resize(ringSize);
+  for(uint32_t i = 0; i < m_cycleSize; i++)
   {
     VkFenceCreateInfo info = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
     info.flags             = 0;
-    VkResult result        = vkCreateFence(device, &info, nullptr, &m_fences[i]);
-    m_fenceActive[i] = false;
+    VkResult result        = vkCreateFence(device, &info, nullptr, &m_fences[i].fence);
+    m_fences[i].active     = false;
   }
 }
 
 void RingFences::deinit()
 {
-  for(uint32_t i = 0; i < MAX_RING_FRAMES; i++)
-  {
-    vkDestroyFence(m_device, m_fences[i], nullptr);
-  }
-}
-
-void RingFences::reset()
-{
-  vkResetFences(m_device, MAX_RING_FRAMES, m_fences);
-  m_frameCurrent  = 0;
-  m_frameCompleted = ~0;
-  m_waited = m_frameCurrent;
-  for(uint32_t i = 0; i < MAX_RING_FRAMES; i++)
-  {
-    m_fenceActive[i] = false;
-  }
-}
-
-void RingFences::wait(uint64_t timeout /*= ~0ULL*/)
-{
-  if(m_waited == m_frameCurrent)
-  {
+  if(!m_device)
     return;
+
+  for(uint32_t i = 0; i < m_cycleSize; i++)
+  {
+    vkDestroyFence(m_device, m_fences[i].fence, nullptr);
   }
+  m_fences.clear();
+  m_device = VK_NULL_HANDLE;
+}
 
-  m_waited = m_frameCurrent;
+VkFence RingFences::getFence()
+{
+  m_fences[m_cycleIndex].active = true;
+  return m_fences[m_cycleIndex].fence;
+}
 
-  // mandatory wait, cycle must be completed
-  uint32_t waitIndex = (m_frameCurrent) % MAX_RING_FRAMES;
 
-  if (m_fenceActive[waitIndex]){
-    VkResult result = vkWaitForFences(m_device, 1, &m_fences[waitIndex], VK_TRUE, timeout);
+void RingFences::setCycleAndWait(uint32_t cycle)
+{
+  // set cycle
+  m_cycleIndex = cycle % m_cycleSize;
+
+  Entry& entry = m_fences[m_cycleIndex];
+  if(entry.active)
+  {
+    // ensure the cycle we will use now has completed
+    VkResult result = vkWaitForFences(m_device, 1, &entry.fence, VK_TRUE, ~0ULL);
     if(nvvk::checkResult(result, __FILE__, __LINE__))
     {
       exit(-1);
     }
-    m_fenceActive[waitIndex] = false;
-    m_frameCompleted = m_fenceFrames[waitIndex];
+    entry.active = false;
   }
-
-  // test others for completion
-  for (uint32_t i = 1; i < MAX_RING_FRAMES; i++) {
-    waitIndex = (m_frameCurrent + i) % MAX_RING_FRAMES;
-    if (m_fenceActive[waitIndex]){
-      VkResult result = vkGetFenceStatus(m_device, m_fences[waitIndex]);
-      if (result == VK_SUCCESS) {
-        m_fenceActive[waitIndex] = true;
-        m_frameCompleted = m_fenceFrames[waitIndex];
-      }
-    }
-  }
-}
-
-VkFence RingFences::advanceCycle()
-{
-  uint32_t cycle = m_frameCurrent % MAX_RING_FRAMES;
-  VkFence fence = m_fences[cycle];
-  vkResetFences(m_device, 1, &fence);
-  m_fenceFrames[cycle] = m_frameCurrent;
-  m_fenceActive[cycle] = true;
-  m_frameCurrent++;
-
-  return fence;
+  vkResetFences(m_device, 1, &entry.fence);
 }
 
 //////////////////////////////////////////////////////////////////////////
 
-void RingCmdPool::init(VkDevice device, uint32_t queueFamilyIndex, VkCommandPoolCreateFlags flags)
+void RingCommandPool::init(VkDevice device, uint32_t queueFamilyIndex, VkCommandPoolCreateFlags flags, uint32_t ringSize)
 {
-  m_device = device;
-  m_index  = 0;
-  m_frameCurrent = 0;
+  assert(!m_device);
+  m_device      = device;
+  m_cycleIndex  = 0;
+  m_cycleSize   = ringSize;
+  m_flags       = flags;
+  m_familyIndex = queueFamilyIndex;
 
-  for(uint32_t i = 0; i < MAX_RING_FRAMES; i++)
+  m_pools.resize(ringSize);
+  for(uint32_t i = 0; i < m_cycleSize; i++)
   {
     VkCommandPoolCreateInfo info = {VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
     info.queueFamilyIndex        = queueFamilyIndex;
     info.flags                   = flags;
 
-    VkResult result = vkCreateCommandPool(m_device, &info, nullptr, &m_cycles[i].pool);
-    m_cycles[i].frameUsed = 0;
+    VkResult result = vkCreateCommandPool(m_device, &info, nullptr, &m_pools[i].pool);
   }
 }
 
-void RingCmdPool::deinit()
+void RingCommandPool::deinit()
 {
-  reset(VK_COMMAND_POOL_RESET_RELEASE_RESOURCES_BIT);
-  for(uint32_t i = 0; i < MAX_RING_FRAMES; i++)
-  {
-    vkDestroyCommandPool(m_device, m_cycles[i].pool, nullptr);
-  }
-}
+  if(!m_device)
+    return;
 
-void RingCmdPool::reset(VkCommandPoolResetFlags flags)
-{
-  for(uint32_t i = 0; i < MAX_RING_FRAMES; i++)
+  for(uint32_t i = 0; i < m_cycleSize; i++)
   {
-    Cycle& cycle = m_cycles[i];
-    if(!cycle.cmds.empty())
+    Entry& entry = m_pools[i];
+    if(!entry.cmds.empty())
     {
-      vkFreeCommandBuffers(m_device, cycle.pool, uint32_t(cycle.cmds.size()), cycle.cmds.data());
-      vkResetCommandPool(m_device, cycle.pool, flags);
-      cycle.cmds.clear();
+      vkFreeCommandBuffers(m_device, entry.pool, uint32_t(entry.cmds.size()), entry.cmds.data());
+      vkResetCommandPool(m_device, entry.pool, VK_COMMAND_POOL_RESET_RELEASE_RESOURCES_BIT);
+      entry.cmds.clear();
     }
-    m_cycles[i].frameUsed = 0;
+    vkDestroyCommandPool(m_device, entry.pool, nullptr);
   }
-  m_index  = 0;
-  m_frameCurrent = 0;
+
+  m_device = VK_NULL_HANDLE;
 }
 
-void RingCmdPool::setCycle(uint32_t cycleIndex)
+void RingCommandPool::setCycle(uint32_t cycle)
 {
-  Cycle& cycle = m_cycles[cycleIndex];
+  m_cycleIndex = cycle % m_cycleSize;
 
-  if(!cycle.cmds.empty())
+  Entry& entry = m_pools[m_cycleIndex];
+  if(!entry.cmds.empty())
   {
-    vkFreeCommandBuffers(m_device, cycle.pool, uint32_t(cycle.cmds.size()), cycle.cmds.data());
-    vkResetCommandPool(m_device, cycle.pool, 0);
-    cycle.cmds.clear();
+    vkFreeCommandBuffers(m_device, entry.pool, uint32_t(entry.cmds.size()), entry.cmds.data());
+    vkResetCommandPool(m_device, entry.pool, 0);
+    entry.cmds.clear();
   }
-  m_index = cycleIndex;
 }
 
-void RingCmdPool::setFrame(uint32_t frameCurrent, uint32_t frameCompleted)
+VkCommandBuffer RingCommandPool::createCommandBuffer(VkCommandBufferLevel level /*= VK_COMMAND_BUFFER_LEVEL_PRIMARY*/,
+                                                     bool                 begin,
+                                                     VkCommandBufferUsageFlags flags /*= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT*/,
+                                                     const VkCommandBufferInheritanceInfo* pInheritanceInfo /*= nullptr*/)
 {
-  bool valid = false;
-  // test what cycles have completed, release them, make one of them active
-  for (uint32_t i = 0; i < MAX_RING_FRAMES; i++) {
-    Cycle& cycle = m_cycles[i];
-    bool isDirty = !cycle.cmds.empty();
-    if (isDirty && hasFrameCompleted(m_cycles[i].frameUsed, frameCompleted)) {
-      vkFreeCommandBuffers(m_device, cycle.pool, uint32_t(cycle.cmds.size()), cycle.cmds.data());
-      vkResetCommandPool(m_device, cycle.pool, 0);
-      cycle.cmds.clear();
-      m_index = i;
-      valid = true;
-    }
-    else if (!isDirty) {
-      m_index = i;
-      valid = true;
-    }
-  }
-  assert(valid);
-  m_frameCurrent = frameCurrent;
-  m_cycles[m_index].frameUsed = m_frameCurrent;
-}
-
-VkCommandBuffer RingCmdPool::createCommandBuffer(VkCommandBufferLevel level)
-{
-  Cycle& cycle = m_cycles[m_index];
+  Entry& cycle = m_pools[m_cycleIndex];
 
   VkCommandBufferAllocateInfo info = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
   info.commandBufferCount          = 1;
@@ -379,30 +322,23 @@ VkCommandBuffer RingCmdPool::createCommandBuffer(VkCommandBufferLevel level)
   vkAllocateCommandBuffers(m_device, &info, &cmd);
 
   cycle.cmds.push_back(cmd);
-  assert(cycle.frameUsed == m_frameCurrent);
+
+  if(begin)
+  {
+    VkCommandBufferBeginInfo beginInfo = {};
+    beginInfo.sType                    = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags                    = flags;
+    beginInfo.pInheritanceInfo         = pInheritanceInfo;
+
+    vkBeginCommandBuffer(cmd, &beginInfo);
+  }
 
   return cmd;
 }
 
-VkCommandBuffer RingCmdPool::createAndBegin(VkCommandBufferLevel            level /*= VK_COMMAND_BUFFER_LEVEL_PRIMARY*/,
-                                            VkCommandBufferInheritanceInfo* pInheritanceInfo /*= nullptr*/,
-                                            VkCommandBufferUsageFlags flags /*= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT*/)
+const VkCommandBuffer* RingCommandPool::createCommandBuffers(VkCommandBufferLevel level, uint32_t count)
 {
-  VkCommandBuffer cmd = createCommandBuffer(level);
-
-  VkCommandBufferBeginInfo beginInfo = {};
-  beginInfo.sType                    = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-  beginInfo.flags                    = flags;
-  beginInfo.pInheritanceInfo         = pInheritanceInfo;
-
-  vkBeginCommandBuffer(cmd, &beginInfo);
-
-  return cmd;
-}
-
-const VkCommandBuffer* RingCmdPool::createCommandBuffers(VkCommandBufferLevel level, uint32_t count)
-{
-  Cycle& cycle = m_cycles[m_index];
+  Entry& cycle = m_pools[m_cycleIndex];
 
   VkCommandBufferAllocateInfo info = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
   info.commandBufferCount          = count;

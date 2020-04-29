@@ -27,26 +27,76 @@
 
 #pragma once
 
-#include <vector>
+#include <assert.h>
 #include <string>
+#include <vector>
 #include <vulkan/vulkan_core.h>
 
 namespace nvvk {
 /**
 # function in nvvk
 
-returns VkShaderModule and is overloaded for several inputs
-
-- createShaderModule : from input as const uint32_t* binarycode
-- createShaderModule : from input as const char* binarycode
-- createShaderModule : from input as std::vector<char>&
-- createShaderModule : from input as std::vector<uint32_t>&
-- createShaderModule : from input as std::string&
+- createShaderModule : create the shader module from various binary code inputs
+- createShaderStageInfo: create the shader module and setup the stage from the incoming binary code
 */
-VkShaderModule createShaderModule(VkDevice device, const uint32_t* binarycode, size_t sizeInBytes);
-VkShaderModule createShaderModule(VkDevice device, const char* binarycode, size_t sizeInBytes);
-VkShaderModule createShaderModule(VkDevice device, const std::vector<char>& code);
-VkShaderModule createShaderModule(VkDevice device, const std::vector<uint32_t>& code);
-VkShaderModule createShaderModule(VkDevice device, const std::string& code);
+inline VkShaderModule createShaderModule(VkDevice device, const uint32_t* binarycode, size_t sizeInBytes)
+{
+  VkShaderModuleCreateInfo createInfo = {};
+  createInfo.sType                    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+  createInfo.codeSize                 = sizeInBytes;
+  createInfo.pCode                    = binarycode;
 
+  VkShaderModule shaderModule = VK_NULL_HANDLE;
+  if(vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS)
+  {
+    assert(0 && "failed to create shader module!");
+  }
+
+  return shaderModule;
+}
+
+inline VkShaderModule createShaderModule(VkDevice device, const char* binarycode, size_t numInt32)
+{
+  return createShaderModule(device, (const uint32_t*)binarycode, numInt32 * 4);
+}
+
+inline VkShaderModule createShaderModule(VkDevice device, const std::vector<char>& code)
+{
+  return createShaderModule(device, (const uint32_t*)code.data(), code.size());
+}
+
+inline VkShaderModule createShaderModule(VkDevice device, const std::vector<uint32_t>& code)
+{
+  return createShaderModule(device, code.data(), 4 * code.size());
+}
+
+inline VkShaderModule createShaderModule(VkDevice device, const std::string& code)
+{
+  return createShaderModule(device, (const uint32_t*)code.data(), code.size());
+}
+
+template <typename T>
+inline VkPipelineShaderStageCreateInfo createShaderStageInfo(VkDevice              device,
+                                                             const std::vector<T>& code,
+                                                             VkShaderStageFlagBits stage,
+                                                             const char*           entryPoint = "main")
+{
+  VkPipelineShaderStageCreateInfo shaderStage{VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
+  shaderStage.stage  = stage;
+  shaderStage.module = createShaderModule(device, code);
+  shaderStage.pName  = entryPoint;
+  return shaderStage;
+}
+
+inline VkPipelineShaderStageCreateInfo createShaderStageInfo(VkDevice              device,
+                                                             const std::string&    code,
+                                                             VkShaderStageFlagBits stage,
+                                                             const char*           entryPoint = "main")
+{
+  VkPipelineShaderStageCreateInfo shaderStage{VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
+  shaderStage.stage  = stage;
+  shaderStage.module = createShaderModule(device, code);
+  shaderStage.pName  = entryPoint;
+  return shaderStage;
+}
 }  // namespace nvvk
