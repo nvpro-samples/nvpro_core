@@ -888,6 +888,8 @@ void StagingMemoryManager::finalizeResources(VkFence fence)
 
 void* StagingMemoryManager::getStagingSpace(VkDeviceSize size, VkBuffer& buffer, VkDeviceSize& offset)
 {
+  assert(m_sets[m_stagingIndex].index == m_stagingIndex && "illegal index, did you forget finalizeResources");
+
   uint32_t usedOffset;
   uint32_t usedSize;
   uint32_t usedAligned;
@@ -951,6 +953,7 @@ void* StagingMemoryManager::getStagingSpace(VkDeviceSize size, VkBuffer& buffer,
 
 void StagingMemoryManager::releaseResources(uint32_t stagingID)
 {
+  assert(stagingID != INVALID_ID_INDEX);
   StagingSet& set = m_sets[stagingID];
   assert(set.index == stagingID);
 
@@ -981,7 +984,12 @@ void StagingMemoryManager::releaseResources()
     if(!itset.entries.empty() && (!itset.fence || vkGetFenceStatus(m_device, itset.fence) == VK_SUCCESS))
     {
       releaseResources(itset.index);
+      itset.fence = NULL;
     }
+  }
+  // special case for ease of use if there is only one
+  if (m_stagingIndex == 0 && m_freeStagingIndex == 0) {
+    m_freeStagingIndex = setIndexValue(m_sets[0].index, 0);
   }
 }
 
@@ -1033,16 +1041,19 @@ uint32_t StagingMemoryManager::newStagingIndex()
     uint32_t newIndex = m_freeStagingIndex;
     // this updates the free link-list
     m_freeStagingIndex = setIndexValue(m_sets[newIndex].index, newIndex);
+    assert(m_sets[newIndex].index == newIndex);
     return m_sets[newIndex].index;
   }
 
   // otherwise push to end
+  uint32_t newIndex = (uint32_t)m_sets.size();
+  
   StagingSet info;
-  info.index = (uint32_t)m_sets.size();
-
+  info.index = newIndex;
   m_sets.push_back(info);
 
-  return info.index;
+  assert(m_sets[newIndex].index == newIndex);
+  return newIndex;
 }
 
 VkResult StagingMemoryManager::allocBlockMemory(uint32_t index, VkDeviceSize size, bool toDevice, Block& block)
