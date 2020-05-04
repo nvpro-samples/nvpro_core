@@ -902,6 +902,7 @@ CSFAPI const void* CSFGeometry_getPartChannel(const CSFGeometry* geo, CSFGeometr
 #define TINYGLTF_IMPLEMENTATION
 #define TINYGLTF_NO_STB_IMAGE
 #define TINYGLTF_NO_STB_IMAGE_WRITE
+#define TINYGLTF_NO_EXTERNAL_IMAGE
 
 #include "tiny_gltf.h"
 
