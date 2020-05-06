@@ -298,9 +298,9 @@ bool Context::initInstance(const ContextCreateInfo& info)
 
   for(const auto& it : m_usedInstanceExtensions)
   {
-    if(strcmp(it, VK_EXT_DEBUG_REPORT_EXTENSION_NAME) == 0)
+    if(strcmp(it, VK_EXT_DEBUG_UTILS_EXTENSION_NAME) == 0)
     {
-      initDebugReport();
+      initDebugUtils();
       break;
     }
   }
@@ -645,6 +645,18 @@ bool Context::hasDeviceExtension(const char* name) const
   return false;
 }
 
+bool Context::hasInstanceExtension(const char* name) const
+{
+  for(const auto& usedInstanceExtension : m_usedInstanceExtensions)
+  {
+    if(strcmp(name, usedInstanceExtension) == 0)
+    {
+      return true;
+    }
+  }
+  return false;
+}
+
 //--------------------------------------------------------------------------------------------------
 //
 //
@@ -652,8 +664,6 @@ ContextCreateInfo::ContextCreateInfo(bool bUseValidation)
 {
 #ifdef _DEBUG
   instanceExtensions.push_back({VK_EXT_DEBUG_UTILS_EXTENSION_NAME, true});
-  instanceExtensions.push_back({VK_EXT_DEBUG_REPORT_EXTENSION_NAME, true});
-  deviceExtensions.push_back({VK_EXT_DEBUG_MARKER_EXTENSION_NAME, true});
   if(bUseValidation)
     instanceLayers.push_back({"VK_LAYER_KHRONOS_validation", true});
 #endif
@@ -829,7 +839,7 @@ void Context::initPhysicalInfo(PhysicalDeviceInfo& info, VkPhysicalDevice physic
   }
 }
 
-void Context::initDebugReport()
+void Context::initDebugUtils()
 {
   // Debug reporting system
   // Setup our pointers to the VK_EXT_debug_utils commands

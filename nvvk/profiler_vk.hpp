@@ -147,8 +147,8 @@ public:
   void init(VkDevice device, VkPhysicalDevice physicalDevice);
   void deinit();
 
-  // enable debug marker per section, requires VK_EXT_debug_utils
-  void setMarkerUsage(bool state);
+  // enable debug label per section, requires VK_EXT_debug_utils
+  void setLabelUsage(bool state);
 
   SectionID beginSection(const char* name, VkCommandBuffer cmd, bool singleShot = false, bool hostReset = false);
   void      endSection(SectionID slot, VkCommandBuffer cmd);
@@ -157,7 +157,7 @@ public:
 
 private:
   void resize();
-  bool m_useMarkers = false;
+  bool m_useLabels = false;
 #if 0
   bool m_useCoreHostReset = false;
 #endif

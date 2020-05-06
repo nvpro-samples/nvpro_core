@@ -61,11 +61,8 @@ Example on how to populate information in it :
 ~~~~ C++
     nvvk::ContextCreateInfo ctxInfo;
     ctxInfo.setVersion(1, 1);
-    ctxInfo.addInstanceLayer("VK_LAYER_KHRONOS_validation");
-    ctxInfo.addInstanceLayer("VK_LAYER_LUNARG_monitor");
     ctxInfo.addInstanceExtension(VK_KHR_SURFACE_EXTENSION_NAME, false);
     ctxInfo.addInstanceExtension(VK_KHR_WIN32_SURFACE_EXTENSION_NAME, false);
-    ctxInfo.addInstanceExtension(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
     ctxInfo.addDeviceExtension(VK_KHR_SWAPCHAIN_EXTENSION_NAME, false);
 ~~~~
 
@@ -356,6 +353,7 @@ public:
 
   // true if the context has the optional extension activated
   bool hasDeviceExtension(const char* name) const;
+  bool hasInstanceExtension(const char* name) const;
 
 private:
   NameArray m_usedInstanceLayers;
@@ -368,7 +366,7 @@ private:
   VkDebugUtilsMessengerEXT            m_dbgMessenger                  = nullptr;
 
 
-  void initDebugReport();
+  void initDebugUtils();
 
   VkResult    fillFilteredNameArray(Context::NameArray&                   used,
                                     const std::vector<VkLayerProperties>& properties,

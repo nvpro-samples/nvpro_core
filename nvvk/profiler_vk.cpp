@@ -76,9 +76,9 @@ void ProfilerVK::deinit()
   m_device = VK_NULL_HANDLE;
 }
 
-void ProfilerVK::setMarkerUsage(bool state)
+void ProfilerVK::setLabelUsage(bool state)
 {
-  m_useMarkers = state;
+  m_useLabels = state;
 }
 
 void ProfilerVK::resize()
@@ -120,12 +120,21 @@ nvh::Profiler::SectionID ProfilerVK::beginSection(const char* name, VkCommandBuf
   {
     resize();
   }
-  if(m_useMarkers)
+  if (m_useLabels)
+  {
+    VkDebugUtilsLabelEXT label = {VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT};
+    label.pLabelName = name;
+    label.color[1] = 1.0f;
+    vkCmdBeginDebugUtilsLabelEXT(cmd, &label);
+  }
+#if 0
+  else if(m_useMarkers)
   {
     VkDebugMarkerMarkerInfoEXT marker = {VK_STRUCTURE_TYPE_DEBUG_MARKER_MARKER_INFO_EXT};
     marker.pMarkerName                = name;
     vkCmdDebugMarkerBeginEXT(cmd, &marker);
   }
+#endif
 
   uint32_t idx         = getTimerIdx(slot, getSubFrame(slot), true);
 
@@ -157,10 +166,16 @@ void ProfilerVK::endSection(SectionID slot, VkCommandBuffer cmd)
 {
   uint32_t idx = getTimerIdx(slot, getSubFrame(slot), false);
   vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, m_queryPool, idx);
-  if(m_useMarkers)
+  if (m_useLabels)
+  {
+    vkCmdEndDebugUtilsLabelEXT(cmd);
+  }
+#if 0
+  else if(m_useMarkers)
   {
     vkCmdDebugMarkerEndEXT(cmd);
   }
+#endif
   Profiler::endSection(slot);
 }
 

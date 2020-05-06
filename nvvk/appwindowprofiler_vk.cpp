@@ -86,7 +86,7 @@ void AppWindowProfilerVK::contextInit()
   m_swapChain.update(getWidth(), getHeight(), m_swapVsync);
 
   m_profilerVK.init(m_context.m_device, m_context.m_physicalDevice);
-  m_profilerVK.setMarkerUsage(m_context.hasDeviceExtension(VK_EXT_DEBUG_UTILS_EXTENSION_NAME));
+  m_profilerVK.setLabelUsage(m_context.hasInstanceExtension(VK_EXT_DEBUG_UTILS_EXTENSION_NAME));
 }
 
 void AppWindowProfilerVK::contextDeinit()
