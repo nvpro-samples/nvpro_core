@@ -198,11 +198,15 @@ struct RaytracingBuilderKHR
 
 
     // Create a command buffer containing all the BLAS builds
-    nvvk::CommandPool genCmdBuf(m_device, m_queueIndex);
-    VkCommandBuffer   cmdBuf = genCmdBuf.createCommandBuffer();
-    int               ctr{0};
+    nvvk::CommandPool            genCmdBuf(m_device, m_queueIndex);
+    int                          ctr{0};
+    std::vector<VkCommandBuffer> allCmdBufs;
+    allCmdBufs.reserve(m_blas.size());
     for(auto& blas : m_blas)
     {
+      VkCommandBuffer cmdBuf = genCmdBuf.createCommandBuffer();
+      allCmdBufs.push_back(cmdBuf);
+
       const VkAccelerationStructureGeometryKHR* pGeometry = blas.asGeometry.data();
       VkAccelerationStructureBuildGeometryInfoKHR bottomASInfo{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR};
       bottomASInfo.type                      = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
@@ -238,13 +242,13 @@ struct RaytracingBuilderKHR
                                                       VK_QUERY_TYPE_ACCELERATION_STRUCTURE_COMPACTED_SIZE_KHR, queryPool, ctr++);
       }
     }
-    genCmdBuf.submitAndWait(cmdBuf);
-
+    genCmdBuf.submitAndWait(allCmdBufs);
+    allCmdBufs.clear();
 
     // Compacting all BLAS
     if(doCompaction)
     {
-      cmdBuf = genCmdBuf.createCommandBuffer();
+      VkCommandBuffer cmdBuf = genCmdBuf.createCommandBuffer();
 
       // Get the size result back
       std::vector<VkDeviceSize> compactSizes(m_blas.size());
@@ -257,7 +261,7 @@ struct RaytracingBuilderKHR
       uint32_t                    totOriginalSize{0}, totCompactSize{0};
       for(int i = 0; i < m_blas.size(); i++)
       {
-        LOGI("Reducing %i, from %d to %d \n", i, originalSizes[i], compactSizes[i]);
+        // LOGI("Reducing %i, from %d to %d \n", i, originalSizes[i], compactSizes[i]);
         totOriginalSize += (uint32_t)originalSizes[i];
         totCompactSize += (uint32_t)compactSizes[i];
 
@@ -284,7 +288,7 @@ struct RaytracingBuilderKHR
         m_alloc->destroy(as);
 
       LOGI("------------------\n");
-      LOGI("Total: %d -> %d = %d (%2.2f%s smaller) \n", totOriginalSize, totCompactSize,
+      LOGI("Reducing from: %u to: %u = %u (%2.2f%s smaller) \n", totOriginalSize, totCompactSize,
            totOriginalSize - totCompactSize, (totOriginalSize - totCompactSize) / float(totOriginalSize) * 100.f, "%%");
     }
 
