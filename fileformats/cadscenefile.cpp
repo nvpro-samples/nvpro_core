@@ -1382,7 +1382,19 @@ CSFAPI int CSFile_loadGTLF(CSFile** outcsf, const char* filename, CSFileMemoryPT
         const float*                buffer =
             reinterpret_cast<const float*>(&(gltfModel.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
 
-        memcpy(&csfgeom.vertex[vertexTotCount * 3], buffer, sizeof(float) * 3 * accessor.count);
+        size_t stride = accessor.ByteStride(view);
+        if (stride == sizeof(float) * 3){
+          memcpy(&csfgeom.vertex[vertexTotCount * 3], buffer, sizeof(float) * 3 * accessor.count);
+        }
+        else {
+          for (uint32_t i = 0; i < accessor.count; i++) {
+            csfgeom.vertex[(vertexTotCount + i) * 3 + 0] = buffer[0];
+            csfgeom.vertex[(vertexTotCount + i) * 3 + 1] = buffer[1];
+            csfgeom.vertex[(vertexTotCount + i) * 3 + 2] = buffer[2];
+
+            buffer += stride/(sizeof(float));
+          }
+        }
       }
 
       const auto normalit = primitive.attributes.find("NORMAL");
@@ -1393,7 +1405,19 @@ CSFAPI int CSFile_loadGTLF(CSFile** outcsf, const char* filename, CSFileMemoryPT
         const float*                buffer =
             reinterpret_cast<const float*>(&(gltfModel.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
 
-        memcpy(&csfgeom.normal[vertexTotCount * 3], buffer, sizeof(float) * 3 * accessor.count);
+        size_t stride = accessor.ByteStride(view);
+        if (stride == sizeof(float) * 3){
+          memcpy(&csfgeom.normal[vertexTotCount * 3], buffer, sizeof(float) * 3 * accessor.count);
+        }
+        else {
+          for (uint32_t i = 0; i < accessor.count; i++) {
+            csfgeom.normal[(vertexTotCount + i) * 3 + 0] = buffer[0];
+            csfgeom.normal[(vertexTotCount + i) * 3 + 1] = buffer[1];
+            csfgeom.normal[(vertexTotCount + i) * 3 + 2] = buffer[2];
+
+            buffer += stride/(sizeof(float));
+          }
+        }
       }
 
       {
