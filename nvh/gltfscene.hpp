@@ -293,6 +293,21 @@ struct Animation
   float                         m_end{std::numeric_limits<float>::min()};
 };
 
+struct Stats
+{
+  uint32_t nbCameras{0};
+  uint32_t nbImages{0};
+  uint32_t nbTextures{0};
+  uint32_t nbMaterials{0};
+  uint32_t nbSamplers{0};
+  uint32_t nbNodes{0};
+  uint32_t nbMeshes{0};
+  uint32_t nbLights{0};
+  uint32_t imageMem{0};
+  uint32_t nbUniqueTriangles{0};
+  uint32_t nbTriangles{0};
+};
+
 //--------------------------------------------------------------------------------------------------
 // Holds the entire scene and methods to load and c
 //
@@ -305,6 +320,7 @@ struct Scene
   std::vector<Material>  m_materials;
   std::vector<Animation> m_animations;
   std::vector<Mesh*>     m_linearMeshes;
+  std::vector<Node*>     m_cameras;
 
   // Size of the scene
   struct Dimensions
@@ -328,6 +344,8 @@ struct Scene
   void computeSceneDimensions();
   void updateAnimation(uint32_t index, float time);
   Node* nodeFromIndex(uint32_t index);
+
+  Stats getStatistics(const tinygltf::Model& tinyModel);
 };
 
 }  // namespace gltf

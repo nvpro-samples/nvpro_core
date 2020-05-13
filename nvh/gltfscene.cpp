@@ -32,6 +32,7 @@
 
 
 #include "gltfscene.hpp"
+#include <numeric>
 
 namespace nvmath {
 
@@ -195,6 +196,10 @@ void Scene::loadNode(gltf::Node* parentNode, const tinygltf::Node& tinyNode, uin
   {
     newNode->m_mesh = tinyNode.mesh;
   }
+  else if(tinyNode.camera > -1)
+  {
+    m_cameras.push_back(newNode);
+  }
 
   if(parentNode != nullptr)
   {
@@ -274,104 +279,46 @@ void Scene::loadMeshes(const tinygltf::Model& tinyModel, std::vector<uint32_t>& 
       nvmath::vec3f posMax{};
 
 
-      // Vertices
+      // POSITION : Position attribute is required
+      assert(primitive.attributes.find("POSITION") != primitive.attributes.end());
+      size_t nbPositions = 0;
       {
-        // Position attribute is required
-        assert(primitive.attributes.find("POSITION") != primitive.attributes.end());
+        // Retrieving the positions of the primitive
+        const tinygltf::Accessor&   posAccessor = tinyModel.accessors[primitive.attributes.find("POSITION")->second];
+        const tinygltf::BufferView& posView     = tinyModel.bufferViews[posAccessor.bufferView];
 
-        size_t nbPositions = 0;
+        // Keeping the number of positions to make all attributes the same size
+        nbPositions = posAccessor.count;
 
+        // Copying the position to local data
+        auto bufferPos = reinterpret_cast<const float*>(
+            &(tinyModel.buffers[posView.buffer].data[posAccessor.byteOffset + posView.byteOffset]));
+        vertexData.position.resize(vertexStart + posAccessor.count);
+        if(posView.byteStride == 0)
         {
-          // Retrieving the positions of the primitive
-          const tinygltf::Accessor&   posAccessor = tinyModel.accessors[primitive.attributes.find("POSITION")->second];
-          const tinygltf::BufferView& posView     = tinyModel.bufferViews[posAccessor.bufferView];
-
-          // Keeping the number of positions to make all attributes the same size
-          nbPositions = posAccessor.count;
-
-          // Copying the position to local data
-          auto bufferPos = reinterpret_cast<const float*>(
-              &(tinyModel.buffers[posView.buffer].data[posAccessor.byteOffset + posView.byteOffset]));
-          vertexData.position.resize(vertexStart + posAccessor.count);
           memcpy(&vertexData.position[vertexStart], bufferPos, posAccessor.count * 3 * sizeof(float));
-
-          // Keeping the size of this primitive (Spec says this is required information)
-          if(!posAccessor.minValues.empty())
+        }
+        else
+        {
+          auto bufferByte = reinterpret_cast<const uint8_t*>(bufferPos);
+          for(size_t i = 0; i < nbPositions; i++)
           {
-            posMin = nvmath::vec3f(posAccessor.minValues[0], posAccessor.minValues[1], posAccessor.minValues[2]);
-          }
-          if(!posAccessor.maxValues.empty())
-          {
-            posMax = nvmath::vec3f(posAccessor.maxValues[0], posAccessor.maxValues[1], posAccessor.maxValues[2]);
+            vertexData.position[vertexStart + i] = *reinterpret_cast<const nvmath::vec3f*>(bufferByte);
+            bufferByte += posView.byteStride;
           }
         }
 
-
-        // Looping over all the attributes we are interested in.
-        for(auto& attrib : vertexData.attributes)
+        // Keeping the size of this primitive (Spec says this is required information)
+        if(!posAccessor.minValues.empty())
         {
-          auto nbElem      = defaultValues[attrib.first].size();  // Number of elements this attribute has
-          auto startAttrib = attrib.second.size();  // Keeping track of the starting position in the vector
-          attrib.second.resize(startAttrib + nbPositions * nbElem);  // Resize the attribute to hold the new data
-
-          // Find if the attribute we are looking for is present
-          bool attribSucceed = false;
-          if(primitive.attributes.find(attrib.first) != primitive.attributes.end())
-          {
-            const tinygltf::Accessor& attribAccessor = tinyModel.accessors[primitive.attributes.find(attrib.first)->second];
-            const tinygltf::BufferView& attribBufferView = tinyModel.bufferViews[attribAccessor.bufferView];
-
-            auto attribBuffer = reinterpret_cast<const float*>(
-                &(tinyModel.buffers[attribBufferView.buffer].data[attribAccessor.byteOffset + attribBufferView.byteOffset]));
-
-            assert(attribAccessor.count == nbPositions);
-
-            // Check if the data is compatible
-            if(attribAccessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT)
-            {
-              attribSucceed = true;
-              if(attribAccessor.type == nbElem)
-              {
-                memcpy(&attrib.second[startAttrib], attribBuffer, attribAccessor.count * nbElem * sizeof(float));
-              }
-              else
-              {
-                // Size is different, so we adjust
-                for(size_t i = 0; i < nbPositions; ++i)
-                {
-                  // Copy the default value
-                  attrib.second.insert(std::end(attrib.second), std::begin(defaultValues[attrib.first]),
-                                       std::end(defaultValues[attrib.first]));
-
-
-                  for(size_t e = 0; e < std::min(nbElem, static_cast<size_t>(attribAccessor.type)); ++e)
-                  {
-                    attrib.second[startAttrib + i * nbElem + e] = attribBuffer[i * attribAccessor.type + e];
-                  }
-                }
-              }
-            }
-            else
-            {
-              // #TODO implement type converters to Float
-            }
-          }
-
-          if(!attribSucceed)
-          {
-            // The attribute was not present or it was of a different type, so all elements will have the default value
-            float*              writingAttrib = &attrib.second[startAttrib];
-            std::vector<float>& values(defaultValues[attrib.first]);
-            for(size_t i = 0; i < nbPositions; ++i)
-            {
-              for(size_t e = 0; e < nbElem; ++e)
-              {
-                *writingAttrib++ = values[e];
-              }
-            }
-          }
+          posMin = nvmath::vec3f(posAccessor.minValues[0], posAccessor.minValues[1], posAccessor.minValues[2]);
+        }
+        if(!posAccessor.maxValues.empty())
+        {
+          posMax = nvmath::vec3f(posAccessor.maxValues[0], posAccessor.maxValues[1], posAccessor.maxValues[2]);
         }
       }
+
 
       // Indices
       {
@@ -409,6 +356,111 @@ void Scene::loadMeshes(const tinygltf::Model& tinyModel, std::vector<uint32_t>& 
             return;
         }
       }
+
+      // ATTRIBUTES: normal, texcoord, ...
+      // Looping over all the attributes we are interested in.
+      for(auto& attrib : vertexData.attributes)
+      {
+        auto nbElem      = defaultValues[attrib.first].size();  // Number of elements this attribute has
+        auto startAttrib = attrib.second.size();                // Keeping track of the starting position in the vector
+        attrib.second.resize(startAttrib + nbPositions * nbElem);  // Resize the attribute to hold the new data
+
+        // Find if the attribute we are looking for is present
+        bool attribSucceed = false;
+        if(primitive.attributes.find(attrib.first) != primitive.attributes.end())
+        {
+          const tinygltf::Accessor& attribAccessor = tinyModel.accessors[primitive.attributes.find(attrib.first)->second];
+          const tinygltf::BufferView& attribBufferView = tinyModel.bufferViews[attribAccessor.bufferView];
+
+          auto attribBuffer = reinterpret_cast<const float*>(
+              &(tinyModel.buffers[attribBufferView.buffer].data[attribAccessor.byteOffset + attribBufferView.byteOffset]));
+
+          assert(attribAccessor.count == nbPositions);
+
+          // Check if the data is compatible
+          if(attribAccessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT)
+          {
+            attribSucceed = true;
+            if(attribAccessor.type == nbElem)
+            {
+              if(attribBufferView.byteStride == 0)
+              {
+                memcpy(&attrib.second[startAttrib], attribBuffer, attribAccessor.count * nbElem * sizeof(float));
+              }
+              else
+              {
+                auto attribByteBuffer = reinterpret_cast<const uint8_t*>(attribBuffer);
+                for(uint32_t atc = 0; atc < attribAccessor.count; atc++)
+                {
+                  for(uint32_t e = 0; e < nbElem; e++)
+                  {
+                    attrib.second[startAttrib + atc * nbElem + e] =
+                        *reinterpret_cast<const float*>(attribByteBuffer + e * sizeof(float));
+                  }
+                  attribByteBuffer += attribBufferView.byteStride;
+                }
+              }
+            }
+            else
+            {
+              // Size is different, so we adjust
+              for(size_t i = 0; i < nbPositions; ++i)
+              {
+                // Copy the default value
+                attrib.second.insert(std::end(attrib.second), std::begin(defaultValues[attrib.first]),
+                                     std::end(defaultValues[attrib.first]));
+
+
+                for(size_t e = 0; e < std::min(nbElem, static_cast<size_t>(attribAccessor.type)); ++e)
+                {
+                  attrib.second[startAttrib + i * nbElem + e] = attribBuffer[i * attribAccessor.type + e];
+                }
+              }
+            }
+          }
+          else
+          {
+            // #TODO implement type converters to Float
+          }
+        }
+
+        if(!attribSucceed)
+        {
+          if(attrib.first == "NORMAL")
+          {
+            // Creating geometric normal
+            nvmath::vec3f* writingNrmAttrib = reinterpret_cast<nvmath::vec3f*>(&attrib.second[0]);
+
+            for(size_t i = 0; i < indexCount; i += 3)
+            {
+              uint32_t             ind0 = vertexStart + indexBuffer[indexStart + i + 0];
+              uint32_t             ind1 = vertexStart + indexBuffer[indexStart + i + 1];
+              uint32_t             ind2 = vertexStart + indexBuffer[indexStart + i + 2];
+              const nvmath::vec3f& pos0 = vertexData.position[ind0];
+              const nvmath::vec3f& pos1 = vertexData.position[ind1];
+              const nvmath::vec3f& pos2 = vertexData.position[ind2];
+              nvmath::vec3f        nrm  = nvmath::normalize(nvmath::cross(pos2 - pos0, pos1 - pos0));
+              writingNrmAttrib[ind0]    = nrm;
+              writingNrmAttrib[ind1]    = nrm;
+              writingNrmAttrib[ind2]    = nrm;
+            }
+          }
+          else
+          {
+            // The attribute was not present or it was of a different type, so all elements will have the default value
+            float*              writingAttrib = &attrib.second[startAttrib];
+            std::vector<float>& values(defaultValues[attrib.first]);
+            for(size_t i = 0; i < nbPositions; ++i)
+            {
+              for(size_t e = 0; e < nbElem; ++e)
+              {
+                *writingAttrib++ = values[e];
+              }
+            }
+          }
+        }
+      }
+
 
       Primitive newPrimitive;
       newPrimitive.m_firstIndex    = indexStart;
@@ -805,6 +857,11 @@ void Scene::computeSceneDimensions()
   {
     getNodeDimensions(node, m_dimensions.min, m_dimensions.max);
   }
+  if(m_dimensions.min == m_dimensions.max)
+  {
+    m_dimensions.min = nvmath::vec3f(-1);
+    m_dimensions.max = nvmath::vec3f(1);
+  }
   m_dimensions.size   = m_dimensions.max - m_dimensions.min;
   m_dimensions.center = (m_dimensions.min + m_dimensions.max) / 2.0f;
   m_dimensions.radius = nvmath::length(m_dimensions.max - m_dimensions.min) / 2.0f;
@@ -894,6 +951,63 @@ Node* Scene::nodeFromIndex(uint32_t index)
     }
   }
   return nullptr;
+}
+
+uint32_t recursiveTriangleCount(const tinygltf::Model& model, int nodeIdx, const std::vector<uint32_t>& meshTriangle)
+{
+  auto&    node = model.nodes[nodeIdx];
+  uint32_t nbTriangles{0};
+  for(const auto child : node.children)
+  {
+    nbTriangles += recursiveTriangleCount(model, child, meshTriangle);
+  }
+
+  if(node.mesh >= 0)
+    nbTriangles += meshTriangle[node.mesh];
+
+  return nbTriangles;
+}
+
+Stats Scene::getStatistics(const tinygltf::Model& tinyModel)
+{
+
+  Stats stats;
+
+  stats.nbCameras   = static_cast<uint32_t>(tinyModel.cameras.size());
+  stats.nbImages    = static_cast<uint32_t>(tinyModel.images.size());
+  stats.nbTextures  = static_cast<uint32_t>(tinyModel.textures.size());
+  stats.nbMaterials = static_cast<uint32_t>(tinyModel.materials.size());
+  stats.nbSamplers  = static_cast<uint32_t>(tinyModel.samplers.size());
+  stats.nbNodes     = static_cast<uint32_t>(tinyModel.nodes.size());
+  stats.nbMeshes    = static_cast<uint32_t>(tinyModel.meshes.size());
+  stats.nbLights    = static_cast<uint32_t>(tinyModel.lights.size());
+
+  // Computing the memory usage for images
+  for(const auto& image : tinyModel.images)
+  {
+    stats.imageMem += image.width * image.height * image.component * image.bits / 8;
+  }
+
+  // Computing the number of triangles
+  std::vector<uint32_t> meshTriangle(tinyModel.meshes.size());
+  uint32_t              meshIdx{0};
+  for(const auto& mesh : tinyModel.meshes)
+  {
+    for(const auto& primitive : mesh.primitives)
+    {
+      const tinygltf::Accessor& indexAccessor = tinyModel.accessors[primitive.indices];
+      meshTriangle[meshIdx] += static_cast<uint32_t>(indexAccessor.count) / 3;
+    }
+    meshIdx++;
+  }
+
+  stats.nbUniqueTriangles = std::accumulate(meshTriangle.begin(), meshTriangle.end(), 0, std::plus<uint32_t>());
+  for(auto& node : tinyModel.scenes[0].nodes)
+  {
+    stats.nbTriangles += recursiveTriangleCount(tinyModel, node, meshTriangle);
+  }
+
+  return stats;
 }
 
 }  // namespace gltf
