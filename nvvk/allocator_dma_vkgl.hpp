@@ -124,7 +124,7 @@ public:
     if(data)
     {
       VkDeviceSize size = sizeof(T) * data.size();
-      m_staging->cmdToBuffer(cmd, resultBuffer.buffer, 0, size, data.data());
+      m_staging.cmdToBuffer(cmd, resultBuffer.buffer, 0, size, data.data());
     }
 
     return resultBuffer;

@@ -285,6 +285,64 @@ public:
   }
 
   //--------------------------------------------------------------------------------------------------
+  // shortcut that creates the image for the texture
+  // - creates the image
+  // - creates the texture part by associating image and sampler
+  //
+  TextureDma createTexture(const VkCommandBuffer&           cmdBuff,
+                                 size_t                     size_,
+                                 const void*                data_,
+                                 const VkImageCreateInfo&   info_,
+                                 const VkSamplerCreateInfo& samplerCreateInfo,
+                                 const VkImageLayout&       layout_ = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                                 bool                       isCube  = false)
+  {
+    ImageDma image = createImage(cmdBuff, size_, data_, info_, layout_);
+
+    VkImageViewCreateInfo viewInfo{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
+    viewInfo.pNext                           = nullptr;
+    viewInfo.image                           = image.image;
+    viewInfo.format                          = info_.format;
+    viewInfo.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+    viewInfo.subresourceRange.baseMipLevel   = 0;
+    viewInfo.subresourceRange.levelCount     = VK_REMAINING_MIP_LEVELS;
+    viewInfo.subresourceRange.baseArrayLayer = 0;
+    viewInfo.subresourceRange.layerCount     = VK_REMAINING_ARRAY_LAYERS;
+    switch(info_.imageType)
+    {
+      case VK_IMAGE_TYPE_1D:
+        viewInfo.viewType = VK_IMAGE_VIEW_TYPE_1D;
+        break;
+      case VK_IMAGE_TYPE_2D:
+        viewInfo.viewType = isCube ? VK_IMAGE_VIEW_TYPE_CUBE : VK_IMAGE_VIEW_TYPE_2D;
+        break;
+      case VK_IMAGE_TYPE_3D:
+        viewInfo.viewType = VK_IMAGE_VIEW_TYPE_3D;
+        break;
+      default:
+        assert(0);
+    }
+
+    TextureDma resultTexture             = createTexture(image, viewInfo, samplerCreateInfo);
+    resultTexture.descriptor.imageLayout = layout_;
+    return resultTexture;
+  }
+#ifdef VULKAN_HPP
+  inline TextureDma createTexture(const vk::CommandBuffer& cmdBuff,
+                           size_t                       size_,
+                           const void*                  data_,
+                           const vk::ImageCreateInfo&   info_,
+                           const vk::SamplerCreateInfo& samplerCreateInfo,
+                           const vk::ImageLayout&       layout_ = vk::ImageLayout::eShaderReadOnlyOptimal,
+                           bool                         isCube  = false)
+  {
+    return createTexture(static_cast<VkCommandBuffer>(cmdBuff), 
+                          size_, data_, info_, samplerCreateInfo,
+                          static_cast<VkImageLayout>(layout_),
+                          isCube );
+  }
+#endif
+  //--------------------------------------------------------------------------------------------------
   // Create the acceleration structure
   //
   AccelerationDmaNV createAcceleration(VkAccelerationStructureCreateInfoNV& accel,
