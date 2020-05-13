@@ -586,11 +586,8 @@ Example on how to populate information in it :
 ~~~~ C++
 nvvk::ContextCreateInfo ctxInfo;
 ctxInfo.setVersion(1, 1);
-ctxInfo.addInstanceLayer("VK_LAYER_KHRONOS_validation");
-ctxInfo.addInstanceLayer("VK_LAYER_LUNARG_monitor");
 ctxInfo.addInstanceExtension(VK_KHR_SURFACE_EXTENSION_NAME, false);
 ctxInfo.addInstanceExtension(VK_KHR_WIN32_SURFACE_EXTENSION_NAME, false);
-ctxInfo.addInstanceExtension(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
 ctxInfo.addDeviceExtension(VK_KHR_SWAPCHAIN_EXTENSION_NAME, false);
 ~~~~
 
@@ -1017,6 +1014,11 @@ Look at source of **nvvk::AllocatorDmaGL** for usage.
 
 ## pipeline_vk.hpp
 
+### functions in nvvk
+
+- **nvprintPipelineStats** : prints stats of the pipeline using VK_KHR_pipeline_executable_properties (don't forget to enable extension and set VK_PIPELINE_CREATE_CAPTURE_STATISTICS_BIT_KHR)
+
+
 ### class **nvvk::GraphicsPipelineState**
 
 Most graphic pipelines have similar states, therefore the helper `GraphicsPipelineStage` holds all the elements and 
@@ -1213,6 +1215,8 @@ for (auto it : textures) {
   pool.releaseSampler(it.sampler);
 }
 ~~~
+
+- **makeSamplerCreateInfo** : aids for sampler creation
 
 ## shadermodulemanager_vk.hpp
 
