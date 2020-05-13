@@ -782,6 +782,8 @@ public:
     m_inertCamera.move(delta > 0 ? s_moveStep : -s_moveStep, m_inputs.ctrl);
   }
 
+  virtual void onFileDrop(const char* filename) {}
+
   //--------------------------------------------------------------------------------------------------
   // Initialization of the GUI
   // - Need to be call after the device creation
@@ -832,6 +834,7 @@ public:
     glfwSetMouseButtonCallback(window, &mousebutton_cb);
     glfwSetScrollCallback(window, &scroll_cb);
     glfwSetWindowSizeCallback(window, &windowsize_cb);
+    glfwSetDropCallback(window, &drop_cb);
   }
   static void windowsize_cb(GLFWwindow* window, int w, int h)
   {
@@ -862,6 +865,13 @@ public:
   {
     auto app = reinterpret_cast<AppBase*>(glfwGetWindowUserPointer(window));
     app->onKeyboardChar(key);
+  }
+  static void drop_cb(GLFWwindow* window, int count, const char** paths)
+  {
+    auto app = reinterpret_cast<AppBase*>(glfwGetWindowUserPointer(window));
+    int  i;
+    for(i = 0; i < count; i++)
+      app->onFileDrop(paths[i]);
   }
   // GLFW Callback end
 
