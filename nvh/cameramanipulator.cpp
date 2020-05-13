@@ -146,6 +146,20 @@ const nvmath::mat4& CameraManipulator::getMatrix() const
   return m_matrix;
 }
 
+void CameraManipulator::setMatrix(nvmath::mat4& mat_)
+{
+  mat_.get_translation(m_current.eye);
+  auto rotMat   = mat_.get_rot_mat3();
+  m_current.ctr = {0, 0, -1};
+  m_current.ctr = rotMat * m_current.ctr;
+  m_current.up  = {0, 1, 0};
+
+  m_goal       = m_current;
+  m_start_time = 0;
+
+  m_matrix = nvmath::invert(mat_);
+}
+
 //--------------------------------------------------------------------------------------------------
 //
 //

@@ -137,6 +137,9 @@ public:
   /// Retrieving the transformation matrix of the camera
   const nvmath::mat4& getMatrix() const;
 
+  //
+  void setMatrix(nvmath::mat4& mat_);
+
   /// Changing the default speed movement
   void setSpeed(float speed);
 
