@@ -136,4 +136,38 @@ void SamplerPool::releaseSampler(VkSampler sampler)
   }
 }
 
+VkSamplerCreateInfo makeSamplerCreateInfo(VkFilter             magFilter,
+                                          VkFilter             minFilter,
+                                          VkSamplerAddressMode addressModeU,
+                                          VkSamplerAddressMode addressModeV,
+                                          VkSamplerAddressMode addressModeW,
+                                          VkBool32             anisotropyEnable,
+                                          float                maxAnisotropy,
+                                          VkSamplerMipmapMode  mipmapMode,
+                                          float                minLod,
+                                          float                maxLod,
+                                          float                mipLodBias,
+                                          VkBool32             compareEnable,
+                                          VkCompareOp          compareOp,
+                                          VkBorderColor        borderColor,
+                                          VkBool32             unnormalizedCoordinates)
+{
+  VkSamplerCreateInfo samplerInfo     = {VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
+  samplerInfo.flags                   = 0;
+  samplerInfo.pNext                   = nullptr;
+  samplerInfo.magFilter               = magFilter;
+  samplerInfo.minFilter               = minFilter;
+  samplerInfo.mipmapMode              = mipmapMode;
+  samplerInfo.addressModeU            = addressModeU;
+  samplerInfo.addressModeV            = addressModeV;
+  samplerInfo.addressModeW            = addressModeW;
+  samplerInfo.anisotropyEnable        = anisotropyEnable;
+  samplerInfo.maxAnisotropy           = maxAnisotropy;
+  samplerInfo.borderColor             = borderColor;
+  samplerInfo.unnormalizedCoordinates = unnormalizedCoordinates;
+  samplerInfo.compareEnable           = compareEnable;
+  samplerInfo.compareOp               = compareOp;
+  return samplerInfo;
+}
+
 }  // namespace nvvk

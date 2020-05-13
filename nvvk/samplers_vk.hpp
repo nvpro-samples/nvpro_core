@@ -33,6 +33,7 @@
 #include <functional>
 #include <unordered_map>
 #include <vector>
+#include <string.h> //memcmp
 
 namespace nvvk {
 //////////////////////////////////////////////////////////////////////////
@@ -59,6 +60,8 @@ namespace nvvk {
     pool.releaseSampler(it.sampler);
   }
   ~~~
+
+  - makeSamplerCreateInfo : aids for sampler creation
 
 */
 
@@ -131,4 +134,46 @@ private:
   std::unordered_map<SamplerState, uint32_t, Hash_fn> m_stateMap;
   std::unordered_map<VkSampler, uint32_t>             m_samplerMap;
 };
+
+VkSamplerCreateInfo makeSamplerCreateInfo(VkFilter             magFilter        = VK_FILTER_LINEAR,
+                                          VkFilter             minFilter        = VK_FILTER_LINEAR,
+                                          VkSamplerAddressMode addressModeU     = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+                                          VkSamplerAddressMode addressModeV     = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+                                          VkSamplerAddressMode addressModeW     = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+                                          VkBool32             anisotropyEnable = VK_FALSE,
+                                          float                maxAnisotropy    = 16,
+                                          VkSamplerMipmapMode  mipmapMode       = VK_SAMPLER_MIPMAP_MODE_LINEAR,
+                                          float                minLod           = 0.0f,
+                                          float                maxLod           = FLT_MAX,
+                                          float                mipLodBias       = 0.0f,
+                                          VkBool32             compareEnable    = VK_FALSE,
+                                          VkCompareOp          compareOp        = VK_COMPARE_OP_ALWAYS,
+                                          VkBorderColor        borderColor      = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
+                                          VkBool32             unnormalizedCoordinates = VK_FALSE);
+
+#ifdef VULKAN_HPP
+inline vk::SamplerCreateInfo makeSamplerCreateInfo(vk::Filter             magFilter         = vk::Filter::eLinear,
+                                                   vk::Filter             minFilter         = vk::Filter::eLinear,
+                                                   vk::SamplerAddressMode addressModeU      = vk::SamplerAddressMode::eClampToEdge,
+                                                   vk::SamplerAddressMode addressModeV      = vk::SamplerAddressMode::eClampToEdge,
+                                                   vk::SamplerAddressMode addressModeW      = vk::SamplerAddressMode::eClampToEdge,
+                                                   vk::Bool32             anisotropyEnable  = VK_FALSE,
+                                                   float                  maxAnisotropy     = 16,
+                                                   vk::SamplerMipmapMode mipmapMode         = vk::SamplerMipmapMode::eLinear,
+                                                   float                 minLod             = 0.0f,
+                                                   float                 maxLod             = FLT_MAX,
+                                                   float                 mipLodBias         = 0.0f,
+                                                   vk::Bool32            compareEnable      = VK_FALSE,
+                                                   vk::CompareOp         compareOp          = vk::CompareOp::eAlways,
+                                                   vk::BorderColor       borderColor        = vk::BorderColor::eIntOpaqueBlack,
+                                                   vk::Bool32            unnormalizedCoordinates = VK_FALSE)
+{
+  return makeSamplerCreateInfo(static_cast<VkFilter>(magFilter), static_cast<VkFilter>(minFilter),
+                               static_cast<VkSamplerAddressMode>(addressModeU), static_cast<VkSamplerAddressMode>(addressModeV), static_cast<VkSamplerAddressMode>(addressModeW), 
+                               static_cast<VkBool32>(anisotropyEnable), maxAnisotropy, static_cast<VkSamplerMipmapMode>(mipmapMode), minLod, maxLod, mipLodBias, 
+                               compareEnable, static_cast<VkCompareOp>(compareOp),
+                               static_cast<VkBorderColor>(borderColor), static_cast<VkBool32>(unnormalizedCoordinates));
+}
+#endif
+
 }  // namespace nvvk
