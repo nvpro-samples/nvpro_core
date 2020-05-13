@@ -180,6 +180,12 @@ int load_VK_NV_coverage_reduction_mode(VkInstance instance, PFN_vkGetInstancePro
 extern int has_VK_NV_coverage_reduction_mode;
 #endif
 
+#if VK_KHR_buffer_device_address
+#define LOADER_VK_KHR_buffer_device_address 1
+int load_VK_KHR_buffer_device_address(VkInstance instance, PFN_vkGetInstanceProcAddr getInstanceProcAddr, VkDevice device, PFN_vkGetDeviceProcAddr getDeviceProcAddr);
+extern int has_VK_KHR_buffer_device_address;
+#endif
+
 #if VK_EXT_host_query_reset
 #define LOADER_VK_EXT_host_query_reset 1
 int load_VK_EXT_host_query_reset(VkInstance instance, PFN_vkGetInstanceProcAddr getInstanceProcAddr, VkDevice device, PFN_vkGetDeviceProcAddr getDeviceProcAddr);

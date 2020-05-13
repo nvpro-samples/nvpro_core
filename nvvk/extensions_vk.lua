@@ -57,6 +57,7 @@ local extensionSubset = [[
     VK_KHR_draw_indirect_count
     VK_KHR_driver_properties
     VK_KHR_pipeline_executable_properties
+    VK_KHR_buffer_device_address
     
     VK_NV_compute_shader_derivatives
     VK_NV_cooperative_matrix

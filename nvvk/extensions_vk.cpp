@@ -1254,6 +1254,49 @@ int load_VK_NV_coverage_reduction_mode(VkInstance instance, PFN_vkGetInstancePro
 #endif
 
 /* /////////////////////////////////// */
+#if VK_KHR_buffer_device_address
+static PFN_vkGetBufferDeviceAddressKHR pfn_vkGetBufferDeviceAddressKHR = 0;
+static PFN_vkGetBufferOpaqueCaptureAddressKHR pfn_vkGetBufferOpaqueCaptureAddressKHR = 0;
+static PFN_vkGetDeviceMemoryOpaqueCaptureAddressKHR pfn_vkGetDeviceMemoryOpaqueCaptureAddressKHR = 0;
+
+VKAPI_ATTR VkDeviceAddress VKAPI_CALL vkGetBufferDeviceAddressKHR(
+    VkDevice device,
+    const VkBufferDeviceAddressInfoKHR* pInfo)
+{
+  assert(pfn_vkGetBufferDeviceAddressKHR);
+  return pfn_vkGetBufferDeviceAddressKHR(device,pInfo);
+}
+VKAPI_ATTR uint64_t VKAPI_CALL vkGetBufferOpaqueCaptureAddressKHR(
+    VkDevice device,
+    const VkBufferDeviceAddressInfoKHR* pInfo)
+{
+  assert(pfn_vkGetBufferOpaqueCaptureAddressKHR);
+  return pfn_vkGetBufferOpaqueCaptureAddressKHR(device,pInfo);
+}
+VKAPI_ATTR uint64_t VKAPI_CALL vkGetDeviceMemoryOpaqueCaptureAddressKHR(
+    VkDevice device,
+    const VkDeviceMemoryOpaqueCaptureAddressInfoKHR* pInfo)
+{
+  assert(pfn_vkGetDeviceMemoryOpaqueCaptureAddressKHR);
+  return pfn_vkGetDeviceMemoryOpaqueCaptureAddressKHR(device,pInfo);
+}
+
+int has_VK_KHR_buffer_device_address = 0;
+int load_VK_KHR_buffer_device_address(VkInstance instance, PFN_vkGetInstanceProcAddr getInstanceProcAddr, VkDevice device, PFN_vkGetDeviceProcAddr getDeviceProcAddr)
+{
+  pfn_vkGetBufferDeviceAddressKHR = (PFN_vkGetBufferDeviceAddressKHR)getDeviceProcAddr(device, "vkGetBufferDeviceAddressKHR");
+  pfn_vkGetBufferOpaqueCaptureAddressKHR = (PFN_vkGetBufferOpaqueCaptureAddressKHR)getDeviceProcAddr(device, "vkGetBufferOpaqueCaptureAddressKHR");
+  pfn_vkGetDeviceMemoryOpaqueCaptureAddressKHR = (PFN_vkGetDeviceMemoryOpaqueCaptureAddressKHR)getDeviceProcAddr(device, "vkGetDeviceMemoryOpaqueCaptureAddressKHR");
+  int success = 1;
+  success = success && (pfn_vkGetBufferDeviceAddressKHR != 0);
+  success = success && (pfn_vkGetBufferOpaqueCaptureAddressKHR != 0);
+  success = success && (pfn_vkGetDeviceMemoryOpaqueCaptureAddressKHR != 0);
+  has_VK_KHR_buffer_device_address = success;
+  return success;
+}
+#endif
+
+/* /////////////////////////////////// */
 #if VK_EXT_host_query_reset
 static PFN_vkResetQueryPoolEXT pfn_vkResetQueryPoolEXT = 0;
 
@@ -1470,6 +1513,9 @@ void load_VK_EXTENSION_SUBSET(VkInstance instance, PFN_vkGetInstanceProcAddr get
   #if VK_NV_coverage_reduction_mode
   load_VK_NV_coverage_reduction_mode(instance, getInstanceProcAddr, device, getDeviceProcAddr);
   #endif
+  #if VK_KHR_buffer_device_address
+  load_VK_KHR_buffer_device_address(instance, getInstanceProcAddr, device, getDeviceProcAddr);
+  #endif
   #if VK_EXT_host_query_reset
   load_VK_EXT_host_query_reset(instance, getInstanceProcAddr, device, getDeviceProcAddr);
   #endif
@@ -1641,6 +1687,13 @@ void reset_VK_EXTENSION_SUBSET() {
   #if VK_NV_coverage_reduction_mode
   has_VK_NV_coverage_reduction_mode = 0;
   PFN_vkGetPhysicalDeviceSupportedFramebufferMixedSamplesCombinationsNV pfn_vkGetPhysicalDeviceSupportedFramebufferMixedSamplesCombinationsNV = 0;
+  #endif
+
+  #if VK_KHR_buffer_device_address
+  has_VK_KHR_buffer_device_address = 0;
+  PFN_vkGetBufferDeviceAddressKHR pfn_vkGetBufferDeviceAddressKHR = 0;
+  PFN_vkGetBufferOpaqueCaptureAddressKHR pfn_vkGetBufferOpaqueCaptureAddressKHR = 0;
+  PFN_vkGetDeviceMemoryOpaqueCaptureAddressKHR pfn_vkGetDeviceMemoryOpaqueCaptureAddressKHR = 0;
   #endif
 
   #if VK_EXT_host_query_reset
