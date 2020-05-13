@@ -30,7 +30,6 @@
 
 namespace nvvk {
 
-
 VkImageMemoryBarrier makeImageMemoryBarrier(VkImage            img,
                                             VkAccessFlags      srcAccess,
                                             VkAccessFlags      dstAccess,

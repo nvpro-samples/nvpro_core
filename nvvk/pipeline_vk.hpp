@@ -33,6 +33,16 @@
 #include <vulkan/vulkan.h>
 
 namespace nvvk {
+//--------------------------------------------------------------------------------------------------
+/** 
+  # functions in nvvk
+
+  - nvprintPipelineStats : prints stats of the pipeline using VK_KHR_pipeline_executable_properties (don't forget to enable extension and set VK_PIPELINE_CREATE_CAPTURE_STATISTICS_BIT_KHR)
+
+*/
+
+
+void nvprintPipelineStats(VkDevice device, VkPipeline pipeline, const char* name, bool verbose = false);
 
 //--------------------------------------------------------------------------------------------------
 /** 
@@ -516,13 +526,13 @@ public:
     return addShader(shaderModule, stage, entryPoint);
   }
 #ifdef VULKAN_HPP
-  vk::PipelineShaderStageCreateInfo& nvvk::GraphicsPipelineGenerator::addShader(vk::ShaderModule        shaderModule,
-                                                                                vk::ShaderStageFlagBits stage,
-                                                                                const char* entryPoint = "main")
+  vk::PipelineShaderStageCreateInfo& addShader(vk::ShaderModule        shaderModule,
+                                               vk::ShaderStageFlagBits stage,
+                                               const char*             entryPoint = "main")
 #else
-  VkPipelineShaderStageCreateInfo& nvvk::GraphicsPipelineGenerator::addShader(VkShaderModule        shaderModule,
-                                                                              VkShaderStageFlagBits stage,
-                                                                              const char* entryPoint = "main")
+  VkPipelineShaderStageCreateInfo& addShader(VkShaderModule        shaderModule,
+                                             VkShaderStageFlagBits stage,
+                                             const char*           entryPoint = "main")
 #endif
   {
     VkPipelineShaderStageCreateInfo shaderStage{VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
