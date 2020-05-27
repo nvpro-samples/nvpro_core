@@ -213,22 +213,13 @@ tinygltf::TinyGLTF gltfContext;
 fileLoaded = gltfContext.LoadASCIIFromFile(&gltfModel, &error, &warn, m_filename);
  
 // Fill the data in the gltfScene
-
-nvh::gltf::Scene   gltfScene;
-nvh::gltf::Scene::VertexData vertices;
-std::vector<uint32_t> indices;
-gltfScene.loadMaterials(gltfModel);
-vertices.attributes["NORMAL"]     = {0, 1, 0};  // Attributes we are interested in
-vertices.attributes["COLOR_0"]    = {1, 1, 1};
-vertices.attributes["TEXCOORD_0"] = {0, 0};
-gltfScene.loadMeshes(gltfModel, indices, vertices);
-gltfScene.loadNodes(gltfModel);
-gltfScene.computeSceneDimensions();
+gltfScene.getMaterials(tmodel);
+gltfScene.getDrawableNodes(tmodel, GltfAttributes::Normal | GltfAttributes::Texcoord_0);
 
 // Todo in App:
-//   create buffers for vertices and indices
-//   create textures from images
-//   create descriptorSet for material textures and push constant for material values
+//   create buffers for vertices and indices, from gltfScene.m_position, gltfScene.m_index
+//   create textures from images: using tinygltf directly
+//   create descriptorSet for material using directly gltfScene.m_materials
 ~~~
 
 ## inputparser.h

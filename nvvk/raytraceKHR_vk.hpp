@@ -506,6 +506,7 @@ struct RaytracingBuilderKHR
     VkAccelerationStructureGeometryKHR topASGeometry{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR};
     topASGeometry.geometryType = VK_GEOMETRY_TYPE_INSTANCES_KHR;
     topASGeometry.geometry     = geometry;
+    topASGeometry.flags        = m_tlas.flags;
 
     const VkAccelerationStructureGeometryKHR* pGeometry = &topASGeometry;
 

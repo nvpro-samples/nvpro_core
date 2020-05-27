@@ -34,6 +34,7 @@
 #include <unordered_map>
 #include <vector>
 #include <string.h> //memcmp
+#include <float.h>
 
 namespace nvvk {
 //////////////////////////////////////////////////////////////////////////
