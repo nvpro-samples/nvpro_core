@@ -102,6 +102,7 @@ public:
   Actions mouseMove(int x, int y, const Inputs& inputs);
 
   /// Set the camera to look at the interest point
+  /// instantSet = true will not interpolate to the new position
   void setLookat(const nvmath::vec3& eye, const nvmath::vec3& center, const nvmath::vec3& up, bool instantSet = true);
 
   void updateAnim();
@@ -137,8 +138,10 @@ public:
   /// Retrieving the transformation matrix of the camera
   const nvmath::mat4& getMatrix() const;
 
-  //
-  void setMatrix(nvmath::mat4& mat_);
+  /// Set the position, interest from the matrix.
+  /// instantSet = true will not interpolate to the new position
+  /// centerDistance is the distance of the center from the eye
+  void setMatrix(const nvmath::mat4& mat_, bool instantSet = true, float centerDistance = 1.f);
 
   /// Changing the default speed movement
   void setSpeed(float speed);

@@ -146,18 +146,34 @@ const nvmath::mat4& CameraManipulator::getMatrix() const
   return m_matrix;
 }
 
-void CameraManipulator::setMatrix(nvmath::mat4& mat_)
+void CameraManipulator::setMatrix(const nvmath::mat4& mat_, bool instantSet, float centerDistance)
 {
-  mat_.get_translation(m_current.eye);
-  auto rotMat   = mat_.get_rot_mat3();
-  m_current.ctr = {0, 0, -1};
-  m_current.ctr = rotMat * m_current.ctr;
-  m_current.up  = {0, 1, 0};
+  nvmath::vec3f eye, center, up;
 
-  m_goal       = m_current;
-  m_start_time = 0;
+  mat_.get_translation(eye);
+  auto rotMat = mat_.get_rot_mat3();
+  center      = {0, 0, -centerDistance};
+  center      = eye + (rotMat * center);
+  up          = {0, 1, 0};
 
-  m_matrix = nvmath::invert(mat_);
+  if(instantSet)
+  {
+    m_current.eye = eye;
+    m_current.ctr = center;
+    m_current.up  = up;
+    m_goal        = m_current;
+    m_start_time  = 0;
+  }
+  else
+  {
+    m_goal.eye   = eye;
+    m_goal.ctr   = center;
+    m_goal.up    = up;
+    m_snapshot   = m_current;
+    m_start_time = getSystemTime();
+    findBezierPoints();
+  }
+  update();
 }
 
 //--------------------------------------------------------------------------------------------------
