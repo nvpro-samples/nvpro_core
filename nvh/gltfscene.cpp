@@ -25,935 +25,535 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
-#include <algorithm>
-#include <iostream>
-#include <set>
-
-
 #include "gltfscene.hpp"
+#include <iostream>
 #include <numeric>
 
-namespace nvmath {
-
-template <typename T>
-T mix(T x, T y, float a)
-{
-  return x + a * (y - x);
-}
-
-template <typename T>
-quaternion<T> slerp(quaternion<T> const& x, quaternion<T> const& y, T a)
-{
-  quaternion<T> z = y;
-
-  T cosTheta = dot(x, y);
-
-  // If cosTheta < 0, the interpolation will take the long way around the sphere.
-  // To fix this, one quat must be negated.
-  if(cosTheta < T(0))
-  {
-    z.conjugate();
-    cosTheta = -cosTheta;
-  }
-
-  // Perform a linear interpolation when cosTheta is close to 1 to avoid side effect of sin(angle) becoming a zero denominator
-  if(cosTheta > T(1) - std::numeric_limits<T>::epsilon())
-  {
-    // Linear interpolation
-    return quaternion<T>(mix(x.w, z.w, a), mix(x.x, z.x, a), mix(x.y, z.y, a), mix(x.z, z.z, a));
-  }
-
-  // Essential Mathematics, page 467
-  T angle = acos(cosTheta);
-  // TODO --- not working
-  return x;
-  //return (sin((T(1) - a) * angle) * x + sin(a * angle) * z) / sin(angle);
-}
-
-}  // namespace nvmath
-
-
-//--------------------------------------------------------------------------------------------------
-
 namespace nvh {
-
-namespace gltf {
-
-
-void Primitive::setDimensions(const nvmath::vec3f& min, const nvmath::vec3f& max)
+//--------------------------------------------------------------------------------------------------
+// Collect the value of all materials
+//
+void GltfScene::importMaterials(const tinygltf::Model& tmodel)
 {
-  m_dimensions.min    = min;
-  m_dimensions.max    = max;
-  m_dimensions.size   = max - min;
-  m_dimensions.center = (min + max) / 2.0f;
-  m_dimensions.radius = nvmath::length(max - min) / 2.0f;
+  m_materials.reserve(tmodel.materials.size());
+
+  for(auto& tmat : tmodel.materials)
+  {
+    GltfMaterial gmat;
+
+    gmat.alphaCutoff        = static_cast<float>(tmat.alphaCutoff);
+    gmat.alphaMode          = tmat.alphaMode == "MASK" ? 1 : (tmat.alphaMode == "BLEND" ? 2 : 0);
+    gmat.doubleSided        = tmat.doubleSided;
+    gmat.emissiveFactor     = nvmath::vec3f(tmat.emissiveFactor[0], tmat.emissiveFactor[1], tmat.emissiveFactor[2]);
+    gmat.emissiveTexture    = tmat.emissiveTexture.index;
+    gmat.normalTexture      = tmat.normalTexture.index;
+    gmat.normalTextureScale = static_cast<float>(tmat.normalTexture.scale);
+    gmat.occlusionTexture   = tmat.occlusionTexture.index;
+    gmat.occlusionTextureStrength = static_cast<float>(tmat.occlusionTexture.strength);
+
+    // PbrMetallicRoughness
+    auto& tpbr = tmat.pbrMetallicRoughness;
+    gmat.pbrBaseColorFactor =
+        nvmath::vec4f(tpbr.baseColorFactor[0], tpbr.baseColorFactor[1], tpbr.baseColorFactor[2], tpbr.baseColorFactor[3]);
+    gmat.pbrBaseColorTexture         = tpbr.baseColorTexture.index;
+    gmat.pbrMetallicFactor           = static_cast<float>(tpbr.metallicFactor);
+    gmat.pbrMetallicRoughnessTexture = tpbr.metallicRoughnessTexture.index;
+    gmat.pbrRoughnessFactor          = static_cast<float>(tpbr.roughnessFactor);
+
+    // KHR_materials_pbrSpecularGlossiness
+    if(tmat.extensions.find("KHR_materials_pbrSpecularGlossiness") != tmat.extensions.end())
+    {
+      gmat.shadingModel = 1;
+
+      const auto& khr = tmat.extensions.find("KHR_materials_pbrSpecularGlossiness")->second;
+      if(khr.Has("diffuseFactor"))
+      {
+        auto vec              = getVector<float>(khr.Get("diffuseFactor"));
+        gmat.khrDiffuseFactor = nvmath::vec4f(vec[0], vec[1], vec[2], vec[3]);
+      }
+      if(khr.Has("glossinessFactor"))
+      {
+        gmat.khrGlossinessFactor = static_cast<float>(khr.Get("glossinessFactor").GetNumberAsDouble());
+      }
+      if(khr.Has("specularFactor"))
+      {
+        auto vec               = getVector<float>(khr.Get("specularFactor"));
+        gmat.khrSpecularFactor = nvmath::vec3f(vec[0], vec[1], vec[2]);
+      }
+      if(khr.Has("diffuseTexture"))
+      {
+        gmat.khrDiffuseTexture = khr.Get("diffuseTexture").Get("index").Get<int>();
+      }
+    }
+
+    m_materials.emplace_back(gmat);
+  }
+
+  // Make default
+  if(m_materials.empty())
+  {
+    GltfMaterial gmat;
+    gmat.pbrMetallicFactor = 0;
+    m_materials.emplace_back(gmat);
+  }
 }
 
+//--------------------------------------------------------------------------------------------------
+// Linearize the scene graph to world space nodes.
+//
+void GltfScene::importDrawableNodes(const tinygltf::Model& tmodel, GltfAttributes attributes)
+{
+  // Find the number of vertex(attributes) and index
+  uint32_t nbVert{0};
+  uint32_t nbIndex{0};
+  uint32_t meshCnt{0};  // use for mesh to new meshes
+  uint32_t primCnt{0};  //  "   "  "  "
+  for(const auto& mesh : tmodel.meshes)
+  {
+    std::vector<uint32_t> vprim;
+    for(const auto& primitive : mesh.primitives)
+    {
+      const auto& posAccessor = tmodel.accessors[primitive.attributes.find("POSITION")->second];
+      nbVert += static_cast<uint32_t>(posAccessor.count);
+      const auto& indexAccessor = tmodel.accessors[primitive.indices];
+      nbIndex += static_cast<uint32_t>(indexAccessor.count);
+      vprim.emplace_back(primCnt++);
+    }
+    m_meshToPrimMeshes[meshCnt++] = std::move(vprim);  // mesh-id = { prim0, prim1, ... }
+  }
+
+  // Reserving memory
+  m_positions.reserve(nbVert);
+  m_indices.reserve(nbIndex);
+  if((attributes & GltfAttributes::Normal) == GltfAttributes::Normal)
+    m_normals.reserve(nbVert);
+  if((attributes & GltfAttributes::Texcoord_0) == GltfAttributes::Texcoord_0)
+    m_texcoords0.reserve(nbVert);
+  if((attributes & GltfAttributes::Tangent) == GltfAttributes::Tangent)
+    m_tangents.reserve(nbVert);
+  if((attributes & GltfAttributes::Color_0) == GltfAttributes::Color_0)
+    m_colors0.reserve(nbVert);
+
+  // Convert all mesh/primitives+ to a single primitive per mesh
+  for(const auto& tmesh : tmodel.meshes)
+  {
+    for(const auto& tprimitive : tmesh.primitives)
+    {
+      processMesh(tmodel, tprimitive, attributes);
+    }
+  }
+
+  // Transforming the scene hierarchy to a flat list
+  int         defaultScene = tmodel.defaultScene > -1 ? tmodel.defaultScene : 0;
+  const auto& tscene       = tmodel.scenes[defaultScene];
+  for(auto nodeIdx : tscene.nodes)
+  {
+    processNode(tmodel, nodeIdx, nvmath::mat4f(1));
+  }
+
+  computeSceneDimensions();
+
+  m_meshToPrimMeshes.clear();
+  primitiveIndices32u.clear();
+  primitiveIndices16u.clear();
+  primitiveIndices8u.clear();
+}
 
 //--------------------------------------------------------------------------------------------------
-// Converting the transform and matrices into a single matrix
 //
-nvmath::mat4f Node::localMatrix() const
+//
+void GltfScene::processNode(const tinygltf::Model& tmodel, int& nodeIdx, const nvmath::mat4f& parentMatrix)
 {
-  nvmath::mat4f mtranslation, mscale, mrot;
+  const auto& tnode = tmodel.nodes[nodeIdx];
+
+  nvmath::mat4f matrix      = getLocalMatrix(tnode);
+  nvmath::mat4f worldMatrix = parentMatrix * matrix;
+
+  if(tnode.mesh > -1)
+  {
+    const auto& meshes = m_meshToPrimMeshes[tnode.mesh];  // A mesh could have many primitives
+    for(const auto& mesh : meshes)
+    {
+      GltfNode node;
+      node.primMesh    = mesh;
+      node.worldMatrix = worldMatrix;
+      m_nodes.emplace_back(node);
+    }
+  }
+  else if(tnode.camera > -1)
+  {
+    GltfCamera camera;
+    camera.worldMatrix = worldMatrix;
+    camera.cam         = tmodel.cameras[tmodel.nodes[nodeIdx].camera];
+    m_cameras.emplace_back(camera);
+  }
+  else if(tnode.extensions.find(EXTENSION_LIGHT) != tnode.extensions.end())
+  {
+    GltfLight   light;
+    const auto& ext      = tnode.extensions.find(EXTENSION_LIGHT)->second;
+    auto        lightIdx = ext.Get("light").GetNumberAsInt();
+    light.light          = tmodel.lights[lightIdx];
+    light.worldMatrix    = worldMatrix;
+    m_lights.emplace_back(light);
+  }
+
+  // Recursion for all children
+  for(auto child : tnode.children)
+  {
+    processNode(tmodel, child, worldMatrix);
+  }
+}
+
+//--------------------------------------------------------------------------------------------------
+// Extracting the values to a linear buffer
+//
+void GltfScene::processMesh(const tinygltf::Model& tmodel, const tinygltf::Primitive& tmesh, GltfAttributes attributes)
+{
+  GltfPrimMesh resultMesh;
+  resultMesh.materialIndex = std::max(0, tmesh.material);
+  resultMesh.vertexOffset  = static_cast<uint32_t>(m_positions.size());
+  resultMesh.firstIndex    = static_cast<uint32_t>(m_indices.size());
+
+  // Only triangles are supported
+  // 0:point, 1:lines, 2:line_loop, 3:line_strip, 4:triangles, 5:triangle_strip, 6:triangle_fan
+  assert(tmesh.mode == 4);
+
+  // INDICES
+  {
+    const tinygltf::Accessor&   indexAccessor = tmodel.accessors[tmesh.indices];
+    const tinygltf::BufferView& bufferView    = tmodel.bufferViews[indexAccessor.bufferView];
+    const tinygltf::Buffer&     buffer        = tmodel.buffers[bufferView.buffer];
+
+    resultMesh.indexCount = static_cast<uint32_t>(indexAccessor.count);
+
+    switch(indexAccessor.componentType)
+    {
+      case TINYGLTF_PARAMETER_TYPE_UNSIGNED_INT: {
+        primitiveIndices32u.resize(indexAccessor.count);
+        memcpy(primitiveIndices32u.data(), &buffer.data[indexAccessor.byteOffset + bufferView.byteOffset],
+               indexAccessor.count * sizeof(uint32_t));
+        m_indices.insert(m_indices.end(), primitiveIndices32u.begin(), primitiveIndices32u.end());
+        break;
+      }
+      case TINYGLTF_PARAMETER_TYPE_UNSIGNED_SHORT: {
+        primitiveIndices16u.resize(indexAccessor.count);
+        memcpy(primitiveIndices16u.data(), &buffer.data[indexAccessor.byteOffset + bufferView.byteOffset],
+               indexAccessor.count * sizeof(uint16_t));
+        m_indices.insert(m_indices.end(), primitiveIndices16u.begin(), primitiveIndices16u.end());
+        break;
+      }
+      case TINYGLTF_PARAMETER_TYPE_UNSIGNED_BYTE: {
+        primitiveIndices8u.resize(indexAccessor.count);
+        memcpy(primitiveIndices8u.data(), &buffer.data[indexAccessor.byteOffset + bufferView.byteOffset],
+               indexAccessor.count * sizeof(uint8_t));
+        m_indices.insert(m_indices.end(), primitiveIndices8u.begin(), primitiveIndices8u.end());
+        break;
+      }
+      default:
+        std::cerr << "Index component type " << indexAccessor.componentType << " not supported!" << std::endl;
+        return;
+    }
+  }
+
+  // POSITION
+  {
+    bool result = getAttribute<nvmath::vec3f>(tmodel, tmesh, m_positions, "POSITION");
+
+    // Keeping the size of this primitive (Spec says this is required information)
+    const auto& accessor   = tmodel.accessors[tmesh.attributes.find("POSITION")->second];
+    resultMesh.vertexCount = static_cast<uint32_t>(accessor.count);
+    if(!accessor.minValues.empty())
+      resultMesh.posMin = nvmath::vec3f(accessor.minValues[0], accessor.minValues[1], accessor.minValues[2]);
+    if(!accessor.maxValues.empty())
+      resultMesh.posMax = nvmath::vec3f(accessor.maxValues[0], accessor.maxValues[1], accessor.maxValues[2]);
+  }
+
+
+  // NORMAL
+  if((attributes & GltfAttributes::Normal) == GltfAttributes::Normal)
+  {
+    if(!getAttribute<nvmath::vec3f>(tmodel, tmesh, m_normals, "NORMAL"))
+    {
+      // Need to compute the normals
+      std::vector<nvmath::vec3> geonormal(resultMesh.vertexCount);
+      for(size_t i = 0; i < resultMesh.indexCount; i += 3)
+      {
+        uint32_t    ind0 = m_indices[resultMesh.firstIndex + i + 0];
+        uint32_t    ind1 = m_indices[resultMesh.firstIndex + i + 1];
+        uint32_t    ind2 = m_indices[resultMesh.firstIndex + i + 2];
+        const auto& pos0 = m_positions[ind0 + resultMesh.vertexOffset];
+        const auto& pos1 = m_positions[ind1 + resultMesh.vertexOffset];
+        const auto& pos2 = m_positions[ind2 + resultMesh.vertexOffset];
+        const auto  v1   = nvmath::normalize(pos1 - pos0);  // Many normalize, but when objects are really small the
+        const auto  v2   = nvmath::normalize(pos2 - pos0);  // cross will go below nv_eps and the normal will be (0,0,0)
+        const auto  n    = nvmath::cross(v2, v1);
+        geonormal[ind0] += n;
+        geonormal[ind1] += n;
+        geonormal[ind2] += n;
+      }
+      for(auto& n : geonormal)
+        n = nvmath::normalize(n);
+      m_normals.insert(m_normals.end(), geonormal.begin(), geonormal.end());
+    }
+  }
+
+  // TEXCOORD_0
+  if((attributes & GltfAttributes::Texcoord_0) == GltfAttributes::Texcoord_0)
+  {
+    if(!getAttribute<nvmath::vec2f>(tmodel, tmesh, m_texcoords0, "TEXCOORD_0"))
+    {
+      // Set them all to zero
+      //      m_texcoords0.insert(m_texcoords0.end(), resultMesh.vertexCount, nvmath::vec2f(0, 0));
+
+      // Cube map projection
+      for(uint32_t i = 0; i < resultMesh.vertexCount; i++)
+      {
+        const auto& pos  = m_positions[resultMesh.vertexOffset + i];
+        float       absX = fabs(pos.x);
+        float       absY = fabs(pos.y);
+        float       absZ = fabs(pos.z);
+
+        int isXPositive = pos.x > 0 ? 1 : 0;
+        int isYPositive = pos.y > 0 ? 1 : 0;
+        int isZPositive = pos.z > 0 ? 1 : 0;
+
+        float maxAxis, uc, vc;
+
+        // POSITIVE X
+        if(isXPositive && absX >= absY && absX >= absZ)
+        {
+          // u (0 to 1) goes from +z to -z
+          // v (0 to 1) goes from -y to +y
+          maxAxis = absX;
+          uc      = -pos.z;
+          vc      = pos.y;
+        }
+        // NEGATIVE X
+        if(!isXPositive && absX >= absY && absX >= absZ)
+        {
+          // u (0 to 1) goes from -z to +z
+          // v (0 to 1) goes from -y to +y
+          maxAxis = absX;
+          uc      = pos.z;
+          vc      = pos.y;
+        }
+        // POSITIVE Y
+        if(isYPositive && absY >= absX && absY >= absZ)
+        {
+          // u (0 to 1) goes from -x to +x
+          // v (0 to 1) goes from +z to -z
+          maxAxis = absY;
+          uc      = pos.x;
+          vc      = -pos.z;
+        }
+        // NEGATIVE Y
+        if(!isYPositive && absY >= absX && absY >= absZ)
+        {
+          // u (0 to 1) goes from -x to +x
+          // v (0 to 1) goes from -z to +z
+          maxAxis = absY;
+          uc      = pos.x;
+          vc      = pos.z;
+        }
+        // POSITIVE Z
+        if(isZPositive && absZ >= absX && absZ >= absY)
+        {
+          // u (0 to 1) goes from -x to +x
+          // v (0 to 1) goes from -y to +y
+          maxAxis = absZ;
+          uc      = pos.x;
+          vc      = pos.y;
+        }
+        // NEGATIVE Z
+        if(!isZPositive && absZ >= absX && absZ >= absY)
+        {
+          // u (0 to 1) goes from +x to -x
+          // v (0 to 1) goes from -y to +y
+          maxAxis = absZ;
+          uc      = -pos.x;
+          vc      = pos.y;
+        }
+
+        // Convert range from -1 to 1 to 0 to 1
+        float u = 0.5f * (uc / maxAxis + 1.0f);
+        float v = 0.5f * (vc / maxAxis + 1.0f);
+
+        m_texcoords0.emplace_back(u, v);
+      }
+    }
+  }
+
+
+  // TANGENT
+  if((attributes & GltfAttributes::Tangent) == GltfAttributes::Tangent)
+  {
+    if(!getAttribute<nvmath::vec4f>(tmodel, tmesh, m_tangents, "TANGENT"))
+    {
+      // #TODO - Should calculate tangents using default MikkTSpace algorithms
+      // See: https://github.com/mmikk/MikkTSpace
+
+      std::vector<nvmath::vec3f> tan1(resultMesh.vertexCount);
+      std::vector<nvmath::vec3f> tan2(resultMesh.vertexCount);
+
+      // Current implementation
+      // http://foundationsofgameenginedev.com/FGED2-sample.pdf
+      for(size_t i = 0; i < resultMesh.indexCount; i += 3)
+      {
+        // local index
+        uint32_t l_idx0 = m_indices[resultMesh.firstIndex + i + 0];
+        uint32_t l_idx1 = m_indices[resultMesh.firstIndex + i + 1];
+        uint32_t l_idx2 = m_indices[resultMesh.firstIndex + i + 2];
+        // global index
+        uint32_t g_idx0 = l_idx0 + resultMesh.vertexOffset;
+        uint32_t g_idx1 = l_idx1 + resultMesh.vertexOffset;
+        uint32_t g_idx2 = l_idx2 + resultMesh.vertexOffset;
+
+        const auto& pos1 = m_positions[g_idx0];
+        const auto& pos2 = m_positions[g_idx1];
+        const auto& pos3 = m_positions[g_idx2];
+
+        const auto& uv1 = m_texcoords0[g_idx0];
+        const auto& uv2 = m_texcoords0[g_idx1];
+        const auto& uv3 = m_texcoords0[g_idx2];
+
+        float x1 = pos2.x - pos1.x;
+        float x2 = pos3.x - pos1.x;
+        float y1 = pos2.y - pos1.y;
+        float y2 = pos3.y - pos1.y;
+        float z1 = pos2.z - pos1.z;
+        float z2 = pos3.z - pos1.z;
+
+        float s1 = uv2.x - uv1.x;
+        float s2 = uv3.x - uv1.x;
+        float t1 = uv2.y - uv1.y;
+        float t2 = uv3.y - uv1.y;
+
+        float         r = 1.0F / (s1 * t2 - s2 * t1);
+        nvmath::vec3f sdir((t2 * x1 - t1 * x2) * r, (t2 * y1 - t1 * y2) * r, (t2 * z1 - t1 * z2) * r);
+        nvmath::vec3f tdir((s1 * x2 - s2 * x1) * r, (s1 * y2 - s2 * y1) * r, (s1 * z2 - s2 * z1) * r);
+
+        tan1[l_idx0] += sdir;
+        tan1[l_idx1] += sdir;
+        tan1[l_idx2] += sdir;
+
+        tan2[l_idx0] += tdir;
+        tan2[l_idx1] += tdir;
+        tan2[l_idx2] += tdir;
+      }
+
+      for(uint32_t a = 0; a < resultMesh.vertexCount; a++)
+      {
+        const auto& n  = m_normals[resultMesh.vertexOffset + a];
+        const auto& t1 = tan1[a];
+        const auto& t2 = tan2[a];
+
+        // Gram-Schmidt orthogonalize
+        nvmath::vec3f tangent = nvmath::normalize(t1 - n * nvmath::dot(n, t1));
+
+        // Calculate handedness
+        float handedness = (nvmath::dot(nvmath::cross(n, t1), t2) < 0.0F) ? -1.0F : 1.0F;
+        m_tangents.emplace_back(tangent.x, tangent.y, tangent.z, handedness);
+      }
+    }
+  }
+
+  // COLOR_0
+  if((attributes & GltfAttributes::Color_0) == GltfAttributes::Color_0)
+  {
+    if(!getAttribute<nvmath::vec4f>(tmodel, tmesh, m_colors0, "COLOR_0"))
+    {
+      // Set them all to one
+      m_colors0.insert(m_colors0.end(), resultMesh.vertexCount, nvmath::vec4f(1, 1, 1, 1));
+    }
+  }
+
+  m_primMeshes.emplace_back(resultMesh);
+}
+
+//--------------------------------------------------------------------------------------------------
+// Return the matrix of the node
+//
+nvmath::mat4f GltfScene::getLocalMatrix(const tinygltf::Node& tnode)
+{
+  nvmath::mat4f mtranslation{1};
+  nvmath::mat4f mscale{1};
+  nvmath::mat4f mrot{1};
+  nvmath::mat4f matrix{1};
   nvmath::quatf mrotation;
-  mtranslation.as_translation(m_translation);
-  mscale.as_scale(m_scale);
-  m_rotation.to_matrix(mrot);
 
-  return mtranslation * mrot * mscale * m_matrix;
-}
-
-//--------------------------------------------------------------------------------------------------
-// Returning the world Matrix by cumulating all parents
-//
-nvmath::mat4f Node::worldMatrix() const
-{
-  nvmath::mat4f m = localMatrix();
-  gltf::Node*   p = m_parent;
-  while(p != nullptr)
+  if(!tnode.translation.empty())
+    mtranslation.as_translation(nvmath::vec3f(tnode.translation[0], tnode.translation[1], tnode.translation[2]));
+  if(!tnode.scale.empty())
+    mscale.as_scale(nvmath::vec3f(tnode.scale[0], tnode.scale[1], tnode.scale[2]));
+  if(!tnode.rotation.empty())
   {
-    m = p->localMatrix() * m;
-    p = p->m_parent;
+    mrotation[0] = static_cast<float>(tnode.rotation[0]);
+    mrotation[1] = static_cast<float>(tnode.rotation[1]);
+    mrotation[2] = static_cast<float>(tnode.rotation[2]);
+    mrotation[3] = static_cast<float>(tnode.rotation[3]);
+    mrotation.to_matrix(mrot);
   }
-  return m;
-}
-
-
-//--------------------------------------------------------------------------------------------------
-// Destroy the entire scene
-//
-void Scene::destroy()
-{
-  for(auto node : m_nodes)
-  {
-    delete node;
-  }
-  for(auto mesh : m_linearMeshes)
-  {
-    delete mesh;
-  }
-  m_nodes.clear();
-  m_linearMeshes.clear();
-}
-
-
-//--------------------------------------------------------------------------------------------------
-// Convert tinyNode to our representation
-//
-void Scene::loadNode(gltf::Node* parentNode, const tinygltf::Node& tinyNode, uint32_t nodeIndex, const tinygltf::Model& tinyModel)
-{
-  auto newNode         = new gltf::Node{};
-  newNode->m_index     = nodeIndex;
-  newNode->m_parent    = parentNode;
-  newNode->m_name      = tinyNode.name;
-  newNode->m_skinIndex = tinyNode.skin;
-  newNode->m_matrix.identity();
-
-  // Generate local node matrix
-  if(tinyNode.translation.size() == 3)
-  {
-    newNode->m_translation.x = static_cast<float>(tinyNode.translation[0]);
-    newNode->m_translation.y = static_cast<float>(tinyNode.translation[1]);
-    newNode->m_translation.z = static_cast<float>(tinyNode.translation[2]);
-  }
-
-  if(tinyNode.rotation.size() == 4)
-  {
-    newNode->m_rotation.x = static_cast<float>(tinyNode.rotation[0]);
-    newNode->m_rotation.y = static_cast<float>(tinyNode.rotation[1]);
-    newNode->m_rotation.z = static_cast<float>(tinyNode.rotation[2]);
-    newNode->m_rotation.w = static_cast<float>(tinyNode.rotation[3]);
-  }
-
-  if(tinyNode.scale.size() == 3)
-  {
-    newNode->m_scale.x = static_cast<float>(tinyNode.scale[0]);
-    newNode->m_scale.y = static_cast<float>(tinyNode.scale[1]);
-    newNode->m_scale.z = static_cast<float>(tinyNode.scale[2]);
-  }
-
-  if(tinyNode.matrix.size() == 16)
+  if(!tnode.matrix.empty())
   {
     for(int i = 0; i < 16; ++i)
-    {
-      newNode->m_matrix.mat_array[i] = static_cast<float>(tinyNode.matrix[i]);
-    }
-  };
-
-  // Node with children
-  if(!tinyNode.children.empty())
-  {
-    for(int nodeIndex : tinyNode.children)
-    {
-      loadNode(newNode, tinyModel.nodes[nodeIndex], nodeIndex, tinyModel);
-    }
+      matrix.mat_array[i] = static_cast<float>(tnode.matrix[i]);
   }
-
-  // Node contains mesh data
-  if(tinyNode.mesh > -1)
-  {
-    newNode->m_mesh = tinyNode.mesh;
-  }
-  else if(tinyNode.camera > -1)
-  {
-    m_cameras.push_back(newNode);
-  }
-
-  if(parentNode != nullptr)
-  {
-    parentNode->m_children.push_back(newNode);
-  }
-  else
-  {
-    m_nodes.push_back(newNode);
-  }
-
-  m_linearNodes.push_back(newNode);
+  return mtranslation * mrot * mscale * matrix;
 }
 
 
-//--------------------------------------------------------------------------------------------------
-// Loading meshes and returning all the positions and attributes in the vertex data
-//
-void Scene::loadMeshes(const tinygltf::Model& tinyModel, std::vector<uint32_t>& indexBuffer, VertexData& vertexData)
+void GltfScene::destroy()
 {
-  // Keeping the default values of all attributes
-  auto defaultValues = vertexData.attributes;
-
-  // Find the size of indices and position for all meshes.
-  uint32_t indexTotCount  = 0;
-  uint32_t vertexTotCount = 0;
-  for(const auto& mesh : tinyModel.meshes)
-  {
-    for(const tinygltf::Primitive& primitive : mesh.primitives)
-    {
-      const tinygltf::Accessor& posAccessor = tinyModel.accessors[primitive.attributes.find("POSITION")->second];
-      vertexTotCount += static_cast<uint32_t>(posAccessor.count);
-      const tinygltf::Accessor& indexAccessor = tinyModel.accessors[primitive.indices];
-      indexTotCount += static_cast<uint32_t>(indexAccessor.count);
-    }
-  }
-
-  // Using the information about the size, to reserve the memory of all buffers
-  indexBuffer.reserve(indexTotCount);
-  vertexData.position.reserve(vertexTotCount);
-  for(auto& attrib : vertexData.attributes)
-  {
-    auto nbElem = defaultValues[attrib.first].size();
-    attrib.second.clear();
-    attrib.second.reserve(vertexTotCount * nbElem);
-  }
-
-
-  // Per primitive Index array, keeping it here to avoid reallocation of vectors
-  std::vector<uint32_t> primitiveIndices32u;
-  std::vector<uint16_t> primitiveIndices16u;
-  std::vector<uint8_t>  primitiveIndices8u;
-
-
-  // Looping over all meshes in the scene
-  for(const auto& mesh : tinyModel.meshes)
-  {
-    nvmath::mat4f matrix;
-    matrix.identity();
-    auto newMesh    = new gltf::Mesh(matrix);
-    newMesh->m_name = mesh.name;
-
-    // Looping over all primitives in
-    for(const tinygltf::Primitive& primitive : mesh.primitives)
-    {
-      if(primitive.indices < 0)
-      {
-        continue;
-      }
-
-      // Keeping the stating position of the arrays
-      auto vertexStart = static_cast<uint32_t>(vertexData.position.size());
-      auto indexStart  = static_cast<uint32_t>(indexBuffer.size());
-
-
-      uint32_t      indexCount = 0;
-      nvmath::vec3f posMin{};
-      nvmath::vec3f posMax{};
-
-
-      // POSITION : Position attribute is required
-      assert(primitive.attributes.find("POSITION") != primitive.attributes.end());
-      size_t nbPositions = 0;
-      {
-        // Retrieving the positions of the primitive
-        const tinygltf::Accessor&   posAccessor = tinyModel.accessors[primitive.attributes.find("POSITION")->second];
-        const tinygltf::BufferView& posView     = tinyModel.bufferViews[posAccessor.bufferView];
-
-        // Keeping the number of positions to make all attributes the same size
-        nbPositions = posAccessor.count;
-
-        // Copying the position to local data
-        auto bufferPos = reinterpret_cast<const float*>(
-            &(tinyModel.buffers[posView.buffer].data[posAccessor.byteOffset + posView.byteOffset]));
-        vertexData.position.resize(vertexStart + posAccessor.count);
-        if(posView.byteStride == 0)
-        {
-          memcpy(&vertexData.position[vertexStart], bufferPos, posAccessor.count * 3 * sizeof(float));
-        }
-        else
-        {
-          auto bufferByte = reinterpret_cast<const uint8_t*>(bufferPos);
-          for(size_t i = 0; i < nbPositions; i++)
-          {
-            vertexData.position[vertexStart + i] = *reinterpret_cast<const nvmath::vec3f*>(bufferByte);
-            bufferByte += posView.byteStride;
-          }
-        }
-
-        // Keeping the size of this primitive (Spec says this is required information)
-        if(!posAccessor.minValues.empty())
-        {
-          posMin = nvmath::vec3f(posAccessor.minValues[0], posAccessor.minValues[1], posAccessor.minValues[2]);
-        }
-        if(!posAccessor.maxValues.empty())
-        {
-          posMax = nvmath::vec3f(posAccessor.maxValues[0], posAccessor.maxValues[1], posAccessor.maxValues[2]);
-        }
-      }
-
-
-      // Indices
-      {
-        const tinygltf::Accessor&   indexAccessor = tinyModel.accessors[primitive.indices];
-        const tinygltf::BufferView& bufferView    = tinyModel.bufferViews[indexAccessor.bufferView];
-        const tinygltf::Buffer&     buffer        = tinyModel.buffers[bufferView.buffer];
-
-        indexCount = static_cast<uint32_t>(indexAccessor.count);
-
-        switch(indexAccessor.componentType)
-        {
-          case TINYGLTF_PARAMETER_TYPE_UNSIGNED_INT: {
-            primitiveIndices32u.resize(indexAccessor.count);
-            memcpy(primitiveIndices32u.data(), &buffer.data[indexAccessor.byteOffset + bufferView.byteOffset],
-                   indexAccessor.count * sizeof(uint32_t));
-            indexBuffer.insert(std::end(indexBuffer), std::begin(primitiveIndices32u), std::end(primitiveIndices32u));
-            break;
-          }
-          case TINYGLTF_PARAMETER_TYPE_UNSIGNED_SHORT: {
-            primitiveIndices16u.resize(indexAccessor.count);
-            memcpy(primitiveIndices16u.data(), &buffer.data[indexAccessor.byteOffset + bufferView.byteOffset],
-                   indexAccessor.count * sizeof(uint16_t));
-            indexBuffer.insert(std::end(indexBuffer), std::begin(primitiveIndices16u), std::end(primitiveIndices16u));
-            break;
-          }
-          case TINYGLTF_PARAMETER_TYPE_UNSIGNED_BYTE: {
-            primitiveIndices8u.resize(indexAccessor.count);
-            memcpy(primitiveIndices8u.data(), &buffer.data[indexAccessor.byteOffset + bufferView.byteOffset],
-                   indexAccessor.count * sizeof(uint8_t));
-            indexBuffer.insert(std::end(indexBuffer), std::begin(primitiveIndices8u), std::end(primitiveIndices8u));
-            break;
-          }
-          default:
-            std::cerr << "Index component type " << indexAccessor.componentType << " not supported!" << std::endl;
-            return;
-        }
-      }
-
-      // ATTRIBUTES: normal, texcoord, ...
-      // Looping over all the attributes we are interested in.
-      for(auto& attrib : vertexData.attributes)
-      {
-        auto nbElem      = defaultValues[attrib.first].size();  // Number of elements this attribute has
-        auto startAttrib = attrib.second.size();                // Keeping track of the starting position in the vector
-        attrib.second.resize(startAttrib + nbPositions * nbElem);  // Resize the attribute to hold the new data
-
-        // Find if the attribute we are looking for is present
-        bool attribSucceed = false;
-        if(primitive.attributes.find(attrib.first) != primitive.attributes.end())
-        {
-          const tinygltf::Accessor& attribAccessor = tinyModel.accessors[primitive.attributes.find(attrib.first)->second];
-          const tinygltf::BufferView& attribBufferView = tinyModel.bufferViews[attribAccessor.bufferView];
-
-          auto attribBuffer = reinterpret_cast<const float*>(
-              &(tinyModel.buffers[attribBufferView.buffer].data[attribAccessor.byteOffset + attribBufferView.byteOffset]));
-
-          assert(attribAccessor.count == nbPositions);
-
-          // Check if the data is compatible
-          if(attribAccessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT)
-          {
-            attribSucceed = true;
-            if(attribAccessor.type == nbElem)
-            {
-              if(attribBufferView.byteStride == 0)
-              {
-                memcpy(&attrib.second[startAttrib], attribBuffer, attribAccessor.count * nbElem * sizeof(float));
-              }
-              else
-              {
-                auto attribByteBuffer = reinterpret_cast<const uint8_t*>(attribBuffer);
-                for(uint32_t atc = 0; atc < attribAccessor.count; atc++)
-                {
-                  for(uint32_t e = 0; e < nbElem; e++)
-                  {
-                    attrib.second[startAttrib + atc * nbElem + e] =
-                        *reinterpret_cast<const float*>(attribByteBuffer + e * sizeof(float));
-                  }
-                  attribByteBuffer += attribBufferView.byteStride;
-                }
-              }
-            }
-            else
-            {
-              // Size is different, so we adjust
-              for(size_t i = 0; i < nbPositions; ++i)
-              {
-                // Copy the default value
-                attrib.second.insert(std::end(attrib.second), std::begin(defaultValues[attrib.first]),
-                                     std::end(defaultValues[attrib.first]));
-
-
-                for(size_t e = 0; e < std::min(nbElem, static_cast<size_t>(attribAccessor.type)); ++e)
-                {
-                  attrib.second[startAttrib + i * nbElem + e] = attribBuffer[i * attribAccessor.type + e];
-                }
-              }
-            }
-          }
-          else
-          {
-            // #TODO implement type converters to Float
-          }
-        }
-
-        if(!attribSucceed)
-        {
-          if(attrib.first == "NORMAL")
-          {
-            // Creating geometric normal
-            nvmath::vec3f* writingNrmAttrib = reinterpret_cast<nvmath::vec3f*>(&attrib.second[0]);
-
-            for(size_t i = 0; i < indexCount; i += 3)
-            {
-              uint32_t             ind0 = vertexStart + indexBuffer[indexStart + i + 0];
-              uint32_t             ind1 = vertexStart + indexBuffer[indexStart + i + 1];
-              uint32_t             ind2 = vertexStart + indexBuffer[indexStart + i + 2];
-              const nvmath::vec3f& pos0 = vertexData.position[ind0];
-              const nvmath::vec3f& pos1 = vertexData.position[ind1];
-              const nvmath::vec3f& pos2 = vertexData.position[ind2];
-              nvmath::vec3f        nrm  = nvmath::normalize(nvmath::cross(pos2 - pos0, pos1 - pos0));
-              writingNrmAttrib[ind0]    = nrm;
-              writingNrmAttrib[ind1]    = nrm;
-              writingNrmAttrib[ind2]    = nrm;
-            }
-          }
-          else
-          {
-            // The attribute was not present or it was of a different type, so all elements will have the default value
-            float*              writingAttrib = &attrib.second[startAttrib];
-            std::vector<float>& values(defaultValues[attrib.first]);
-            for(size_t i = 0; i < nbPositions; ++i)
-            {
-              for(size_t e = 0; e < nbElem; ++e)
-              {
-                *writingAttrib++ = values[e];
-              }
-            }
-          }
-        }
-      }
-
-
-      Primitive newPrimitive;
-      newPrimitive.m_firstIndex    = indexStart;
-      newPrimitive.m_indexCount    = indexCount;
-      newPrimitive.m_vertexOffset  = vertexStart;
-      newPrimitive.m_materialIndex = primitive.material;
-      newPrimitive.setDimensions(posMin, posMax);
-      newMesh->m_primitives.push_back(newPrimitive);
-    }
-    m_linearMeshes.push_back(newMesh);
-  }
-}
-
-//--------------------------------------------------------------------------------------------------
-//
-//
-void Scene::loadNodes(const tinygltf::Model& gltfModel)
-{
-  const tinygltf::Scene& scene = gltfModel.scenes[gltfModel.defaultScene];
-
-  for(int i : scene.nodes)
-  {
-    const tinygltf::Node& node = gltfModel.nodes[i];
-    loadNode(nullptr, node, i, gltfModel);
-  }
-}
-
-//--------------------------------------------------------------------------------------------------
-// Retrieve all skins from tiny scene
-//
-void Scene::loadSkins(const tinygltf::Model& gltfModel)
-{
-  for(const tinygltf::Skin& source : gltfModel.skins)
-  {
-    auto newSkin    = new Skin{};
-    newSkin->m_name = source.name;
-
-    // Find skeleton root node
-    if(source.skeleton > -1)
-    {
-      newSkin->m_skeletonRoot = nodeFromIndex(source.skeleton);
-    }
-
-    // Find joint nodes
-    for(int jointIndex : source.joints)
-    {
-      gltf::Node* node = nodeFromIndex(jointIndex);
-      if(node != nullptr)
-      {
-        newSkin->m_joints.push_back(nodeFromIndex(jointIndex));
-      }
-    }
-
-    // Get inverse bind matrices from buffer
-    if(source.inverseBindMatrices > -1)
-    {
-      const tinygltf::Accessor&   accessor   = gltfModel.accessors[source.inverseBindMatrices];
-      const tinygltf::BufferView& bufferView = gltfModel.bufferViews[accessor.bufferView];
-      const tinygltf::Buffer&     buffer     = gltfModel.buffers[bufferView.buffer];
-      newSkin->m_inverseBindMatrices.resize(accessor.count);
-      memcpy(newSkin->m_inverseBindMatrices.data(), &buffer.data[accessor.byteOffset + bufferView.byteOffset],
-             accessor.count * sizeof(nvmath::mat4f));
-    }
-
-    m_skins.push_back(newSkin);
-  }
-}
-
-template <typename T>
-static T getVector(const tinygltf::Value& value)
-{
-  T result;
-  if(!value.IsArray())
-    return result;
-
-  for(int i = 0; i < value.ArrayLen(); i++)
-  {
-    result[i] = static_cast<float>(value.Get(i).IsNumber() ? value.Get(i).Get<double>() : value.Get(i).Get<int>());
-  }
-  return result;
-}
-
-template <typename T>
-static T getNumber(const tinygltf::Value& value)
-{
-  T result = T(0);
-  if(!value.IsNumber() && !value.IsInt())
-    return result;
-
-  result = static_cast<float>(value.IsNumber() ? value.Get<double>() : value.Get<int>());
-  return result;
-}
-
-//--------------------------------------------------------------------------------------------------
-// Convert all tiny Materials to our representation
-//
-void Scene::loadMaterials(tinygltf::Model& gltfModel)
-{
-  m_numTextures = (uint32_t)gltfModel.images.size();
-
-  for(tinygltf::Material& mat : gltfModel.materials)
-  {
-    Material material{};
-    material.m_name = mat.name;
-
-    if(mat.values.find("baseColorFactor") != mat.values.end())
-    {
-      tinygltf::ColorValue cv          = mat.values["baseColorFactor"].ColorFactor();
-      material.m_mat.baseColorFactor.x = static_cast<float>(cv[0]);
-      material.m_mat.baseColorFactor.y = static_cast<float>(cv[1]);
-      material.m_mat.baseColorFactor.z = static_cast<float>(cv[2]);
-      material.m_mat.baseColorFactor.w = static_cast<float>(cv[3]);
-    }
-
-    if(mat.values.find("roughnessFactor") != mat.values.end())
-    {
-      material.m_mat.roughnessFactor = static_cast<float>(mat.values["roughnessFactor"].Factor());
-    }
-
-    if(mat.values.find("metallicFactor") != mat.values.end())
-    {
-      material.m_mat.metallicFactor = static_cast<float>(mat.values["metallicFactor"].Factor());
-    }
-
-    if(mat.additionalValues.find("emissiveFactor") != mat.additionalValues.end())
-    {
-      tinygltf::ColorValue cv         = mat.additionalValues["emissiveFactor"].ColorFactor();
-      material.m_mat.emissiveFactor.x = static_cast<float>(cv[0]);
-      material.m_mat.emissiveFactor.y = static_cast<float>(cv[1]);
-      material.m_mat.emissiveFactor.z = static_cast<float>(cv[2]);
-    }
-
-    if(mat.additionalValues.find("alphaMode") != mat.additionalValues.end())
-    {
-      tinygltf::Parameter param = mat.additionalValues["alphaMode"];
-
-      if(param.string_value == "BLEND")
-      {
-        material.m_mat.alphaMode = (int)AlphaMode::eBlend;
-      }
-
-      if(param.string_value == "MASK")
-      {
-        material.m_mat.alphaMode = (int)AlphaMode::eMask;
-      }
-    }
-
-    if(mat.additionalValues.find("alphaCutoff") != mat.additionalValues.end())
-    {
-      material.m_mat.alphaCutoff = static_cast<float>(mat.additionalValues["alphaCutoff"].Factor());
-    }
-
-    if(mat.additionalValues.find("doubleSided") != mat.additionalValues.end())
-    {
-      material.m_mat.doubleSided = mat.additionalValues["doubleSided"].bool_value ? 1 : 0;
-    }
-
-
-    if(mat.extensions.find("KHR_materials_pbrSpecularGlossiness") != mat.extensions.end())
-    {
-      material.m_mat.metallicFactor = 0.0f;
-
-      tinygltf::Value pbr  = mat.extensions["KHR_materials_pbrSpecularGlossiness"];
-      auto            keys = pbr.Keys();
-      if(pbr.Has("diffuseFactor"))
-      {
-        material.m_mat.baseColorFactor = getVector<nvmath::vec4f>(pbr.Get("diffuseFactor"));
-      }
-      if(pbr.Has("glossinessFactor"))
-      {
-        material.m_mat.glossinessFactor = getNumber<float>(pbr.Get("glossinessFactor"));
-      }
-      if(pbr.Has("specularFactor"))
-      {
-        material.m_mat.specularFactor = getVector<nvmath::vec3f>(pbr.Get("specularFactor"));
-      }
-      if(pbr.Has("diffuseTexture"))
-      {
-        auto index                  = pbr.Get("diffuseTexture").Get("index").Get<int>();
-        material.m_baseColorTexture = gltfModel.textures[index].source;
-      }
-    }
-
-
-    // For textures to exist, loadImage should be done earlier.
-    if(m_numTextures != 0)
-    {
-      if(mat.values.find("baseColorTexture") != mat.values.end())
-      {
-        material.m_baseColorTexture = gltfModel.textures[mat.values["baseColorTexture"].TextureIndex()].source;
-      }
-
-      if(mat.values.find("metallicRoughnessTexture") != mat.values.end())
-      {
-        material.m_metallicRoughnessTexture = gltfModel.textures[mat.values["metallicRoughnessTexture"].TextureIndex()].source;
-      }
-
-      if(mat.additionalValues.find("normalTexture") != mat.additionalValues.end())
-      {
-        material.m_normalTexture = gltfModel.textures[mat.additionalValues["normalTexture"].TextureIndex()].source;
-      }
-
-      if(mat.additionalValues.find("emissiveTexture") != mat.additionalValues.end())
-      {
-        material.m_emissiveTexture = gltfModel.textures[mat.additionalValues["emissiveTexture"].TextureIndex()].source;
-      }
-
-      if(mat.additionalValues.find("occlusionTexture") != mat.additionalValues.end())
-      {
-        material.m_occlusionTexture = gltfModel.textures[mat.additionalValues["occlusionTexture"].TextureIndex()].source;
-      }
-    }
-
-    m_materials.emplace_back(material);
-  }
-}
-
-//--------------------------------------------------------------------------------------------------
-// Convert all tiny animation to our representation
-//
-void Scene::loadAnimations(const tinygltf::Model& gltfModel)
-{
-  for(const tinygltf::Animation& anim : gltfModel.animations)
-  {
-    Animation animation{};
-    animation.m_name = anim.name;
-
-    if(anim.name.empty())
-    {
-      animation.m_name = std::to_string(m_animations.size());
-    }
-
-    // Samplers
-    for(auto& samp : anim.samplers)
-    {
-      AnimationSampler sampler{};
-
-      if(samp.interpolation == "LINEAR")
-      {
-        sampler.m_interpolation = InterpolationType::eLinear;
-      }
-
-      if(samp.interpolation == "STEP")
-      {
-        sampler.m_interpolation = InterpolationType::eStep;
-      }
-
-      if(samp.interpolation == "CUBICSPLINE")
-      {
-        sampler.m_interpolation = InterpolationType::eCubicSpline;
-      }
-
-      // Read sampler input time values
-      {
-        const tinygltf::Accessor&   accessor   = gltfModel.accessors[samp.input];
-        const tinygltf::BufferView& bufferView = gltfModel.bufferViews[accessor.bufferView];
-        const tinygltf::Buffer&     buffer     = gltfModel.buffers[bufferView.buffer];
-
-        assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
-
-        auto buf = new float[accessor.count];
-        memcpy(buf, &buffer.data[accessor.byteOffset + bufferView.byteOffset], accessor.count * sizeof(float));
-        for(size_t index = 0; index < accessor.count; index++)
-        {
-          sampler.m_inputs.push_back(buf[index]);
-        }
-
-        for(auto input : sampler.m_inputs)
-        {
-          if(input < animation.m_start)
-          {
-            animation.m_start = input;
-          };
-
-          if(input > animation.m_end)
-          {
-            animation.m_end = input;
-          }
-        }
-      }
-
-      // Read sampler output T/R/S values
-      {
-        const tinygltf::Accessor&   accessor   = gltfModel.accessors[samp.output];
-        const tinygltf::BufferView& bufferView = gltfModel.bufferViews[accessor.bufferView];
-        const tinygltf::Buffer&     buffer     = gltfModel.buffers[bufferView.buffer];
-
-        assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
-
-        switch(accessor.type)
-        {
-          case TINYGLTF_TYPE_VEC3: {
-            auto buf = new nvmath::vec3f[accessor.count];
-            memcpy(buf, &buffer.data[accessor.byteOffset + bufferView.byteOffset], accessor.count * sizeof(nvmath::vec3f));
-            for(size_t index = 0; index < accessor.count; index++)
-            {
-              sampler.m_outputsVec4.emplace_back(buf[index], 0.0f);
-            }
-            break;
-          }
-
-          case TINYGLTF_TYPE_VEC4: {
-            auto buf = new nvmath::vec4f[accessor.count];
-            memcpy(buf, &buffer.data[accessor.byteOffset + bufferView.byteOffset], accessor.count * sizeof(nvmath::vec4f));
-            for(size_t index = 0; index < accessor.count; index++)
-            {
-              sampler.m_outputsVec4.emplace_back(buf[index]);
-            }
-            break;
-          }
-
-          default: {
-            std::cout << "unknown type" << std::endl;
-            break;
-          }
-        }
-      }
-
-      animation.m_samplers.push_back(sampler);
-    }
-
-    // Channels
-    for(auto& source : anim.channels)
-    {
-      AnimationChannel channel{};
-
-      if(source.target_path == "rotation")
-      {
-        channel.m_path = PathType::eRotation;
-      }
-
-      if(source.target_path == "translation")
-      {
-        channel.m_path = PathType::eTranslation;
-      }
-
-      if(source.target_path == "scale")
-      {
-        channel.m_path = PathType::eScale;
-      }
-
-      if(source.target_path == "weights")
-      {
-        std::cout << "weights not yet supported, skipping channel" << std::endl;
-        continue;
-      }
-
-      channel.m_samplerIndex = source.sampler;
-      channel.m_node         = nodeFromIndex(source.target_node);
-
-      if(channel.m_node == nullptr)
-      {
-        continue;
-      }
-
-      animation.m_channels.push_back(channel);
-    }
-
-    m_animations.push_back(animation);
-  }
-}
-
-//--------------------------------------------------------------------------------------------------
-// Get the dimension of a node
-//
-void Scene::getNodeDimensions(const gltf::Node* node, nvmath::vec3f& min, nvmath::vec3f& max) const
-{
-  if(node->m_mesh != ~0u)
-  {
-    for(auto& primitive : m_linearMeshes[node->m_mesh]->m_primitives)
-    {
-      nvmath::vec4f locMin = node->worldMatrix() * nvmath::vec4f(primitive.m_dimensions.min, 1.0f);
-      nvmath::vec4f locMax = node->worldMatrix() * nvmath::vec4f(primitive.m_dimensions.max, 1.0f);
-
-      min = {std::min(locMin.x, min.x), std::min(locMin.y, min.y), std::min(locMin.z, min.z)};
-      max = {std::max(locMax.x, max.x), std::max(locMax.y, max.y), std::max(locMax.z, max.z)};
-    }
-  }
-
-  for(auto child : node->m_children)
-  {
-    getNodeDimensions(child, min, max);
-  }
+  m_materials.clear();
+  m_nodes.clear();
+  m_primMeshes.clear();
+  m_cameras.clear();
+  m_lights.clear();
+
+  m_positions.clear();
+  m_indices.clear();
+  m_normals.clear();
+  m_tangents.clear();
+  m_texcoords0.clear();
+  m_texcoords1.clear();
+  m_colors0.clear();
+  m_cameras.clear();
+  //m_joints0.clear();
+  //m_weights0.clear();
+  m_dimensions = {};
 }
 
 //--------------------------------------------------------------------------------------------------
 // Get the dimension of the scene
 //
-void Scene::computeSceneDimensions()
+void GltfScene::computeSceneDimensions()
 {
-  m_dimensions.min = nvmath::vec3f(FLT_MAX);
-  m_dimensions.max = nvmath::vec3f(-FLT_MAX);
-  for(auto node : m_nodes)
+  auto valMin = nvmath::vec3f(FLT_MAX);
+  auto valMax = nvmath::vec3f(-FLT_MAX);
+  for(const auto& node : m_nodes)
   {
-    getNodeDimensions(node, m_dimensions.min, m_dimensions.max);
-  }
-  if(m_dimensions.min == m_dimensions.max)
-  {
-    m_dimensions.min = nvmath::vec3f(-1);
-    m_dimensions.max = nvmath::vec3f(1);
-  }
-  m_dimensions.size   = m_dimensions.max - m_dimensions.min;
-  m_dimensions.center = (m_dimensions.min + m_dimensions.max) / 2.0f;
-  m_dimensions.radius = nvmath::length(m_dimensions.max - m_dimensions.min) / 2.0f;
-}
+    const auto& mesh = m_primMeshes[node.primMesh];
 
-//--------------------------------------------------------------------------------------------------
-// If there is an animation, update all channels and update the matrices
-//
-void Scene::updateAnimation(uint32_t index, float time)
-{
-  if(index > static_cast<uint32_t>(m_animations.size()) - 1)
-  {
-    std::cout << "No animation with index " << index << std::endl;
-    return;
-  }
-  Animation& animation = m_animations[index];
+    nvmath::vec4f locMin = node.worldMatrix * nvmath::vec4f(mesh.posMin, 1.0f);
+    nvmath::vec4f locMax = node.worldMatrix * nvmath::vec4f(mesh.posMax, 1.0f);
 
-  bool updated = false;
-  for(auto& channel : animation.m_channels)
-  {
-    AnimationSampler& sampler = animation.m_samplers[channel.m_samplerIndex];
-    if(sampler.m_inputs.size() > sampler.m_outputsVec4.size())
-    {
-      continue;
-    }
-
-    for(auto i = 0; i < sampler.m_inputs.size() - 1; i++)
-    {
-      if((time >= sampler.m_inputs[i]) && (time <= sampler.m_inputs[i + 1]))
-      {
-        float u = std::max(0.0f, time - sampler.m_inputs[i]) / (sampler.m_inputs[i + 1] - sampler.m_inputs[i]);
-        if(u <= 1.0f)
-        {
-          switch(channel.m_path)
-          {
-            case PathType::eTranslation: {
-              nvmath::vec4f trans           = nvmath::mix(sampler.m_outputsVec4[i], sampler.m_outputsVec4[i + 1], u);
-              channel.m_node->m_translation = nvmath::vec3f(trans);
-              break;
-            }
-            case PathType::eScale: {
-              nvmath::vec4f trans     = nvmath::mix(sampler.m_outputsVec4[i], sampler.m_outputsVec4[i + 1], u);
-              channel.m_node->m_scale = nvmath::vec3f(trans);
-              break;
-            }
-            case PathType::eRotation: {
-              nvmath::quatf q1;
-              q1.x = sampler.m_outputsVec4[i].x;
-              q1.y = sampler.m_outputsVec4[i].y;
-              q1.z = sampler.m_outputsVec4[i].z;
-              q1.w = sampler.m_outputsVec4[i].w;
-              nvmath::quatf q2;
-              q2.x = sampler.m_outputsVec4[i + 1].x;
-              q2.y = sampler.m_outputsVec4[i + 1].y;
-              q2.z = sampler.m_outputsVec4[i + 1].z;
-              q2.w = sampler.m_outputsVec4[i + 1].w;
-
-              channel.m_node->m_rotation = nvmath::normalize(nvmath::slerp(q1, q2, u));
-              break;
-            }
-          }
-          updated = true;
-        }
-      }
-    }
+    valMin = {std::min(locMin.x, valMin.x), std::min(locMin.y, valMin.y), std::min(locMin.z, valMin.z)};
+    valMax = {std::max(locMax.x, valMax.x), std::max(locMax.y, valMax.y), std::max(locMax.z, valMax.z)};
   }
-  if(updated)
+  if(valMin == valMax)
   {
-    for(auto& node : m_nodes)
-    {
-      //node->update();
-    }
+    valMin = nvmath::vec3f(-1);
+    valMin = nvmath::vec3f(1);
   }
+  m_dimensions.min    = valMin;
+  m_dimensions.max    = valMax;
+  m_dimensions.size   = valMax - valMin;
+  m_dimensions.center = (valMin + valMax) / 2.0f;
+  m_dimensions.radius = nvmath::length(valMax - valMin) / 2.0f;
 }
 
 
-//--------------------------------------------------------------------------------------------------
-// Utility function
-//
-Node* Scene::nodeFromIndex(uint32_t index)
-{
-  for(auto& node : m_linearNodes)
-  {
-    if(node->m_index == index)
-    {
-      return node;
-    }
-  }
-  return nullptr;
-}
-
-uint32_t recursiveTriangleCount(const tinygltf::Model& model, int nodeIdx, const std::vector<uint32_t>& meshTriangle)
+static uint32_t recursiveTriangleCount(const tinygltf::Model& model, int nodeIdx, const std::vector<uint32_t>& meshTriangle)
 {
   auto&    node = model.nodes[nodeIdx];
   uint32_t nbTriangles{0};
@@ -968,10 +568,12 @@ uint32_t recursiveTriangleCount(const tinygltf::Model& model, int nodeIdx, const
   return nbTriangles;
 }
 
-Stats Scene::getStatistics(const tinygltf::Model& tinyModel)
+//--------------------------------------------------------------------------------------------------
+// Retrieving information about the scene
+//
+GltfStats GltfScene::getStatistics(const tinygltf::Model& tinyModel)
 {
-
-  Stats stats;
+  GltfStats stats;
 
   stats.nbCameras   = static_cast<uint32_t>(tinyModel.cameras.size());
   stats.nbImages    = static_cast<uint32_t>(tinyModel.images.size());
@@ -1001,7 +603,7 @@ Stats Scene::getStatistics(const tinygltf::Model& tinyModel)
     meshIdx++;
   }
 
-  stats.nbUniqueTriangles = std::accumulate(meshTriangle.begin(), meshTriangle.end(), 0, std::plus<uint32_t>());
+  stats.nbUniqueTriangles = std::accumulate(meshTriangle.begin(), meshTriangle.end(), 0, std::plus<>());
   for(auto& node : tinyModel.scenes[0].nodes)
   {
     stats.nbTriangles += recursiveTriangleCount(tinyModel, node, meshTriangle);
@@ -1009,6 +611,4 @@ Stats Scene::getStatistics(const tinygltf::Model& tinyModel)
 
   return stats;
 }
-
-}  // namespace gltf
 }  // namespace nvh

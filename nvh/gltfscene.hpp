@@ -45,255 +45,82 @@
   fileLoaded = gltfContext.LoadASCIIFromFile(&gltfModel, &error, &warn, m_filename);
  
   // Fill the data in the gltfScene
-
-  nvh::gltf::Scene   gltfScene;
-  nvh::gltf::Scene::VertexData vertices;
-  std::vector<uint32_t> indices;
-  gltfScene.loadMaterials(gltfModel);
-  vertices.attributes["NORMAL"]     = {0, 1, 0};  // Attributes we are interested in
-  vertices.attributes["COLOR_0"]    = {1, 1, 1};
-  vertices.attributes["TEXCOORD_0"] = {0, 0};
-  gltfScene.loadMeshes(gltfModel, indices, vertices);
-  gltfScene.loadNodes(gltfModel);
-  gltfScene.computeSceneDimensions();
+  gltfScene.getMaterials(tmodel);
+  gltfScene.getDrawableNodes(tmodel, GltfAttributes::Normal | GltfAttributes::Texcoord_0);
 
   // Todo in App:
-  //   create buffers for vertices and indices
-  //   create textures from images
-  //   create descriptorSet for material textures and push constant for material values
+  //   create buffers for vertices and indices, from gltfScene.m_position, gltfScene.m_index
+  //   create textures from images: using tinygltf directly
+  //   create descriptorSet for material using directly gltfScene.m_materials
   ~~~
 
 */
 
 #pragma once
-
-
+#pragma once
+#include "fileformats/tiny_gltf.h"
+#include "nvmath/nvmath.h"
+#include "nvmath/nvmath_glsltypes.h"
+#include <map>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
-#include <fileformats/tiny_gltf.h>
-#include <nvmath/nvmath.h>
-
+using namespace nvmath;
+#define EXTENSION_LIGHT "KHR_lights_punctual"
 
 namespace nvh {
 
-namespace gltf {
-struct Node;
-
-// This is the vertex structure to load information on the mesh
-struct VertexData
+struct GltfMaterial
 {
-  std::vector<nvmath::vec3f>                          position;
-  std::unordered_map<std::string, std::vector<float>> attributes;
+  int shadingModel{0};  // 0: metallic-roughness, 1: specular-glossiness
+
+  // PbrMetallicRoughness
+  vec4  pbrBaseColorFactor{1, 1, 1, 1};
+  int   pbrBaseColorTexture{-1};
+  float pbrMetallicFactor{1.f};
+  float pbrRoughnessFactor{1.f};
+  int   pbrMetallicRoughnessTexture{-1};
+
+  // KHR_materials_pbrSpecularGlossiness
+  vec4  khrDiffuseFactor{1, 1, 1, 1};
+  int   khrDiffuseTexture{-1};
+  vec3  khrSpecularFactor{1, 1, 1};
+  float khrGlossinessFactor{1};
+  int   khrSpecularGlossinessTexture{-1};
+
+  int   emissiveTexture{-1};
+  vec3  emissiveFactor{0, 0, 0};
+  int   alphaMode{0};
+  float alphaCutoff{0.5f};
+  bool  doubleSided{false};
+
+  int   normalTexture{-1};
+  float normalTextureScale{1.f};
+  int   occlusionTexture{-1};
+  float occlusionTextureStrength{1};
 };
 
 
-// Matrices of each Node pushed to VK buffer
-struct NodeMatrices
+struct GltfNode
 {
-  nvmath::mat4f world;
-  nvmath::mat4f worldIT;
+  nvmath::mat4f worldMatrix{1};
+  int           primMesh{0};
 };
 
-struct TextureIDX
+struct GltfPrimMesh
 {
-  uint32_t index = ~0;
+  uint32_t firstIndex{0};
+  uint32_t indexCount{0};
+  uint32_t vertexOffset{0};
+  uint32_t vertexCount{0};
+  int      materialIndex{0};
 
-  TextureIDX() = default;
-  TextureIDX(uint32_t idx) { index = idx; }
-  TextureIDX(int idx) { index = (uint32_t)idx; }
-
-  bool isValid() const { return index != ~0; }
-
-  operator bool() const { return isValid(); };
-  operator uint32_t() const { return index; }
-  operator size_t() const { return index; }
+  nvmath::vec3f posMin{0, 0, 0};
+  nvmath::vec3f posMax{0, 0, 0};
 };
 
-enum class AlphaMode
-{
-  eOpaque,
-  eMask,
-  eBlend
-};
-
-enum class PathType
-{
-  eTranslation,
-  eRotation,
-  eScale
-};
-
-enum class InterpolationType
-{
-  eLinear,
-  eStep,
-  eCubicSpline
-};
-
-//--------------------------------------------------------------------------------------------------
-// glTF Material representation
-//
-struct Material
-{
-  std::string m_name;
-
-  // See: https://github.com/KhronosGroup/glTF/tree/master/specification/2.0
-  // https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_materials_pbrSpecularGlossiness
-  struct PushC
-  {
-    nvmath::vec4f baseColorFactor{1.f, 1.f, 1.f, 1.f};  // pbrMetallicRoughness
-    nvmath::vec3f emissiveFactor{0, 0, 0};              // pbrMetallicRoughness
-    float         metallicFactor{1.0f};                 // pbrMetallicRoughness
-    nvmath::vec3f specularFactor{1.f, 1.f, 1.f};        // pbrSpecularGlossiness
-    float         roughnessFactor{1.0f};                // pbrMetallicRoughness
-    int           alphaMode{0};                         //
-    float         alphaCutoff{0.5f};                    //
-    float         glossinessFactor{1.0f};               // pbrSpecularGlossiness
-    int           shadingModel{0};                      // 0: metallic-roughness, 1: specular-glossiness
-    int           doubleSided{0};
-    int           pad0{0};
-    int           pad1{0};
-    int           pad2{0};
-  };
-  PushC      m_mat{};
-  TextureIDX m_baseColorTexture{};
-  TextureIDX m_metallicRoughnessTexture{};
-  TextureIDX m_normalTexture{};
-  TextureIDX m_occlusionTexture{};
-  TextureIDX m_emissiveTexture{};
-};
-
-
-//--------------------------------------------------------------------------------------------------
-// glTF Primitive representation
-//
-struct Primitive
-{
-  uint32_t m_firstIndex{0};
-  uint32_t m_indexCount{0};
-  uint32_t m_vertexOffset{0};
-  uint32_t m_materialIndex{0};
-
-  struct Dimensions
-  {
-    nvmath::vec3f min{nvmath::vec3f(FLT_MAX)};
-    nvmath::vec3f max{nvmath::vec3f(-FLT_MAX)};
-    nvmath::vec3f size{0.f};
-    nvmath::vec3f center{0.f};
-    float         radius{0};
-  } m_dimensions;
-
-  void setDimensions(const nvmath::vec3f& min, const nvmath::vec3f& max);
-
-  Primitive() = default;
-  Primitive(uint32_t first, uint32_t count, uint32_t vOffset, uint32_t materialIndex)
-      : m_firstIndex(first)
-      , m_indexCount(count)
-      , m_vertexOffset(vOffset)
-      , m_materialIndex(materialIndex)
-  {
-  }
-};
-
-
-//--------------------------------------------------------------------------------------------------
-// glTF Mesh representation
-//
-struct Mesh
-{
-  Mesh(const nvmath::mat4f& matrix) { m_uniformBlock.matrix = matrix; }
-
-  // All primitives used by the mesh
-  std::vector<Primitive> m_primitives;
-
-  // Uniform block to push into buffer (currently ignored)
-  struct UniformBlock
-  {
-    nvmath::mat4f                 matrix;
-    std::array<nvmath::mat4f, 64> jointMatrix;
-    float                         jointcount{0};
-  } m_uniformBlock;
-
-  std::string m_name;
-};
-
-
-//--------------------------------------------------------------------------------------------------
-// glTF Skin representation
-//
-struct Skin
-{
-  std::string                m_name;
-  Node*                      m_skeletonRoot{nullptr};
-  std::vector<nvmath::mat4f> m_inverseBindMatrices;
-  std::vector<Node*>         m_joints;
-};
-
-//--------------------------------------------------------------------------------------------------
-// glTF Node representation
-//
-struct Node
-{
-  Node*              m_parent{nullptr};
-  uint32_t           m_index{0};
-  std::vector<Node*> m_children;
-  nvmath::mat4f      m_matrix;
-  std::string        m_name;
-  uint32_t           m_mesh{~0u};
-  Skin*              m_skin{nullptr};
-  int32_t            m_skinIndex{-1};
-  nvmath::vec3f      m_translation{0.f, 0.f, 0.f};
-  nvmath::vec3f      m_scale{1.0f};
-  nvmath::quatf      m_rotation = {0.f, 0.f, 0.f, 0.f};
-
-  nvmath::mat4f localMatrix() const;
-  nvmath::mat4f worldMatrix() const;
-
-  ~Node()
-  {
-    for(auto& child : m_children)
-    {
-      delete child;
-    }
-  }
-};
-
-//--------------------------------------------------------------------------------------------------
-//
-// glTF animation channel
-//
-struct AnimationChannel
-{
-  PathType m_path{PathType::eTranslation};
-  Node*    m_node{nullptr};
-  uint32_t m_samplerIndex{0};
-};
-
-//--------------------------------------------------------------------------------------------------
-// glTF animation sampler
-//
-struct AnimationSampler
-{
-  InterpolationType          m_interpolation{InterpolationType::eLinear};
-  std::vector<float>         m_inputs;
-  std::vector<nvmath::vec4f> m_outputsVec4;
-};
-
-//--------------------------------------------------------------------------------------------------
-// glTF animation
-//
-struct Animation
-{
-  std::string                   m_name;
-  std::vector<AnimationSampler> m_samplers;
-  std::vector<AnimationChannel> m_channels;
-  float                         m_start{std::numeric_limits<float>::max()};
-  float                         m_end{std::numeric_limits<float>::min()};
-};
-
-struct Stats
+struct GltfStats
 {
   uint32_t nbCameras{0};
   uint32_t nbImages{0};
@@ -308,19 +135,74 @@ struct Stats
   uint32_t nbTriangles{0};
 };
 
-//--------------------------------------------------------------------------------------------------
-// Holds the entire scene and methods to load and c
-//
-struct Scene
+struct GltfCamera
 {
-  uint32_t               m_numTextures{0};
-  std::vector<Node*>     m_nodes;
-  std::vector<Node*>     m_linearNodes;
-  std::vector<Skin*>     m_skins;
-  std::vector<Material>  m_materials;
-  std::vector<Animation> m_animations;
-  std::vector<Mesh*>     m_linearMeshes;
-  std::vector<Node*>     m_cameras;
+  nvmath::mat4f    worldMatrix{1};
+  tinygltf::Camera cam;
+};
+
+struct GltfLight
+{
+  nvmath::mat4f   worldMatrix{1};
+  tinygltf::Light light;
+};
+
+
+enum class GltfAttributes : uint8_t
+{
+  Position   = 0,
+  Normal     = 1,
+  Texcoord_0 = 2,
+  Texcoord_1 = 4,
+  Tangent    = 8,
+  Color_0    = 16,
+  //Joints_0   = 32, // #TODO - Add support for skinning
+  //Weights_0  = 64,
+};
+using GltfAttributes_t = std::underlying_type_t<GltfAttributes>;
+
+inline GltfAttributes operator|(GltfAttributes lhs, GltfAttributes rhs)
+{
+  return static_cast<GltfAttributes>(static_cast<GltfAttributes_t>(lhs) | static_cast<GltfAttributes_t>(rhs));
+}
+
+inline GltfAttributes operator&(GltfAttributes lhs, GltfAttributes rhs)
+{
+  return static_cast<GltfAttributes>(static_cast<GltfAttributes_t>(lhs) & static_cast<GltfAttributes_t>(rhs));
+}
+
+//--------------------------------------------------------------------------------------------------
+// Class to convert gltfScene in simple draw-able format
+//
+struct GltfScene
+{
+  void importMaterials(const tinygltf::Model& tmodel);
+  void importDrawableNodes(const tinygltf::Model& tmodel, GltfAttributes attributes);
+  void computeSceneDimensions();
+  void destroy();
+
+  static GltfStats getStatistics(const tinygltf::Model& tinyModel);
+
+  // Scene data
+  std::vector<GltfMaterial> m_materials;   // Material for shading
+  std::vector<GltfNode>     m_nodes;       // Drawable nodes, flat hierarchy
+  std::vector<GltfPrimMesh> m_primMeshes;  // Primitive promoted to meshes
+  std::vector<GltfCamera>   m_cameras;
+  std::vector<GltfLight>    m_lights;
+
+  // Attributes, all same length if valid
+  std::vector<nvmath::vec3f> m_positions;
+  std::vector<uint32_t>      m_indices;
+  std::vector<nvmath::vec3f> m_normals;
+  std::vector<nvmath::vec4f> m_tangents;
+  std::vector<nvmath::vec2f> m_texcoords0;
+  std::vector<nvmath::vec2f> m_texcoords1;
+  std::vector<nvmath::vec4f> m_colors0;
+
+  // #TODO - Adding support for Skinning
+  //using vec4us = vector4<unsigned short>;
+  //std::vector<vec4us>        m_joints0;
+  //std::vector<nvmath::vec4f> m_weights0;
 
   // Size of the scene
   struct Dimensions
@@ -332,21 +214,98 @@ struct Scene
     float         radius{0};
   } m_dimensions;
 
-  void destroy();
 
-  void loadNode(Node* parentNode, const tinygltf::Node& tinyNode, uint32_t nodeIndex, const tinygltf::Model& tinyModel);
-  void loadMeshes(const tinygltf::Model& tinyModel, std::vector<uint32_t>& indexBuffer, VertexData& vertexData);
-  void loadNodes(const tinygltf::Model& gltfModel);
-  void loadSkins(const tinygltf::Model& gltfModel);
-  void loadMaterials(tinygltf::Model& gltfModel);
-  void loadAnimations(const tinygltf::Model& gltfModel);
-  void getNodeDimensions(const gltf::Node* node, nvmath::vec3f& min, nvmath::vec3f& max) const;
-  void computeSceneDimensions();
-  void updateAnimation(uint32_t index, float time);
-  Node* nodeFromIndex(uint32_t index);
+private:
+  void          processNode(const tinygltf::Model& tmodel, int& nodeIdx, const nvmath::mat4f& parentMatrix);
+  void          processMesh(const tinygltf::Model& tmodel, const tinygltf::Primitive& tmesh, GltfAttributes attributes);
+  nvmath::mat4f getLocalMatrix(const tinygltf::Node& tnode);
 
-  Stats getStatistics(const tinygltf::Model& tinyModel);
+
+  // Temporary data
+  std::unordered_map<int, std::vector<uint32_t>> m_meshToPrimMeshes;
+  std::vector<uint32_t>                          primitiveIndices32u;
+  std::vector<uint16_t>                          primitiveIndices16u;
+  std::vector<uint8_t>                           primitiveIndices8u;
+
+  // Return a vector of data for a tinygltf::Value
+  template <typename T>
+  static inline std::vector<T> getVector(const tinygltf::Value& value)
+  {
+    std::vector<T> result{0};
+    if(!value.IsArray())
+      return result;
+    result.resize(value.ArrayLen());
+    for(int i = 0; i < value.ArrayLen(); i++)
+    {
+      result[i] = static_cast<T>(value.Get(i).IsNumber() ? value.Get(i).Get<double>() : value.Get(i).Get<int>());
+    }
+    return result;
+  }
+
+  // Appending to \p attribVec, all the values of \p attribName
+  // Return false if the attribute is missing
+  template <typename T>
+  bool getAttribute(const tinygltf::Model& tmodel, const tinygltf::Primitive& primitive, std::vector<T>& attribVec, const std::string& attribName)
+  {
+    if(primitive.attributes.find(attribName) == primitive.attributes.end())
+      return false;
+
+    // Retrieving the data of the attribute
+    const auto& accessor = tmodel.accessors[primitive.attributes.find(attribName)->second];
+    const auto& bufView  = tmodel.bufferViews[accessor.bufferView];
+    const auto& buffer   = tmodel.buffers[bufView.buffer];
+    const auto  bufData  = reinterpret_cast<const T*>(&(buffer.data[accessor.byteOffset + bufView.byteOffset]));
+    const auto  nbElems  = accessor.count;
+
+    assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
+
+    // Copying the attributes
+    if(accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT)
+    {
+      if(bufView.byteStride == 0)
+      {
+        attribVec.insert(attribVec.end(), bufData, bufData + nbElems);
+      }
+      else
+      {
+        // With stride, need to add one by one the element
+        auto bufferByte = reinterpret_cast<const uint8_t*>(bufData);
+        for(size_t i = 0; i < nbElems; i++)
+        {
+          attribVec.push_back(*reinterpret_cast<const T*>(bufferByte));
+          bufferByte += bufView.byteStride;
+        }
+      }
+    }
+    else
+    {
+      // The component is smaller than float and need to be converted
+
+      // VEC3 or VEC4
+      int nbComponents = accessor.type == TINYGLTF_TYPE_VEC2 ? 2 : (accessor.type == TINYGLTF_TYPE_VEC3) ? 3 : 4;
+      // UNSIGNED_BYTE or UNSIGNED_SHORT
+      int strideComponent = accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE ? 1 : 2;
+
+      size_t byteStride = bufView.byteStride > 0 ? bufView.byteStride : nbComponents * strideComponent;
+      auto   bufferByte = reinterpret_cast<const uint8_t*>(bufData);
+      for(size_t i = 0; i < nbElems; i++)
+      {
+        T vecValue;
+
+        auto bufferByteData = bufferByte;
+        for(int c = 0; c < nbComponents; c++)
+        {
+          float value = *reinterpret_cast<const float*>(bufferByteData);
+          vecValue[c] = accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE ? value / 255.0f : value / 65535.0f;
+          bufferByteData += strideComponent;
+        }
+        bufferByte += byteStride;
+        attribVec.push_back(vecValue);
+      }
+    }
+
+
+    return true;
+  }
 };
-
-}  // namespace gltf
 }  // namespace nvh
