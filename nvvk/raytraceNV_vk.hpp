@@ -193,11 +193,15 @@ struct RaytracingBuilderNV
 
 
     // Create a command buffer containing all the BLAS builds
-    nvvk::CommandPool genCmdBuf(m_device, m_queueIndex);
-    VkCommandBuffer   cmdBuf = genCmdBuf.createCommandBuffer();
-    int               ctr{0};
+    nvvk::CommandPool            genCmdBuf(m_device, m_queueIndex);
+    int                          ctr{0};
+    std::vector<VkCommandBuffer> allCmdBufs;
+    allCmdBufs.reserve(m_blas.size());
     for(auto& blas : m_blas)
     {
+      VkCommandBuffer cmdBuf = genCmdBuf.createCommandBuffer();
+      allCmdBufs.push_back(cmdBuf);
+
       vkCmdBuildAccelerationStructureNV(cmdBuf, &blas.asInfo, nullptr, 0, VK_FALSE, blas.as.accel, nullptr,
                                         scratchBuffer.buffer, 0);
 
@@ -216,13 +220,14 @@ struct RaytracingBuilderNV
                                                      VK_QUERY_TYPE_ACCELERATION_STRUCTURE_COMPACTED_SIZE_NV, queryPool, ctr++);
       }
     }
-    genCmdBuf.submitAndWait(cmdBuf);
+    genCmdBuf.submitAndWait(allCmdBufs);
+    allCmdBufs.clear();
 
 
     // Compacting all BLAS
     if(doCompaction)
     {
-      cmdBuf = genCmdBuf.createCommandBuffer();
+      VkCommandBuffer cmdBuf = genCmdBuf.createCommandBuffer();
 
       // Get the size result back
       std::vector<VkDeviceSize> compactSizes(m_blas.size());
