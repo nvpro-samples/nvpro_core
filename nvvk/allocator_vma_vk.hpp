@@ -313,7 +313,6 @@ public:
       m_staging.cmdToImage(cmd, resultImage.image, offset, info.extent, subresource, size, data);
 
       // Setting final image layout
-      subresourceRange.levelCount = 1;
       nvvk::cmdBarrierImageLayout(cmd, resultImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, layout);
     }
     else

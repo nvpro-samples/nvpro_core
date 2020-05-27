@@ -121,8 +121,8 @@ void cmdBarrierImageLayout(VkCommandBuffer cmdbuffer, VkImage image, VkImageLayo
 {
   VkImageSubresourceRange subresourceRange;
   subresourceRange.aspectMask     = aspectMask;
-  subresourceRange.levelCount     = 1;
-  subresourceRange.layerCount     = 1;
+  subresourceRange.levelCount     = VK_REMAINING_MIP_LEVELS;
+  subresourceRange.layerCount     = VK_REMAINING_ARRAY_LAYERS;
   subresourceRange.baseMipLevel   = 0;
   subresourceRange.baseArrayLayer = 0;
   cmdBarrierImageLayout(cmdbuffer, image, oldImageLayout, newImageLayout, subresourceRange);
@@ -230,27 +230,34 @@ VkImageCreateInfo makeImageCubeCreateInfo(const VkExtent2D& size, VkFormat forma
 // A more sophisticated version could be done with computer shader
 // We will publish how to in the future
 
-void cmdGenerateMipmaps(VkCommandBuffer cmdBuf, VkImage image, VkFormat imageFormat, const VkExtent2D& size, uint32_t mipLevels)
+void cmdGenerateMipmaps(VkCommandBuffer cmdBuf, VkImage image, VkFormat imageFormat, const VkExtent2D& size, uint32_t levelCount, uint32_t layerCount, VkImageLayout currentLayout)
 {
   // Transfer the top level image to a layout 'eTransferSrcOptimal` and its access to 'eTransferRead'
   VkImageMemoryBarrier barrier{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
   barrier.subresourceRange.baseArrayLayer = 0;
   barrier.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
   barrier.subresourceRange.baseMipLevel   = 0;
-  barrier.subresourceRange.layerCount     = 1;
+  barrier.subresourceRange.layerCount     = layerCount;
   barrier.subresourceRange.levelCount     = 1;
   barrier.image                           = image;
-  barrier.oldLayout                       = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+  barrier.oldLayout                       = currentLayout;
   barrier.newLayout                       = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-  barrier.srcAccessMask                   = 0;
+  barrier.srcAccessMask                   = accessFlagsForImageLayout(currentLayout);
   barrier.dstAccessMask                   = VK_ACCESS_TRANSFER_READ_BIT;
-  vkCmdPipelineBarrier(cmdBuf, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+  vkCmdPipelineBarrier(cmdBuf, pipelineStageForLayout(currentLayout), VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+
+  // transfer remaining mips to DST optimal
+  barrier.newLayout                       = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+  barrier.dstAccessMask                   = VK_ACCESS_TRANSFER_WRITE_BIT;
+  barrier.subresourceRange.baseMipLevel   = 1;
+  barrier.subresourceRange.levelCount     = VK_REMAINING_MIP_LEVELS;
+  vkCmdPipelineBarrier(cmdBuf, pipelineStageForLayout(currentLayout), VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 
 
   int32_t mipWidth  = size.width;
   int32_t mipHeight = size.height;
 
-  for(uint32_t i = 1; i < mipLevels; i++)
+  for(uint32_t i = 1; i < levelCount; i++)
   {
 
     VkImageBlit blit;
@@ -259,23 +266,23 @@ void cmdGenerateMipmaps(VkCommandBuffer cmdBuf, VkImage image, VkFormat imageFor
     blit.srcSubresource.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
     blit.srcSubresource.mipLevel       = i - 1;
     blit.srcSubresource.baseArrayLayer = 0;
-    blit.srcSubresource.layerCount     = 1;
+    blit.srcSubresource.layerCount     = layerCount;
     blit.dstOffsets[0]                 = {0, 0, 0};
     blit.dstOffsets[1]                 = {mipWidth > 1 ? mipWidth / 2 : 1, mipHeight > 1 ? mipHeight / 2 : 1, 1};
     blit.dstSubresource.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
     blit.dstSubresource.mipLevel       = i;
     blit.dstSubresource.baseArrayLayer = 0;
-    blit.dstSubresource.layerCount     = 1;
+    blit.dstSubresource.layerCount     = layerCount;
 
     vkCmdBlitImage(cmdBuf, image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1,
                    &blit, VK_FILTER_LINEAR);
 
 
     // Next
-    if(i + 1 < mipLevels)
     {
       // Transition the current miplevel into a eTransferSrcOptimal layout, to be used as the source for the next one.
       barrier.subresourceRange.baseMipLevel = i;
+      barrier.subresourceRange.levelCount   = 1;
       barrier.oldLayout                     = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
       barrier.newLayout                     = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
       barrier.srcAccessMask                 = VK_ACCESS_TRANSFER_WRITE_BIT;
@@ -291,14 +298,14 @@ void cmdGenerateMipmaps(VkCommandBuffer cmdBuf, VkImage image, VkFormat imageFor
       mipHeight /= 2;
   }
 
-  //Transition all miplevels into a eShaderReadOnlyOptimal layout.
+  // Transition all miplevels (now in VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) back to currentLayout
   barrier.subresourceRange.baseMipLevel = 0;
-  barrier.subresourceRange.levelCount   = mipLevels;
-  barrier.oldLayout                     = VK_IMAGE_LAYOUT_UNDEFINED;
-  barrier.newLayout                     = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-  barrier.srcAccessMask                 = 0;
-  barrier.dstAccessMask                 = VK_ACCESS_SHADER_READ_BIT;
-  vkCmdPipelineBarrier(cmdBuf, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0,
+  barrier.subresourceRange.levelCount   = VK_REMAINING_MIP_LEVELS;
+  barrier.oldLayout                     = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+  barrier.newLayout                     = currentLayout;
+  barrier.srcAccessMask                 = VK_ACCESS_TRANSFER_READ_BIT;
+  barrier.dstAccessMask                 = accessFlagsForImageLayout(currentLayout);
+  vkCmdPipelineBarrier(cmdBuf, VK_PIPELINE_STAGE_TRANSFER_BIT, pipelineStageForLayout(currentLayout), 0, 0, nullptr, 0,
                        nullptr, 1, &barrier);
 }
 

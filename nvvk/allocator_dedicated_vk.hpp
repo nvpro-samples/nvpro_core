@@ -283,8 +283,7 @@ public:
       vkCmdCopyBufferToImage(cmdBuff, stageBuffer.buffer, resultImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &bufferCopyRegion);
 
       // Setting final image layout
-      subresourceRange.levelCount = 1;
-      nvvk::cmdBarrierImageLayout(cmdBuff, resultImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, layout_, subresourceRange);
+      nvvk::cmdBarrierImageLayout(cmdBuff, resultImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, layout_);
     }
     else
     {

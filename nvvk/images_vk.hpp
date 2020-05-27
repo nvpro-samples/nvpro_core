@@ -119,7 +119,7 @@ VkImageViewCreateInfo makeImage2DViewCreateInfo(VkImage            image,
                                                 uint32_t           levels         = VK_REMAINING_MIP_LEVELS,
                                                 const void*        pNextImageView = nullptr);
 
-void cmdGenerateMipmaps(VkCommandBuffer cmdBuf, VkImage image, VkFormat imageFormat, const VkExtent2D& size, uint32_t mipLevels);
+void cmdGenerateMipmaps(VkCommandBuffer cmdBuf, VkImage image, VkFormat imageFormat, const VkExtent2D& size, uint32_t levelCount, uint32_t layerCount = 1, VkImageLayout currentLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 #ifdef VULKAN_HPP
 
 inline void cmdBarrierImageLayout(vk::CommandBuffer                cmdbuffer,
@@ -178,10 +178,10 @@ inline vk::ImageCreateInfo makeImageCubeCreateInfo(const vk::Extent2D& size,
                                  static_cast<VkImageUsageFlags>(usage), mipmaps);
 }
 
-inline void cmdGenerateMipmaps(vk::CommandBuffer cmdBuf, vk::Image image, vk::Format imageFormat, const vk::Extent2D& size, uint32_t mipLevels)
+inline void cmdGenerateMipmaps(vk::CommandBuffer cmdBuf, vk::Image image, vk::Format imageFormat, const vk::Extent2D& size, uint32_t levelCount, uint32_t layerCount = 1, vk::ImageLayout currentLayout = vk::ImageLayout::eShaderReadOnlyOptimal)
 {
   cmdGenerateMipmaps(static_cast<VkCommandBuffer>(cmdBuf), static_cast<VkImage>(image),
-                     static_cast<VkFormat>(imageFormat), static_cast<VkExtent2D>(size), mipLevels);
+                     static_cast<VkFormat>(imageFormat), static_cast<VkExtent2D>(size), levelCount, layerCount, static_cast<VkImageLayout>(currentLayout));
 }
 
 inline vk::ImageCreateInfo makeImage3DCreateInfo(const vk::Extent3D& size,
