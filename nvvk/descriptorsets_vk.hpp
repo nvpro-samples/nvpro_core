@@ -34,6 +34,32 @@
 
 namespace nvvk {
 
+
+// utility for additional feature support
+enum class DescriptorSupport : uint32_t
+{
+  CORE_1_0     = 0,  // VK Version 1.0
+  CORE_1_2     = 1,  // VK Version 1.2 (adds descriptor_indexing)
+  INDEXING_EXT = 2,  // VK_EXT_descriptor_indexing
+};
+using DescriptorSupport_t = std::underlying_type_t<DescriptorSupport>;
+inline DescriptorSupport operator|(DescriptorSupport lhs, DescriptorSupport rhs)
+{
+  return static_cast<DescriptorSupport>(static_cast<DescriptorSupport_t>(lhs) | static_cast<DescriptorSupport_t>(rhs));
+}
+inline DescriptorSupport operator&(DescriptorSupport lhs, DescriptorSupport rhs)
+{
+  return static_cast<DescriptorSupport>(static_cast<DescriptorSupport_t>(lhs) & static_cast<DescriptorSupport_t>(rhs));
+}
+inline bool isSet(DescriptorSupport test, DescriptorSupport query)
+{
+  return (test & query) == query;
+}
+inline bool isAnySet(DescriptorSupport test, DescriptorSupport query)
+{
+  return (test & query) != DescriptorSupport::CORE_1_0;
+}
+
 /**
   # functions in nvvk
 
@@ -168,7 +194,7 @@ inline void allocateDescriptorSets(vk::Device                      device,
 class DescriptorSetBindings
 {
 public:
-  DescriptorSetBindings() {}
+  DescriptorSetBindings() = default;
   DescriptorSetBindings(const std::vector<VkDescriptorSetLayoutBinding>& bindings)
       : m_bindings(bindings)
   {
@@ -190,7 +216,14 @@ public:
 
   void setBindings(const std::vector<VkDescriptorSetLayoutBinding>& bindings) { m_bindings = bindings; }
 
-  void                                clear() { m_bindings.clear(); }
+  // requires use of SUPPORT_INDEXING_EXT/SUPPORT_INDEXING_V1_2 on createLayout
+  void setBindingFlags(uint32_t binding, VkDescriptorBindingFlags bindingFlags);
+
+  void clear()
+  {
+    m_bindings.clear();
+    m_bindingFlags.clear();
+  }
   bool                                empty() const { return m_bindings.empty(); }
   size_t                              size() const { return m_bindings.size(); }
   const VkDescriptorSetLayoutBinding* data() const { return m_bindings.data(); }
@@ -200,8 +233,10 @@ public:
 
 
   // Once the bindings have been added, this generates the descriptor layout corresponding to the
-  // bound resources
-  VkDescriptorSetLayout createLayout(VkDevice device, VkDescriptorSetLayoutCreateFlags flags = 0) const;
+  // bound resources.
+  VkDescriptorSetLayout createLayout(VkDevice                         device,
+                                     VkDescriptorSetLayoutCreateFlags flags        = 0,
+                                     DescriptorSupport                supportFlags = DescriptorSupport::CORE_1_0) const;
 
   // Once the bindings have been added, this generates the descriptor pool with enough space to
   // handle all the bound resources and allocate up to maxSets descriptor sets
@@ -261,6 +296,12 @@ public:
   {
     setBindings(reinterpret_cast<const std::vector<VkDescriptorSetLayoutBinding>&>(bindings));
   }
+
+  void setBindingFlags(uint32_t binding, vk::DescriptorBindingFlags bindingFlags)
+  {
+    setBindingFlags(binding, static_cast<VkDescriptorBindingFlags>(bindingFlags));
+  }
+
   void addRequiredPoolSizes(std::vector<vk::DescriptorPoolSize>& poolSizes, uint32_t numSets) const
   {
     addRequiredPoolSizes(reinterpret_cast<std::vector<VkDescriptorPoolSize>&>(poolSizes), numSets);
@@ -330,6 +371,7 @@ public:
 
 private:
   std::vector<VkDescriptorSetLayoutBinding> m_bindings;
+  std::vector<VkDescriptorBindingFlags>     m_bindingFlags;
 };
 
 /////////////////////////////////////////////////////////////
@@ -369,16 +411,6 @@ Example:
 */
 class DescriptorSetContainer
 {
-
-protected:
-  VkDevice                     m_device         = VK_NULL_HANDLE;
-  VkDescriptorSetLayout        m_layout         = VK_NULL_HANDLE;
-  VkDescriptorPool             m_pool           = VK_NULL_HANDLE;
-  VkPipelineLayout             m_pipelineLayout = VK_NULL_HANDLE;
-  std::vector<VkDescriptorSet> m_descriptorSets = {};
-  DescriptorSetBindings        m_bindings       = {};
-
-  //////////////////////////////////////////////////////////////////////////
 public:
   DescriptorSetContainer(DescriptorSetContainer const&) = delete;
   DescriptorSetContainer& operator=(DescriptorSetContainer const&) = delete;
@@ -397,8 +429,12 @@ public:
                   VkShaderStageFlags stageFlags,
                   const VkSampler*   pImmutableSamplers = nullptr);
 
+  // requires use of SUPPORT_INDEXING_EXT/SUPPORT_INDEXING_V1_2 on initLayout
+  void setBindingFlags(uint32_t binding, VkDescriptorBindingFlags bindingFlags);
 
-  VkDescriptorSetLayout initLayout(VkDescriptorSetLayoutCreateFlags flags = 0);
+  VkDescriptorSetLayout initLayout(VkDescriptorSetLayoutCreateFlags flags        = 0,
+                                   DescriptorSupport                supportFlags = DescriptorSupport::CORE_1_0);
+
   // inits pool and immediately allocates all numSets-many DescriptorSets
   VkDescriptorPool initPool(uint32_t numAllocatedSets);
 
@@ -420,8 +456,7 @@ public:
   VkDescriptorSetLayout        getLayout() const { return m_layout; }
   VkPipelineLayout             getPipeLayout() const { return m_pipelineLayout; }
   const DescriptorSetBindings& getBindings() const { return m_bindings; }
-
-  VkDevice getDevice() const { return m_device; }
+  VkDevice                     getDevice() const { return m_device; }
 
   //////////////////////////////////////////////////////////////////////////
 
@@ -484,12 +519,16 @@ public:
                   const vk::Sampler*   pImmutableSampler = nullptr  // Corresponding sampler, in case of textures
   )
   {
-    addBinding({binding, static_cast<VkDescriptorType>(type), count, static_cast<VkShaderStageFlags>(stageFlags),
-                reinterpret_cast<const VkSampler*>(pImmutableSampler)});
+    m_bindings.addBinding({binding, static_cast<VkDescriptorType>(type), count, static_cast<VkShaderStageFlags>(stageFlags),
+                           reinterpret_cast<const VkSampler*>(pImmutableSampler)});
   }
   void setBindings(const std::vector<vk::DescriptorSetLayoutBinding>& bindings)
   {
-    setBindings(reinterpret_cast<const std::vector<VkDescriptorSetLayoutBinding>&>(bindings));
+    m_bindings.setBindings(reinterpret_cast<const std::vector<VkDescriptorSetLayoutBinding>&>(bindings));
+  }
+  void setBindingFlags(uint32_t binding, vk::DescriptorBindingFlags bindingFlags)
+  {
+    m_bindings.setBindingFlags(binding, static_cast<VkDescriptorBindingFlags>(bindingFlags));
   }
 
   vk::WriteDescriptorSet makeWrite(uint32_t dstSetIdx, uint32_t dstBinding, const vk::DescriptorImageInfo* pImageInfo, uint32_t arrayElement = 0) const
@@ -547,6 +586,13 @@ public:
                                      reinterpret_cast<const VkWriteDescriptorSetInlineUniformBlockEXT*>(pInline));
   }
 #endif
+protected:
+  VkDevice                     m_device         = VK_NULL_HANDLE;
+  VkDescriptorSetLayout        m_layout         = VK_NULL_HANDLE;
+  VkDescriptorPool             m_pool           = VK_NULL_HANDLE;
+  VkPipelineLayout             m_pipelineLayout = VK_NULL_HANDLE;
+  std::vector<VkDescriptorSet> m_descriptorSets = {};
+  DescriptorSetBindings        m_bindings       = {};
 };
 
 //////////////////////////////////////////////////////////////////////////

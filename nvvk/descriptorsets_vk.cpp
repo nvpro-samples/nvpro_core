@@ -55,9 +55,14 @@ void DescriptorSetContainer::addBinding(VkDescriptorSetLayoutBinding binding)
   m_bindings.addBinding(binding);
 }
 
-VkDescriptorSetLayout DescriptorSetContainer::initLayout(VkDescriptorSetLayoutCreateFlags flags /*= 0*/)
+void DescriptorSetContainer::setBindingFlags(uint32_t binding, VkDescriptorBindingFlags bindingFlag)
 {
-  m_layout = m_bindings.createLayout(m_device, flags);
+  m_bindings.setBindingFlags(binding, bindingFlag);
+}
+
+VkDescriptorSetLayout DescriptorSetContainer::initLayout(VkDescriptorSetLayoutCreateFlags flags /*= 0*/,  DescriptorSupport supportFlags)
+{
+  m_layout = m_bindings.createLayout(m_device, flags, supportFlags);
   return m_layout;
 }
 
@@ -123,16 +128,21 @@ void DescriptorSetContainer::deinit()
 
 //////////////////////////////////////////////////////////////////////////
 
-VkDescriptorSetLayout DescriptorSetBindings::createLayout(VkDevice device, VkDescriptorSetLayoutCreateFlags flags) const
+VkDescriptorSetLayout DescriptorSetBindings::createLayout(VkDevice device, VkDescriptorSetLayoutCreateFlags flags, DescriptorSupport supportFlags) const
 {
   VkResult                        result;
-  VkDescriptorSetLayoutCreateInfo descriptorSetEntry = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
-  descriptorSetEntry.bindingCount                    = uint32_t(m_bindings.size());
-  descriptorSetEntry.pBindings                       = m_bindings.data();
-  descriptorSetEntry.flags                           = flags;
+  VkDescriptorSetLayoutBindingFlagsCreateInfo bindingsInfo = {isSet(supportFlags,DescriptorSupport::CORE_1_2) ? VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO : VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO_EXT};
+  bindingsInfo.bindingCount                                = uint32_t(m_bindingFlags.size());
+  bindingsInfo.pBindingFlags                               = m_bindingFlags.data();
+
+  VkDescriptorSetLayoutCreateInfo createInfo = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
+  createInfo.bindingCount                    = uint32_t(m_bindings.size());
+  createInfo.pBindings                       = m_bindings.data();
+  createInfo.flags                           = flags;
+  createInfo.pNext                           = m_bindingFlags.empty() && !(isAnySet(supportFlags,(DescriptorSupport::CORE_1_2 | DescriptorSupport::INDEXING_EXT))) ? nullptr : &bindingsInfo;
 
   VkDescriptorSetLayout descriptorSetLayout;
-  result = vkCreateDescriptorSetLayout(device, &descriptorSetEntry, nullptr, &descriptorSetLayout);
+  result = vkCreateDescriptorSetLayout(device, &createInfo, nullptr, &descriptorSetLayout);
   assert(result == VK_SUCCESS);
 
   return descriptorSetLayout;
@@ -184,6 +194,23 @@ VkDescriptorPool DescriptorSetBindings::createPool(VkDevice device, uint32_t max
   return descrPool;
 }
 
+
+void DescriptorSetBindings::setBindingFlags(uint32_t binding, VkDescriptorBindingFlags bindingFlag)
+{
+  for(size_t i = 0; i < m_bindings.size(); i++)
+  {
+    if(m_bindings[i].binding == binding)
+    {
+      if(m_bindingFlags.size() <= i)
+      {
+        m_bindingFlags.resize(i + 1, 0);
+      }
+      m_bindingFlags[i] = bindingFlag;
+      return;
+    }
+  }
+  assert(0 && "binding not found");
+}
 
 VkDescriptorType DescriptorSetBindings::getType(uint32_t binding) const
 {
