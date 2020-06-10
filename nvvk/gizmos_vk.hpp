@@ -68,45 +68,7 @@ public:
     vkDestroyPipelineLayout(m_device, m_pipelineLayout, nullptr);
   }
 
-  void display(VkCommandBuffer cmdBuf, const nvmath::mat4f& transform, const VkExtent2D& screenSize)
-  {
-    vkCmdBindPipeline(cmdBuf, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineTriangleFan);
-
-    // Setup viewport:
-    VkViewport viewport{};
-    viewport.width    = float(screenSize.width);
-    viewport.height   = float(screenSize.height);
-    viewport.minDepth = 0;
-    viewport.maxDepth = 1;
-    VkRect2D rect;
-    rect.offset = VkOffset2D{0, 0};
-    rect.extent = VkExtent2D{screenSize.width, screenSize.height};
-    vkCmdSetViewport(cmdBuf, 0, 1, &viewport);
-    vkCmdSetScissor(cmdBuf, 0, 1, &rect);
-
-
-    // Set the orthographic matrix in the bottom left corner
-    {
-      const float         pixelW   = m_axisSize / screenSize.width;
-      const float         pixelH   = m_axisSize / screenSize.height;
-      const nvmath::mat4f matOrtho = {pixelW * .8f,  0.0f,          0.0f,  0.0f,  //
-                                      0.0f,          -pixelH * .8f, 0.0f,  0.0f,  //
-                                      0.0f,          0.0f,          -0.1f, 0.0f,  //
-                                      -1.f + pixelW, 1.f - pixelH,  0.5f,  1.0f};
-
-      nvmath::mat4f modelView = transform;
-      modelView.set_translate({0, 0, 0});
-      modelView = matOrtho * modelView;
-      // Push the matrix to the shader
-      vkCmdPushConstants(cmdBuf, m_pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(nvmath::mat4f), &modelView.a00);
-    }
-
-    // Draw 3 times the tip of the arrow, the shader is flipping the orientation and setting the color
-    vkCmdDraw(cmdBuf, 6, 3, 0, 0);
-    // Now draw the line of the arrow using the last 2 vertex of the buffer (offset 5)
-    vkCmdBindPipeline(cmdBuf, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLines);
-    vkCmdDraw(cmdBuf, 2, 3, 5, 0);
-  }
+  void display(VkCommandBuffer cmdBuf, const nvmath::mat4f& transform, const VkExtent2D& screenSize);
 
 private:
   void createAxisObject(VkRenderPass renderPass, uint32_t subpass);

@@ -202,6 +202,49 @@ static std::vector<uint32_t> s_axis_frag_spv = {
     0x00000010, 0x0000000c, 0x0000000e, 0x0004003d, 0x00000007, 0x00000011, 0x00000010, 0x0003003e, 0x00000009,
     0x00000011, 0x000100fd, 0x00010038};
 
+//--------------------------------------------------------------------------------------------------
+//
+//
+void AxisVK::display(VkCommandBuffer cmdBuf, const nvmath::mat4f& transform, const VkExtent2D& screenSize)
+{
+  vkCmdBindPipeline(cmdBuf, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineTriangleFan);
+
+  // Setup viewport:
+  VkViewport viewport{};
+  viewport.width    = float(screenSize.width);
+  viewport.height   = float(screenSize.height);
+  viewport.minDepth = 0;
+  viewport.maxDepth = 1;
+  VkRect2D rect;
+  rect.offset = VkOffset2D{0, 0};
+  rect.extent = VkExtent2D{screenSize.width, screenSize.height};
+  vkCmdSetViewport(cmdBuf, 0, 1, &viewport);
+  vkCmdSetScissor(cmdBuf, 0, 1, &rect);
+
+
+  // Set the orthographic matrix in the bottom left corner
+  {
+    const float         pixelW   = m_axisSize / screenSize.width;
+    const float         pixelH   = m_axisSize / screenSize.height;
+    const nvmath::mat4f matOrtho = {pixelW * .8f,  0.0f,          0.0f,  0.0f,  //
+                                    0.0f,          -pixelH * .8f, 0.0f,  0.0f,  //
+                                    0.0f,          0.0f,          -0.5f, 0.0f,  //
+                                    -1.f + pixelW, 1.f - pixelH,  0.5f,  1.0f};
+
+    nvmath::mat4f modelView = transform;
+    modelView.set_translate({0, 0, 0});
+    modelView = matOrtho * modelView;
+    // Push the matrix to the shader
+    vkCmdPushConstants(cmdBuf, m_pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(nvmath::mat4f), &modelView.a00);
+  }
+
+  // Draw 3 times the tip of the arrow, the shader is flipping the orientation and setting the color
+  vkCmdDraw(cmdBuf, 6, 3, 0, 0);
+  // Now draw the line of the arrow using the last 2 vertex of the buffer (offset 5)
+  vkCmdBindPipeline(cmdBuf, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLines);
+  vkCmdDraw(cmdBuf, 2, 3, 5, 0);
+}
+
 void AxisVK::createAxisObject(VkRenderPass renderPass, uint32_t subpass)
 {
   // The shader need Push Constants: the transformation matrix
@@ -224,27 +267,23 @@ void AxisVK::createAxisObject(VkRenderPass renderPass, uint32_t subpass)
   createInfo.pCode    = reinterpret_cast<const uint32_t*>(s_axis_frag_spv.data());
   vkCreateShaderModule(m_device, &createInfo, nullptr, &smFrag);
 
-
+  // Pipeline state
   nvvk::GraphicsPipelineState gps;
-
-  gps.inputAssemblyState.topology = (VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN);
-
-
-  gps.depthStencilState.depthTestEnable   = true;
-  gps.depthStencilState.stencilTestEnable = false;
+  gps.inputAssemblyState.topology         = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN;
+  gps.rasterizationState.cullMode         = VK_CULL_MODE_NONE;
+  gps.depthStencilState.depthTestEnable   = VK_TRUE;
+  gps.depthStencilState.stencilTestEnable = VK_FALSE;
   gps.depthStencilState.depthCompareOp    = VK_COMPARE_OP_LESS_OR_EQUAL;
 
+  // Creating the tips
   nvvk::GraphicsPipelineGenerator gpg(m_device, m_pipelineLayout, renderPass, gps);
-
   gpg.addShader(smVertex, VK_SHADER_STAGE_VERTEX_BIT);
   gpg.addShader(smFrag, VK_SHADER_STAGE_FRAGMENT_BIT);
-
   m_pipelineTriangleFan = gpg.createPipeline();
 
-  gps.inputAssemblyState.topology = (VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN);
-
-  m_pipelineLines = gpg.createPipeline();
-
+  // Creating the lines
+  gps.inputAssemblyState.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+  m_pipelineLines                 = gpg.createPipeline();
 
   vkDestroyShaderModule(m_device, smVertex, nullptr);
   vkDestroyShaderModule(m_device, smFrag, nullptr);
