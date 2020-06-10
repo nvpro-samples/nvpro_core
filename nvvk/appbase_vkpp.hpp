@@ -751,11 +751,6 @@ public:
   {
     (void)mods;
 
-    if(ImGui::GetCurrentContext() != nullptr && ImGui::GetIO().WantCaptureMouse)
-    {
-      return;
-    }
-
     double x, y;
     glfwGetCursorPos(m_window, &x, &y);
     CameraManip.setMousePosition(static_cast<int>(x), static_cast<int>(y));
