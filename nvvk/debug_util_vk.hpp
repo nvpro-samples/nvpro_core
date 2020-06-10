@@ -38,23 +38,24 @@ struct DebugUtil
 #endif  // _DEBUG
   }
   // clang-format off
-  void setObjectName(VkDeviceMemory object, const char* name)            { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_DEVICE_MEMORY); }
+  void setObjectName(VkAccelerationStructureNV object, const char* name) { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_NV); }
   void setObjectName(VkBuffer object, const char* name)                  { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_BUFFER); }
   void setObjectName(VkBufferView object, const char* name)              { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_BUFFER_VIEW); }
   void setObjectName(VkCommandBuffer object, const char* name)           { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_COMMAND_BUFFER ); }
+  void setObjectName(VkDescriptorPool object, const char* name)          { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_DESCRIPTOR_POOL); }
+  void setObjectName(VkDescriptorSet object, const char* name)           { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_DESCRIPTOR_SET); }
+  void setObjectName(VkDescriptorSetLayout object, const char* name)     { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT); }
+  void setObjectName(VkDeviceMemory object, const char* name)            { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_DEVICE_MEMORY); }
+  void setObjectName(VkFramebuffer object, const char* name)             { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_FRAMEBUFFER); }
   void setObjectName(VkImage object, const char* name)                   { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_IMAGE); }
   void setObjectName(VkImageView object, const char* name)               { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_IMAGE_VIEW); }
-  void setObjectName(VkRenderPass object, const char* name)              { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_RENDER_PASS); }
-  void setObjectName(VkShaderModule object, const char* name)            { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_SHADER_MODULE); }
   void setObjectName(VkPipeline object, const char* name)                { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_PIPELINE); }
-  void setObjectName(VkAccelerationStructureNV object, const char* name) { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_NV); }
-  void setObjectName(VkDescriptorSetLayout object, const char* name)     { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT); }
-  void setObjectName(VkDescriptorSet object, const char* name)           { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_DESCRIPTOR_SET); }
-  void setObjectName(VkDescriptorPool object, const char* name)          { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_DESCRIPTOR_POOL); }
-  void setObjectName(VkSemaphore object, const char* name)               { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_SEMAPHORE); }
-  void setObjectName(VkSwapchainKHR object, const char* name)            { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_SWAPCHAIN_KHR); }
+  void setObjectName(VkPipelineLayout object, const char* name)          { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_PIPELINE_LAYOUT); }
   void setObjectName(VkQueue object, const char* name)                   { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_QUEUE); }
-  void setObjectName(VkFramebuffer object, const char* name)             { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_FRAMEBUFFER); }
+  void setObjectName(VkRenderPass object, const char* name)              { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_RENDER_PASS); }
+  void setObjectName(VkSemaphore object, const char* name)               { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_SEMAPHORE); }
+  void setObjectName(VkShaderModule object, const char* name)            { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_SHADER_MODULE); }
+  void setObjectName(VkSwapchainKHR object, const char* name)            { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_SWAPCHAIN_KHR); }
   // clang-format on
 
   //
