@@ -113,6 +113,8 @@ void GltfScene::importDrawableNodes(const tinygltf::Model& tmodel, GltfAttribute
     std::vector<uint32_t> vprim;
     for(const auto& primitive : mesh.primitives)
     {
+      if(primitive.mode != 4)  // Triangle
+        continue;
       const auto& posAccessor = tmodel.accessors[primitive.attributes.find("POSITION")->second];
       nbVert += static_cast<uint32_t>(posAccessor.count);
       const auto& indexAccessor = tmodel.accessors[primitive.indices];
@@ -216,7 +218,8 @@ void GltfScene::processMesh(const tinygltf::Model& tmodel, const tinygltf::Primi
 
   // Only triangles are supported
   // 0:point, 1:lines, 2:line_loop, 3:line_strip, 4:triangles, 5:triangle_strip, 6:triangle_fan
-  assert(tmesh.mode == 4);
+  if(tmesh.mode != 4)
+    return;
 
   // INDICES
   {
