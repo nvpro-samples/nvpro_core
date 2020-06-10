@@ -415,6 +415,7 @@ struct RaytracingBuilderKHR
 
     const VkAccelerationStructureGeometryKHR* pGeometry = &topASGeometry;
     VkAccelerationStructureBuildGeometryInfoKHR topASInfo{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR};
+    topASInfo.type                      = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
     topASInfo.flags                     = flags;
     topASInfo.update                    = VK_FALSE;
     topASInfo.srcAccelerationStructure  = VK_NULL_HANDLE;
@@ -512,6 +513,7 @@ struct RaytracingBuilderKHR
 
 
     VkAccelerationStructureBuildGeometryInfoKHR topASInfo{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR};
+    topASInfo.type                      = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
     topASInfo.flags                     = m_tlas.flags;
     topASInfo.update                    = VK_TRUE;
     topASInfo.srcAccelerationStructure  = m_tlas.as.accel;
