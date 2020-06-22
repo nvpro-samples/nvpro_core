@@ -985,15 +985,18 @@ endmacro()
 # _OUTPUT is the .spv file, resulting from the linkage
 #
 macro(_compile_GLSL _SOURCE _OUTPUT SOURCE_LIST OUTPUT_LIST)
+  if(NOT DEFINED VULKAN_TARGET_ENV)
+    SET(VULKAN_TARGET_ENV vulkan1.1)
+  endif()
   LIST(APPEND ${SOURCE_LIST} ${_SOURCE})
   LIST(APPEND ${OUTPUT_LIST} ${_OUTPUT})
-  #Message(STATUS "${GLSLANGVALIDATOR} --target-env vulkan1.1 -o ${_OUTPUT} ${_SOURCE}")
+  #Message(STATUS "${GLSLANGVALIDATOR} --target-env ${VULKAN_TARGET_ENV} -o ${_OUTPUT} ${_SOURCE}")
   #Message(STATUS "${_OUTPUT} : ${_SOURCE}")
   if(GLSLANGVALIDATOR)
     add_custom_command(
       OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/${_OUTPUT}
-      COMMAND echo ${GLSLANGVALIDATOR} --target-env vulkan1.1 -o ${_OUTPUT}  ${_SOURCE}
-      COMMAND ${GLSLANGVALIDATOR} --target-env vulkan1.1 -o ${_OUTPUT} ${_SOURCE}
+      COMMAND echo ${GLSLANGVALIDATOR} --target-env ${VULKAN_TARGET_ENV} -o ${_OUTPUT}  ${_SOURCE}
+      COMMAND ${GLSLANGVALIDATOR} --target-env ${VULKAN_TARGET_ENV} -o ${_OUTPUT} ${_SOURCE}
       MAIN_DEPENDENCY ${_SOURCE}
       WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
       )
