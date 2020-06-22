@@ -798,7 +798,7 @@ public:
   //
   void fitCamera(const nvmath::vec3f& boxMin, const nvmath::vec3f& boxMax, bool instantFit = true)
   {
-    CameraManip.fit(boxMin, boxMax, instantFit);
+    CameraManip.fit(boxMin, boxMax, instantFit, false, m_size.width / static_cast<float>(m_size.height));
   }
 
   // Return true if the window is minimized
@@ -817,6 +817,8 @@ public:
     }
     return minimized;
   }
+
+  void setTitle(const std::string& title) { glfwSetWindowTitle(m_window, title.c_str()); }
 
   // GLFW Callback setup
   void setupGlfwCallbacks(GLFWwindow* window)
