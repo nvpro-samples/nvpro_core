@@ -38,11 +38,16 @@ namespace nvvk {
   # functions in nvvk
 
   - nvprintPipelineStats : prints stats of the pipeline using VK_KHR_pipeline_executable_properties (don't forget to enable extension and set VK_PIPELINE_CREATE_CAPTURE_STATISTICS_BIT_KHR)
-
+  - dumpPipelineStats    : dumps stats of the pipeline using VK_KHR_pipeline_executable_properties to a text file (don't forget to enable extension and set VK_PIPELINE_CREATE_CAPTURE_STATISTICS_BIT_KHR)
+  - dumpPipelineBinCodes : dumps shader binaries using VK_KHR_pipeline_executable_properties to multiple binary files (don't forget to enable extension and set VK_PIPELINE_CREATE_CAPTURE_INTERNAL_REPRESENTATIONS_BIT_KHR)
 */
-
-
+// nvprints stats to LOGLEVEL_STATS stream
 void nvprintPipelineStats(VkDevice device, VkPipeline pipeline, const char* name, bool verbose = false);
+// writes stats into single file
+void dumpPipelineStats(VkDevice device, VkPipeline pipeline, const char* fileName);
+// creates multiple files, one for each pipe executable and representation. 
+// The baseFilename will get appended along the lines of ".some details.bin"
+void dumpPipelineInternals(VkDevice device, VkPipeline pipeline, const char* baseFileName);
 
 //--------------------------------------------------------------------------------------------------
 /** 

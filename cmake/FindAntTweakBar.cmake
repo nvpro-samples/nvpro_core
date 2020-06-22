@@ -82,7 +82,7 @@ else(ANTTWEAKBAR_INCLUDE_DIR)
 endif(ANTTWEAKBAR_INCLUDE_DIR)
 include(FindPackageHandleStandardArgs)
 
-find_package_handle_standard_args(ANTTWEAKBAR DEFAULT_MSG
+find_package_handle_standard_args(AntTweakBar DEFAULT_MSG
     ANTTWEAKBAR_INCLUDE_DIR
     ANTTWEAKBAR_DLL
 )
