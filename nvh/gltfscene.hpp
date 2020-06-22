@@ -33,9 +33,6 @@
   you would create the appropriate 3D API resources (buffers
   and textures).
  
-  Some part of the code comes from [Sascha Willems](https://www.saschawillems.de/)
-  His code is licensed under the MIT license (MIT) (https://opensource.org/licenses/MIT)
-
   ~~~ C++
   // Typical Usage
   // Load the GLTF Scene using TinyGLTF
