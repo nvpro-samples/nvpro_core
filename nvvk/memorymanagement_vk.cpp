@@ -988,7 +988,8 @@ void StagingMemoryManager::releaseResources()
     }
   }
   // special case for ease of use if there is only one
-  if (m_stagingIndex == 0 && m_freeStagingIndex == 0) {
+  if(m_stagingIndex == 0 && m_freeStagingIndex == 0)
+  {
     m_freeStagingIndex = setIndexValue(m_sets[0].index, 0);
   }
 }
@@ -1047,7 +1048,7 @@ uint32_t StagingMemoryManager::newStagingIndex()
 
   // otherwise push to end
   uint32_t newIndex = (uint32_t)m_sets.size();
-  
+
   StagingSet info;
   info.index = newIndex;
   m_sets.push_back(info);
