@@ -1017,6 +1017,8 @@ Look at source of **nvvk::AllocatorDmaGL** for usage.
 ### functions in nvvk
 
 - **nvprintPipelineStats** : prints stats of the pipeline using VK_KHR_pipeline_executable_properties (don't forget to enable extension and set VK_PIPELINE_CREATE_CAPTURE_STATISTICS_BIT_KHR)
+- dumpPipelineStats    : dumps stats of the pipeline using VK_KHR_pipeline_executable_properties to a text file (don't forget to enable extension and set VK_PIPELINE_CREATE_CAPTURE_STATISTICS_BIT_KHR)
+- **dumpPipelineBinCodes** : dumps shader binaries using VK_KHR_pipeline_executable_properties to multiple binary files (don't forget to enable extension and set VK_PIPELINE_CREATE_CAPTURE_INTERNAL_REPRESENTATIONS_BIT_KHR)
 
 
 ### class **nvvk::GraphicsPipelineState**
