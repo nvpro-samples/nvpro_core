@@ -28,6 +28,7 @@
 
 #include "cameramanipulator.hpp"
 #include <chrono>
+#include <iostream>
 #include <nvpwindow.hpp>
 
 namespace nvh {
@@ -61,6 +62,7 @@ void CameraManipulator::setLookat(const nvmath::vec3& eye, const nvmath::vec3& c
   }
   else
   {
+    m_anim_done  = false;
     m_goal.eye   = eye;
     m_goal.ctr   = center;
     m_goal.up    = up;
@@ -74,10 +76,10 @@ void CameraManipulator::setLookat(const nvmath::vec3& eye, const nvmath::vec3& c
 void CameraManipulator::updateAnim()
 {
   auto elapse = static_cast<float>(getSystemTime() - m_start_time) / 1000.f;
-  if(elapse > m_duration)
+  if(elapse > m_duration && m_anim_done)
     return;
 
-  float t = elapse / float(m_duration);
+  float t = std::min(elapse / float(m_duration), 1.0f);
   // Evaluate polynomial (smoother step from Perlin)
   t = t * t * t * (t * (t * 6.0f - 15.0f) + 10.0f);
 
@@ -90,6 +92,8 @@ void CameraManipulator::updateAnim()
   m_current.eye = computeBezier(t, m_bezier[0], m_bezier[1], m_bezier[2]);
 
   update();
+  if(t >= 1.0f)
+    m_anim_done = true;
 }
 
 //-----------------------------------------------------------------------------
@@ -628,38 +632,56 @@ const std::string& CameraManipulator::getHelp()
 }
 
 //--------------------------------------------------------------------------------------------------
-// Fit the camera to the Bounding box
+// Move the camera closer or further from the center of the the bounding box, to see it completely
 //
-void CameraManipulator::fit(const nvmath::vec3f& boxMin, const nvmath::vec3f& boxMax, bool instantFit)
+// boxMin - lower corner of the bounding box
+// boxMax - upper corner of the bounding box
+// instantFit - true: set the new position, false: will animate to new position.
+// tight - true: fit exactly the corner, false: fit to radius (larger view, will not get closer or further away)
+// aspect - aspect ratio of the window.
+//
+void CameraManipulator::fit(const nvmath::vec3f& boxMin, const nvmath::vec3f& boxMax, bool instantFit /*= true*/, bool tight /*=false*/, float aspect /*=1.0f*/)
 {
-  nvmath::vec3f veye, vint, vup;
-  getLookat(veye, vint, vup);
-  const nvmath::vec3f viewdir = nvmath::normalize(veye - vint);
+  const nvmath::vec3f boxHalfSize = (boxMax - boxMin) * .5f;
+  const nvmath::vec3f boxCenter   = boxMin + boxHalfSize;
 
-  const nvmath::vec3f boxSize   = (boxMax - boxMin) * .5f;
-  const nvmath::vec3f boxCenter = boxMin + boxSize;
+  float offset = 0;
+  float yfov   = m_fov;
+  float xfov   = m_fov * aspect;
 
-  const float aspect = 1;
-  const float fov    = nv_to_rad * getFov();
-
-  // Projecting the box to the camera
-  float         radius = 0;
-  float         offset = 0;
-  nvmath::mat4f mat    = nvmath::look_at(veye, boxCenter, vup);
-  mat.set_translate({0, 0, 0});
-  for(int i = 0; i < 8; i++)
+  if(!tight)
   {
-    nvmath::vec3f vct(i & 1 ? boxSize.x : -boxSize.x, i & 2 ? boxSize.y : -boxSize.y, i & 4 ? boxSize.z : -boxSize.z);
-    vct              = mat * vct;
-    const float dist = std::max(std::fabs(vct.x), std::fabs(vct.y) / aspect);
-    radius           = std::max(radius, dist);
-    offset           = std::max(offset, std::fabs(vct.z));
+    // Using the bounding sphere
+    float radius = nvmath::length(boxHalfSize);
+    if(aspect > 1.f)
+      offset = radius / sin(nv_to_rad * yfov * 0.5f);
+    else
+      offset = radius / sin(nv_to_rad * xfov * 0.5f);
+  }
+  else
+  {
+    nvmath::mat4f mView = nvmath::look_at(m_current.eye, boxCenter, m_current.up);
+    mView.set_translate({0, 0, 0});  // Keep only rotation
+
+    for(int i = 0; i < 8; i++)
+    {
+      nvmath::vec3f vct(i & 1 ? boxHalfSize.x : -boxHalfSize.x, i & 2 ? boxHalfSize.y : -boxHalfSize.y,
+                        i & 4 ? boxHalfSize.z : -boxHalfSize.z);
+      vct = mView * vct;
+
+      if(vct.z < 0)  // Take only points in front of the center
+      {
+        // Keep the largest offset to see that vertex
+        offset = std::max(fabs(vct.y) / tan(nv_to_rad * yfov * 0.5f) + fabs(vct.z), offset);
+        offset = std::max(fabs(vct.x) / tan(nv_to_rad * xfov * 0.5f) + fabs(vct.z), offset);
+      }
+    }
   }
 
-  // Placing back the camera
-  const float dist = radius / tan(fov * .5f);
-  veye             = boxCenter + viewdir * (dist + offset);
-  setLookat(veye, boxCenter, vup, instantFit);
+  // Re-position the camera
+  auto viewDir = nvmath::normalize(m_current.eye - m_current.ctr);
+  auto veye    = boxCenter + viewDir * offset;
+  setLookat(veye, boxCenter, m_current.up, instantFit);
 }
 
 }  // namespace nvh

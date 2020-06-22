@@ -177,7 +177,7 @@ public:
 
   const std::string& getHelp();
 
-  void fit(const nvmath::vec3f& boxMin, const nvmath::vec3f& boxMax, bool instantFit = true);
+  void fit(const nvmath::vec3f& boxMin, const nvmath::vec3f& boxMax, bool instantFit = true, bool tight = false, float aspect = 1.0f);
 
 protected:
   CameraManipulator();
@@ -218,9 +218,11 @@ protected:
   Camera m_goal;      // Wish camera position
   Camera m_snapshot;  // Current camera the moment a set lookat is done
 
+  // Animation
   std::array<nvmath::vec3f, 3> m_bezier;
   double                       m_start_time = 0;
   double                       m_duration   = 0.5;
+  bool                         m_anim_done{true};
 
   // Screen
   int m_width  = 1;
