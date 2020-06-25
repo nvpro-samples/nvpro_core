@@ -1079,3 +1079,19 @@ macro(_add_shared_sources_lib)
   endif(WIN32)
   add_definitions(-DVULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1)
 endmacro()
+
+#####################################################################################
+# The OpenMP find macro. does not support non-default CMAKE_EXECUTABLE_SUFFIX
+# properly. Workaround the issue by temporarily restoring the default value
+# while the FindOpenMP script runs.
+
+macro(_find_package_OpenMP)
+  if(UNIX)
+	set(EXE_SUFFIX ${CMAKE_EXECUTABLE_SUFFIX})
+	unset(CMAKE_EXECUTABLE_SUFFIX)
+	find_package(OpenMP)
+	set(CMAKE_EXECUTABLE_SUFFIX ${EXE_SUFFIX})
+  else()
+	find_package(OpenMP)
+  endif(UNIX)
+endmacro()
