@@ -225,7 +225,8 @@ namespace nvh
     void initBenchmark();
     void advanceBenchmark();
 
-    bool          m_active;
+    bool          m_activeContext = false;
+    bool          m_active = false;
     bool          m_vsync;
     bool          m_hadScreenshot;
     Config        m_config;

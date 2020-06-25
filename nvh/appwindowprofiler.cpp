@@ -214,7 +214,6 @@ void AppWindowProfiler::onWindowClose()
 
 void AppWindowProfiler::onWindowResize(int width, int height)
 {
-  AppWindowProfiler::WindowState& window = m_windowState;
   m_profiler.reset();
 
   if(width == 0 || height == 0)
@@ -222,11 +221,14 @@ void AppWindowProfiler::onWindowResize(int width, int height)
     return;
   }
 
-  window.m_viewSize[0] = width;
-  window.m_viewSize[1] = height;
-  if(m_active)
+  m_windowState.m_viewSize[0] = width;
+  m_windowState.m_viewSize[1] = height;
+  if (m_activeContext)
   {
     swapResize(width, height);
+  }
+  if(m_active)
+  {
     resize(width, height);
   }
 }
@@ -265,6 +267,7 @@ int AppWindowProfiler::run(const std::string& title, int argc, const char** argv
 
   postConfigPreContext();
   contextInit();
+  m_activeContext = true;
 
   // hack to react on $DEVICE$ filename
   if(!m_config.logFilename.empty())
@@ -462,19 +465,22 @@ void AppWindowProfiler::parameterCallback(uint32_t param)
     std::string logfileName = specialStrings(m_config.logFilename.c_str());
     nvprintSetLogFileName(logfileName.c_str());
   }
-  if(param == m_paramCfg || param == m_paramBat)
+  else if(param == m_paramCfg || param == m_paramBat)
   {
     parseConfigFile(m_config.configFilename.c_str());
+  }
+  else if(param == m_paramWinsize)
+  {
+    if (m_internal)
+    {
+      setWindowSize(m_config.winsize[0], m_config.winsize[1]);
+    }
   }
 
   if(!m_active)
     return;
 
-  if(param == m_paramWinsize)
-  {
-    AppWindowProfiler::onWindowResize(m_config.winsize[0], m_config.winsize[1]);
-  }
-  else if(param == m_paramVsync)
+  if(param == m_paramVsync)
   {
     setVsync(m_config.vsyncstate);
   }
