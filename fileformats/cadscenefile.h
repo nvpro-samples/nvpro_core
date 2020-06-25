@@ -27,8 +27,8 @@
 
 #pragma once
 
-#ifndef CSF_GLTF_SUPPORT
-#define CSF_GLTF_SUPPORT 1
+#ifndef CSF_GLTF2_SUPPORT
+#define CSF_GLTF2_SUPPORT 1
 #endif
 
 #ifndef CSF_ZIP_SUPPORT
@@ -150,6 +150,23 @@ extern "C" {
   in all the unions, as well as the pointers array.
   */
 
+  typedef struct _CSFLoaderConfig {
+    // read only access to loaded csf data
+    // means we can use filemappings
+    // default = false
+    // the primary structs are still allocated for write access, 
+    // but all pointers within them are mapped.
+    int secondariesReadOnly;
+
+  #if CSF_GLTF2_SUPPORT
+    // uses hashes of geometry data to figure out what gltf mesh 
+    // data is re-used under different materials, and can 
+    // therefore be mapped to a CSF geometry.
+    // default = true
+    int gltfFindUniqueGeometries;
+  #endif
+  }CSFLoaderConfig;
+
   typedef unsigned long long CSFoffset;
   typedef unsigned int CSFGuid[CADSCENEFILE_LENGTH_GUID];
 
@@ -159,6 +176,60 @@ extern "C" {
     CSFGuid               guid;
     int                   numBytes; // includes size of this header
   }CSFBytePacket;
+
+  #define CSFGUID_MATERIAL_GLTF2       {0,0,0,2}
+
+  typedef struct _CSFMaterialGLTF2Texture {
+    char                  name[CADSCENEFILE_LENGTH_STRING];
+    uint16_t              minFilter;
+    uint16_t              magFilter;
+    uint16_t              wrapS;
+    uint16_t              wrapT;
+    float                 scale;
+    int                   coord;
+    int                   xformUsed;
+    int                   xformCoord;
+    float                 xformOffset[2];
+    float                 xformScale[2];
+    float                 xformRotation;
+  }CSFMaterialGLTF2Texture;
+
+  typedef struct _CSFMaterialGLTF2Meta {
+    CSFBytePacket         packet;
+
+    //-1: unlit
+    // 0: metallicRoughness
+    // 1: specularGlossiness
+    int                   shadingModel;
+    int                   doubleSided;
+    int                   alphaMode;
+    float                 alphaCutoff;
+    float                 emissiveFactor[3];
+
+    union {
+      struct {
+        float             baseColorFactor[4];
+        float             metallicFactor;
+        float             roughnessFactor;
+
+        _CSFMaterialGLTF2Texture baseColorTexture;
+        _CSFMaterialGLTF2Texture metallicRoughnessTexture;
+      };
+
+      struct {
+        float             diffuseFactor[4];
+        float             specularFactor[3];
+        float             glossinessFactor;
+
+        _CSFMaterialGLTF2Texture diffuseTexture;
+        _CSFMaterialGLTF2Texture specularGlossinessTexture;
+      };
+    };
+
+    _CSFMaterialGLTF2Texture occlusionTexture;
+    _CSFMaterialGLTF2Texture normalTexture;
+    _CSFMaterialGLTF2Texture emissiveTexture;
+  }CSFMaterialGLTF2Meta;
 
   typedef struct _CSFMeta {
     char    name[CADSCENEFILE_LENGTH_STRING];
@@ -464,7 +535,10 @@ extern "C" {
   typedef struct CSFileMemory_s* CSFileMemoryPTR;
 
   // Internal allocation wrapper
+  // also handles details for loading operations
   CSFAPI CSFileMemoryPTR CSFileMemory_new();
+  CSFAPI CSFileMemoryPTR CSFileMemory_newCfg(const CSFLoaderConfig* config);
+
   // alloc functions are thread-safe
   // fill if provided must provide sz bytes
   CSFAPI void*  CSFileMemory_alloc(CSFileMemoryPTR mem, size_t sz, const void*fill);
@@ -520,7 +594,7 @@ extern "C" {
 
   CSFAPI int    CSFile_transform(CSFile *csf);  // requires unique nodes
 
-#if CSF_ZIP_SUPPORT || CSF_GLTF_SUPPORT
+#if CSF_ZIP_SUPPORT || CSF_GLTF2_SUPPORT
   CSFAPI int    CSFile_loadExt(CSFile** outcsf, const char* filename, CSFileMemoryPTR mem);
 #endif
 #if CSF_ZIP_SUPPORT 

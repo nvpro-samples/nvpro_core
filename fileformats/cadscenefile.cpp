@@ -28,13 +28,6 @@
 
 //////////////////////////////////////////////////////////////////////////
 
-// tries to find unique geometries from original meshes, uses hashes
-// for vertex/index data
-#define CSF_GLTF_UNIQUE_GEOMETRIES  1
-
-//////////////////////////////////////////////////////////////////////////
-
-
 #include <assert.h>
 #include <map>
 #include <stdint.h>
@@ -52,6 +45,7 @@
 
 #include "cadscenefile.h"
 #include <NvFoundation.h>
+#include <nvh/filemapping.hpp>
 
 #define CADSCENEFILE_MAGIC 1567262451
 
@@ -71,8 +65,12 @@
 
 struct CSFileMemory_s
 {
+  CSFLoaderConfig m_config;
+
   std::vector<void*> m_allocations;
   std::mutex         m_mutex;
+
+  std::vector<nvh::FileReadMapping> m_readMappings;
 
   void* alloc(size_t size, const void* indata = nullptr, size_t indataSize = 0)
   {
@@ -93,12 +91,27 @@ struct CSFileMemory_s
     return data;
   }
 
+  template <typename T>
+  T* allocT(size_t size, const T* indata, size_t indataSize = 0)
+  {
+    return (T*)alloc(size, indata, indataSize);
+  }
+
+  CSFileMemory_s()
+  {
+    m_config.secondariesReadOnly = 0;
+#if CSF_GLTF2_SUPPORT
+    m_config.gltfFindUniqueGeometries = 1;
+#endif
+  }
+
   ~CSFileMemory_s()
   {
     for(size_t i = 0; i < m_allocations.size(); i++)
     {
       free(m_allocations[i]);
     }
+    m_readMappings.clear();
   }
 };
 
@@ -106,6 +119,13 @@ CSFAPI CSFileMemoryPTR CSFileMemory_new()
 {
   return new CSFileMemory_s;
 }
+CSFAPI CSFileMemoryPTR CSFileMemory_newCfg(const CSFLoaderConfig* config)
+{
+  CSFileMemoryPTR mem = new CSFileMemory_s;
+  mem->m_config       = *config;
+  return mem;
+}
+
 CSFAPI void CSFileMemory_delete(CSFileMemoryPTR mem)
 {
   delete mem;
@@ -145,6 +165,66 @@ static size_t CSFile_getRawSize(const CSFile* csf)
     return 0;
 
   return csf->pointersOFFSET + csf->numPointers * sizeof(CSFoffset);
+}
+
+
+template <typename T>
+static void fixPointer(T*& ptr, CSFoffset offset, void* base)
+{
+  if(offset)
+  {
+    ptr = (T*)(((uint8_t*)base) + offset);
+  }
+}
+
+static void CSFile_fixSecondaryPointers(CSFile* csf, void* base)
+{
+  // setup pointers
+  for(int m = 0; m < csf->numMaterials; m++)
+  {
+    CSFMaterial& material = csf->materials[m];
+    fixPointer(material.bytes, material.bytesOFFSET, base);
+  }
+  for(int g = 0; g < csf->numGeometries; g++)
+  {
+    CSFGeometry& geo = csf->geometries[g];
+    fixPointer(geo.vertex, geo.vertexOFFSET, base);
+    fixPointer(geo.normal, geo.normalOFFSET, base);
+    fixPointer(geo.indexSolid, geo.indexSolidOFFSET, base);
+    fixPointer(geo.indexWire, geo.indexWireOFFSET, base);
+    fixPointer(geo.parts, geo.partsOFFSET, base);
+    fixPointer(geo.auxStorageOrder, geo.auxStorageOrderOFFSET, base);
+    fixPointer(geo.aux, geo.auxOFFSET, base);
+    fixPointer(geo.perpart, geo.perpartOFFSET, base);
+    fixPointer(geo.perpartStorageOrder, geo.perpartStorageOrderOFFSET, base);
+  }
+  for(int n = 0; n < csf->numNodes; n++)
+  {
+    CSFNode& node = csf->nodes[n];
+    fixPointer(node.children, node.childrenOFFSET, base);
+    fixPointer(node.parts, node.partsOFFSET, base);
+  }
+  if(CSFile_getGeometryMetas(csf))
+  {
+    for(int g = 0; g < csf->numGeometries; g++)
+    {
+      CSFMeta& meta = csf->geometryMetas[g];
+      fixPointer(meta.bytes, meta.bytesOFFSET, base);
+    }
+  }
+  if(CSFile_getNodeMetas(csf))
+  {
+    for(int n = 0; n < csf->numNodes; n++)
+    {
+      CSFMeta& meta = csf->nodeMetas[n];
+      fixPointer(meta.bytes, meta.bytesOFFSET, base);
+    }
+  }
+  if(CSFile_getFileMeta(csf))
+  {
+    CSFMeta& meta = csf->fileMeta[0];
+    fixPointer(meta.bytes, meta.bytesOFFSET, base);
+  }
 }
 
 CSFAPI int CSFile_loadRaw(CSFile** outcsf, size_t size, void* dataraw)
@@ -203,6 +283,49 @@ CSFAPI int CSFile_loadRaw(CSFile** outcsf, size_t size, void* dataraw)
   return CADSCENEFILE_NOERROR;
 }
 
+CSFAPI int CSFile_loadReadOnly(CSFile** outcsf, const char* filename, CSFileMemoryPTR mem)
+{
+  nvh::FileReadMapping file;
+  if(!file.open(filename))
+  {
+    return CADSCENEFILE_ERROR_NOFILE;
+  }
+
+  const uint8_t* base = (const uint8_t*)file.data();
+
+  // allocate the primary arrays
+  CSFile* csf = mem->allocT(sizeof(CSFile), (const CSFile*)base, sizeof(CSFile));
+
+  csf->materials = mem->allocT(sizeof(CSFMaterial) * csf->numMaterials, (const CSFMaterial*)(base + csf->materialsOFFSET));
+  csf->geometries = mem->allocT(sizeof(CSFGeometry) * csf->numGeometries, (const CSFGeometry*)(base + csf->geometriesOFFSET));
+  csf->nodes       = mem->allocT(sizeof(CSFNode) * csf->numNodes, (const CSFNode*)(base + csf->nodesOFFSET));
+  csf->pointers    = 0;
+  csf->numPointers = 0;
+  if(CSFile_getGeometryMetas(csf))
+  {
+    csf->geometryMetas = mem->allocT(sizeof(CSFMeta) * csf->numGeometries, (const CSFMeta*)(base + csf->geometryMetasOFFSET));
+  }
+  if(CSFile_getNodeMetas(csf))
+  {
+    csf->nodeMetas = mem->allocT(sizeof(CSFMeta) * csf->numNodes, (const CSFMeta*)(base + csf->nodeMetasOFFSET));
+  }
+  if(CSFile_getFileMeta(csf))
+  {
+    csf->fileMeta = mem->allocT(sizeof(CSFMeta), (const CSFMeta*)(base + csf->fileMetaOFFSET));
+  }
+  if(csf->version < CADSCENEFILE_VERSION_GEOMETRYCHANNELS)
+  {
+    CSFile_setupDefaultChannels(csf);
+  }
+
+  CSFile_fixSecondaryPointers(csf, const_cast<void*>((const void*)base));
+
+  mem->m_readMappings.push_back(std::move(file));
+
+  *outcsf = csf;
+  return CADSCENEFILE_NOERROR;
+}
+
 CSFAPI int CSFile_load(CSFile** outcsf, const char* filename, CSFileMemoryPTR mem)
 {
   if(!filename)
@@ -230,6 +353,12 @@ CSFAPI int CSFile_load(CSFile** outcsf, const char* filename, CSFileMemoryPTR me
     return CADSCENEFILE_ERROR_VERSION;
   }
 
+  if(mem->m_config.secondariesReadOnly)
+  {
+    fclose(file);
+    return CSFile_loadReadOnly(outcsf, filename, mem);
+  }
+
   // load the full file to memory
   xfseek(file, 0, SEEK_END);
   size_t size = (size_t)xftell(file);
@@ -249,11 +378,11 @@ CSFAPI int CSFile_load(CSFile** outcsf, const char* filename, CSFileMemoryPTR me
   return CSFile_loadRaw(outcsf, size, data);
 }
 
-#if CSF_GLTF_SUPPORT
+#if CSF_GLTF2_SUPPORT
 CSFAPI int CSFile_loadGTLF(CSFile** outcsf, const char* filename, CSFileMemoryPTR mem);
 #endif
 
-#if CSF_ZIP_SUPPORT || CSF_GLTF_SUPPORT
+#if CSF_ZIP_SUPPORT || CSF_GLTF2_SUPPORT
 CSFAPI int CSFile_loadExt(CSFile** outcsf, const char* filename, CSFileMemoryPTR mem)
 {
   if(!filename)
@@ -295,7 +424,7 @@ CSFAPI int CSFile_loadExt(CSFile** outcsf, const char* filename, CSFileMemoryPTR
   }
   else
 #endif
-#if CSF_GLTF_SUPPORT
+#if CSF_GLTF2_SUPPORT
       if(len > 5 && strcmp(filename + len - 5, ".gltf") == 0)
   {
     return CSFile_loadGTLF(outcsf, filename, mem);
@@ -897,71 +1026,62 @@ CSFAPI const void* CSFGeometry_getPartChannel(const CSFGeometry* geo, CSFGeometr
 }
 
 
-#if CSF_GLTF_SUPPORT
+#if CSF_GLTF2_SUPPORT
 
-#define TINYGLTF_IMPLEMENTATION
-#define TINYGLTF_NO_STB_IMAGE
-#define TINYGLTF_NO_STB_IMAGE_WRITE
-#define TINYGLTF_NO_EXTERNAL_IMAGE
-
-#include "tiny_gltf.h"
-
+#include <unordered_map>
+#include "cgltf.h"
 #include <nvmath/nvmath.h>
 
-void CSFile_countGLTFNode(CSFile* csf, const tinygltf::Model& gltfModel, int nodeIdx)
+void CSFile_countGLTFNodes(CSFile* csf, const cgltf_data* gltfModel, const cgltf_node* node)
 {
-  const tinygltf::Node& node = gltfModel.nodes[nodeIdx];
-
   csf->numNodes++;
-  for(int child : node.children)
+  for (cgltf_size i = 0; i < node->children_count; i++)
   {
-    CSFile_countGLTFNode(csf, gltfModel, child);
+    CSFile_countGLTFNodes(csf, gltfModel, node->children[i]);
   }
 }
 
-int CSFile_addGLTFNode(CSFile* csf, const tinygltf::Model& gltfModel, const uint32_t* meshGeometries, CSFileMemoryPTR mem, int nodeIdx)
+int CSFile_addGLTFNode(CSFile* csf, const cgltf_data* gltfModel, const uint32_t* meshGeometries, CSFileMemoryPTR mem, const cgltf_node* node)
 {
-  const tinygltf::Node& node = gltfModel.nodes[nodeIdx];
-
   int idx = csf->numNodes++;
-
   CSFNode& csfnode = csf->nodes[idx];
+
   CSFMatrix_identity(csfnode.worldTM);
   CSFMatrix_identity(csfnode.objectTM);
 
-  if(node.matrix.size() == 16)
+  if (node->has_matrix)
   {
-    for(int i = 0; i < 16; i++)
+    for (int i = 0; i < 16; i++)
     {
-      csfnode.objectTM[i] = (float)node.matrix[i];
+      csfnode.objectTM[i] = (float)node->matrix[i];
     }
   }
   else
   {
-    nvmath::vec3f translation = {0, 0, 0};
-    nvmath::quatf rotation    = {0, 0, 0, 0};
-    nvmath::vec3f scale       = {1, 1, 1};
+    nvmath::vec3f translation = { 0, 0, 0 };
+    nvmath::quatf rotation = { 0, 0, 0, 0 };
+    nvmath::vec3f scale = { 1, 1, 1 };
 
-    if(node.translation.size() == 3)
+    if (node->has_translation)
     {
-      translation.x = static_cast<float>(node.translation[0]);
-      translation.y = static_cast<float>(node.translation[1]);
-      translation.z = static_cast<float>(node.translation[2]);
+      translation.x = static_cast<float>(node->translation[0]);
+      translation.y = static_cast<float>(node->translation[1]);
+      translation.z = static_cast<float>(node->translation[2]);
     }
 
-    if(node.rotation.size() == 4)
+    if (node->has_rotation)
     {
-      rotation.x = static_cast<float>(node.rotation[0]);
-      rotation.y = static_cast<float>(node.rotation[1]);
-      rotation.z = static_cast<float>(node.rotation[2]);
-      rotation.w = static_cast<float>(node.rotation[3]);
+      rotation.x = static_cast<float>(node->rotation[0]);
+      rotation.y = static_cast<float>(node->rotation[1]);
+      rotation.z = static_cast<float>(node->rotation[2]);
+      rotation.w = static_cast<float>(node->rotation[3]);
     }
 
-    if(node.scale.size() == 3)
+    if (node->has_scale)
     {
-      scale.x = static_cast<float>(node.scale[0]);
-      scale.y = static_cast<float>(node.scale[1]);
-      scale.z = static_cast<float>(node.scale[2]);
+      scale.x = static_cast<float>(node->scale[0]);
+      scale.y = static_cast<float>(node->scale[1]);
+      scale.z = static_cast<float>(node->scale[2]);
     }
 
 
@@ -972,32 +1092,36 @@ int CSFile_addGLTFNode(CSFile* csf, const tinygltf::Model& gltfModel, const uint
     rotation.to_matrix(mrot);
 
     nvmath::mat4f matrix = mtranslation * mrot * mscale;
-    for(int i = 0; i < 16; i++)
+    for (int i = 0; i < 16; i++)
     {
       csfnode.objectTM[i] = matrix.mat_array[i];
     }
   }
 
   // setup geometry
-  if(node.mesh > -1)
+  if (node->mesh)
   {
-    csfnode.geometryIDX        = meshGeometries[node.mesh];
-    const tinygltf::Mesh& mesh = gltfModel.meshes[node.mesh];
+    size_t meshIndex = node->mesh - gltfModel->meshes;
+
+    csfnode.geometryIDX = meshGeometries[meshIndex];
+    const cgltf_mesh& mesh = gltfModel->meshes[meshIndex];
 
     csfnode.numParts = csf->geometries[csfnode.geometryIDX].numParts;
-    csfnode.parts    = (CSFNodePart*)CSFileMemory_alloc(mem, sizeof(CSFNodePart) * csfnode.numParts, nullptr);
+    csfnode.parts = (CSFNodePart*)CSFileMemory_alloc(mem, sizeof(CSFNodePart) * csfnode.numParts, nullptr);
 
-    int i = 0;
-    for(const tinygltf::Primitive& primitive : mesh.primitives)
+    uint32_t p = 0;
+    for (cgltf_size i = 0; i < mesh.primitives_count; i++)
     {
-      if(primitive.mode != TINYGLTF_MODE_TRIANGLES)
+      const cgltf_primitive& primitive = mesh.primitives[i];
+
+      if (primitive.type != cgltf_primitive_type_triangles)
         continue;
 
-      CSFNodePart& csfpart = csfnode.parts[i++];
+      CSFNodePart& csfpart = csfnode.parts[p++];
 
-      csfpart.active      = 1;
-      csfpart.materialIDX = primitive.material;
-      csfpart.nodeIDX     = -1;
+      csfpart.active = 1;
+      csfpart.materialIDX = primitive.material ? int(primitive.material - gltfModel->materials) : 0;
+      csfpart.nodeIDX = -1;
     }
   }
   else
@@ -1005,19 +1129,17 @@ int CSFile_addGLTFNode(CSFile* csf, const tinygltf::Model& gltfModel, const uint
     csfnode.geometryIDX = -1;
   }
 
-  csfnode.numChildren = (int)node.children.size();
-  csfnode.children    = (int*)CSFileMemory_alloc(mem, sizeof(int) * csfnode.numChildren, nullptr);
+  csfnode.numChildren = (int)node->children_count;
+  csfnode.children = (int*)CSFileMemory_alloc(mem, sizeof(int) * csfnode.numChildren, nullptr);
 
-  int childIdx = 0;
-  for(int child : node.children)
+  for (cgltf_size i = 0; i < node->children_count; i++)
   {
-    csfnode.children[childIdx++] = CSFile_addGLTFNode(csf, gltfModel, meshGeometries, mem, child);
+    csfnode.children[i] = CSFile_addGLTFNode(csf, gltfModel, meshGeometries, mem, node->children[i]);
   }
 
   return idx;
 }
 
-#if CSF_GLTF_UNIQUE_GEOMETRIES
 //-----------------------------------------------------------------------------
 // MurmurHash2A, by Austin Appleby
 
@@ -1050,7 +1172,7 @@ static unsigned int strMurmurHash2A(const void* key, size_t len, unsigned int se
   unsigned int h = seed;
   unsigned int t = 0;
 
-  while(len >= 4)
+  while (len >= 4)
   {
     unsigned int k = *(unsigned int*)data;
 
@@ -1061,14 +1183,14 @@ static unsigned int strMurmurHash2A(const void* key, size_t len, unsigned int se
   }
 
 
-  switch(len)
+  switch (len)
   {
-    case 3:
-      t ^= data[2] << 16;
-    case 2:
-      t ^= data[1] << 8;
-    case 1:
-      t ^= data[0];
+  case 3:
+    t ^= data[2] << 16;
+  case 2:
+    t ^= data[1] << 8;
+  case 1:
+    t ^= data[0];
   };
 
   mmix(h, t);
@@ -1085,158 +1207,229 @@ static unsigned int strMurmurHash2A(const void* key, size_t len, unsigned int se
 struct GLTFGeometryInfo
 {
   uint32_t numVertices = 0;
-  uint32_t numNormals  = 0;
-  uint32_t numIndices  = 0;
-  uint32_t numParts    = 0;
-  
-  uint32_t hashIndex  = 0;
+  uint32_t numNormals = 0;
+  uint32_t numTexcoords = 0;
+  uint32_t numIndices = 0;
+  uint32_t numParts = 0;
+
+  uint32_t hashIndex = 0;
   uint32_t hashVertex = 0;
   uint32_t hashNormal = 0;
+  uint32_t hashTexcoord = 0;
+
+  uint32_t hashLightVertex = 0;
+  uint32_t hashLightNormal = 0;
+  uint32_t hashLightTexcoord = 0;
+
+  bool isEqualHash(const GLTFGeometryInfo& other)
+  {
+    return hashIndex == other.hashIndex && hashVertex == other.hashVertex && hashNormal == other.hashNormal && hashTexcoord == other.hashTexcoord;
+  }
 
   bool isEqualLight(const GLTFGeometryInfo& other)
   {
     return numVertices == other.numVertices && numNormals == other.numNormals && numIndices == other.numIndices
-           && numParts == other.numParts;
+      && numParts == other.numParts && hashLightVertex == other.hashLightVertex && hashLightNormal == other.hashLightNormal && hashLightTexcoord == other.hashLightTexcoord;
   }
 
-  bool isEqualHash(const GLTFGeometryInfo& other)
+  void setup(const cgltf_data* gltfModel, const cgltf_mesh& mesh)
   {
-    return hashIndex == other.hashIndex && hashVertex == other.hashVertex && hashNormal == other.hashNormal;
-  }
+    hashVertex = 0;
+    hashNormal = 0;
+    hashTexcoord = 0;
+    hashIndex = 0;
 
-  void setup(const tinygltf::Model& gltfModel, const tinygltf::Mesh& mesh)
-  {
-    for(const tinygltf::Primitive& primitive : mesh.primitives)
+    hashLightVertex = 0;
+    hashLightNormal = 0;
+    hashLightTexcoord = 0;
+
+    for (cgltf_size i = 0; i < mesh.primitives_count; i++)
     {
-      if(primitive.mode != TINYGLTF_MODE_TRIANGLES)
+      const cgltf_primitive& primitive = mesh.primitives[i];
+
+      if (primitive.type != cgltf_primitive_type_triangles)
         continue;
 
-      const tinygltf::Accessor& posAccessor = gltfModel.accessors[primitive.attributes.find("POSITION")->second];
-      numVertices += static_cast<uint32_t>(posAccessor.count);
+      for (cgltf_size a = 0; a < primitive.attributes_count; a++) {
+        const cgltf_accessor* accessor = primitive.attributes[a].data;
+        const cgltf_buffer_view* view = accessor->buffer_view;
+        const uint8_t* data = reinterpret_cast<const uint8_t*>(view->buffer->data);
+        data += accessor->offset + view->offset;
 
-      if(primitive.attributes.find("NORMAL") != primitive.attributes.end())
-      {
-        numNormals += static_cast<uint32_t>(posAccessor.count);
+        switch (primitive.attributes[a].type) {
+        case cgltf_attribute_type_position:
+          numVertices += static_cast<uint32_t>(accessor->count);
+          hashLightVertex = strMurmurHash2A(data, accessor->stride, hashLightVertex);
+          break;
+        case cgltf_attribute_type_normal:
+          numNormals += static_cast<uint32_t>(accessor->count);
+          hashLightNormal = strMurmurHash2A(data, accessor->stride, hashLightNormal);
+          break;
+        case cgltf_attribute_type_texcoord:
+          if (primitive.attributes[a].index == 0) {
+            numTexcoords += static_cast<uint32_t>(accessor->count);
+            hashLightTexcoord = strMurmurHash2A(data, accessor->stride, hashLightTexcoord);
+          }
+          break;
+        }
       }
 
-      const tinygltf::Accessor& indexAccessor = gltfModel.accessors[primitive.indices];
-      numIndices += static_cast<uint32_t>(indexAccessor.count);
+      numIndices += static_cast<uint32_t>(primitive.indices->count);
       numParts++;
     }
   }
 
   bool hasHash() const { return hashIndex != 0 || hashVertex != 0 || hashNormal != 0; }
 
-  void setupHash(const tinygltf::Model& gltfModel, const tinygltf::Mesh& mesh)
+  void setupHash(const cgltf_data* gltfModel, const cgltf_mesh& mesh)
   {
-    for(const tinygltf::Primitive& primitive : mesh.primitives)
+    for (cgltf_size i = 0; i < mesh.primitives_count; i++)
     {
-      if(primitive.mode != TINYGLTF_MODE_TRIANGLES)
+      const cgltf_primitive& primitive = mesh.primitives[i];
+
+      if (primitive.type != cgltf_primitive_type_triangles)
         continue;
 
-      const tinygltf::Accessor& posAccessor = gltfModel.accessors[primitive.attributes.find("POSITION")->second];
-      {
-        const tinygltf::Accessor&   accessor = posAccessor;
-        const tinygltf::BufferView& view     = gltfModel.bufferViews[accessor.bufferView];
-        const float*                buffer =
-            reinterpret_cast<const float*>(&(gltfModel.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
+      for (cgltf_size a = 0; a < primitive.attributes_count; a++) {
+        const cgltf_accessor* accessor = primitive.attributes[a].data;
+        const cgltf_buffer_view* view = accessor->buffer_view;
+        const uint8_t* data = reinterpret_cast<const uint8_t*>(view->buffer->data);
+        data += accessor->offset + view->offset;
 
-        hashVertex = strMurmurHash2A(buffer, sizeof(float) * 3 * accessor.count, hashVertex);
-      }
-
-      const auto normalit = primitive.attributes.find("NORMAL");
-      if(normalit != primitive.attributes.end())
-      {
-        const tinygltf::Accessor&   accessor = gltfModel.accessors[normalit->second];
-        const tinygltf::BufferView& view     = gltfModel.bufferViews[accessor.bufferView];
-        const float*                buffer =
-            reinterpret_cast<const float*>(&(gltfModel.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
-
-        hashNormal = strMurmurHash2A(buffer, sizeof(float) * 3 * accessor.count, hashNormal);
-      }
-
-      const tinygltf::Accessor& indexAccessor = gltfModel.accessors[primitive.indices];
-      {
-        const tinygltf::Accessor&   accessor = indexAccessor;
-        const tinygltf::BufferView& view     = gltfModel.bufferViews[accessor.bufferView];
-        const void*                 buffer =
-            reinterpret_cast<const void*>(&(gltfModel.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
-
-        size_t indexSize = 0;
-        switch(accessor.componentType)
-        {
-          case TINYGLTF_PARAMETER_TYPE_UNSIGNED_INT:
-            indexSize = sizeof(uint32_t);
-            break;
-          case TINYGLTF_PARAMETER_TYPE_UNSIGNED_SHORT:
-            indexSize = sizeof(uint16_t);
-            break;
-          case TINYGLTF_PARAMETER_TYPE_UNSIGNED_BYTE:
-            indexSize = sizeof(uint8_t);
-            break;
+        switch (primitive.attributes[a].type) {
+        case cgltf_attribute_type_position:
+          hashVertex = strMurmurHash2A(data, accessor->stride * accessor->count, hashVertex);
+          break;
+        case cgltf_attribute_type_normal:
+          hashNormal = strMurmurHash2A(data, accessor->stride * accessor->count, hashNormal);
+          break;
+        case cgltf_attribute_type_texcoord:
+          if (primitive.attributes[a].index == 0) {
+            hashTexcoord = strMurmurHash2A(data, accessor->stride * accessor->count, hashTexcoord);
+          }
+          break;
         }
+      }
 
-        hashIndex = strMurmurHash2A(buffer, indexSize * accessor.count, hashIndex);
+      {
+        const cgltf_accessor* accessor = primitive.indices;
+        const cgltf_buffer_view* view = accessor->buffer_view;
+        const uint8_t* data = reinterpret_cast<const uint8_t*>(view->buffer->data);
+        data += accessor->offset + view->offset;
+
+        hashIndex = strMurmurHash2A(data, accessor->stride * accessor->count, hashIndex);
       }
     }
   }
 };
-#endif
+
+static inline void setupCSFMaterialTexture(CSFMaterialGLTF2Texture& csftex, const cgltf_texture_view& tex)
+{
+  if (!tex.texture) return;
+
+  const char* uri = tex.texture->image->uri;
+  if (uri) {
+    strncpy(csftex.name, uri, sizeof(csftex.name));
+  }
+}
+
+struct MappingList {
+  std::unordered_map<std::string, nvh::FileReadMapping> maps;
+};
+
+static cgltf_result csf_cgltf_read(const struct cgltf_memory_options* memory_options, const struct cgltf_file_options* file_options, const char* path, cgltf_size* size, void** data)
+{
+  MappingList* mappings = (MappingList*)file_options->user_data;
+  std::string pathStr(path);
+
+  auto it = mappings->maps.find(pathStr);
+  if (it != mappings->maps.end()) {
+    *data = const_cast<void*>(it->second.data());
+    *size = it->second.size();
+    return cgltf_result_success;
+  }
+
+  nvh::FileReadMapping map;
+  if (map.open(path)) {
+    *data = const_cast<void*>(map.data());
+    *size = map.size();
+    mappings->maps.insert({ pathStr,std::move(map) });
+    return cgltf_result_success;
+  }
+
+  return cgltf_result_io_error;
+}
+
+static void csf_cgltf_release(const struct cgltf_memory_options* memory_options, const struct cgltf_file_options* file_options, void* data)
+{
+  // let MappingList destructor handle it
+}
 
 CSFAPI int CSFile_loadGTLF(CSFile** outcsf, const char* filename, CSFileMemoryPTR mem)
 {
-  if(!filename)
+  if (!filename)
   {
     return CADSCENEFILE_ERROR_NOFILE;
   }
 
-  tinygltf::TinyGLTF loader;
-  tinygltf::Model    gltfModel;
-  std::string        err;
-  std::string        warn;
+  int findUniqueGeometries = mem->m_config.gltfFindUniqueGeometries;
+
+  cgltf_options       gltfOptions = {};
+  cgltf_data*         gltfModel;
+
+  MappingList     mappings;
+
+  gltfOptions.file.read = csf_cgltf_read;
+  gltfOptions.file.release = csf_cgltf_release;
+  gltfOptions.file.user_data = &mappings;
 
   *outcsf = NULL;
 
-  bool ret = loader.LoadASCIIFromFile(&gltfModel, &err, &warn, filename);
-  if(!warn.empty())
+  cgltf_result result = cgltf_parse_file(&gltfOptions, filename, &gltfModel);
+  if (result != cgltf_result_success)
   {
-    printf("Warn: %s\n", warn.c_str());
+    printf("ERR: cgltf_parse_file: %d\n", result);
+    return CADSCENEFILE_ERROR_OPERATION;
   }
 
-  if(!err.empty())
+  result = cgltf_load_buffers(&gltfOptions, gltfModel, filename);
+  if (result != cgltf_result_success)
   {
-    printf("ERR: %s\n", err.c_str());
-  }
-  if(!ret)
-  {
+    printf("ERR: cgltf_load_buffers: %d\n", result);
+    cgltf_free(gltfModel);
     return CADSCENEFILE_ERROR_OPERATION;
   }
 
   CSFile* csf = (CSFile*)CSFileMemory_alloc(mem, sizeof(CSFile), NULL);
   memset(csf, 0, sizeof(CSFile));
-  csf->version   = CADSCENEFILE_VERSION;
+  csf->version = CADSCENEFILE_VERSION;
   csf->fileFlags = 0;
   csf->fileFlags |= CADSCENEFILE_FLAG_UNIQUENODES;
-  csf->numMaterials = (int)gltfModel.materials.size();
-  csf->numNodes     = (int)gltfModel.nodes.size();
+  csf->numMaterials = (int)gltfModel->materials_count;
+  csf->numNodes = (int)gltfModel->nodes_count;
 
   csf->materials = (CSFMaterial*)CSFileMemory_alloc(mem, sizeof(CSFMaterial) * csf->numMaterials, NULL);
   memset(csf->materials, 0, sizeof(CSFMaterial) * csf->numMaterials);
 
   // create materials
-  size_t materialIdx = 0;
-
-  for(tinygltf::Material& mat : gltfModel.materials)
+  for (cgltf_size materialIdx = 0; materialIdx < gltfModel->materials_count; materialIdx++)
   {
-    CSFMaterial& csfmat = csf->materials[materialIdx++];
+    const cgltf_material& mat = gltfModel->materials[materialIdx];
+    CSFMaterial& csfmat = csf->materials[materialIdx];
 
-    if(mat.values.find("baseColorFactor") != mat.values.end())
+    if (mat.has_pbr_metallic_roughness)
     {
-      tinygltf::ColorValue cv = mat.values["baseColorFactor"].ColorFactor();
-      csfmat.color[0]         = static_cast<float>(cv[0]);
-      csfmat.color[1]         = static_cast<float>(cv[1]);
-      csfmat.color[2]         = static_cast<float>(cv[2]);
-      csfmat.color[3]         = static_cast<float>(cv[3]);
+      csfmat.color[0] = mat.pbr_metallic_roughness.base_color_factor[0];
+      csfmat.color[1] = mat.pbr_metallic_roughness.base_color_factor[1];
+      csfmat.color[2] = mat.pbr_metallic_roughness.base_color_factor[2];
+      csfmat.color[3] = mat.pbr_metallic_roughness.base_color_factor[3];
+    }
+    else if (mat.has_pbr_specular_glossiness)
+    {
+      csfmat.color[0] = mat.pbr_specular_glossiness.diffuse_factor[0];
+      csfmat.color[1] = mat.pbr_specular_glossiness.diffuse_factor[1];
+      csfmat.color[2] = mat.pbr_specular_glossiness.diffuse_factor[2];
+      csfmat.color[3] = mat.pbr_specular_glossiness.diffuse_factor[3];
     }
     else
     {
@@ -1246,7 +1439,52 @@ CSFAPI int CSFile_loadGTLF(CSFile** outcsf, const char* filename, CSFileMemoryPT
       csfmat.color[3] = 1.0f;
     }
 
-    strncpy(csfmat.name, mat.name.c_str(), sizeof(csfmat.name));
+    strncpy(csfmat.name, mat.name, sizeof(csfmat.name));
+    csfmat.bytes = nullptr;
+    csfmat.numBytes = 0;
+    csfmat.type = 0;
+
+    CSFMaterialGLTF2Meta csfmatgltf = { {CSFGUID_MATERIAL_GLTF2, sizeof(CSFMaterialGLTF2Meta)} };
+
+    csfmatgltf.shadingModel = -1;
+    csfmatgltf.emissiveFactor[0] = mat.emissive_factor[0];
+    csfmatgltf.emissiveFactor[1] = mat.emissive_factor[1];
+    csfmatgltf.emissiveFactor[2] = mat.emissive_factor[2];
+    csfmatgltf.doubleSided = mat.double_sided ? 1 : 0;
+    csfmatgltf.alphaCutoff = mat.alpha_cutoff;
+    csfmatgltf.alphaMode = mat.alpha_mode;
+
+    setupCSFMaterialTexture(csfmatgltf.emissiveTexture, mat.emissive_texture);
+    setupCSFMaterialTexture(csfmatgltf.normalTexture, mat.normal_texture);
+    setupCSFMaterialTexture(csfmatgltf.occlusionTexture, mat.occlusion_texture);
+
+    if (mat.has_pbr_metallic_roughness) {
+      csfmatgltf.shadingModel = mat.unlit ? -1 : 0;
+      csfmatgltf.baseColorFactor[0] = mat.pbr_metallic_roughness.base_color_factor[0];
+      csfmatgltf.baseColorFactor[1] = mat.pbr_metallic_roughness.base_color_factor[1];
+      csfmatgltf.baseColorFactor[2] = mat.pbr_metallic_roughness.base_color_factor[2];
+      csfmatgltf.baseColorFactor[3] = mat.pbr_metallic_roughness.base_color_factor[3];
+      csfmatgltf.roughnessFactor = mat.pbr_metallic_roughness.roughness_factor;
+      csfmatgltf.metallicFactor = mat.pbr_metallic_roughness.metallic_factor;
+      setupCSFMaterialTexture(csfmatgltf.baseColorTexture, mat.pbr_metallic_roughness.base_color_texture);
+      setupCSFMaterialTexture(csfmatgltf.metallicRoughnessTexture, mat.pbr_metallic_roughness.metallic_roughness_texture);
+    }
+    else if (mat.has_pbr_specular_glossiness) {
+      csfmatgltf.shadingModel = 1;
+      csfmatgltf.diffuseFactor[0] = mat.pbr_specular_glossiness.diffuse_factor[0];
+      csfmatgltf.diffuseFactor[1] = mat.pbr_specular_glossiness.diffuse_factor[1];
+      csfmatgltf.diffuseFactor[2] = mat.pbr_specular_glossiness.diffuse_factor[2];
+      csfmatgltf.diffuseFactor[3] = mat.pbr_specular_glossiness.diffuse_factor[3];
+      csfmatgltf.glossinessFactor = mat.pbr_specular_glossiness.glossiness_factor;
+      csfmatgltf.specularFactor[0] = mat.pbr_specular_glossiness.specular_factor[0];
+      csfmatgltf.specularFactor[1] = mat.pbr_specular_glossiness.specular_factor[1];
+      csfmatgltf.specularFactor[2] = mat.pbr_specular_glossiness.specular_factor[2];
+      setupCSFMaterialTexture(csfmatgltf.diffuseTexture, mat.pbr_specular_glossiness.diffuse_texture);
+      setupCSFMaterialTexture(csfmatgltf.specularGlossinessTexture, mat.pbr_specular_glossiness.specular_glossiness_texture);
+    }
+
+    csfmat.numBytes = sizeof(csfmatgltf);
+    csfmat.bytes = (unsigned char*)CSFileMemory_alloc(mem, sizeof(csfmatgltf), &csfmatgltf);
   }
 
   // find unique geometries
@@ -1255,237 +1493,271 @@ CSFAPI int CSFile_loadGTLF(CSFile** outcsf, const char* filename, CSFileMemoryPT
   std::vector<uint32_t>         meshGeometries;
   std::vector<uint32_t>         geometryMeshes;
 
-  meshGeometries.reserve(gltfModel.meshes.size());
-  geometryMeshes.reserve(gltfModel.meshes.size());
-  
+  meshGeometries.reserve(gltfModel->meshes_count);
+  geometryMeshes.reserve(gltfModel->meshes_count);
 
-#if CSF_GLTF_UNIQUE_GEOMETRIES
-  // use some hashing based comparisons to avoid deep comparisons
 
-  std::vector<GLTFGeometryInfo> geometryInfos;
-  geometryInfos.reserve(gltfModel.meshes.size());
+  if (findUniqueGeometries) {
+    // use some hashing based comparisons to avoid deep comparisons
 
-  uint32_t meshIdx = 0;
-  for(const tinygltf::Mesh& mesh : gltfModel.meshes)
-  {
-    GLTFGeometryInfo geoInfo;
+    std::vector<GLTFGeometryInfo> geometryInfos;
+    geometryInfos.reserve(gltfModel->meshes_count);
 
-    geoInfo.setup(gltfModel, mesh);
-
-    // compare against existing hashes
-    uint32_t found = ~0;
-    for(uint32_t i = 0; i < (uint32_t)geometryInfos.size(); i++)
+    uint32_t meshIdx = 0;
+    for (cgltf_size m = 0; m < gltfModel->meshes_count; m++)
     {
-      if(geoInfo.isEqualLight(geometryInfos[i]))
+      const cgltf_mesh& mesh = gltfModel->meshes[m];
+      GLTFGeometryInfo geoInfo;
+
+      geoInfo.setup(gltfModel, mesh);
+
+      // compare against existing hashes
+      uint32_t found = ~0;
+      for (uint32_t i = 0; i < (uint32_t)geometryInfos.size(); i++)
       {
-        if(!geometryInfos[i].hasHash())
+        if (geoInfo.isEqualLight(geometryInfos[i]))
         {
-          geometryInfos[i].setupHash(gltfModel, gltfModel.meshes[geometryMeshes[i]]);
-        }
+          if (!geometryInfos[i].hasHash())
+          {
+            geometryInfos[i].setupHash(gltfModel, gltfModel->meshes[geometryMeshes[i]]);
+          }
 
-        geoInfo.setupHash(gltfModel, mesh);
+          geoInfo.setupHash(gltfModel, mesh);
 
-        if(geoInfo.isEqualHash(geometryInfos[i]))
-        {
-          found = i;
-          break;
+          if (geoInfo.isEqualHash(geometryInfos[i]))
+          {
+            found = i;
+            break;
+          }
         }
       }
+      if (found != ~0)
+      {
+        meshGeometries.push_back(found);
+      }
+      else
+      {
+        meshGeometries.push_back((uint32_t)geometryInfos.size());
+        geometryInfos.push_back(geoInfo);
+        geometryMeshes.push_back(uint32_t(meshIdx));
+      }
+      meshIdx++;
     }
-    if(found != ~0)
-    {
-      meshGeometries.push_back(found);
-    }
-    else
-    {
-      meshGeometries.push_back((uint32_t)geometryInfos.size());
-      geometryInfos.push_back(geoInfo);
-      geometryMeshes.push_back(meshIdx);
-    }
-    meshIdx++;
   }
-#else 
-  // 1:1 Mesh to CSFGeometry
-  uint32_t meshIdx = 0;
-  for (const tinygltf::Mesh& mesh : gltfModel.meshes)
+  else
   {
-    meshGeometries.push_back(meshIdx);
-    geometryMeshes.push_back(meshIdx);
+    // 1:1 Mesh to CSFGeometry
+    for (cgltf_size meshIdx = 0; meshIdx < gltfModel->meshes_count; meshIdx++)
+    {
+      meshGeometries.push_back(uint32_t(meshIdx));
+      geometryMeshes.push_back(uint32_t(meshIdx));
+    }
   }
-#endif
 
   csf->numGeometries = (int)geometryMeshes.size();
-  csf->geometries    = (CSFGeometry*)CSFileMemory_alloc(mem, sizeof(CSFGeometry) * csf->numGeometries, NULL);
+  csf->geometries = (CSFGeometry*)CSFileMemory_alloc(mem, sizeof(CSFGeometry) * csf->numGeometries, NULL);
   memset(csf->geometries, 0, sizeof(CSFGeometry) * csf->numGeometries);
 
 
   // create geometries
-  for(uint32_t outIdx = 0; outIdx < (uint32_t)csf->numGeometries; outIdx++)
+#pragma omp parallel for
+  for (int outIdx = 0; outIdx < csf->numGeometries; outIdx++)
   {
-    const tinygltf::Mesh& mesh    = gltfModel.meshes[geometryMeshes[outIdx]];
-    CSFGeometry&          csfgeom = csf->geometries[outIdx];
+    const cgltf_mesh& mesh = gltfModel->meshes[geometryMeshes[outIdx]];
+    CSFGeometry&   csfgeom = csf->geometries[outIdx];
 
     // count pass
     uint32_t vertexTotCount = 0;
-    uint32_t indexTotCount  = 0;
-    uint32_t partsTotCount  = 0;
+    uint32_t indexTotCount = 0;
+    uint32_t partsTotCount = 0;
 
     bool hasNormals = false;
-    for(const tinygltf::Primitive& primitive : mesh.primitives)
+    bool hasTexcoords = false;
+    for (cgltf_size p = 0; p < mesh.primitives_count; p++)
     {
-      if(primitive.mode != TINYGLTF_MODE_TRIANGLES)
+      const cgltf_primitive& primitive = mesh.primitives[p];
+
+      if (primitive.type != cgltf_primitive_type_triangles)
         continue;
 
-      const tinygltf::Accessor& posAccessor = gltfModel.accessors[primitive.attributes.find("POSITION")->second];
-      vertexTotCount += static_cast<uint32_t>(posAccessor.count);
-      const tinygltf::Accessor& indexAccessor = gltfModel.accessors[primitive.indices];
-      indexTotCount += static_cast<uint32_t>(indexAccessor.count);
+      for (cgltf_size a = 0; a < primitive.attributes_count; a++) {
+        const cgltf_accessor* accessor = primitive.attributes[a].data;
 
-      if(primitive.attributes.find("NORMAL") != primitive.attributes.end())
-      {
-        hasNormals = true;
+        switch (primitive.attributes[a].type) {
+        case cgltf_attribute_type_position:
+          vertexTotCount += uint32_t(accessor->count);
+          break;
+        case cgltf_attribute_type_normal:
+          hasNormals = true;
+          break;
+        case cgltf_attribute_type_texcoord:
+          if (primitive.attributes[a].index == 0) {
+            hasTexcoords = true;
+          }
+          break;
+        }
       }
-
+      indexTotCount += uint32_t(primitive.indices->count);
       partsTotCount++;
     }
 
     // allocate all data
-    csfgeom.numIndexSolid = indexTotCount;
-    csfgeom.numVertices   = vertexTotCount;
-    csfgeom.numParts      = partsTotCount;
+    csfgeom.numVertices = vertexTotCount;
+    csfgeom.numParts    = partsTotCount;
 
     csfgeom.vertex = (float*)CSFileMemory_alloc(mem, sizeof(float) * 3 * vertexTotCount, nullptr);
-    if(hasNormals)
+    if (hasNormals)
     {
       csfgeom.normal = (float*)CSFileMemory_alloc(mem, sizeof(float) * 3 * vertexTotCount, nullptr);
     }
+    if (hasTexcoords)
+    {
+      csfgeom.tex = (float*)CSFileMemory_alloc(mem, sizeof(float) * 2 * vertexTotCount, nullptr);
+    }
     csfgeom.indexSolid = (uint32_t*)CSFileMemory_alloc(mem, sizeof(uint32_t) * indexTotCount, nullptr);
-    csfgeom.parts      = (CSFGeometryPart*)CSFileMemory_alloc(mem, sizeof(CSFGeometryPart) * partsTotCount, nullptr);
+    csfgeom.parts = (CSFGeometryPart*)CSFileMemory_alloc(mem, sizeof(CSFGeometryPart) * partsTotCount, nullptr);
 
     // fill pass
-    indexTotCount  = 0;
+    indexTotCount = 0;
     vertexTotCount = 0;
-    partsTotCount  = 0;
+    partsTotCount = 0;
 
-    for(const tinygltf::Primitive& primitive : mesh.primitives)
+    for (cgltf_size p = 0; p < mesh.primitives_count; p++)
     {
-      if(primitive.mode != TINYGLTF_MODE_TRIANGLES)
+      const cgltf_primitive& primitive = mesh.primitives[p];
+
+      if (primitive.type != cgltf_primitive_type_triangles)
         continue;
 
       CSFGeometryPart& csfpart = csfgeom.parts[partsTotCount++];
 
-      const tinygltf::Accessor& posAccessor = gltfModel.accessors[primitive.attributes.find("POSITION")->second];
+      uint32_t vertexCount = 0;
 
-      {
-        const tinygltf::Accessor&   accessor = posAccessor;
-        const tinygltf::BufferView& view     = gltfModel.bufferViews[accessor.bufferView];
-        const float*                buffer =
-            reinterpret_cast<const float*>(&(gltfModel.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
+      for (cgltf_size a = 0; a < primitive.attributes_count; a++) {
+        const cgltf_accessor* accessor = primitive.attributes[a].data;
+        const cgltf_buffer_view* view = accessor->buffer_view;
+        const uint8_t* data = reinterpret_cast<const uint8_t*>(view->buffer->data);
+        data += accessor->offset + view->offset;
 
-        size_t stride = accessor.ByteStride(view);
-        if (stride == sizeof(float) * 3){
-          memcpy(&csfgeom.vertex[vertexTotCount * 3], buffer, sizeof(float) * 3 * accessor.count);
-        }
-        else {
-          for (uint32_t i = 0; i < accessor.count; i++) {
-            csfgeom.vertex[(vertexTotCount + i) * 3 + 0] = buffer[0];
-            csfgeom.vertex[(vertexTotCount + i) * 3 + 1] = buffer[1];
-            csfgeom.vertex[(vertexTotCount + i) * 3 + 2] = buffer[2];
+        switch (primitive.attributes[a].type) {
+        case cgltf_attribute_type_position:
+          vertexCount += uint32_t(accessor->count);
 
-            buffer += stride/(sizeof(float));
+          for (cgltf_size i = 0; i < accessor->count; i++) {
+            const float* vec = (const float*)(data + i * accessor->stride);
+            csfgeom.vertex[(vertexTotCount + i) * 3 + 0] = vec[0];
+            csfgeom.vertex[(vertexTotCount + i) * 3 + 1] = vec[1];
+            csfgeom.vertex[(vertexTotCount + i) * 3 + 2] = vec[2];
           }
-        }
-      }
-
-      const auto normalit = primitive.attributes.find("NORMAL");
-      if(normalit != primitive.attributes.end())
-      {
-        const tinygltf::Accessor&   accessor = gltfModel.accessors[normalit->second];
-        const tinygltf::BufferView& view     = gltfModel.bufferViews[accessor.bufferView];
-        const float*                buffer =
-            reinterpret_cast<const float*>(&(gltfModel.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
-
-        size_t stride = accessor.ByteStride(view);
-        if (stride == sizeof(float) * 3){
-          memcpy(&csfgeom.normal[vertexTotCount * 3], buffer, sizeof(float) * 3 * accessor.count);
-        }
-        else {
-          for (uint32_t i = 0; i < accessor.count; i++) {
-            csfgeom.normal[(vertexTotCount + i) * 3 + 0] = buffer[0];
-            csfgeom.normal[(vertexTotCount + i) * 3 + 1] = buffer[1];
-            csfgeom.normal[(vertexTotCount + i) * 3 + 2] = buffer[2];
-
-            buffer += stride/(sizeof(float));
+          break;
+        case cgltf_attribute_type_normal:
+          for (cgltf_size i = 0; i < accessor->count; i++) {
+            const float* vec = (const float*)(data + i * accessor->stride);
+            csfgeom.normal[(vertexTotCount + i) * 3 + 0] = vec[0];
+            csfgeom.normal[(vertexTotCount + i) * 3 + 1] = vec[1];
+            csfgeom.normal[(vertexTotCount + i) * 3 + 2] = vec[2];
           }
+          hasNormals = true;
+          break;
+        case cgltf_attribute_type_texcoord:
+          if (primitive.attributes[a].index == 0) {
+            for (cgltf_size i = 0; i < accessor->count; i++) {
+              cgltf_accessor_read_float(accessor, i, csfgeom.tex + (i + vertexTotCount) * 2, 2);
+            }
+          }
+          break;
         }
       }
 
       {
-        const tinygltf::Accessor&   accessor = gltfModel.accessors[primitive.indices];
-        const tinygltf::BufferView& view     = gltfModel.bufferViews[accessor.bufferView];
-        const void*                 data =
-            reinterpret_cast<const void*>(&(gltfModel.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
+        const cgltf_accessor* accessor = primitive.indices;
+        const cgltf_buffer_view* view = accessor->buffer_view;
+        const uint8_t* data = reinterpret_cast<const uint8_t*>(view->buffer->data);
+        data += accessor->offset + view->offset;
 
-        uint32_t indexCount   = static_cast<uint32_t>(accessor.count);
-        csfpart.numIndexSolid = indexCount;
+#define checkDegenerate(index, count)   (index[count-1] == index[count-2] || index[count-2] == index[count-3] || index[count-3] == index[count-1])
 
-        switch(accessor.componentType)
+        uint32_t indexBegin = indexTotCount;
+        switch (accessor->component_type)
         {
-          case TINYGLTF_PARAMETER_TYPE_UNSIGNED_INT:
-          {
-            const uint32_t* buffer = reinterpret_cast<const uint32_t*>(data);
-
-            for(uint32_t i = 0; i < indexCount; i++)
+        case cgltf_component_type_r_16:
+          for (cgltf_size i = 0; i < accessor->count; i++) {
+            const uint8_t* in = data + (i * accessor->stride);
+            csfgeom.indexSolid[indexTotCount++] = *((const int16_t*)in) + vertexTotCount;
+            if (i % 3 == 2 && checkDegenerate(csfgeom.indexSolid, indexTotCount))
             {
-              csfgeom.indexSolid[indexTotCount + i] = buffer[i] + vertexTotCount;
+              indexTotCount -= 3;
             }
-            break;
           }
-          case TINYGLTF_PARAMETER_TYPE_UNSIGNED_SHORT:
-          {
-            const uint16_t* buffer = reinterpret_cast<const uint16_t*>(data);
-
-            for(uint32_t i = 0; i < indexCount; i++)
+          break;
+        case cgltf_component_type_r_16u:
+          for (cgltf_size i = 0; i < accessor->count; i++) {
+            const uint8_t* in = data + (i * accessor->stride);
+            csfgeom.indexSolid[indexTotCount++] = *((const uint16_t*)in) + vertexTotCount;
+            if (i % 3 == 2 && checkDegenerate(csfgeom.indexSolid, indexTotCount))
             {
-              csfgeom.indexSolid[indexTotCount + i] = (uint32_t)buffer[i] + vertexTotCount;
+              indexTotCount -= 3;
             }
-
-            break;
           }
-          case TINYGLTF_PARAMETER_TYPE_UNSIGNED_BYTE:
-          {
-            const uint8_t* buffer = reinterpret_cast<const uint8_t*>(data);
-            for(uint32_t i = 0; i < indexCount; i++)
+          break;
+        case cgltf_component_type_r_32u:
+          for (cgltf_size i = 0; i < accessor->count; i++) {
+            const uint8_t* in = data + (i * accessor->stride);
+            csfgeom.indexSolid[indexTotCount++] = *((const uint32_t*)in) + vertexTotCount;
+            if (i % 3 == 2 && checkDegenerate(csfgeom.indexSolid, indexTotCount))
             {
-              csfgeom.indexSolid[indexTotCount + i] = (uint32_t)buffer[i] + vertexTotCount;
+              indexTotCount -= 3;
             }
-            break;
           }
-          default:
-            return CADSCENEFILE_ERROR_OPERATION;
+          break;
+        case cgltf_component_type_r_8:
+          for (cgltf_size i = 0; i < accessor->count; i++) {
+            const uint8_t* in = data + (i * accessor->stride);
+            csfgeom.indexSolid[indexTotCount++] = *((const int8_t*)in) + vertexTotCount;
+            if (i % 3 == 2 && checkDegenerate(csfgeom.indexSolid, indexTotCount))
+            {
+              indexTotCount -= 3;
+            }
+          }
+          break;
+        case cgltf_component_type_r_8u:
+          for (cgltf_size i = 0; i < accessor->count; i++) {
+            const uint8_t* in = data + (i * accessor->stride);
+            csfgeom.indexSolid[indexTotCount++] = *((const uint8_t*)in) + vertexTotCount;
+            if (i % 3 == 2 && checkDegenerate(csfgeom.indexSolid, indexTotCount))
+            {
+              indexTotCount -= 3;
+            }
+          }
+          break;
+        default:
+          assert(0);
+          break;
         }
 
-        indexTotCount += indexCount;
+        csfpart.numIndexSolid = indexTotCount - indexBegin;
       }
 
-      vertexTotCount += static_cast<uint32_t>(posAccessor.count);
+      vertexTotCount += vertexCount;
 
       csfpart.numIndexWire = 0;
-      csfpart._deprecated  = 0;
+      csfpart._deprecated = 0;
     }
+
+    csfgeom.numIndexSolid = (int)indexTotCount;
 
     CSFGeometry_setupDefaultChannels(&csfgeom);
   }
 
   // create flattened nodes
   csf->numNodes = 1;  // reserve for root
-  csf->rootIDX  = 0;
+  csf->rootIDX = 0;
 
 
-  tinygltf::Scene& scene = gltfModel.scenes[gltfModel.defaultScene > -1 ? gltfModel.defaultScene : 0];
-  for(size_t i = 0; i < scene.nodes.size(); i++)
+  const cgltf_scene* scene = gltfModel->scene;
+  for (size_t i = 0; i < scene->nodes_count; i++)
   {
-    CSFile_countGLTFNode(csf, gltfModel, scene.nodes[i]);
+    CSFile_countGLTFNodes(csf, gltfModel, scene->nodes[i]);
   }
 
   csf->nodes = (CSFNode*)CSFileMemory_alloc(mem, sizeof(CSFNode) * csf->numNodes, nullptr);
@@ -1494,21 +1766,22 @@ CSFAPI int CSFile_loadGTLF(CSFile** outcsf, const char* filename, CSFileMemoryPT
   csf->numNodes = 1;
   // root setup
   csf->nodes[0].geometryIDX = -1;
-  csf->nodes[0].numChildren = (int)scene.nodes.size();
-  csf->nodes[0].children    = (int*)CSFileMemory_alloc(mem, sizeof(int) * scene.nodes.size(), nullptr);
+  csf->nodes[0].numChildren = (int)scene->nodes_count;
+  csf->nodes[0].children = (int*)CSFileMemory_alloc(mem, sizeof(int) * scene->nodes_count, nullptr);
   CSFMatrix_identity(csf->nodes[0].worldTM);
   CSFMatrix_identity(csf->nodes[0].objectTM);
 
-  for(size_t i = 0; i < scene.nodes.size(); i++)
+  for (size_t i = 0; i < scene->nodes_count; i++)
   {
-    csf->nodes[0].children[i] = CSFile_addGLTFNode(csf, gltfModel, meshGeometries.data(), mem, scene.nodes[i]);
+    csf->nodes[0].children[i] = CSFile_addGLTFNode(csf, gltfModel, meshGeometries.data(), mem, scene->nodes[i]);
   }
 
   CSFile_transform(csf);
-
+  cgltf_free(gltfModel);
 
   *outcsf = csf;
   return CADSCENEFILE_NOERROR;
 }
+
 
 #endif
