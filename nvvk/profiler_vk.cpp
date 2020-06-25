@@ -27,6 +27,7 @@
 
 #include "profiler_vk.hpp"
 #include "error_vk.hpp"
+#include "debug_util_vk.hpp"
 #include <assert.h>
 
 
@@ -106,6 +107,8 @@ void ProfilerVK::resize()
 
   VkResult res = vkCreateQueryPool(m_device, &createInfo, nullptr, &m_queryPool);
   assert(res == VK_SUCCESS);
+
+  nvvk::DebugUtil(m_device).setObjectName(m_queryPool, m_debugName);
 }
 
 nvh::Profiler::SectionID ProfilerVK::beginSection(const char* name, VkCommandBuffer cmd, bool singleShot, bool useHostReset)

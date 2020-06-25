@@ -161,12 +161,11 @@ private:
     // be aware semaphore index may not match active image index
     VkSemaphore readSemaphore{};
     VkSemaphore writtenSemaphore{};
-#if _DEBUG
+
     std::string debugImageName;
     std::string debugImageViewName;
     std::string debugReadSemaphoreName;
     std::string debugWrittenSemaphoreName;
-#endif
   };
 
   VkDevice         m_device         = VK_NULL_HANDLE;

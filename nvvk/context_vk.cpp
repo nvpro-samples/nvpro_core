@@ -33,12 +33,10 @@
 #include "error_vk.hpp"
 #include "extensions_vk.hpp"
 
-#if _DEBUG
 #include <nvvk/debug_util_vk.hpp>
-static nvvk::DebugUtil s_debug;
-#endif
 
 namespace nvvk {
+  
 static std::string ObjectTypeToString(VkObjectType value)
 {
   switch(value)
@@ -502,10 +500,12 @@ bool Context::initDevice(uint32_t deviceIndex, const ContextCreateInfo& info)
 
   load_VK_EXTENSION_SUBSET(m_instance, vkGetInstanceProcAddr, m_device, vkGetDeviceProcAddr);
 
+  nvvk::DebugUtil::setEnabled(has_VK_EXT_debug_utils != 0);
+
   // Now we have the device and instance, we can initialize the debug tool
-#if _DEBUG
-  s_debug.setup(m_device);
-#endif
+
+  nvvk::DebugUtil debugUtil(m_device);
+
   // get some default queues
   uint32_t queueFamilyIndex = 0;
   for(auto& it : m_physicalInfo.queueProperties)
@@ -515,25 +515,19 @@ bool Context::initDevice(uint32_t deviceIndex, const ContextCreateInfo& info)
     {
       vkGetDeviceQueue(m_device, queueFamilyIndex, 0 /*queueIndex*/, &m_queueGCT.queue);
       m_queueGCT.familyIndex = queueFamilyIndex;
-#if _DEBUG
-      s_debug.setObjectName(m_queueGCT.queue, "queueGCT");
-#endif
+      debugUtil.setObjectName(m_queueGCT.queue, "queueGCT");
     }
     else if((it.queueFlags & VK_QUEUE_TRANSFER_BIT) == VK_QUEUE_TRANSFER_BIT)
     {
       vkGetDeviceQueue(m_device, queueFamilyIndex, 0 /*queueIndex*/, &m_queueT.queue);
       m_queueT.familyIndex = queueFamilyIndex;
-#if _DEBUG
-      s_debug.setObjectName(m_queueT.queue, "queueT");
-#endif
+      debugUtil.setObjectName(m_queueT.queue, "queueT");
     }
     else if((it.queueFlags & VK_QUEUE_COMPUTE_BIT))
     {
       vkGetDeviceQueue(m_device, queueFamilyIndex, 0 /*queueIndex*/, &m_queueC.queue);
       m_queueC.familyIndex = queueFamilyIndex;
-#if _DEBUG
-      s_debug.setObjectName(m_queueC.queue, "queueC");
-#endif
+      debugUtil.setObjectName(m_queueC.queue, "queueC");
     }
 
     queueFamilyIndex++;
@@ -559,9 +553,7 @@ bool Context::setGCTQueueWithPresent(VkSurfaceKHR surface)
     {
       vkGetDeviceQueue(m_device, i, 0, &m_queueGCT.queue);
       m_queueGCT.familyIndex = i;
-#if _DEBUG
-      s_debug.setObjectName(m_queueGCT.queue, "queueGCT");
-#endif
+      nvvk::DebugUtil(m_device).setObjectName(m_queueGCT.queue, "queueGCT");
 
       return true;
     }
@@ -631,6 +623,8 @@ void Context::deinit()
   m_dbgMessenger                  = nullptr;
 
   reset_VK_EXTENSION_SUBSET();
+
+  nvvk::DebugUtil::setEnabled(false);
 }
 
 bool Context::hasDeviceExtension(const char* name) const

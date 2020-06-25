@@ -29,6 +29,7 @@
 
 #include <assert.h>
 #include <platform.h>
+#include <string>
 #include <vector>
 
 #include <nvh/trangeallocator.hpp>
@@ -186,7 +187,7 @@ public:
 
   // system related
 
-  DeviceMemoryAllocator() {}
+  DeviceMemoryAllocator() { m_debugName = "nvvk::DeviceMemoryAllocator:" + std::to_string((uint64_t)this); }
   DeviceMemoryAllocator(VkDevice         device,
                         VkPhysicalDevice physicalDevice,
                         VkDeviceSize     blockSize = NVVK_DEFAULT_MEMORY_BLOCKSIZE,
@@ -199,6 +200,8 @@ public:
             VkPhysicalDevice physicalDevice,
             VkDeviceSize     blockSize = NVVK_DEFAULT_MEMORY_BLOCKSIZE,
             VkDeviceSize     maxSize   = NVVK_DEFAULT_MAX_MEMORY_ALLOCATIONSIZE);
+
+  void setDebugName(const std::string& name) { m_debugName = name; }
 
   // requires VK_EXT_memory_priority, default is false
   void setPrioritySupported(bool state) { m_supportsPriority = state; }
@@ -482,6 +485,8 @@ protected:
   // heuristic that doesn't immediately free the first memory block of a specific memorytype
   bool m_keepFirst = true;
 
+  std::string m_debugName;
+
   AllocationID allocInternal(const VkMemoryRequirements& memReqs,
                              VkMemoryPropertyFlags       memProps,
                              bool isLinear,  // buffers are linear, optimal tiling textures are not
@@ -600,7 +605,7 @@ public:
   StagingMemoryManager(StagingMemoryManager const&) = delete;
   StagingMemoryManager& operator=(StagingMemoryManager const&) = delete;
 
-  StagingMemoryManager() {}
+  StagingMemoryManager() { m_debugName = "nvvk::StagingMemoryManager:" + std::to_string((uint64_t)this); }
   StagingMemoryManager(VkDevice device, VkPhysicalDevice physicalDevice, VkDeviceSize stagingBlockSize = NVVK_DEFAULT_STAGING_BLOCKSIZE)
   {
     init(device, physicalDevice, stagingBlockSize);
@@ -610,7 +615,7 @@ public:
 
   void init(VkDevice device, VkPhysicalDevice physicalDevice, VkDeviceSize stagingBlockSize = NVVK_DEFAULT_STAGING_BLOCKSIZE);
   void deinit();
-
+  void setDebugName(const std::string& name) { m_debugName = name; }
 
   // if true (default) we free the memory completely when released
   // otherwise we would keep blocks for re-use around, unless freeUnused() is called
@@ -709,6 +714,7 @@ protected:
   VkDeviceSize m_allocatedSize;
   VkDeviceSize m_usedSize;
 
+  std::string m_debugName;
 
   uint32_t setIndexValue(uint32_t& index, uint32_t newValue)
   {
@@ -781,40 +787,10 @@ protected:
   DeviceMemoryAllocator*    m_memAllocator;
   std::vector<AllocationID> m_blockAllocs;
 
-  VkResult allocBlockMemory(uint32_t index, VkDeviceSize size, bool toDevice, Block& block) override
-  {
-    VkResult result;
-    float    priority = m_memAllocator->setPriority();
-    block.buffer      = m_memAllocator->createBuffer(
-        size, toDevice ? VK_BUFFER_USAGE_TRANSFER_SRC_BIT : VK_BUFFER_USAGE_TRANSFER_DST_BIT, m_blockAllocs[index],
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | (toDevice ? VK_MEMORY_PROPERTY_HOST_COHERENT_BIT : VK_MEMORY_PROPERTY_HOST_CACHED_BIT),
-        result);
-    m_memAllocator->setPriority(priority);
-    if(result == VK_SUCCESS)
-    {
-      block.mapping = m_memAllocator->mapT<uint8_t>(m_blockAllocs[index]);
-    }
+  VkResult allocBlockMemory(uint32_t index, VkDeviceSize size, bool toDevice, Block& block) override;
+  void     freeBlockMemory(uint32_t index, const Block& block) override;
 
-    return result;
-  }
-  void freeBlockMemory(uint32_t index, const Block& block) override
-  {
-    vkDestroyBuffer(m_device, block.buffer, nullptr);
-    m_memAllocator->unmap(m_blockAllocs[index]);
-    m_memAllocator->free(m_blockAllocs[index]);
-  }
-
-  void resizeBlocks(uint32_t num) override
-  {
-    if(num)
-    {
-      m_blockAllocs.resize(num);
-    }
-    else
-    {
-      m_blockAllocs.clear();
-    }
-  }
+  void resizeBlocks(uint32_t num) override;
 };
 
 }  // namespace nvvk

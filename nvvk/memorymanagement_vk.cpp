@@ -26,7 +26,9 @@
  */
 
 #include <algorithm>
+#include <string>
 
+#include "debug_util_vk.hpp"
 #include "error_vk.hpp"
 #include "memorymanagement_vk.hpp"
 #include "nvh/nvprint.hpp"
@@ -84,6 +86,8 @@ const VkMemoryDedicatedAllocateInfo* DeviceMemoryAllocator::DEDICATED_PROXY =
 
 int DeviceMemoryAllocator::s_allocDebugBias = 0;
 
+//#define DEBUG_ALLOCID   8
+
 nvvk::AllocationID DeviceMemoryAllocator::createID(Allocation& allocation, BlockID block, uint32_t blockOffset, uint32_t blockSize)
 {
   // find free slot
@@ -96,6 +100,14 @@ nvvk::AllocationID DeviceMemoryAllocator::createID(Allocation& allocation, Block
     m_allocations[index].block       = block;
     m_allocations[index].blockOffset = blockOffset;
     m_allocations[index].blockSize   = blockSize;
+#if DEBUG_ALLOCID
+    // debug some specific id, useful to track allocation leaks
+    if(index == DEBUG_ALLOCID)
+    {
+      int breakHere = 0;
+      breakHere     = breakHere;
+    }
+#endif
     return m_allocations[index].id;
   }
 
@@ -109,12 +121,12 @@ nvvk::AllocationID DeviceMemoryAllocator::createID(Allocation& allocation, Block
 
   m_allocations.push_back(info);
 
-#if 0
+#if DEBUG_ALLOCID
   // debug some specific id, useful to track allocation leaks
-  if(info.id.index == 1)
+  if(info.id.index == DEBUG_ALLOCID)
   {
-    int i = 0;
-    i     = i;
+    int breakHere = 0;
+    breakHere     = breakHere;
   }
 #endif
 
@@ -124,6 +136,15 @@ nvvk::AllocationID DeviceMemoryAllocator::createID(Allocation& allocation, Block
 void DeviceMemoryAllocator::destroyID(AllocationID id)
 {
   assert(m_allocations[id.index].id.isEqual(id));
+
+#if DEBUG_ALLOCID
+  // debug some specific id, useful to track allocation leaks
+  if(id.index == DEBUG_ALLOCID)
+  {
+    int breakHere = 0;
+    breakHere     = breakHere;
+  }
+#endif
 
   // setup for free list
   m_allocations[id.index].id.instantiate(m_freeAllocationIndex);
@@ -442,6 +463,8 @@ AllocationID DeviceMemoryAllocator::allocInternal(const VkMemoryRequirements&   
   block.allocateDeviceMask = m_allocateDeviceMask;
 
   result = allocBlockMemory(id, memInfo, block.mem);
+
+  nvvk::DebugUtil(m_device).setObjectName(block.mem, m_debugName);
 
   if(result == VK_SUCCESS)
   {
@@ -822,6 +845,8 @@ void* StagingMemoryManager::cmdToImage(VkCommandBuffer                 cmd,
                                        VkDeviceSize                    size,
                                        const void*                     data)
 {
+  if (!image) return nullptr;
+
   VkBuffer     srcBuffer;
   VkDeviceSize srcOffset;
 
@@ -849,7 +874,7 @@ void* StagingMemoryManager::cmdToImage(VkCommandBuffer                 cmd,
 
 void* StagingMemoryManager::cmdToBuffer(VkCommandBuffer cmd, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size, const void* data)
 {
-  if(!size)
+  if(!size || !buffer)
   {
     return nullptr;
   }
@@ -1072,6 +1097,8 @@ VkResult StagingMemoryManager::allocBlockMemory(uint32_t index, VkDeviceSize siz
     return result;
   }
 
+  nvvk::DebugUtil(m_device).setObjectName(buffer, m_debugName);
+
   VkMemoryRequirements2           memReqs       = {VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2};
   VkMemoryDedicatedRequirements   dedicatedRegs = {VK_STRUCTURE_TYPE_MEMORY_DEDICATED_REQUIREMENTS};
   VkBufferMemoryRequirementsInfo2 bufferReqs    = {VK_STRUCTURE_TYPE_BUFFER_MEMORY_REQUIREMENTS_INFO_2};
@@ -1124,6 +1151,8 @@ VkResult StagingMemoryManager::allocBlockMemory(uint32_t index, VkDeviceSize siz
     return result;
   }
 
+  nvvk::DebugUtil(m_device).setObjectName(mem, m_debugName);
+
   VkBindBufferMemoryInfo bindInfos = {VK_STRUCTURE_TYPE_BIND_BUFFER_MEMORY_INFO};
   bindInfos.buffer                 = buffer;
   bindInfos.memory                 = mem;
@@ -1154,5 +1183,43 @@ void StagingMemoryManager::freeBlockMemory(uint32_t index, const Block& block)
   vkFreeMemory(m_device, block.memory, nullptr);
 }
 
+
+VkResult StagingMemoryManagerDma::allocBlockMemory(uint32_t index, VkDeviceSize size, bool toDevice, Block& block)
+{
+  VkResult result;
+  float    priority = m_memAllocator->setPriority();
+  block.buffer      = m_memAllocator->createBuffer(
+      size, toDevice ? VK_BUFFER_USAGE_TRANSFER_SRC_BIT : VK_BUFFER_USAGE_TRANSFER_DST_BIT, m_blockAllocs[index],
+      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | (toDevice ? VK_MEMORY_PROPERTY_HOST_COHERENT_BIT : VK_MEMORY_PROPERTY_HOST_CACHED_BIT),
+      result);
+  m_memAllocator->setPriority(priority);
+  if(result == VK_SUCCESS)
+  {
+    block.mapping = m_memAllocator->mapT<uint8_t>(m_blockAllocs[index]);
+  }
+
+  nvvk::DebugUtil(m_device).setObjectName(block.buffer, m_debugName);
+
+  return result;
+}
+
+void StagingMemoryManagerDma::freeBlockMemory(uint32_t index, const Block& block)
+{
+  vkDestroyBuffer(m_device, block.buffer, nullptr);
+  m_memAllocator->unmap(m_blockAllocs[index]);
+  m_memAllocator->free(m_blockAllocs[index]);
+}
+
+void StagingMemoryManagerDma::resizeBlocks(uint32_t num)
+{
+  if(num)
+  {
+    m_blockAllocs.resize(num);
+  }
+  else
+  {
+    m_blockAllocs.clear();
+  }
+}
 
 }  // namespace nvvk

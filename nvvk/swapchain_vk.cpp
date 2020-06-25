@@ -30,12 +30,7 @@
 
 #include <assert.h>
 
-
-#if _DEBUG
 #include <nvvk/debug_util_vk.hpp>
-static nvvk::DebugUtil s_debug;
-#endif
-
 namespace nvvk {
 bool SwapChain::init(VkDevice device, VkPhysicalDevice physicalDevice, VkQueue queue, uint32_t queueFamilyIndex, VkSurfaceKHR surface, VkFormat format)
 {
@@ -47,9 +42,6 @@ bool SwapChain::init(VkDevice device, VkPhysicalDevice physicalDevice, VkQueue q
   m_queueFamilyIndex = queueFamilyIndex;
   m_changeID         = 0;
   m_currentSemaphore = 0;
-#if _DEBUG
-  s_debug.setup(device);
-#endif
   m_surface = surface;
 
   VkResult result;
@@ -89,8 +81,11 @@ void SwapChain::update(int width, int height, bool vsync)
   VkResult       err;
   VkSwapchainKHR oldSwapchain = m_swapchain;
 
-  vkDeviceWaitIdle(m_device);
-
+  err = vkDeviceWaitIdle(m_device);
+  if(nvvk::checkResult(err, __FILE__, __LINE__))
+  {
+    exit(-1);
+  }
   // Check the surface capabilities and formats
   VkSurfaceCapabilitiesKHR surfCapabilities;
   err = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_physicalDevice, m_surface, &surfCapabilities);
@@ -184,9 +179,10 @@ void SwapChain::update(int width, int height, bool vsync)
 
   err = vkCreateSwapchainKHR(m_device, &swapchain, nullptr, &m_swapchain);
   assert(!err);
-#if _DEBUG
-  s_debug.setObjectName(m_swapchain, "SwapChain::m_swapchain");
-#endif
+
+  nvvk::DebugUtil debugUtil(m_device);
+
+  debugUtil.setObjectName(m_swapchain, "SwapChain::m_swapchain");
 
   // If we just re-created an existing swapchain, we should destroy the old
   // swapchain at this point.
@@ -263,16 +259,14 @@ void SwapChain::update(int width, int height, bool vsync)
 
     m_barriers[i] = memBarrier;
 
-#if _DEBUG
     entry.debugImageName            = "swapchainImage:" + std::to_string(i);
     entry.debugImageViewName        = "swapchainImageView:" + std::to_string(i);
     entry.debugReadSemaphoreName    = "swapchainReadSemaphore:" + std::to_string(i);
     entry.debugWrittenSemaphoreName = "swapchainWrittenSemaphore:" + std::to_string(i);
-    s_debug.setObjectName(entry.image, entry.debugImageName.c_str());
-    s_debug.setObjectName(entry.imageView, entry.debugImageViewName.c_str());
-    s_debug.setObjectName(entry.readSemaphore, entry.debugReadSemaphoreName.c_str());
-    s_debug.setObjectName(entry.writtenSemaphore, entry.debugWrittenSemaphoreName.c_str());
-#endif
+    debugUtil.setObjectName(entry.image, entry.debugImageName);
+    debugUtil.setObjectName(entry.imageView, entry.debugImageViewName);
+    debugUtil.setObjectName(entry.readSemaphore, entry.debugReadSemaphoreName);
+    debugUtil.setObjectName(entry.writtenSemaphore, entry.debugWrittenSemaphoreName);
   }
 
 
@@ -341,7 +335,11 @@ bool SwapChain::acquireCustom(VkSemaphore semaphore)
     }
     else if(result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
     {
-      vkDeviceWaitIdle(m_device);
+      result = vkDeviceWaitIdle(m_device);
+      if(nvvk::checkResult(result, __FILE__, __LINE__))
+      {
+        exit(-1);
+      }
 
       deinitResources();
       update(m_width, m_height, m_vsync);

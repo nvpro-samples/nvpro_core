@@ -27,6 +27,7 @@
 
 #pragma once
 
+#include <string>
 #include <nvh/profiler.hpp>
 #include <vulkan/vulkan_core.h>
 
@@ -134,6 +135,7 @@ public:
   ProfilerVK(nvh::Profiler* masterProfiler = nullptr)
       : Profiler(masterProfiler)
   {
+    m_debugName = "nvvk::ProfilerVK:" + std::to_string((uint64_t)this);
   }
 
   ProfilerVK(VkDevice device, VkPhysicalDevice physicalDevice, nvh::Profiler* masterProfiler = nullptr)
@@ -146,6 +148,7 @@ public:
 
   void init(VkDevice device, VkPhysicalDevice physicalDevice);
   void deinit();
+  void setDebugName(const std::string& name) { m_debugName = name; }
 
   // enable debug label per section, requires VK_EXT_debug_utils
   void setLabelUsage(bool state);
@@ -167,6 +170,7 @@ private:
   uint32_t    m_queryPoolSize         = 0;
   float       m_frequency             = 1.0f;
   uint64_t    m_queueFamilyMask       = ~0;
+  std::string m_debugName;
   
 };
 }  // namespace nvvk
