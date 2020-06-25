@@ -434,4 +434,13 @@ VkResult BatchSubmission::execute(VkFence fence /*= nullptr*/, uint32_t deviceMa
 }
 
 
+void BatchSubmission::waitIdle() const
+{
+  VkResult result = vkQueueWaitIdle(m_queue);
+  if(nvvk::checkResult(result, __FILE__, __LINE__))
+  {
+    exit(-1);
+  }
+}
+
 }  // namespace nvvk

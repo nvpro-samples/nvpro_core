@@ -532,7 +532,7 @@ public:
   // submits the work and resets internal state
   VkResult execute(VkFence fence = nullptr, uint32_t deviceMask = 0);
 
-  void waitIdle() const { vkQueueWaitIdle(m_queue); }
+  void waitIdle() const;
 };
 
 //////////////////////////////////////////////////////////////////////////
