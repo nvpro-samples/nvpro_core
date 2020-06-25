@@ -236,6 +236,8 @@ extern int has_GL_NV_uniform_buffer_unified_memory;
 extern int has_GL_NV_vertex_buffer_unified_memory;
 extern int has_GL_NV_viewport_swizzle;
 extern int has_GL_NVX_gpu_memory_info;
+extern int has_GL_NV_query_resource;
+extern int has_GL_NV_query_resource_tag;
 
 /* loaders */
 int load_GL_VERSION_1_1(nvGLLoaderGetProcFN fnGetProcAddress);
@@ -310,4 +312,6 @@ int load_GL_NV_uniform_buffer_unified_memory(nvGLLoaderGetProcFN fnGetProcAddres
 int load_GL_NV_vertex_buffer_unified_memory(nvGLLoaderGetProcFN fnGetProcAddress);
 int load_GL_NV_viewport_swizzle(nvGLLoaderGetProcFN fnGetProcAddress);
 int load_GL_NVX_gpu_memory_info(nvGLLoaderGetProcFN fnGetProcAddress);
+int load_GL_NV_query_resource(nvGLLoaderGetProcFN fnGetProcAddress);
+int load_GL_NV_query_resource_tag(nvGLLoaderGetProcFN fnGetProcAddress);
 

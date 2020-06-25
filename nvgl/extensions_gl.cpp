@@ -27,7 +27,7 @@
  */
 
 #include <assert.h>
-#include <string.h>
+#include <cstring>
 #include "extensions_gl.hpp"
 
 /* availables */
@@ -103,6 +103,8 @@ int has_GL_NV_uniform_buffer_unified_memory = 0;
 int has_GL_NV_vertex_buffer_unified_memory = 0;
 int has_GL_NV_viewport_swizzle = 0;
 int has_GL_NVX_gpu_memory_info = 0;
+int has_GL_NV_query_resource = 0;
+int has_GL_NV_query_resource_tag = 0;
 
 /* tests */
 static int has_extension(const char* name)
@@ -205,6 +207,8 @@ void load_GL(nvGLLoaderGetProcFN fnGetProcAddress)
   has_GL_NV_vertex_buffer_unified_memory = load_GL_NV_vertex_buffer_unified_memory(fnGetProcAddress);
   has_GL_NV_viewport_swizzle = load_GL_NV_viewport_swizzle(fnGetProcAddress);
   has_GL_NVX_gpu_memory_info = load_GL_NVX_gpu_memory_info(fnGetProcAddress);
+  has_GL_NV_query_resource = load_GL_NV_query_resource(fnGetProcAddress);
+  has_GL_NV_query_resource_tag = load_GL_NV_query_resource_tag(fnGetProcAddress);
 }
 
 /* loaders */
@@ -7869,6 +7873,60 @@ int load_GL_NV_viewport_swizzle(nvGLLoaderGetProcFN fnGetProcAddress)
 int load_GL_NVX_gpu_memory_info(nvGLLoaderGetProcFN fnGetProcAddress)
 {
   int success = has_extension("GL_NVX_gpu_memory_info");
+  return success;
+}
+
+/* /////////////////////////////////// */
+/* GL_NV_query_resource */
+
+static PFNGLQUERYRESOURCENVPROC pfn_glQueryResourceNV = 0;
+
+GLAPI GLint APIENTRY glQueryResourceNV(GLenum queryType, GLint tagId, GLuint bufSize, GLint* buffer)
+{
+  assert(pfn_glQueryResourceNV);
+  return pfn_glQueryResourceNV(queryType,tagId,bufSize,buffer);
+}
+
+int load_GL_NV_query_resource(nvGLLoaderGetProcFN fnGetProcAddress)
+{
+  pfn_glQueryResourceNV = (PFNGLQUERYRESOURCENVPROC)fnGetProcAddress("glQueryResourceNV");
+  int success = has_extension("GL_NV_query_resource");
+  success = success && (pfn_glQueryResourceNV != 0);
+  return success;
+}
+
+/* /////////////////////////////////// */
+/* GL_NV_query_resource_tag */
+
+static PFNGLGENQUERYRESOURCETAGNVPROC pfn_glGenQueryResourceTagNV = 0;
+static PFNGLDELETEQUERYRESOURCETAGNVPROC pfn_glDeleteQueryResourceTagNV = 0;
+static PFNGLQUERYRESOURCETAGNVPROC pfn_glQueryResourceTagNV = 0;
+
+GLAPI void APIENTRY glGenQueryResourceTagNV(GLsizei n, GLint* tagIds)
+{
+  assert(pfn_glGenQueryResourceTagNV);
+  pfn_glGenQueryResourceTagNV(n,tagIds);
+}
+GLAPI void APIENTRY glDeleteQueryResourceTagNV(GLsizei n, const GLint* tagIds)
+{
+  assert(pfn_glDeleteQueryResourceTagNV);
+  pfn_glDeleteQueryResourceTagNV(n,tagIds);
+}
+GLAPI void APIENTRY glQueryResourceTagNV(GLint tagId, const GLchar* tagString)
+{
+  assert(pfn_glQueryResourceTagNV);
+  pfn_glQueryResourceTagNV(tagId,tagString);
+}
+
+int load_GL_NV_query_resource_tag(nvGLLoaderGetProcFN fnGetProcAddress)
+{
+  pfn_glGenQueryResourceTagNV = (PFNGLGENQUERYRESOURCETAGNVPROC)fnGetProcAddress("glGenQueryResourceTagNV");
+  pfn_glDeleteQueryResourceTagNV = (PFNGLDELETEQUERYRESOURCETAGNVPROC)fnGetProcAddress("glDeleteQueryResourceTagNV");
+  pfn_glQueryResourceTagNV = (PFNGLQUERYRESOURCETAGNVPROC)fnGetProcAddress("glQueryResourceTagNV");
+  int success = has_extension("GL_NV_query_resource_tag");
+  success = success && (pfn_glGenQueryResourceTagNV != 0);
+  success = success && (pfn_glDeleteQueryResourceTagNV != 0);
+  success = success && (pfn_glQueryResourceTagNV != 0);
   return success;
 }
 

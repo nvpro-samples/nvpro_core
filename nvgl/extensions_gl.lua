@@ -108,12 +108,14 @@ GL_EXT_semaphore_win32
 GL_EXT_semaphore_fd
 GL_EXT_memory_object_fd
 GL_EXT_memory_object_win32
+GL_NV_query_resource
+GL_NV_query_resource_tag
 ]]
 
 local function generate(outfilename, header, whitelist)
   
   local function subsetheader(filename, outfilename, whitelist, prefix)
-    local f = io.open(filename,"rt")
+    local f = io.open(filename,"r")
     local str = f:read("*a")
     f:close()
     
@@ -138,7 +140,7 @@ local function generate(outfilename, header, whitelist)
     if (outfilename) then
       print(outfilename)
       
-      local f = io.open(outfilename,"wt")
+      local f = io.open(outfilename,"w")
       assert(f,"could not open"..outfilename.." for writing (check out?)")
       f:write(str)
       f:close()
@@ -200,7 +202,7 @@ local function generate(outfilename, header, whitelist)
     
     loaders_header = loaders_header.."int load_"..f.feature.."(nvGLLoaderGetProcFN fnGetProcAddress);\n"
     
-    local defs = "\n"..f.defs:gsub("%s*%*%s*","%* ")
+    local defs = "\n"..f.defs:gsub("%s*%*%s*","* ")
     
     local func      = ""
     local initfunc  = ""
@@ -276,8 +278,8 @@ local function generate(outfilename, header, whitelist)
     disables = disables.."#define "..f.." 0\n"
   end
   
-  local fheader = io.open(outfilename..".hpp", "wt")
-  local fsource = io.open(outfilename..".cpp", "wt")
+  local fheader = io.open(outfilename..".hpp", "w")
+  local fsource = io.open(outfilename..".cpp", "w")
   assert(fheader, "could not open "..outfilename..".hpp for writing (check out?)")
   assert(fsource, "could not open "..outfilename..".cpp for writing (check out?)")
   
@@ -493,6 +495,7 @@ fsource:write(header..[[
  */
 
 #include <assert.h>
+#include <string.h>
 #include "]]..outfilename..[[.hpp"
 
 /* availables */
