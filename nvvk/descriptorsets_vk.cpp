@@ -324,7 +324,7 @@ VkWriteDescriptorSet DescriptorSetBindings::makeWrite(VkDescriptorSet           
                                                       const VkWriteDescriptorSetAccelerationStructureNV* pAccel,
                                                       uint32_t arrayElement) const
 {
-  VkWriteDescriptorSet writeSet = makeWrite(dstSet, dstBinding);
+  VkWriteDescriptorSet writeSet = makeWrite(dstSet, dstBinding, arrayElement);
   assert(writeSet.descriptorType == VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV);
 
   writeSet.pNext = pAccel;
@@ -336,7 +336,7 @@ VkWriteDescriptorSet DescriptorSetBindings::makeWrite(VkDescriptorSet           
                                                       const VkWriteDescriptorSetInlineUniformBlockEXT* pInline,
                                                       uint32_t arrayElement) const
 {
-  VkWriteDescriptorSet writeSet = makeWrite(dstSet, dstBinding);
+  VkWriteDescriptorSet writeSet = makeWrite(dstSet, dstBinding, arrayElement);
   assert(writeSet.descriptorType == VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK_EXT);
 
   writeSet.pNext = pInline;
