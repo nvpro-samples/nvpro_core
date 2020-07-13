@@ -167,7 +167,7 @@ struct RaytracingBuilderNV
       memoryRequirementsInfo.accelerationStructure = blas.as.accel;
 
 
-      VkMemoryRequirements2 reqMem;
+      VkMemoryRequirements2 reqMem{VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2};
       vkGetAccelerationStructureMemoryRequirementsNV(m_device, &memoryRequirementsInfo, &reqMem);
       VkDeviceSize scratchSize = reqMem.memoryRequirements.size;
 
