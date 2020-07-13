@@ -325,7 +325,7 @@ struct RaytracingBuilderNV
     memoryRequirementsInfo.type                  = VK_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_TYPE_BUILD_SCRATCH_NV;
     memoryRequirementsInfo.accelerationStructure = m_tlas.as.accel;
 
-    VkMemoryRequirements2 reqMem;
+    VkMemoryRequirements2 reqMem{VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2};
     vkGetAccelerationStructureMemoryRequirementsNV(m_device, &memoryRequirementsInfo, &reqMem);
     VkDeviceSize scratchSize = reqMem.memoryRequirements.size;
 
@@ -397,7 +397,7 @@ struct RaytracingBuilderNV
     memoryRequirementsInfo.type                  = VK_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_TYPE_UPDATE_SCRATCH_NV;
     memoryRequirementsInfo.accelerationStructure = m_tlas.as.accel;
 
-    VkMemoryRequirements2 reqMem;
+    VkMemoryRequirements2 reqMem{VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2};
     vkGetAccelerationStructureMemoryRequirementsNV(m_device, &memoryRequirementsInfo, &reqMem);
     VkDeviceSize scratchSize = reqMem.memoryRequirements.size;
 
@@ -445,7 +445,7 @@ struct RaytracingBuilderNV
     memoryRequirementsInfo.type                  = VK_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_TYPE_UPDATE_SCRATCH_NV;
     memoryRequirementsInfo.accelerationStructure = blas.as.accel;
 
-    VkMemoryRequirements2 reqMem;
+    VkMemoryRequirements2 reqMem{VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2};
     vkGetAccelerationStructureMemoryRequirementsNV(m_device, &memoryRequirementsInfo, &reqMem);
     VkDeviceSize scratchSize = reqMem.memoryRequirements.size;
 
