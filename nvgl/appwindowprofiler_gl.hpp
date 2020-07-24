@@ -86,6 +86,11 @@ namespace nvgl
     virtual void  contextInit() override;
     virtual void  contextDeinit() override;
 
+    virtual void swapResize(int width, int height) override
+    {
+      m_windowState.m_swapSize[0] = width;
+      m_windowState.m_swapSize[1] = height;
+    }
     virtual void swapPrepare() override { }
     virtual void swapBuffers() override { m_contextWindow.swapBuffers(); }
     virtual void swapVsync(bool state) override { m_contextWindow.swapInterval(state ? 1 : 0); }

@@ -31,6 +31,8 @@
 #include "images_vk.hpp"
 #include "memorymanagement_vk.hpp"
 #include "samplers_vk.hpp"
+#include "nvvk/error_vk.hpp"
+
 #include <memory>
 
 
@@ -270,7 +272,7 @@ public:
     resultTexture.descriptor.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
     assert(imageViewCreateInfo.image == image.image);
-    vkCreateImageView(m_device, &imageViewCreateInfo, nullptr, &resultTexture.descriptor.imageView);
+    NVVK_CHECK(vkCreateImageView(m_device, &imageViewCreateInfo, nullptr, &resultTexture.descriptor.imageView));
 
     return resultTexture;
   }

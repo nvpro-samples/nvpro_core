@@ -84,6 +84,8 @@ void AppWindowProfilerVK::contextInit()
   m_swapChain.init(m_context.m_device, m_context.m_physicalDevice, m_context.m_queueGCT,
                    m_context.m_queueGCT.familyIndex, m_surface);
   m_swapChain.update(getWidth(), getHeight(), m_swapVsync);
+  m_windowState.m_swapSize[0] = m_swapChain.getWidth();
+  m_windowState.m_swapSize[1] = m_swapChain.getHeight();
 
   m_profilerVK.init(m_context.m_device, m_context.m_physicalDevice);
   m_profilerVK.setLabelUsage(m_context.hasInstanceExtension(VK_EXT_DEBUG_UTILS_EXTENSION_NAME));
@@ -91,26 +93,31 @@ void AppWindowProfilerVK::contextInit()
 
 void AppWindowProfilerVK::contextDeinit()
 {
-  m_profilerVK.deinit();
-
   VkResult result = vkDeviceWaitIdle(m_context.m_device);
   if (nvvk::checkResult(result, __FILE__, __LINE__)) {
     exit(-1);
   }
+  m_profilerVK.deinit();
   m_swapChain.deinit();
   vkDestroySurfaceKHR(m_context.m_instance, m_surface, nullptr);
   m_context.deinit();
 }
 
+void AppWindowProfilerVK::contextSync()
+{
+  VkResult result = vkDeviceWaitIdle(m_context.m_device);
+  if (nvvk::checkResult(result, __FILE__, __LINE__)) {
+    exit(-1);
+  }
+}
+
 void AppWindowProfilerVK::swapResize(int width, int height)
 {
-  if((m_swapChain.getWidth() != width) || (m_swapChain.getHeight() != height))
+  if((m_swapChain.getUpdateWidth() != width) || (m_swapChain.getUpdateHeight() != height))
   {
-    VkResult result = vkDeviceWaitIdle(m_context.m_device);
-    if (nvvk::checkResult(result, __FILE__, __LINE__)) {
-      exit(-1);
-    }
     m_swapChain.update(width, height, m_swapVsync);
+    m_windowState.m_swapSize[0] = m_swapChain.getWidth();
+    m_windowState.m_swapSize[1] = m_swapChain.getHeight();
   }
 }
 void AppWindowProfilerVK::swapPrepare()
@@ -131,10 +138,6 @@ void AppWindowProfilerVK::swapVsync(bool swapVsync)
 {
   if(m_swapVsync != swapVsync)
   {
-    VkResult result = vkDeviceWaitIdle(m_context.m_device);
-    if (nvvk::checkResult(result, __FILE__, __LINE__)) {
-      exit(-1);
-    }
     m_swapChain.update(getWidth(), getHeight(), swapVsync);
     m_swapVsync = swapVsync;
   }

@@ -221,15 +221,15 @@ void AppWindowProfiler::onWindowResize(int width, int height)
     return;
   }
 
-  m_windowState.m_viewSize[0] = width;
-  m_windowState.m_viewSize[1] = height;
+  m_windowState.m_winSize[0] = width;
+  m_windowState.m_winSize[1] = height;
   if (m_activeContext)
   {
     swapResize(width, height);
   }
   if(m_active)
   {
-    resize(width, height);
+    resize(m_windowState.m_swapSize[0], m_windowState.m_swapSize[1]);
   }
 }
 
@@ -262,8 +262,8 @@ int AppWindowProfiler::run(const std::string& title, int argc, const char** argv
     LOGE("Could not create window\n");
     return EXIT_FAILURE;
   }
-  m_windowState.m_viewSize[0] = m_config.winsize[0];
-  m_windowState.m_viewSize[1] = m_config.winsize[1];
+  m_windowState.m_winSize[0] = m_config.winsize[0];
+  m_windowState.m_winSize[1] = m_config.winsize[1];
 
   postConfigPreContext();
   contextInit();
@@ -289,7 +289,7 @@ int AppWindowProfiler::run(const std::string& title, int argc, const char** argv
   bool Run = begin();
   m_active = true;
 
-  bool quickExit = false;
+  bool quickExit = m_config.quickexit;
   if(m_config.frameLimit)
   {
     m_profilerPrint = false;
@@ -420,7 +420,7 @@ int AppWindowProfiler::run(const std::string& title, int argc, const char** argv
         m_config.frameLimit--;
     }
   }
-
+  contextSync();
   exitScreenshot();
 
   if(quickExit)
@@ -511,6 +511,7 @@ void AppWindowProfiler::setupParameters()
   m_parameterList.add("bmpatexit|Set file to store a bitmap image of the last frame at exit", &m_config.dumpatexitFilename);
   m_parameterList.addFilename("benchmark|Set benchmark filename", &m_benchmark.filename);
   m_parameterList.add("benchmarkframes|Set number of benchmarkframes", &m_benchmark.frameLength);
+  m_parameterList.add("quickexit|skips tear down", &m_config.quickexit);
   m_paramScreenshot = m_parameterList.add("screenshot|makes a screenshot into this file", &m_config.screenshotFilename, callback);
   m_paramClear = m_parameterList.add("clear|clears window color (r,b,g in 0-255) using OS", m_config.clearColor, callback, 3);
 }

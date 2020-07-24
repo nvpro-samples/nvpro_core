@@ -218,6 +218,7 @@ ShaderFileManager::IncludeID ShaderFileManager::registerInclude(std::string cons
   {
     if(m_includes[i].name == name)
     {
+      m_includes[i].content = content;
       return i;
     }
   }

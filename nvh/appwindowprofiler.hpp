@@ -71,10 +71,11 @@ namespace nvh
         memset(m_keyToggled, 0, sizeof(m_keyToggled));
       }
 
-      int   m_viewSize[2];
-      int   m_mouseCurrent[2];
-      int   m_mouseButtonFlags;
-      int   m_mouseWheel;
+      int       m_winSize[2];
+      int       m_swapSize[2];
+      int       m_mouseCurrent[2];
+      int       m_mouseButtonFlags;
+      int       m_mouseWheel;
 
       bool  m_keyPressed[KEY_LAST+1];
       bool  m_keyToggled[KEY_LAST+1];
@@ -116,8 +117,9 @@ namespace nvh
     virtual void end() {}
     // do primary logic/drawing etc. here
     virtual void think(double time) {}
-    // reacte on window resizes here
-    virtual void resize(int width, int height) {}
+    // react on swapchain resizes here
+    // may be different to winWidth/winHeight!
+    virtual void resize(int swapWidth, int swapHeight) {}
 
     // return true to prevent m_window state updates
     virtual bool mouse_pos    (int x, int y) {return false; }
@@ -166,9 +168,14 @@ namespace nvh
 
     virtual void contextInit() {}
     virtual void contextDeinit() {}
+    virtual void contextSync() {}
     virtual const char* contextGetDeviceName() { return NULL; }
 
-    virtual void swapResize(int width, int height) {}
+    virtual void swapResize(int winWidth, int winHeight)
+    {
+      m_windowState.m_swapSize[0] = winWidth;
+      m_windowState.m_swapSize[1] = winHeight;
+    }
     virtual void swapPrepare() {}
     virtual void swapBuffers() {}
     virtual void swapVsync(bool state) {}
@@ -200,6 +207,7 @@ namespace nvh
       int32_t winpos[2];
       int32_t winsize[2];
       bool vsyncstate = true;
+      bool quickexit = false;
       uint32_t intervalSeconds = 2;
       uint32_t frameLimit = 0;
       uint32_t timerLimit = 0;

@@ -74,7 +74,7 @@ bool SwapChain::init(VkDevice device, VkPhysicalDevice physicalDevice, VkQueue q
   return false;
 }
 
-void SwapChain::update(int width, int height, bool vsync)
+VkExtent2D SwapChain::update(int width, int height, bool vsync)
 {
   m_changeID++;
 
@@ -111,9 +111,6 @@ void SwapChain::update(int width, int height, bool vsync)
   {
     // If the surface size is defined, the swap chain size must match
     swapchainExtent = surfCapabilities.currentExtent;
-
-    //demo->width = surfCapabilities.currentExtent.width;
-    //demo->height = surfCapabilities.currentExtent.height;
   }
 
   // test against valid size, typically hit when windows are minimized, the app must
@@ -259,23 +256,22 @@ void SwapChain::update(int width, int height, bool vsync)
 
     m_barriers[i] = memBarrier;
 
-    entry.debugImageName            = "swapchainImage:" + std::to_string(i);
-    entry.debugImageViewName        = "swapchainImageView:" + std::to_string(i);
-    entry.debugReadSemaphoreName    = "swapchainReadSemaphore:" + std::to_string(i);
-    entry.debugWrittenSemaphoreName = "swapchainWrittenSemaphore:" + std::to_string(i);
-    debugUtil.setObjectName(entry.image, entry.debugImageName);
-    debugUtil.setObjectName(entry.imageView, entry.debugImageViewName);
-    debugUtil.setObjectName(entry.readSemaphore, entry.debugReadSemaphoreName);
-    debugUtil.setObjectName(entry.writtenSemaphore, entry.debugWrittenSemaphoreName);
+    debugUtil.setObjectName(entry.image, "swapchainImage:" + std::to_string(i));
+    debugUtil.setObjectName(entry.imageView, "swapchainImageView:" + std::to_string(i));
+    debugUtil.setObjectName(entry.readSemaphore, "swapchainReadSemaphore:" + std::to_string(i));
+    debugUtil.setObjectName(entry.writtenSemaphore, "swapchainWrittenSemaphore:" + std::to_string(i));
   }
 
 
-  m_width  = width;
-  m_height = height;
+  m_updateWidth  = width;
+  m_updateHeight = height;
   m_vsync  = vsync;
+  m_extent = swapchainExtent;
 
   m_currentSemaphore = 0;
   m_currentImage     = 0;
+
+  return swapchainExtent;
 }
 
 void SwapChain::deinitResources()
@@ -335,14 +331,8 @@ bool SwapChain::acquireCustom(VkSemaphore semaphore)
     }
     else if(result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
     {
-      result = vkDeviceWaitIdle(m_device);
-      if(nvvk::checkResult(result, __FILE__, __LINE__))
-      {
-        exit(-1);
-      }
-
       deinitResources();
-      update(m_width, m_height, m_vsync);
+      update(m_updateWidth, m_updateHeight, m_vsync);
     }
     else
     {

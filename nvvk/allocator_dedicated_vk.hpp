@@ -32,6 +32,8 @@
 
 #include "images_vk.hpp"
 #include "samplers_vk.hpp"
+#include "error_vk.hpp"
+
 #include <memory>
 
 
@@ -122,7 +124,7 @@ public:
   {
     BufferDedicated resultBuffer;
     // 1. Create Buffer
-    vkCreateBuffer(m_device, &info_, nullptr, &resultBuffer.buffer);
+    NVVK_CHECK(vkCreateBuffer(m_device, &info_, nullptr, &resultBuffer.buffer));
 
     // 2. Find memory requirements
     VkMemoryRequirements2           memReqs{VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2};
@@ -147,7 +149,7 @@ public:
     checkMemory(resultBuffer.allocation);
 
     // 4. Bind memory to buffer
-    vkBindBufferMemory(m_device, resultBuffer.buffer, resultBuffer.allocation, 0);
+    NVVK_CHECK(vkBindBufferMemory(m_device, resultBuffer.buffer, resultBuffer.allocation, 0));
 
     return resultBuffer;
   }
@@ -182,7 +184,7 @@ public:
     if(data_)
     {
       void* mapped = nullptr;
-      vkMapMemory(m_device, stageBuffer.allocation, 0, size_, 0, &mapped);
+      NVVK_CHECK(vkMapMemory(m_device, stageBuffer.allocation, 0, size_, 0, &mapped));
       memcpy(mapped, data_, size_);
       vkUnmapMemory(m_device, stageBuffer.allocation);
     }
@@ -217,7 +219,7 @@ public:
   {
     ImageDedicated resultImage;
     // 1. Create image
-    vkCreateImage(m_device, &info_, nullptr, &resultImage.image);
+    NVVK_CHECK(vkCreateImage(m_device, &info_, nullptr, &resultImage.image));
 
     // 2. Find memory requirements
     VkMemoryRequirements2          memReqs{VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2};
@@ -237,7 +239,7 @@ public:
     checkMemory(resultImage.allocation);
 
     // 4. Bind memory to image
-    vkBindImageMemory(m_device, resultImage.image, resultImage.allocation, 0);
+    NVVK_CHECK(vkBindImageMemory(m_device, resultImage.image, resultImage.allocation, 0));
 
     return resultImage;
   }
@@ -263,7 +265,7 @@ public:
 
       // Copy data to buffer
       void* mapped = nullptr;
-      vkMapMemory(m_device, stageBuffer.allocation, 0, size_, 0, &mapped);
+      NVVK_CHECK(vkMapMemory(m_device, stageBuffer.allocation, 0, size_, 0, &mapped));
       memcpy(mapped, data_, size_);
       vkUnmapMemory(m_device, stageBuffer.allocation);
 
@@ -305,7 +307,7 @@ public:
     resultTexture.descriptor.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
     assert(imageViewCreateInfo.image == image.image);
-    vkCreateImageView(m_device, &imageViewCreateInfo, nullptr, &resultTexture.descriptor.imageView);
+    NVVK_CHECK(vkCreateImageView(m_device, &imageViewCreateInfo, nullptr, &resultTexture.descriptor.imageView));
 
     return resultTexture;
   }
@@ -384,7 +386,7 @@ public:
   {
     AccelerationDedicatedNV resultAccel;
     // 1. Create the acceleration structure
-    vkCreateAccelerationStructureNV(m_device, &accel_, nullptr, &resultAccel.accel);
+    NVVK_CHECK(vkCreateAccelerationStructureNV(m_device, &accel_, nullptr, &resultAccel.accel));
 
     // 2. Find memory requirements
     VkAccelerationStructureMemoryRequirementsInfoNV memInfo{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_INFO_NV};
@@ -404,7 +406,7 @@ public:
     bind.accelerationStructure = resultAccel.accel;
     bind.memory                = resultAccel.allocation;
     bind.memoryOffset          = 0;
-    vkBindAccelerationStructureMemoryNV(m_device, 1, &bind);
+    NVVK_CHECK(vkBindAccelerationStructureMemoryNV(m_device, 1, &bind));
     return resultAccel;
   }
 
@@ -417,7 +419,7 @@ public:
   {
     AccelerationDedicatedKHR resultAccel;
     // 1. Create the acceleration structure
-    vkCreateAccelerationStructureKHR(m_device, &accel_, nullptr, &resultAccel.accel);
+    NVVK_CHECK(vkCreateAccelerationStructureKHR(m_device, &accel_, nullptr, &resultAccel.accel));
 
     // 2. Find memory requirements
     VkAccelerationStructureMemoryRequirementsInfoKHR memInfo{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_INFO_KHR};
@@ -442,7 +444,7 @@ public:
     bind.accelerationStructure = resultAccel.accel;
     bind.memory                = resultAccel.allocation;
     bind.memoryOffset          = 0;
-    vkBindAccelerationStructureMemoryKHR(m_device, 1, &bind);
+    NVVK_CHECK(vkBindAccelerationStructureMemoryKHR(m_device, 1, &bind));
 
     return resultAccel;
   }
@@ -513,7 +515,7 @@ public:
   void* map(const BufferDedicated& buffer_)
   {
     void* pData;
-    vkMapMemory(m_device, buffer_.allocation, 0, VK_WHOLE_SIZE, 0, &pData);
+    NVVK_CHECK(vkMapMemory(m_device, buffer_.allocation, 0, VK_WHOLE_SIZE, 0, &pData));
     return pData;
   }
   void unmap(const BufferDedicated& buffer_) { vkUnmapMemory(m_device, buffer_.allocation); }
@@ -524,7 +526,7 @@ protected:
   virtual VkDeviceMemory AllocateMemory(VkMemoryAllocateInfo& allocateInfo)
   {
     VkDeviceMemory mem;
-    vkAllocateMemory(m_device, &allocateInfo, nullptr, &mem);
+    NVVK_CHECK(vkAllocateMemory(m_device, &allocateInfo, nullptr, &mem));
     return mem;
   }
 
@@ -678,7 +680,7 @@ protected:
 
     allocateInfo.pNext = &memoryHandleEx;  // <-- Enabling Export
     VkDeviceMemory mem;
-    vkAllocateMemory(m_device, &allocateInfo, nullptr, &mem);
+    NVVK_CHECK(vkAllocateMemory(m_device, &allocateInfo, nullptr, &mem));
     return mem;
   }
 };
@@ -707,7 +709,7 @@ protected:
 
     allocateInfo.pNext = &flags;  // <-- Enabling Export
     VkDeviceMemory mem;
-    vkAllocateMemory(m_device, &allocateInfo, nullptr, &mem);
+    NVVK_CHECK(vkAllocateMemory(m_device, &allocateInfo, nullptr, &mem));
     return mem;
   }
 

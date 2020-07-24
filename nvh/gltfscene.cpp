@@ -435,6 +435,17 @@ void GltfScene::processMesh(const tinygltf::Model& tmodel, const tinygltf::Primi
         nvmath::vec3f sdir((t2 * x1 - t1 * x2) * r, (t2 * y1 - t1 * y2) * r, (t2 * z1 - t1 * z2) * r);
         nvmath::vec3f tdir((s1 * x2 - s2 * x1) * r, (s1 * y2 - s2 * y1) * r, (s1 * z2 - s2 * z1) * r);
 
+        // In case of degenerated UV coordinates
+        if(s1 == 0 || s2 == 0 || t1 == 0 || t2 == 0)
+        {
+          const nvmath::vec3f N = nvmath::cross<float>({x1, y1, z1}, {x2, y2, z2});
+          if(abs(N.x) > abs(N.y))
+            sdir = vec3(N.z, 0, -N.x) / sqrt(N.x * N.x + N.z * N.z);
+          else
+            sdir = vec3(0, -N.z, N.y) / sqrt(N.y * N.y + N.z * N.z);
+          tdir = nvmath::cross(N, sdir);
+        }
+
         tan1[l_idx0] += sdir;
         tan1[l_idx1] += sdir;
         tan1[l_idx2] += sdir;
@@ -471,7 +482,7 @@ void GltfScene::processMesh(const tinygltf::Model& tmodel, const tinygltf::Primi
   }
 
   m_primMeshes.emplace_back(resultMesh);
-}
+}  // namespace nvh
 
 //--------------------------------------------------------------------------------------------------
 // Return the matrix of the node

@@ -37,6 +37,9 @@ namespace nvgl
     m_contextWindow.init(&m_contextInfo, m_internal, m_windowName.c_str());
     // create other additional OpenGL tools
     m_profilerGL.init();
+
+    m_windowState.m_swapSize[0] = NVPWindow::getWidth();
+    m_windowState.m_swapSize[1] = NVPWindow::getHeight();
   }
 
   void AppWindowProfilerGL::contextDeinit()

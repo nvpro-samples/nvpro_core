@@ -80,6 +80,7 @@ public:
 
   virtual void        contextInit() override;
   virtual void        contextDeinit() override;
+  virtual void        contextSync() override;
   virtual const char* contextGetDeviceName() override;
 
   virtual void        swapResize(int width, int height) override;

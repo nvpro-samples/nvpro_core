@@ -161,11 +161,6 @@ private:
     // be aware semaphore index may not match active image index
     VkSemaphore readSemaphore{};
     VkSemaphore writtenSemaphore{};
-
-    std::string debugImageName;
-    std::string debugImageViewName;
-    std::string debugReadSemaphoreName;
-    std::string debugWrittenSemaphoreName;
   };
 
   VkDevice         m_device         = VK_NULL_HANDLE;
@@ -192,13 +187,15 @@ private:
   uint32_t m_currentSemaphore{0};
   // incremented by `SwapChain::update`, use to update other resources or track changes
   uint32_t m_changeID{0};
-  // surface width
-  uint32_t m_width{0};
-  // surface height
-  uint32_t m_height{0};
+  // surface
+  VkExtent2D m_extent{0,0};
+  // requested on update
+  uint32_t m_updateWidth{0};
+  uint32_t m_updateHeight{0};
   // if the swap operation is sync'ed with monitor
   bool m_vsync = false;
 
+  // triggers device wait idle
   void deinitResources();
 
 public:
@@ -213,12 +210,16 @@ public:
   ~SwapChain() { deinit(); }
 
   bool init(VkDevice device, VkPhysicalDevice physicalDevice, VkQueue queue, uint32_t queueFamilyIndex, VkSurfaceKHR surface, VkFormat format = VK_FORMAT_B8G8R8A8_UNORM);
+
+  // triggers device wait idle
   void deinit();
 
   // update the swapchain configuration
   // (must be called at least once after init)
-  void update(int width, int height, bool vsync);
-  void update(int width, int height) { update(width, height, m_vsync); }
+  // triggers device wait idle
+  // returns actual swapchain dimensions, which may differ from requested
+  VkExtent2D update(int width, int height, bool vsync);
+  VkExtent2D update(int width, int height) { return update(width, height, m_vsync); }
 
   // returns true on success
   // sets active index
@@ -253,8 +254,11 @@ public:
   VkImage        getImage(uint32_t i) const;
   VkImageView    getImageView(uint32_t i) const;
   VkFormat       getFormat() const { return m_surfaceFormat; }
-  uint32_t       getWidth() const { return m_width; }
-  uint32_t       getHeight() const { return m_height; }
+  uint32_t       getWidth() const { return m_extent.width; }
+  uint32_t       getHeight() const { return m_extent.height; }
+  VkExtent2D     getExtent() const { return m_extent; }
+  uint32_t       getUpdateWidth() const { return m_updateWidth; }
+  uint32_t       getUpdateHeight() const { return m_updateHeight; }
   bool           getVsync() const { return m_vsync; }
   VkSwapchainKHR getSwapchain() const { return m_swapchain; }
 
