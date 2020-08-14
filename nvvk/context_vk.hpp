@@ -29,6 +29,7 @@
 #define NV_VK_DEVICEINSTANCE_INCLUDED
 
 #include <vector>
+#include <unordered_set>
 #include <vulkan/vulkan_core.h>
 
 static_assert(VK_HEADER_VERSION >= 131, "Vulkan SDK version needs to be 1.2.131.1 or greater");
@@ -355,7 +356,17 @@ public:
   bool hasDeviceExtension(const char* name) const;
   bool hasInstanceExtension(const char* name) const;
 
+  void ignoreDebugMessage(int32_t msgID)
+  {
+    m_dbgIgnoreMessages.insert(msgID);
+  }
+
 private:
+  static VKAPI_ATTR VkBool32 VKAPI_CALL debugMessengerCallback(VkDebugUtilsMessageSeverityFlagBitsEXT      messageSeverity,
+                                                      VkDebugUtilsMessageTypeFlagsEXT             messageType,
+                                                      const VkDebugUtilsMessengerCallbackDataEXT* callbackData,
+                                                      void*                                       userData);
+
   NameArray m_usedInstanceLayers;
   NameArray m_usedInstanceExtensions;
   NameArray m_usedDeviceExtensions;
@@ -365,6 +376,7 @@ private:
   PFN_vkDestroyDebugUtilsMessengerEXT m_destroyDebugUtilsMessengerEXT = nullptr;
   VkDebugUtilsMessengerEXT            m_dbgMessenger                  = nullptr;
 
+  std::unordered_set<int32_t>         m_dbgIgnoreMessages;
 
   void initDebugUtils();
 

@@ -126,11 +126,16 @@ static std::string ObjectTypeToString(VkObjectType value)
 
 
 // Define a callback to capture the messages
-VKAPI_ATTR VkBool32 VKAPI_CALL debugMessengerCallback(VkDebugUtilsMessageSeverityFlagBitsEXT      messageSeverity,
+VKAPI_ATTR VkBool32 VKAPI_CALL Context::debugMessengerCallback(VkDebugUtilsMessageSeverityFlagBitsEXT      messageSeverity,
                                                       VkDebugUtilsMessageTypeFlagsEXT             messageType,
                                                       const VkDebugUtilsMessengerCallbackDataEXT* callbackData,
                                                       void*                                       userData)
 {
+  Context* ctx = reinterpret_cast<Context*>(userData);
+
+  if (ctx->m_dbgIgnoreMessages.find(callbackData->messageIdNumber) != ctx->m_dbgIgnoreMessages.end()) return VK_FALSE;
+
+
   int level = LOGLEVEL_INFO;
   // repeating nvprintfLevel to help with breakpoints : so we can selectively break right after the print
   if(messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT)
@@ -854,7 +859,7 @@ void Context::initDebugUtils()
     dbg_messenger_create_info.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT
                                             | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
     dbg_messenger_create_info.pfnUserCallback = debugMessengerCallback;
-    dbg_messenger_create_info.pUserData       = nullptr;
+    dbg_messenger_create_info.pUserData       = this;
     VkResult result = m_createDebugUtilsMessengerEXT(m_instance, &dbg_messenger_create_info, nullptr, &m_dbgMessenger);
   }
 }
