@@ -216,6 +216,15 @@ struct vector3
       , z(u.z)
   {
   }
+
+  template <typename T2>
+  explicit vector3(const vector3<T2>& u)
+      : x(u.x)
+      , y(u.y)
+      , z(u.z)
+  {
+  }
+
   vector3(const vector4<T>&);
 
   bool operator==(const vector3<T>& u) const { return (u.x == x && u.y == y && u.z == z) ? true : false; }
@@ -687,6 +696,15 @@ struct matrix4
   {
   }
 
+  template<typename T2>
+  explicit matrix4(const matrix4<T2>& M)
+  {
+    for (int i = 0; i < 16; ++i)
+    {
+      mat_array[i] = static_cast<T>(M.mat_array[i]);
+    }
+  }
+
   const vector4<T> col(const int i) const { return vector4<T>(&mat_array[i * 4]); }
 
   const vector4<T> row(const int i) const
@@ -914,12 +932,93 @@ public:
 };  //struct quaternion
 
 
+enum Axis
+{
+  AXIS_X,
+  AXIS_Y,
+  AXIS_Z,
+};
+
+template <typename T>
+inline Axis get_major_axis(const vector2<T>& vec)
+{
+  return (vec.x > vec.y) ? AXIS_X : AXIS_Y;
+}
+template <typename T>
+inline Axis get_major_axis(const vector3<T>& vec)
+{
+  return (vec.x > vec.y) ? ((vec.x > vec.z) ? AXIS_X : AXIS_Z) : ((vec.y > vec.z) ? AXIS_Y : AXIS_Z);
+}
+
+enum VecDirection
+{
+  VECDIR_NNN,  // X = Bit 2 | Y = Bit 1| Z = Bit 0
+  VECDIR_NNP,
+  VECDIR_NPN,
+  VECDIR_NPP,
+  VECDIR_PNN,
+  VECDIR_PNP,
+  VECDIR_PPN,
+  VECDIR_PPP
+};
+
+enum PlaneSide
+{
+  PLANESIDE_ON_PLANE = 0,  // a primitive is considered as being in the plane
+  PLANESIDE_FRONT    = 1,  // a primitive is considered as in the front of the plane; i.e. the positive halfspace
+  PLANESIDE_BACK     = 2,  // a primitive is considered as in the back of the plane; i.e. the negative halfspace
+  PLANESIDE_SPANNING = 3  // a primitive is considered as straddling cross the plane, i.e. parts of it are in the positive and
+                          // other parts are in the negative halfspace
+};
+
+template <typename T>
+inline VecDirection get_vector_direction(const vector3<T>& vec)
+{
+  int dir = !std::signbit(vec.x) ? 4 : 0;
+  dir |= !std::signbit(vec.y) << 1;
+  dir |= !std::signbit(vec.z);
+  return static_cast<VecDirection>(dir);
+}
+
+// A plane is defined as x * p.x + y * p.y + z * p.z + p.w = 0
+// A plane defines the positive halfspace as x * p.x + y * p.y + z * p.z + p.w > 0
+// A plane defines the negative halfspace as x * p.x + y * p.y + z * p.z + p.w < 0
+template <typename T>
+struct plane : public vector4<T>
+{
+  enum NormalizeInConstruction
+  {
+    no,
+    yes
+  };
+
+  inline plane(){};
+  inline explicit plane(const vector4<T>& v, NormalizeInConstruction normalizePlane = yes);
+  // define plane from normal and a point in the plane
+  inline explicit plane(const vector3<T>&       normal,
+                        const vector3<T>&       point          = vector3<T>(0, 0, 0),
+                        NormalizeInConstruction normalizePlane = yes);
+  //define plane from normal and distance along the normal (in units of the normal's length)
+  inline explicit plane(const vector3<T>& normal, const float dist, NormalizeInConstruction normalizePlane = yes);
+  //define plane from three points that lie in the plane
+  inline explicit plane(const vector3<T>& v1, const vector3<T>& v2, const vector3<T>& v3, NormalizeInConstruction normalizePlane = yes);
+  //define plane from 3 coefficients: x*a + y*b + z*c + d = 0
+  inline explicit plane(T a, T b, T c, T d, NormalizeInConstruction normalizePlane = yes);
+
+  vector3<T> normal() const { return *this; }
+  T          distanceFromOrigin() const { return -this->w; }
+
+  plane operator-();
+};
+
+
 typedef vector2<nv_scalar>    vec2f;
 typedef vector3<nv_scalar>    vec3f;
 typedef vector4<nv_scalar>    vec4f;
 typedef matrix3<nv_scalar>    mat3f;
 typedef matrix4<nv_scalar>    mat4f;
 typedef quaternion<nv_scalar> quatf;
+typedef plane<nv_scalar>      planef;
 
 typedef vector2<int> vec2i;
 typedef vector3<int> vec3i;

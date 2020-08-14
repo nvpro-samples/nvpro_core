@@ -344,12 +344,12 @@ inline vector3<T> pow(const vector3<T>& v, const T& e)
 template<class T>
 inline void vector3<T>::orthogonalize( const vector3<T>& v )
 {
-	//  determine the orthogonal projection of this on v : dot( v , this ) * v
-	//  and subtract it from this resulting in the orthogonalized this
-	vector3<T> res = dot( v, vector3<T>(x, y, z) ) * v;
-	x -= res.x;
-	y -= res.y;
-	z -= res.y;
+  //  determine the orthogonal projection of this on v : dot( v , this ) * v
+  //  and subtract it from this resulting in the orthogonalized this
+  vector3<T> res = dot( v, vector3<T>(x, y, z) ) * v;
+  x -= res.x;
+  y -= res.y;
+  z -= res.y;
 }
 
 template<class T>
@@ -368,15 +368,15 @@ inline vector3<T> & vector3<T>::rotateBy(const quaternion<T>& q)
 template<class T>
 inline T vector3<T>::normalize()
 {
-	T norm = sqrtf(x * x + y * y + z * z);
-	if (norm > nv_eps)
-		norm = T(1) / norm;
-	else
-		norm = T(0);
-	x *= norm;
-	y *= norm;
-	z *= norm;
-	return norm;
+  T norm = sqrtf(x * x + y * y + z * z);
+  if (norm > nv_eps)
+    norm = T(1) / norm;
+  else
+    norm = T(0);
+  x *= norm;
+  y *= norm;
+  z *= norm;
+  return norm;
 }
 
 template<class T>
@@ -432,7 +432,7 @@ inline vector3<T> mult(const vector3<T>& v, const matrix3<T>& M)
 template<class T>
 inline const vector3<T> operator*(const matrix3<T>& M, const vector3<T>& v)
 {
-	vector3<T> u;
+  vector3<T> u;
     u.x = M.a00 * v.x + M.a01 * v.y + M.a02 * v.z;
     u.y = M.a10 * v.x + M.a11 * v.y + M.a12 * v.z;
     u.z = M.a20 * v.x + M.a21 * v.y + M.a22 * v.z;
@@ -442,7 +442,7 @@ inline const vector3<T> operator*(const matrix3<T>& M, const vector3<T>& v)
 template<class T>
 inline const vector3<T> operator*(const vector3<T>& v, const matrix3<T>& M)
 {
-	vector3<T> u;
+  vector3<T> u;
     u.x = M.a00 * v.x + M.a10 * v.y + M.a20 * v.z;
     u.y = M.a01 * v.x + M.a11 * v.y + M.a21 * v.z;
     u.z = M.a02 * v.x + M.a12 * v.y + M.a22 * v.z;
@@ -474,7 +474,7 @@ inline vector4<T> & mult( const vector4<T>& v, const matrix4<T>& M)
 template<class T>
 inline const vector4<T> operator*(const matrix4<T>& M, const vector4<T>& v)
 {
-	vector4<T> u;
+  vector4<T> u;
     u.x = M.a00 * v.x + M.a01 * v.y + M.a02 * v.z + M.a03 * v.w;
     u.y = M.a10 * v.x + M.a11 * v.y + M.a12 * v.z + M.a13 * v.w;
     u.z = M.a20 * v.x + M.a21 * v.y + M.a22 * v.z + M.a23 * v.w;
@@ -485,7 +485,7 @@ inline const vector4<T> operator*(const matrix4<T>& M, const vector4<T>& v)
 template<class T>
 inline const vector4<T> operator*(const matrix4<T>& M, const vector3<T>& v)
 {
-	vector4<T> u;
+  vector4<T> u;
     u.x = M.a00 * v.x + M.a01 * v.y + M.a02 * v.z + M.a03;
     u.y = M.a10 * v.x + M.a11 * v.y + M.a12 * v.z + M.a13;
     u.z = M.a20 * v.x + M.a21 * v.y + M.a22 * v.z + M.a23;
@@ -496,7 +496,7 @@ inline const vector4<T> operator*(const matrix4<T>& M, const vector3<T>& v)
 template<class T>
 inline const vector4<T> operator*(const vector4<T>& v, const matrix4<T>& M)
 {
-	vector4<T> u;
+  vector4<T> u;
     u.x = M.a00 * v.x + M.a10 * v.y + M.a20 * v.z + M.a30 * v.w;
     u.y = M.a01 * v.x + M.a11 * v.y + M.a21 * v.z + M.a31 * v.w;
     u.z = M.a02 * v.x + M.a12 * v.y + M.a22 * v.z + M.a32 * v.w;
@@ -1230,37 +1230,37 @@ inline quaternion<T> normalize(const quaternion<T> & q)
 template<class T>
 inline quaternion<T>::quaternion(const vector3<T>& axis, T angle)
 {
-	T len = axis.norm();
-	if (len) {
-		T invLen = 1 / len;
-		T angle2 = angle / 2;
-		T scale = sinf(angle2) * invLen;
-		x = scale * axis[0];
-		y = scale * axis[1];
-		z = scale * axis[2];
-		w = cosf(angle2);
-	}
+  T len = axis.norm();
+  if (len) {
+    T invLen = 1 / len;
+    T angle2 = angle / 2;
+    T scale = sinf(angle2) * invLen;
+    x = scale * axis[0];
+    y = scale * axis[1];
+    z = scale * axis[2];
+    w = cosf(angle2);
+  }
 }
 
 template<class T>
 inline quaternion<T>::quaternion(const matrix3<T>& rot)
 {
-	from_matrix(rot);
+  from_matrix(rot);
 }
 template<class T>
 inline quaternion<T>::quaternion(const matrix4<T>& rot)
 {
-	from_matrix(rot);
+  from_matrix(rot);
 }
 
 template<class T>
 inline quaternion<T>& quaternion<T>::operator=(const quaternion<T>& quaternion)
 {
-	x = quaternion.x;
-	y = quaternion.y;
-	z = quaternion.z;
-	w = quaternion.w;
-	return *this;
+  x = quaternion.x;
+  y = quaternion.y;
+  z = quaternion.z;
+  w = quaternion.w;
+  return *this;
 }
 
 
@@ -1268,150 +1268,150 @@ template <class T>
 
 inline quaternion<T> quaternion<T>::inverse()
 {
-	return quaternion<T>(- x, - y, - z, w);
+  return quaternion<T>(- x, - y, - z, w);
 }
 template<class T>
 inline quaternion<T> quaternion<T>::conjugate()
 {
-	return quaternion<T>(- x, - y, - z, w);
+  return quaternion<T>(- x, - y, - z, w);
 }
 
 template<class T>
 inline void quaternion<T>::normalize()
 {
-	T len = sqrtf(x * x + y * y + z * z + w * w);
-	if (len > 0) {
-		T invLen = 1 / len;
-		x *= invLen;
-		y *= invLen;
-		z *= invLen;
-		w *= invLen;
-	}
+  T len = sqrtf(x * x + y * y + z * z + w * w);
+  if (len > 0) {
+    T invLen = 1 / len;
+    x *= invLen;
+    y *= invLen;
+    z *= invLen;
+    w *= invLen;
+  }
 }
 
 template<class T>
 inline void quaternion<T>::from_matrix(const matrix3<T>& mat)
 {
-	T trace = mat(0, 0) + mat(1, 1) + mat(2, 2);
-	if (trace > T(0)) 
+  T trace = mat(0, 0) + mat(1, 1) + mat(2, 2);
+  if (trace > T(0)) 
     {
-		T scale = sqrtf(trace + T(1));
-		w = T(0.5) * scale;
-		scale = T(0.5) / scale;
-		x = scale * (mat(2, 1) - mat(1, 2));
-		y = scale * (mat(0, 2) - mat(2, 0));
-		z = scale * (mat(1, 0) - mat(0, 1));
-	}
-	else 
+    T scale = sqrtf(trace + T(1));
+    w = T(0.5) * scale;
+    scale = T(0.5) / scale;
+    x = scale * (mat(2, 1) - mat(1, 2));
+    y = scale * (mat(0, 2) - mat(2, 0));
+    z = scale * (mat(1, 0) - mat(0, 1));
+  }
+  else 
     {
-		static int next[] = { 1, 2, 0 };
-		int i = 0;
-		if (mat(1, 1) > mat(0, 0))
-			i = 1;
-		if (mat(2, 2) > mat(i, i))
-			i = 2;
-		int j = next[i];
-		int k = next[j];
-		T scale = sqrtf(mat(i, i) - mat(j, j) - mat(k, k) + 1);
-		T* q[] = { &x, &y, &z };
-		*q[i] = 0.5f * scale;
-		scale = 0.5f / scale;
-		w = scale * (mat(k, j) - mat(j, k));
-		*q[j] = scale * (mat(j, i) + mat(i, j));
-		*q[k] = scale * (mat(k, i) + mat(i, k));
-	}
+    static int next[] = { 1, 2, 0 };
+    int i = 0;
+    if (mat(1, 1) > mat(0, 0))
+      i = 1;
+    if (mat(2, 2) > mat(i, i))
+      i = 2;
+    int j = next[i];
+    int k = next[j];
+    T scale = sqrtf(mat(i, i) - mat(j, j) - mat(k, k) + 1);
+    T* q[] = { &x, &y, &z };
+    *q[i] = 0.5f * scale;
+    scale = 0.5f / scale;
+    w = scale * (mat(k, j) - mat(j, k));
+    *q[j] = scale * (mat(j, i) + mat(i, j));
+    *q[k] = scale * (mat(k, i) + mat(i, k));
+  }
 }
 
 template<class T>
 inline void quaternion<T>::from_matrix(const matrix4<T>& mat)
 {
-	T trace = mat(0, 0) + mat(1, 1) + mat(2, 2);
-	if (trace > T(0)) 
+  T trace = mat(0, 0) + mat(1, 1) + mat(2, 2);
+  if (trace > T(0)) 
     {
-		T scale = sqrtf(trace + T(1));
-		w = T(0.5) * scale;
-		scale = T(0.5) / scale;
-		x = scale * (mat(2, 1) - mat(1, 2));
-		y = scale * (mat(0, 2) - mat(2, 0));
-		z = scale * (mat(1, 0) - mat(0, 1));
-	}
-	else 
+    T scale = sqrtf(trace + T(1));
+    w = T(0.5) * scale;
+    scale = T(0.5) / scale;
+    x = scale * (mat(2, 1) - mat(1, 2));
+    y = scale * (mat(0, 2) - mat(2, 0));
+    z = scale * (mat(1, 0) - mat(0, 1));
+  }
+  else 
     {
-		static int next[] = { 1, 2, 0 };
-		int i = 0;
-		if (mat(1, 1) > mat(0, 0))
-			i = 1;
-		if (mat(2, 2) > mat(i, i))
-			i = 2;
-		int j = next[i];
-		int k = next[j];
-		T scale = sqrtf(mat(i, i) - mat(j, j) - mat(k, k) + 1);
-		T* q[] = { &x, &y, &z };
-		*q[i] = 0.5f * scale;
-		scale = 0.5f / scale;
-		w = scale * (mat(k, j) - mat(j, k));
-		*q[j] = scale * (mat(j, i) + mat(i, j));
-		*q[k] = scale * (mat(k, i) + mat(i, k));
-	}
+    static int next[] = { 1, 2, 0 };
+    int i = 0;
+    if (mat(1, 1) > mat(0, 0))
+      i = 1;
+    if (mat(2, 2) > mat(i, i))
+      i = 2;
+    int j = next[i];
+    int k = next[j];
+    T scale = sqrtf(mat(i, i) - mat(j, j) - mat(k, k) + 1);
+    T* q[] = { &x, &y, &z };
+    *q[i] = 0.5f * scale;
+    scale = 0.5f / scale;
+    w = scale * (mat(k, j) - mat(j, k));
+    *q[j] = scale * (mat(j, i) + mat(i, j));
+    *q[k] = scale * (mat(k, i) + mat(i, k));
+  }
 }
 
 template<class T>
 inline void quaternion<T>::to_matrix(matrix3<T>& mat) const
 {
-	T x2 = x * 2;
-	T y2 = y * 2;
-	T z2 = z * 2;
-	T wx = x2 * w;
-	T wy = y2 * w;
-	T wz = z2 * w;
-	T xx = x2 * x;
-	T xy = y2 * x;
-	T xz = z2 * x;
-	T yy = y2 * y;
-	T yz = z2 * y;
-	T zz = z2 * z;
-	mat(0, 0) = 1 - (yy + zz);
-	mat(0, 1) = xy - wz;
-	mat(0, 2) = xz + wy;
-	mat(1, 0) = xy + wz;
-	mat(1, 1) = 1 - (xx + zz);
-	mat(1, 2) = yz - wx;
-	mat(2, 0) = xz - wy;
-	mat(2, 1) = yz + wx;
-	mat(2, 2) = 1 - (xx + yy);
+  T x2 = x * 2;
+  T y2 = y * 2;
+  T z2 = z * 2;
+  T wx = x2 * w;
+  T wy = y2 * w;
+  T wz = z2 * w;
+  T xx = x2 * x;
+  T xy = y2 * x;
+  T xz = z2 * x;
+  T yy = y2 * y;
+  T yz = z2 * y;
+  T zz = z2 * z;
+  mat(0, 0) = 1 - (yy + zz);
+  mat(0, 1) = xy - wz;
+  mat(0, 2) = xz + wy;
+  mat(1, 0) = xy + wz;
+  mat(1, 1) = 1 - (xx + zz);
+  mat(1, 2) = yz - wx;
+  mat(2, 0) = xz - wy;
+  mat(2, 1) = yz + wx;
+  mat(2, 2) = 1 - (xx + yy);
 }
 
 template<class T>
 inline void quaternion<T>::to_matrix(matrix4<T>& mat) const
 {
-	T x2 = x * 2;
-	T y2 = y * 2;
-	T z2 = z * 2;
-	T wx = x2 * w;
-	T wy = y2 * w;
-	T wz = z2 * w;
-	T xx = x2 * x;
-	T xy = y2 * x;
-	T xz = z2 * x;
-	T yy = y2 * y;
-	T yz = z2 * y;
-	T zz = z2 * z;
-	mat(0, 0) = 1 - (yy + zz);
-	mat(0, 1) = xy - wz;
-	mat(0, 2) = xz + wy;
-	mat(0, 3) = 0.0f;
-	mat(1, 0) = xy + wz;
-	mat(1, 1) = 1 - (xx + zz);
-	mat(1, 2) = yz - wx;
-	mat(1, 3) = 0.0f;
-	mat(2, 0) = xz - wy;
-	mat(2, 1) = yz + wx;
-	mat(2, 2) = 1 - (xx + yy);
-	mat(2, 3) = 0.0f;
-	mat(3, 0) = 0.0f;
-	mat(3, 1) = 0.0f;
-	mat(3, 2) = 0.0f;
-	mat(3, 3) = 1.0f;
+  T x2 = x * 2;
+  T y2 = y * 2;
+  T z2 = z * 2;
+  T wx = x2 * w;
+  T wy = y2 * w;
+  T wz = z2 * w;
+  T xx = x2 * x;
+  T xy = y2 * x;
+  T xz = z2 * x;
+  T yy = y2 * y;
+  T yz = z2 * y;
+  T zz = z2 * z;
+  mat(0, 0) = 1 - (yy + zz);
+  mat(0, 1) = xy - wz;
+  mat(0, 2) = xz + wy;
+  mat(0, 3) = 0.0f;
+  mat(1, 0) = xy + wz;
+  mat(1, 1) = 1 - (xx + zz);
+  mat(1, 2) = yz - wx;
+  mat(1, 3) = 0.0f;
+  mat(2, 0) = xz - wy;
+  mat(2, 1) = yz + wx;
+  mat(2, 2) = 1 - (xx + yy);
+  mat(2, 3) = 0.0f;
+  mat(3, 0) = 0.0f;
+  mat(3, 1) = 0.0f;
+  mat(3, 2) = 0.0f;
+  mat(3, 3) = 1.0f;
 }
 
 template<class T>
@@ -1428,19 +1428,19 @@ inline const quaternion<T> operator*(const quaternion<T>& p, const quaternion<T>
 template<class T>
 inline const quaternion<T> mul(const quaternion<T>& p, const quaternion<T>& q)
 {
-	return quaternion<T>(
-		p.w * q.x + p.x * q.w + p.y * q.z - p.z * q.y,
-		p.w * q.y + p.y * q.w + p.z * q.x - p.x * q.z,
-		p.w * q.z + p.z * q.w + p.x * q.y - p.y * q.x,
-		p.w * q.w - p.x * q.x - p.y * q.y - p.z * q.z
-	);
+  return quaternion<T>(
+    p.w * q.x + p.x * q.w + p.y * q.z - p.z * q.y,
+    p.w * q.y + p.y * q.w + p.z * q.x - p.x * q.z,
+    p.w * q.z + p.z * q.w + p.x * q.y - p.y * q.x,
+    p.w * q.w - p.x * q.x - p.y * q.y - p.z * q.z
+  );
 }
 
 template<class T>
 inline matrix3<T> quat_2_mat(const quaternion<T>& q)
 {
     matrix3<T> M;
-	q.to_matrix(M);
+  q.to_matrix(M);
     return M;
 }
 
@@ -1448,7 +1448,7 @@ template<class T>
 inline quaternion<T> mat_2_quat(const matrix3<T>& M)
 {
     quaternion<T> q;
-	q.from_matrix(M);
+  q.from_matrix(M);
     return q;
 } 
 
@@ -1456,9 +1456,9 @@ template<class T>
 inline quaternion<T> mat_2_quat(const matrix4<T>& M)
 {
     quaternion<T> q;
-	matrix3<T> m;
-	m = M.get_rot_mat3();
-	q.from_matrix(m);
+  matrix3<T> m;
+  m = M.get_rot_mat3();
+  q.from_matrix(m);
     return q;
 } 
 
@@ -1472,7 +1472,7 @@ inline quaternion<T> axis_to_quat(const vector3<T>& a, const T phi)
     vector3<T> tmp(a.x, a.y, a.z);
 
     tmp.normalize();
-	T s = sinf(phi/nv_two);
+  T s = sinf(phi/nv_two);
     q.x = s * tmp.x;
     q.y = s * tmp.y;
     q.z = s * tmp.z;
@@ -1531,23 +1531,23 @@ inline quaternion<T> slerp_quats(T s, const quaternion<T> & q1, const quaternion
 {
     quaternion<T> p;
     T cosine = dot(q1, q2);
-	if (cosine < -1)
-		cosine = -1;
-	else if (cosine > 1)
-		cosine = 1;
+  if (cosine < -1)
+    cosine = -1;
+  else if (cosine > 1)
+    cosine = 1;
     T angle = (T)acosf(cosine);
     if (fabs(angle) < nv_eps) {
-		p = q1;
+    p = q1;
         return p;
-	}
+  }
     T sine = sinf(angle);
     T sineInv = 1.0f / sine;
     T c1 = sinf((1.0f - s) * angle) * sineInv;
     T c2 = sinf(s * angle) * sineInv;
-	p.x = c1 * q1.x + c2 * q2.x;
-	p.y = c1 * q1.y + c2 * q2.y;
-	p.z = c1 * q1.z + c2 * q2.z;
-	p.w = c1 * q1.w + c2 * q2.w;
+  p.x = c1 * q1.x + c2 * q2.x;
+  p.y = c1 * q1.y + c2 * q2.y;
+  p.z = c1 * q1.z + c2 * q2.z;
+  p.w = c1 * q1.w + c2 * q2.w;
     return p;
 }
 
@@ -1556,7 +1556,7 @@ const int HALF_RAND = (RAND_MAX / 2);
 template<class T>
 inline  T nv_random()
 {
-	return ((T)(rand() - HALF_RAND) / (T)HALF_RAND);
+  return ((T)(rand() - HALF_RAND) / (T)HALF_RAND);
 }
 
 // v is normalized
@@ -1657,9 +1657,9 @@ inline T matrix3<T>::norm_inf()
 template<class T>
 inline matrix4<T> & matrix4<T>::set_rot(const quaternion<T>& q)
 {
-	matrix3<T> m;
-	q.to_matrix(m);
-	set_rot(m);
+  matrix3<T> m;
+  q.to_matrix(m);
+  set_rot(m);
     return *this;
 }
 
@@ -1739,19 +1739,19 @@ inline matrix4<T> & matrix4<T>::set_rot(const matrix3<T>& M)
 template<class T>
 inline matrix4<T> & matrix4<T>::set_scale(const vector3<T>& s)
 {
-	a00 = s.x;
-	a11 = s.y;
-	a22 = s.z;
+  a00 = s.x;
+  a11 = s.y;
+  a22 = s.z;
     return *this;
 }
 
 template<class T>
 inline vector3<T>& matrix4<T>::get_scale(vector3<T>& s) const
 {
-	s.x = a00;
-	s.y = a11;
-	s.z = a22;
-	return s;
+  s.x = a00;
+  s.y = a11;
+  s.z = a22;
+  return s;
 }
 
 template<class T>
@@ -1817,9 +1817,9 @@ template<class T>
 inline quaternion<T> matrix4<T>::get_rot_quat() const
 {
     quaternion<T> q;
-	matrix3<T> m;
-	get_rot(m);
-	q.from_matrix(m);
+  matrix3<T> m;
+  get_rot(m);
+  q.from_matrix(m);
     return q;
 }
 
@@ -2493,10 +2493,123 @@ vector4<T> make_vec4(T const* const ptr)
   return Result;
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+template <typename T>
+inline PlaneSide point_on_planeside(const vector3<T>& vec, const plane<T>& p)
+{
+  float d = dot(vec, p.normal()) + p.w;
+  if(d > nv_eps)
+    return PLANESIDE_FRONT;
+  if(d < -nv_eps)
+    return PLANESIDE_BACK;
+  return PLANESIDE_ON_PLANE;
+}
+
+template <typename T>
+inline float point_distance(const vector3<T>& vec, const plane<T>& p)
+{
+  return dot(vector4<T>(vec, T(1.0)), p);
+}
+
+template <typename T>
+inline vector3<T> project_point_on_plane(const vector3<T>& point, const plane<T>& p)
+{
+  return point - p.normal() * point_distance(point, p);
+}
+
+template <typename T>
+inline void normalize_plane(plane<T>& p)
+{
+  float inv_length = 1.0f / length(p.normal());
+  p *= inv_length;
+}
+
+template <typename T>
+inline plane<T>::plane(const vector4<T>& v, NormalizeInConstruction normalizePlane)
+    : vector4<T>(v)
+{
+  if(normalizePlane)
+  {
+    normalize_plane(*this);
+  }
+};
+
+template <typename T>
+inline plane<T>::plane(const vector3<T>& normal, const vector3<T>& point, NormalizeInConstruction normalizePlane)
+{
+  vector3<T> n = normalizePlane ? normalize(normal) : normal;
+
+  this->x = n.x;
+  this->y = n.y;
+  this->z = n.z;
+  this->w = -(dot(n, point));
+};
+
+template <typename T>
+inline plane<T>::plane(const vector3<T>& normal, const float dist, NormalizeInConstruction normalizePlane)
+    : vector4<T>(normal, -dist)
+{
+  // re-normalize immediately
+  if(normalizePlane)
+  {
+    normalize_plane(*this);
+  }
+};
+
+template <typename T>
+inline plane<T>::plane(const vector3<T>& v1, const vector3<T>& v2, const vector3<T>& v3, NormalizeInConstruction normalizePlane)
+    : plane<T>(cross((v2 - v1), (v3 - v1)), v1, normalizePlane)
+{
+}
+
+template <typename T>
+inline plane<T>::plane(T a, T b, T c, T d, NormalizeInConstruction normalizePlane)
+    : vector4<T>(a,b,c,d)
+{
+  if(normalizePlane)
+  {
+    normalize_plane(*this);
+  }
+}
+
+template <typename T>
+inline plane<T>  plane<T>::operator - ()
+{
+  return plane<T>(vector4<T>::operator-());
+}
+
+
+template <typename T>
+vector3<T> get_perpendicular_vec(const vector3<T>& vec)
+{
+  vector3<T> perp;
+
+  perp.x = std::abs(vec.x);
+  perp.y = std::abs(vec.y);
+  perp.z = std::abs(vec.z);
+
+  // choose a basis vector roughly along the smallest component of the vector
+  if(perp.x <= perp.y && perp.x <= perp.z)
+  {
+    perp = vector3<T>(1.0f, 0, 0);
+  }
+  else
+  {
+    if(perp.y <= perp.x && perp.y <= perp.z)
+    {
+      perp = vector3<T>(0, 1.0f, 0);
+    }
+    else
+    {
+      perp = vector3<T>(0, 0, 1.0f);
+    }
+  }
+
+  perp = perp - (vec * (dot(perp, vec)));  // lay perp into the plane perpendicular to vec
+  return perp;
+}
+
 //////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////
 
-
-} //namespace nvmath
-
-
+} // namespace nvmath
