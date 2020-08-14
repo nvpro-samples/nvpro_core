@@ -287,8 +287,7 @@ struct RaytracingBuilderKHR
       for(auto as : cleanupAS)
         m_alloc->destroy(as);
 
-      LOGI("------------------\n");
-      LOGI("Reducing from: %u to: %u = %u (%2.2f%s smaller) \n", totOriginalSize, totCompactSize,
+      LOGI(" RT BLAS: reducing from: %u to: %u = %u (%2.2f%s smaller) \n", totOriginalSize, totCompactSize,
            totOriginalSize - totCompactSize, (totOriginalSize - totCompactSize) / float(totOriginalSize) * 100.f, "%%");
     }
 
