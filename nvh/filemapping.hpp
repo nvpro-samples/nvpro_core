@@ -28,34 +28,20 @@
 #pragma once
 
 #include <cstddef>
-#include <stdint.h>
-#include <string.h>
+#include <utility>
 
 namespace nvh {
 
 class FileMapping
 {
 public:
+
   FileMapping(FileMapping&& other)
   {
-    m_isValid     = other.m_isValid;
-    m_fileSize    = other.m_fileSize;
-    m_mappingType = other.m_mappingType;
-    m_mappingPtr  = other.m_mappingPtr;
-    m_mappingSize = other.m_mappingSize;
-#ifdef _WIN32
-    m_win32.file              = other.m_win32.file;
-    m_win32.fileMapping       = other.m_win32.fileMapping;
-    other.m_win32.file        = nullptr;
-    other.m_win32.fileMapping = nullptr;
-#else
-    m_unix.file       = other.m_unix.file;
-    other.m_unix.file = -1;
-#endif
-    other.m_isValid    = false;
-    other.m_mappingPtr = nullptr;
+    this->operator=(std::move(other));
   };
-  FileMapping& FileMapping::operator=(FileMapping&& other)
+
+  FileMapping& operator=(FileMapping&& other)
   {
     m_isValid     = other.m_isValid;
     m_fileSize    = other.m_fileSize;
@@ -73,9 +59,12 @@ public:
 #endif
     other.m_isValid    = false;
     other.m_mappingPtr = nullptr;
+
+    return *this;
   }
 
   FileMapping(const FileMapping&) = delete;
+  FileMapping& operator=(const FileMapping& other) = delete;
   FileMapping() {}
 
   ~FileMapping() { close(); }
