@@ -44,7 +44,12 @@ namespace nvvk {
 
 // useful for barriers, derive all compatible stage flags from an access mask
 
-uint32_t makeAccessMaskPipelineStageFlags(uint32_t accessMask);
+
+uint32_t makeAccessMaskPipelineStageFlags(uint32_t accessMask,
+                                          VkPipelineStageFlags supportedShaderBits = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT
+                                                                                     | VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT
+                                                                                     | VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
+                                                                                     | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
 
 void cmdBegin(VkCommandBuffer cmd, VkCommandBufferUsageFlags flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
