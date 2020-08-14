@@ -42,7 +42,7 @@ bool SwapChain::init(VkDevice device, VkPhysicalDevice physicalDevice, VkQueue q
   m_queueFamilyIndex = queueFamilyIndex;
   m_changeID         = 0;
   m_currentSemaphore = 0;
-  m_surface = surface;
+  m_surface          = surface;
 
   VkResult result;
 
@@ -218,7 +218,7 @@ VkExtent2D SwapChain::update(int width, int height, bool vsync)
 
     // imageview
     VkImageViewCreateInfo viewCreateInfo = {VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-                                            NULL,
+                                            nullptr,
                                             0,
                                             entry.image,
                                             VK_IMAGE_VIEW_TYPE_2D,
@@ -265,8 +265,8 @@ VkExtent2D SwapChain::update(int width, int height, bool vsync)
 
   m_updateWidth  = width;
   m_updateHeight = height;
-  m_vsync  = vsync;
-  m_extent = swapchainExtent;
+  m_vsync        = vsync;
+  m_extent       = swapchainExtent;
 
   m_currentSemaphore = 0;
   m_currentImage     = 0;
@@ -306,9 +306,9 @@ void SwapChain::deinit()
 {
   deinitResources();
 
-  m_physicalDevice = 0;
-  m_device         = 0;
-  m_surface        = 0;
+  m_physicalDevice = VK_NULL_HANDLE;
+  m_device         = VK_NULL_HANDLE;
+  m_surface        = VK_NULL_HANDLE;
   m_changeID       = 0;
 }
 
@@ -323,7 +323,7 @@ bool SwapChain::acquireCustom(VkSemaphore semaphore)
   for(int i = 0; i < 2; i++)
   {
     VkResult result;
-    result = vkAcquireNextImageKHR(m_device, m_swapchain, UINT64_MAX, semaphore, (VkFence)0, &m_currentImage);
+    result = vkAcquireNextImageKHR(m_device, m_swapchain, UINT64_MAX, semaphore, (VkFence)VK_NULL_HANDLE, &m_currentImage);
 
     if(result == VK_SUCCESS)
     {
@@ -397,8 +397,8 @@ void SwapChain::presentCustom(VkPresentInfoKHR& presentInfo)
 
 void SwapChain::cmdUpdateBarriers(VkCommandBuffer cmd) const
 {
-  vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, NULL, 0, NULL,
-                       m_imageCount, m_barriers.data());
+  vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0,
+                       nullptr, m_imageCount, m_barriers.data());
 }
 
 uint32_t SwapChain::getChangeID() const
