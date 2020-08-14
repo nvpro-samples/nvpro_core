@@ -581,7 +581,7 @@ VkImage DeviceMemoryAllocator::createImage(const VkImageCreateInfo& createInfo,
 
   assert(createInfo.extent.width && createInfo.extent.height && createInfo.extent.depth);
 
-  result = vkCreateImage(m_device, &createInfo, nullptr, &image);
+  result = createImageInternal(m_device, &createInfo, &image);
   if(result != VK_SUCCESS)
     return VK_NULL_HANDLE;
 
@@ -632,7 +632,7 @@ VkBuffer DeviceMemoryAllocator::createBuffer(const VkBufferCreateInfo& createInf
 
   assert(createInfo.size);
 
-  result = vkCreateBuffer(m_device, &createInfo, nullptr, &buffer);
+  result = createBufferInternal(m_device, &createInfo, &buffer);
   if(result != VK_SUCCESS)
   {
     return VK_NULL_HANDLE;
@@ -821,11 +821,11 @@ void StagingMemoryManager::deinit()
   m_device = VK_NULL_HANDLE;
 }
 
-bool StagingMemoryManager::fitsInAllocated(VkDeviceSize size) const
+bool StagingMemoryManager::fitsInAllocated(VkDeviceSize size, bool toDevice) const
 {
   for(const auto& block : m_blocks)
   {
-    if(block.buffer)
+    if(block.buffer && block.toDevice == toDevice)
     {
       if(block.range.isAvailable((uint32_t)size, 16))
       {
@@ -845,12 +845,13 @@ void* StagingMemoryManager::cmdToImage(VkCommandBuffer                 cmd,
                                        VkDeviceSize                    size,
                                        const void*                     data)
 {
-  if (!image) return nullptr;
+  if(!image)
+    return nullptr;
 
   VkBuffer     srcBuffer;
   VkDeviceSize srcOffset;
 
-  void* mapping = getStagingSpace(size, srcBuffer, srcOffset);
+  void* mapping = getStagingSpace(size, srcBuffer, srcOffset, true);
 
   assert(mapping);
 
@@ -882,7 +883,7 @@ void* StagingMemoryManager::cmdToBuffer(VkCommandBuffer cmd, VkBuffer buffer, Vk
   VkBuffer     srcBuffer;
   VkDeviceSize srcOffset;
 
-  void* mapping = getStagingSpace(size, srcBuffer, srcOffset);
+  void* mapping = getStagingSpace(size, srcBuffer, srcOffset, true);
 
   assert(mapping);
 
@@ -901,6 +902,22 @@ void* StagingMemoryManager::cmdToBuffer(VkCommandBuffer cmd, VkBuffer buffer, Vk
   return data ? nullptr : (void*)mapping;
 }
 
+const void* StagingMemoryManager::cmdFromBuffer(VkCommandBuffer cmd, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size)
+{
+  VkBuffer     dstBuffer;
+  VkDeviceSize dstOffset;
+  void* mapping = getStagingSpace(size, dstBuffer, dstOffset, false);
+
+  VkBufferCopy cpy;
+  cpy.size      = size;
+  cpy.srcOffset = offset;
+  cpy.dstOffset = dstOffset;
+
+  vkCmdCopyBuffer(cmd, buffer, dstBuffer, 1, &cpy);
+
+  return mapping;
+}
+
 void StagingMemoryManager::finalizeResources(VkFence fence)
 {
   if(m_sets[m_stagingIndex].entries.empty())
@@ -911,7 +928,7 @@ void StagingMemoryManager::finalizeResources(VkFence fence)
 }
 
 
-void* StagingMemoryManager::getStagingSpace(VkDeviceSize size, VkBuffer& buffer, VkDeviceSize& offset)
+void* StagingMemoryManager::getStagingSpace(VkDeviceSize size, VkBuffer& buffer, VkDeviceSize& offset, bool toDevice)
 {
   assert(m_sets[m_stagingIndex].index == m_stagingIndex && "illegal index, did you forget finalizeResources");
 
@@ -924,7 +941,7 @@ void* StagingMemoryManager::getStagingSpace(VkDeviceSize size, VkBuffer& buffer,
   for(uint32_t i = 0; i < (uint32_t)m_blocks.size(); i++)
   {
     Block& block = m_blocks[i];
-    if(block.buffer && block.range.subAllocate((uint32_t)size, 16, usedOffset, usedAligned, usedSize))
+    if(block.toDevice == toDevice && block.buffer && block.range.subAllocate((uint32_t)size, 16, usedOffset, usedAligned, usedSize))
     {
       blockIndex = block.index;
 
@@ -953,11 +970,12 @@ void* StagingMemoryManager::getStagingSpace(VkDeviceSize size, VkBuffer& buffer,
       blockIndex = newIndex;
     }
 
-    Block& block = m_blocks[blockIndex];
-    block.size   = std::max(m_stagingBlockSize, size);
-    block.size   = block.range.alignedSize((uint32_t)block.size);
+    Block& block   = m_blocks[blockIndex];
+    block.toDevice = toDevice;
+    block.size     = std::max(m_stagingBlockSize, size);
+    block.size     = block.range.alignedSize((uint32_t)block.size);
 
-    VkResult result = allocBlockMemory(blockIndex, block.size, true, block);
+    VkResult result = allocBlockMemory(blockIndex, block.size, toDevice, block);
     NVVK_CHECK(result);
 
     m_allocatedSize += block.size;

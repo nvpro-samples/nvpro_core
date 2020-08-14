@@ -37,7 +37,17 @@
 
 namespace nvvk {
 
+
 //////////////////////////////////////////////////////////////////////////
+
+VkExternalMemoryHandleTypeFlags DeviceMemoryAllocatorGL::getExternalMemoryHandleTypeFlags()
+{
+#ifdef VK_USE_PLATFORM_WIN32_KHR
+  return VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
+#else
+  return VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
+#endif
+}
 
 VkResult DeviceMemoryAllocatorGL::allocBlockMemory(BlockID id, VkMemoryAllocateInfo& memInfo, VkDeviceMemory& deviceMemory)
 {
@@ -57,11 +67,7 @@ VkResult DeviceMemoryAllocatorGL::allocBlockMemory(BlockID id, VkMemoryAllocateI
 
   // prepare memory allocation for export
   VkExportMemoryAllocateInfo exportInfo = {VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO};
-#ifdef VK_USE_PLATFORM_WIN32_KHR
-  exportInfo.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
-#else
-  exportInfo.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
-#endif
+  exportInfo.handleTypes = getExternalMemoryHandleTypeFlags();
 
   exportInfo.pNext = memInfo.pNext;
   memInfo.pNext    = &exportInfo;
@@ -80,9 +86,9 @@ VkResult DeviceMemoryAllocatorGL::allocBlockMemory(BlockID id, VkMemoryAllocateI
   result                                     = vkGetMemoryWin32HandleKHR(m_device, &memGetHandle, &blockGL.handle);
 #else
   VkMemoryGetFdInfoKHR memGetHandle = {VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR};
-  memGetHandle.memory                        = deviceMemory;
-  memGetHandle.handleType                    = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
-  result                                     = vkGetMemoryFdKHR(m_device, &memGetHandle, &blockGL.handle);
+  memGetHandle.memory               = deviceMemory;
+  memGetHandle.handleType           = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
+  result                            = vkGetMemoryFdKHR(m_device, &memGetHandle, &blockGL.handle);
 #endif
   if(result != VK_SUCCESS)
   {
@@ -92,7 +98,7 @@ VkResult DeviceMemoryAllocatorGL::allocBlockMemory(BlockID id, VkMemoryAllocateI
   GLint param = isDedicated ? GL_TRUE : GL_FALSE;
   glCreateMemoryObjectsEXT(1, &blockGL.memoryObject);
   glMemoryObjectParameterivEXT(blockGL.memoryObject, GL_DEDICATED_MEMORY_OBJECT_EXT, &param);
-#ifdef WIN32
+#ifdef VK_USE_PLATFORM_WIN32_KHR
   glImportMemoryWin32HandleEXT(blockGL.memoryObject, memInfo.allocationSize, GL_HANDLE_TYPE_OPAQUE_WIN32_EXT, blockGL.handle);
 #else
   glImportMemoryFdEXT(blockGL.memoryObject, memInfo.allocationSize, GL_HANDLE_TYPE_OPAQUE_FD_EXT, blockGL.handle);
@@ -117,7 +123,7 @@ void DeviceMemoryAllocatorGL::freeBlockMemory(BlockID id, VkDeviceMemory deviceM
   CloseHandle(blockGL.handle);
   blockGL.handle = NULL;
 #else
-  if (blockGL.handle != -1)
+  if(blockGL.handle != -1)
   {
     close(blockGL.handle);
     blockGL.handle = -1;
@@ -136,6 +142,27 @@ void DeviceMemoryAllocatorGL::resizeBlocks(uint32_t count)
     m_blockGLs.resize(count);
   }
 }
+
+VkResult DeviceMemoryAllocatorGL::createBufferInternal(VkDevice device, const VkBufferCreateInfo* info, VkBuffer* buffer)
+{
+  VkBufferCreateInfo               infoNew  = *info;
+  VkExternalMemoryBufferCreateInfo external = {VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_BUFFER_CREATE_INFO};
+  external.handleTypes = getExternalMemoryHandleTypeFlags();
+  external.pNext = infoNew.pNext;
+  infoNew.pNext  = &external;
+  return vkCreateBuffer(device, &infoNew, nullptr, buffer);
+}
+
+VkResult DeviceMemoryAllocatorGL::createImageInternal(VkDevice device, const VkImageCreateInfo* info, VkImage* image)
+{
+  VkImageCreateInfo               infoNew  = *info;
+  VkExternalMemoryImageCreateInfo external = {VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO};
+  external.handleTypes = getExternalMemoryHandleTypeFlags();
+  external.pNext = infoNew.pNext;
+  infoNew.pNext  = &external;
+  return vkCreateImage(device, &infoNew, nullptr, image);
+}
+
 }  // namespace nvvk
 
 

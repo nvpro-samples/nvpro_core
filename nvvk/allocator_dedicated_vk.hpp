@@ -30,9 +30,9 @@
 #include <vector>
 #include <vulkan/vulkan.h>
 
+#include "error_vk.hpp"
 #include "images_vk.hpp"
 #include "samplers_vk.hpp"
-#include "error_vk.hpp"
 
 #include <memory>
 
@@ -123,8 +123,8 @@ public:
   virtual BufferDedicated createBuffer(const VkBufferCreateInfo& info_, const VkMemoryPropertyFlags memUsage_ = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
   {
     BufferDedicated resultBuffer;
-    // 1. Create Buffer
-    NVVK_CHECK(vkCreateBuffer(m_device, &info_, nullptr, &resultBuffer.buffer));
+    // 1. Create Buffer (can be overloaded)
+    CreateBufferEx(info_, &resultBuffer.buffer);  // Potentially adding handle
 
     // 2. Find memory requirements
     VkMemoryRequirements2           memReqs{VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2};
@@ -219,7 +219,7 @@ public:
   {
     ImageDedicated resultImage;
     // 1. Create image
-    NVVK_CHECK(vkCreateImage(m_device, &info_, nullptr, &resultImage.image));
+    CreateImageEx(info_, &resultImage.image);
 
     // 2. Find memory requirements
     VkMemoryRequirements2          memReqs{VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2};
@@ -328,12 +328,12 @@ public:
   // - creates the texture part by associating image and sampler
   //
   TextureDedicated createTexture(const VkCommandBuffer&     cmdBuff,
-                           size_t                     size_,
-                           const void*                data_,
-                           const VkImageCreateInfo&   info_,
-                           const VkSamplerCreateInfo& samplerCreateInfo,
-                           const VkImageLayout&       layout_ = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                           bool                       isCube  = false)
+                                 size_t                     size_,
+                                 const void*                data_,
+                                 const VkImageCreateInfo&   info_,
+                                 const VkSamplerCreateInfo& samplerCreateInfo,
+                                 const VkImageLayout&       layout_ = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                                 bool                       isCube  = false)
   {
     ImageDedicated image = createImage(cmdBuff, size_, data_, info_, layout_);
 
@@ -367,12 +367,12 @@ public:
   }
 #ifdef VULKAN_HPP
   inline TextureDedicated createTexture(const vk::CommandBuffer&     cmdBuff,
-                                  size_t                       size_,
-                                  const void*                  data_,
-                                  const vk::ImageCreateInfo&   info_,
-                                  const vk::SamplerCreateInfo& samplerCreateInfo,
-                                  const vk::ImageLayout&       layout_ = vk::ImageLayout::eShaderReadOnlyOptimal,
-                                  bool                         isCube  = false)
+                                        size_t                       size_,
+                                        const void*                  data_,
+                                        const vk::ImageCreateInfo&   info_,
+                                        const vk::SamplerCreateInfo& samplerCreateInfo,
+                                        const vk::ImageLayout&       layout_ = vk::ImageLayout::eShaderReadOnlyOptimal,
+                                        bool                         isCube  = false)
   {
     return createTexture(static_cast<VkCommandBuffer>(cmdBuff), size_, data_, info_, samplerCreateInfo,
                          static_cast<VkImageLayout>(layout_), isCube);
@@ -530,6 +530,16 @@ protected:
     return mem;
   }
 
+  virtual void CreateBufferEx(const VkBufferCreateInfo& info_, VkBuffer* buffer)
+  {
+    NVVK_CHECK(vkCreateBuffer(m_device, &info_, nullptr, buffer));
+  }
+
+  virtual void CreateImageEx(const VkImageCreateInfo& info_, VkImage* image)
+  {
+    NVVK_CHECK(vkCreateImage(m_device, &info_, nullptr, image));
+  }
+
   void checkMemory(const VkDeviceMemory& memory)
   {
     // If there is a leak in a DeviceMemory allocation, set the ID here to catch the object
@@ -668,6 +678,33 @@ public:
 class AllocatorVkExport : public AllocatorDedicated
 {
 protected:
+  void CreateBufferEx(const VkBufferCreateInfo& info_, VkBuffer* buffer) override
+  {
+    VkBufferCreateInfo               info = info_;
+    VkExternalMemoryBufferCreateInfo infoEx{VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_BUFFER_CREATE_INFO};
+#ifdef WIN32
+    infoEx.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
+#else
+    infoEx.handleTypes         = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
+#endif
+    info.pNext = &infoEx;
+    NVVK_CHECK(vkCreateBuffer(m_device, &info, nullptr, buffer));
+  }
+
+  void CreateImageEx(const VkImageCreateInfo& info_, VkImage* image) override
+  {
+    auto                            info = info_;
+    VkExternalMemoryImageCreateInfo infoEx{VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO};
+#ifdef WIN32
+    infoEx.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
+#else
+    infoEx.handleTypes         = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
+#endif
+    info.pNext = &infoEx;
+    NVVK_CHECK(vkCreateImage(m_device, &info, nullptr, image));
+  }
+
+
   // Override the standard allocation
   VkDeviceMemory AllocateMemory(VkMemoryAllocateInfo& allocateInfo) override
   {
@@ -677,7 +714,6 @@ protected:
 #else
     memoryHandleEx.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
 #endif
-
     allocateInfo.pNext = &memoryHandleEx;  // <-- Enabling Export
     VkDeviceMemory mem;
     NVVK_CHECK(vkAllocateMemory(m_device, &allocateInfo, nullptr, &mem));
@@ -695,7 +731,7 @@ public:
   void init(VkDevice device, VkPhysicalDevice physicalDevice, uint32_t deviceMask)
   {
     AllocatorDedicated::init(device, physicalDevice);
-    m_deviceMask     = deviceMask;
+    m_deviceMask = deviceMask;
   }
 
 protected:

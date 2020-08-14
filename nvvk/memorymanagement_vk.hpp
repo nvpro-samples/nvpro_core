@@ -526,6 +526,16 @@ protected:
     vkFreeMemory(m_device, deviceMemory, nullptr);
   }
   virtual void resizeBlocks(uint32_t count) {}
+
+  virtual VkResult createBufferInternal(VkDevice device, const VkBufferCreateInfo* info, VkBuffer* buffer)
+  {
+    return vkCreateBuffer(device, info, nullptr, buffer);
+  }
+
+  virtual VkResult createImageInternal(VkDevice device, const VkImageCreateInfo* info, VkImage* image)
+  {
+    return vkCreateImage(device, info, nullptr, image);
+  }
 };
 
 //////////////////////////////////////////////////////////////////
@@ -622,7 +632,7 @@ public:
   void setFreeUnusedOnRelease(bool state) { m_freeOnRelease = state; }
 
   // test if there is enough space in current allocations
-  bool fitsInAllocated(VkDeviceSize size) const;
+  bool fitsInAllocated(VkDeviceSize size, bool toDevice = true) const;
 
   // if data != nullptr memcpies to mapping and returns nullptr
   // otherwise returns temporary mapping (valid until "complete" functions)
@@ -636,7 +646,7 @@ public:
 
 
   // if data != nullptr memcpies to mapping and returns nullptr
-  // otherwise returns temporary mapping (valid until "complete" functions)
+  // otherwise returns temporary mapping (valid until appropriate release)
   void* cmdToBuffer(VkCommandBuffer cmd, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size, const void* data);
 
   template <class T>
@@ -644,6 +654,17 @@ public:
   {
     return (T*)cmdToBuffer(cmd, buffer, offset, size, nullptr);
   }
+
+  // pointer is only valid until associated resources haven't been released
+  const void* cmdFromBuffer(VkCommandBuffer cmd, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size);
+  
+  template <class T>
+  const T* cmdFromBufferT(VkCommandBuffer cmd, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size)
+  {
+    return (const T*)cmdFromBuffer(cmd, buffer, offset, size);
+  }
+
+  // FIXME readback "from" tasks may not want to use a fence
 
   // closes the batch of staging resources since last finalizeResources call
   // and associates it with a fence for later release.
@@ -677,6 +698,7 @@ protected:
     VkDeviceSize              size   = 0;
     VkBuffer                  buffer = VK_NULL_HANDLE;
     VkDeviceMemory            memory = VK_NULL_HANDLE;
+    bool                      toDevice = true;
     nvh::TRangeAllocator<256> range;
     uint8_t*                  mapping;
   };
@@ -728,7 +750,7 @@ protected:
 
   uint32_t newStagingIndex();
 
-  void* getStagingSpace(VkDeviceSize size, VkBuffer& buffer, VkDeviceSize& offset);
+  void* getStagingSpace(VkDeviceSize size, VkBuffer& buffer, VkDeviceSize& offset, bool toDevice);
 
   Block& getBlock(uint32_t index)
   {

@@ -87,6 +87,8 @@ public:
     return alloc;
   }
 
+  static VkExternalMemoryHandleTypeFlags getExternalMemoryHandleTypeFlags();
+
 protected:
   struct BlockGL
   {
@@ -109,6 +111,10 @@ protected:
   VkResult allocBlockMemory(BlockID id, VkMemoryAllocateInfo& memInfo, VkDeviceMemory& deviceMemory) override;
   void     freeBlockMemory(BlockID id, VkDeviceMemory deviceMemory) override;
   void     resizeBlocks(uint32_t count) override;
+
+  VkResult createBufferInternal(VkDevice device, const VkBufferCreateInfo* info, VkBuffer* buffer) override;
+  VkResult createImageInternal(VkDevice device, const VkImageCreateInfo* info, VkImage* image) override;
+
 };
 }  // namespace nvvk
 #endif
