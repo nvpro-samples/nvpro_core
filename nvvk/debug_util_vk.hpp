@@ -73,15 +73,15 @@ public:
   void setObjectName(VkFramebuffer object, const std::string& name)             { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_FRAMEBUFFER); }
   void setObjectName(VkImage object, const std::string& name)                   { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_IMAGE); }
   void setObjectName(VkImageView object, const std::string& name)               { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_IMAGE_VIEW); }
-  void setObjectName(VkSampler object, const std::string& name)                 { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_SAMPLER); }
   void setObjectName(VkPipeline object, const std::string& name)                { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_PIPELINE); }
   void setObjectName(VkPipelineLayout object, const std::string& name)          { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_PIPELINE_LAYOUT); }
+  void setObjectName(VkQueryPool object, const std::string& name)               { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_QUERY_POOL); }
   void setObjectName(VkQueue object, const std::string& name)                   { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_QUEUE); }
   void setObjectName(VkRenderPass object, const std::string& name)              { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_RENDER_PASS); }
+  void setObjectName(VkSampler object, const std::string& name)                 { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_SAMPLER); }
   void setObjectName(VkSemaphore object, const std::string& name)               { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_SEMAPHORE); }
   void setObjectName(VkShaderModule object, const std::string& name)            { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_SHADER_MODULE); }
   void setObjectName(VkSwapchainKHR object, const std::string& name)            { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_SWAPCHAIN_KHR); }
-  void setObjectName(VkQueryPool object, const std::string& name)               { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_QUERY_POOL); }
   // clang-format on
 
   //
