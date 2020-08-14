@@ -145,6 +145,10 @@ public:
   void deleteShaderModules();
   bool areShaderModulesValid();
 
+#if USESHADERC
+  void setOptimizationLevel(shaderc_optimization_level level) { m_shadercOptimizationLevel = level; }
+#endif
+
 
   bool                isValid(ShaderModuleID idx) const;
   VkShaderModule      get(ShaderModuleID idx) const;
@@ -245,13 +249,14 @@ private:
   DefaultInterface m_defaultSetupIF;
   SetupInterface*  m_usedSetupIF = nullptr;
 
-  int  m_apiMajor       = 1;
-  int  m_apiMinor       = 1;
+  int m_apiMajor = 1;
+  int m_apiMinor = 1;
 
 #if USESHADERC
-  static shaderc_compiler_t s_shadercCompiler;
-  static uint32_t           s_shadercCompilerUsers;
-  shaderc_compile_options_t m_shadercOptions = nullptr;
+  static shaderc_compiler_t  s_shadercCompiler;
+  static uint32_t            s_shadercCompilerUsers;
+  shaderc_compile_options_t  m_shadercOptions           = nullptr;
+  shaderc_optimization_level m_shadercOptimizationLevel = shaderc_optimization_level_performance;
 #endif
 
   std::vector<ShaderModule> m_shadermodules;

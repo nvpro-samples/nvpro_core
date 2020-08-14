@@ -198,7 +198,9 @@ bool ShaderModuleManager::setupShaderModule(ShaderModule& module)
         {
           shaderc_compile_options_set_target_env(m_shadercOptions, shaderc_target_env_vulkan, shaderc_env_version_vulkan_1_2);
         }
-        shaderc_compile_options_set_optimization_level(m_shadercOptions, shaderc_optimization_level_performance);
+
+        shaderc_compile_options_set_optimization_level(m_shadercOptions, m_shadercOptimizationLevel);
+
         options = m_shadercOptions;
       }
 
@@ -212,7 +214,30 @@ bool ShaderModuleManager::setupShaderModule(ShaderModule& module)
 
       if(shaderc_result_get_compilation_status(result) != shaderc_compilation_status_success)
       {
-        LOGW("%s\n", shaderc_result_get_error_message(result));
+        bool failedToOptimize = strstr(shaderc_result_get_error_message(result), "failed to optimize");
+        int  level            = failedToOptimize ? LOGLEVEL_WARNING : LOGLEVEL_ERROR;
+        nvprintfLevel(level, "%s: optimization_level_performance\n", definition.filename.c_str());
+        nvprintfLevel(level, "  %s\n", definition.prepend.c_str());
+        nvprintfLevel(level, "  %s\n", shaderc_result_get_error_message(result));
+        shaderc_result_release(result);
+
+        if(!failedToOptimize || options != m_shadercOptions)
+        {
+          return false;
+        }
+
+        // try again without optimization
+        shaderc_compile_options_set_optimization_level(m_shadercOptions, shaderc_optimization_level_zero);
+
+        result = shaderc_compile_into_spv(s_shadercCompiler, definition.content.c_str(), definition.content.size(),
+                                          shaderkind, definition.filename.c_str(), "main", options);
+      }
+
+      if(shaderc_result_get_compilation_status(result) != shaderc_compilation_status_success)
+      {
+        LOGE("%s: optimization_level_zero\n", definition.filename.c_str());
+        LOGE("  %s\n", definition.prepend.c_str());
+        LOGE("  %s\n", shaderc_result_get_error_message(result));
         shaderc_result_release(result);
         return false;
       }
@@ -250,7 +275,7 @@ bool ShaderModuleManager::setupShaderModule(ShaderModule& module)
 void ShaderModuleManager::init(VkDevice device, int apiMajor, int apiMinor)
 {
   assert(!m_device);
-  m_device = device;
+  m_device   = device;
   m_apiMajor = apiMajor;
   m_apiMinor = apiMinor;
 }
