@@ -259,27 +259,33 @@ public:
                                  uint32_t            dstBinding,
                                  const VkBufferView* pTexelBufferView,
                                  uint32_t            arrayElement = 0) const;
+#if VK_NV_ray_tracing
   VkWriteDescriptorSet makeWrite(VkDescriptorSet                                    dstSet,
                                  uint32_t                                           dstBinding,
                                  const VkWriteDescriptorSetAccelerationStructureNV* pAccel,
                                  uint32_t                                           arrayElement = 0) const;
+#endif
+#if VK_EXT_inline_uniform_block
   VkWriteDescriptorSet makeWrite(VkDescriptorSet                                  dstSet,
                                  uint32_t                                         dstBinding,
                                  const VkWriteDescriptorSetInlineUniformBlockEXT* pInlineUniform,
                                  uint32_t                                         arrayElement = 0) const;
-
+#endif
   // provide full array
   VkWriteDescriptorSet makeWriteArray(VkDescriptorSet dstSet, uint32_t dstBinding) const;
   VkWriteDescriptorSet makeWriteArray(VkDescriptorSet dstSet, uint32_t dstBinding, const VkDescriptorImageInfo* pImageInfo) const;
   VkWriteDescriptorSet makeWriteArray(VkDescriptorSet dstSet, uint32_t dstBinding, const VkDescriptorBufferInfo* pBufferInfo) const;
   VkWriteDescriptorSet makeWriteArray(VkDescriptorSet dstSet, uint32_t dstBinding, const VkBufferView* pTexelBufferView) const;
+#if VK_NV_ray_tracing
   VkWriteDescriptorSet makeWriteArray(VkDescriptorSet                                    dstSet,
                                       uint32_t                                           dstBinding,
                                       const VkWriteDescriptorSetAccelerationStructureNV* pAccel) const;
+#endif
+#if VK_EXT_inline_uniform_block
   VkWriteDescriptorSet makeWriteArray(VkDescriptorSet                                  dstSet,
                                       uint32_t                                         dstBinding,
                                       const VkWriteDescriptorSetInlineUniformBlockEXT* pInline) const;
-
+#endif
 #ifdef VULKAN_HPP
   void addBinding(uint32_t binding,           // Slot to which the descriptor will be bound, corresponding to the layout
                                               // binding index in the shader
@@ -328,6 +334,7 @@ public:
   {
     return makeWrite(dstSet, dstBinding, reinterpret_cast<const VkBufferView*>(pTexelBufferView), arrayElement);
   }
+#if VK_NV_ray_tracing
   vk::WriteDescriptorSet makeWrite(vk::DescriptorSet                                    dstSet,
                                    uint32_t                                             dstBinding,
                                    const vk::WriteDescriptorSetAccelerationStructureNV* pAccel,
@@ -335,6 +342,8 @@ public:
   {
     return makeWrite(dstSet, dstBinding, reinterpret_cast<const VkWriteDescriptorSetAccelerationStructureNV*>(pAccel), arrayElement);
   }
+#endif
+#if VK_EXT_inline_uniform_block
   vk::WriteDescriptorSet makeWrite(vk::DescriptorSet                                  dstSet,
                                    uint32_t                                           dstBinding,
                                    const vk::WriteDescriptorSetInlineUniformBlockEXT* pInlineUniform,
@@ -343,6 +352,7 @@ public:
     return makeWrite(dstSet, dstBinding,
                      reinterpret_cast<const VkWriteDescriptorSetInlineUniformBlockEXT*>(pInlineUniform), arrayElement);
   }
+#endif
   vk::WriteDescriptorSet makeWriteArray(vk::DescriptorSet dstSet, uint32_t dstBinding, const vk::DescriptorImageInfo* pImageInfo) const
   {
     return makeWriteArray(dstSet, dstBinding, reinterpret_cast<const VkDescriptorImageInfo*>(pImageInfo));
@@ -355,18 +365,22 @@ public:
   {
     return makeWriteArray(dstSet, dstBinding, reinterpret_cast<const VkBufferView*>(pTexelBufferView));
   }
+#if VK_NV_ray_tracing
   vk::WriteDescriptorSet makeWriteArray(vk::DescriptorSet                                    dstSet,
                                         uint32_t                                             dstBinding,
                                         const vk::WriteDescriptorSetAccelerationStructureNV* pAccel) const
   {
     return makeWriteArray(dstSet, dstBinding, reinterpret_cast<const VkWriteDescriptorSetAccelerationStructureNV*>(pAccel));
   }
+#endif
+#if VK_EXT_inline_uniform_block
   vk::WriteDescriptorSet makeWriteArray(vk::DescriptorSet                                  dstSet,
                                         uint32_t                                           dstBinding,
                                         const vk::WriteDescriptorSetInlineUniformBlockEXT* pInline) const
   {
     return makeWriteArray(dstSet, dstBinding, reinterpret_cast<const VkWriteDescriptorSetInlineUniformBlockEXT*>(pInline));
   }
+#endif
 #endif
 
 private:
@@ -473,6 +487,7 @@ public:
   {
     return m_bindings.makeWrite(getSet(dstSetIdx), dstBinding, pTexelBufferView, arrayElement);
   }
+#if VK_NV_ray_tracing
   VkWriteDescriptorSet makeWrite(uint32_t                                           dstSetIdx,
                                  uint32_t                                           dstBinding,
                                  const VkWriteDescriptorSetAccelerationStructureNV* pAccel,
@@ -480,6 +495,8 @@ public:
   {
     return m_bindings.makeWrite(getSet(dstSetIdx), dstBinding, pAccel, arrayElement);
   }
+#endif
+#if VK_EXT_inline_uniform_block
   VkWriteDescriptorSet makeWrite(uint32_t                                         dstSetIdx,
                                  uint32_t                                         dstBinding,
                                  const VkWriteDescriptorSetInlineUniformBlockEXT* pInline,
@@ -487,7 +504,7 @@ public:
   {
     return m_bindings.makeWrite(getSet(dstSetIdx), dstBinding, pInline, arrayElement);
   }
-
+#endif
   // provide full array
   VkWriteDescriptorSet makeWriteArray(uint32_t dstSetIdx, uint32_t dstBinding, const VkDescriptorImageInfo* pImageInfo) const
   {
@@ -501,15 +518,18 @@ public:
   {
     return m_bindings.makeWriteArray(getSet(dstSetIdx), dstBinding, pTexelBufferView);
   }
+#if VK_NV_ray_tracing
   VkWriteDescriptorSet makeWriteArray(uint32_t dstSetIdx, uint32_t dstBinding, const VkWriteDescriptorSetAccelerationStructureNV* pAccel) const
   {
     return m_bindings.makeWriteArray(getSet(dstSetIdx), dstBinding, pAccel);
   }
+#endif
+#if VK_EXT_inline_uniform_block
   VkWriteDescriptorSet makeWriteArray(uint32_t dstSetIdx, uint32_t dstBinding, const VkWriteDescriptorSetInlineUniformBlockEXT* pInline) const
   {
     return m_bindings.makeWriteArray(getSet(dstSetIdx), dstBinding, pInline);
   }
-
+#endif
 #ifdef VULKAN_HPP
   void addBinding(uint32_t binding,           // Slot to which the descriptor will be bound, corresponding to the layout
                                               // binding index in the shader
@@ -547,6 +567,7 @@ public:
   {
     return m_bindings.makeWrite(getSet(dstSetIdx), dstBinding, reinterpret_cast<const VkBufferView*>(pTexelBufferView), arrayElement);
   }
+#if VK_NV_ray_tracing
   vk::WriteDescriptorSet makeWrite(uint32_t                                             dstSetIdx,
                                    uint32_t                                             dstBinding,
                                    const vk::WriteDescriptorSetAccelerationStructureNV* pAccel,
@@ -555,6 +576,7 @@ public:
     return m_bindings.makeWrite(getSet(dstSetIdx), dstBinding,
                                 reinterpret_cast<const VkWriteDescriptorSetAccelerationStructureNV*>(pAccel), arrayElement);
   }
+#endif
   vk::WriteDescriptorSet makeWrite(uint32_t                                           dstSetIdx,
                                    uint32_t                                           dstBinding,
                                    const vk::WriteDescriptorSetInlineUniformBlockEXT* pInlineUniform,
@@ -575,16 +597,20 @@ public:
   {
     return m_bindings.makeWriteArray(getSet(dstSetIdx), dstBinding, reinterpret_cast<const VkBufferView*>(pTexelBufferView));
   }
+#if VK_NV_ray_tracing
   vk::WriteDescriptorSet makeWriteArray(uint32_t dstSetIdx, uint32_t dstBinding, const vk::WriteDescriptorSetAccelerationStructureNV* pAccel) const
   {
     return m_bindings.makeWriteArray(getSet(dstSetIdx), dstBinding,
                                      reinterpret_cast<const VkWriteDescriptorSetAccelerationStructureNV*>(pAccel));
   }
+#endif
+#if VK_EXT_inline_uniform_block
   vk::WriteDescriptorSet makeWriteArray(uint32_t dstSetIdx, uint32_t dstBinding, const vk::WriteDescriptorSetInlineUniformBlockEXT* pInline) const
   {
     return m_bindings.makeWriteArray(getSet(dstSetIdx), dstBinding,
                                      reinterpret_cast<const VkWriteDescriptorSetInlineUniformBlockEXT*>(pInline));
   }
+#endif
 #endif
 protected:
   VkDevice                     m_device         = VK_NULL_HANDLE;

@@ -79,12 +79,13 @@ struct TextureDedicated
   VkDescriptorImageInfo descriptor{};
 };
 
+#if VK_NV_ray_tracing
 struct AccelerationDedicatedNV
 {
   VkAccelerationStructureNV accel{VK_NULL_HANDLE};
   VkDeviceMemory            allocation{VK_NULL_HANDLE};
 };
-
+#endif
 #if VK_KHR_ray_tracing
 struct AccelerationDedicatedKHR
 {
@@ -378,7 +379,7 @@ public:
                          static_cast<VkImageLayout>(layout_), isCube);
   }
 #endif
-
+#if VK_NV_ray_tracing
   //--------------------------------------------------------------------------------------------------
   // Create the acceleration structure
   //
@@ -409,7 +410,7 @@ public:
     NVVK_CHECK(vkBindAccelerationStructureMemoryNV(m_device, 1, &bind));
     return resultAccel;
   }
-
+#endif
 
 #if VK_KHR_ray_tracing
   //--------------------------------------------------------------------------------------------------
@@ -480,12 +481,13 @@ public:
     vkFreeMemory(m_device, i_.allocation, nullptr);
   }
 
+#if VK_NV_ray_tracing
   void destroy(AccelerationDedicatedNV& a_)
   {
     vkDestroyAccelerationStructureNV(m_device, a_.accel, nullptr);
     vkFreeMemory(m_device, a_.allocation, nullptr);
   }
-
+#endif
 #if VK_KHR_ray_tracing
   void destroy(AccelerationDedicatedKHR& a_)
   {
@@ -653,10 +655,12 @@ public:
                        static_cast<VkImageLayout>(layout_));
   }
 
+#if VK_NV_ray_tracing
   AccelerationDedicatedNV createAcceleration(vk::AccelerationStructureCreateInfoNV& accel_)
   {
     return createAcceleration(static_cast<VkAccelerationStructureCreateInfoNV&>(accel_));
   }
+#endif
 
 #if VK_KHR_ray_tracing
   AccelerationDedicatedKHR createAcceleration(vk::AccelerationStructureCreateInfoKHR& accel_)

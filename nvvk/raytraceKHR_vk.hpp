@@ -60,6 +60,8 @@ const VkAccelerationStructureNV& tlas = m.rtBuilder.getAccelerationStructure()
 
 #include "nvh/nvprint.hpp"
 
+#if VK_KHR_ray_tracing
+
 namespace nvvk {
 struct RaytracingBuilderKHR
 {
@@ -632,3 +634,7 @@ public:
 };
 
 }  // namespace nvvk
+
+#else
+  #error This include requires VK_KHR_ray_tracing support in the Vulkan SDK.
+#endif

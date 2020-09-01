@@ -57,12 +57,13 @@ struct TextureVma
   VkDescriptorImageInfo descriptor{};
 };
 
+#if VK_NV_ray_tracing
 struct AccelerationVmaNV
 {
   VkAccelerationStructureNV accel{VK_NULL_HANDLE};
   VmaAllocation             allocation{nullptr};
 };
-
+#endif
 #if VK_KHR_ray_tracing
 struct AccelerationVmaKHR
 {
@@ -406,6 +407,7 @@ public:
   }
 #endif
 
+#if VK_NV_ray_tracing
   //--------------------------------------------------------------------------------------------------
   // Create the acceleration structure
   //
@@ -457,7 +459,7 @@ public:
     resultAccel.allocation = allocation;
     return resultAccel;
   }
-
+#endif
 #if VK_KHR_ray_tracing
 
   //--------------------------------------------------------------------------------------------------
@@ -576,7 +578,7 @@ public:
     t_ = TextureVma();
   }
 
-
+#if VK_NV_ray_tracing
   void destroy(AccelerationVmaNV& accel)
   {
     if(accel.accel)
@@ -590,7 +592,7 @@ public:
 
     accel = AccelerationVmaNV();
   }
-
+#endif
 #if VK_KHR_ray_tracing
   void destroy(AccelerationVmaKHR& accel)
   {

@@ -58,6 +58,8 @@ const VkAccelerationStructureNV& tlas = m.rtBuilder.getAccelerationStructure()
 #include "nvh/nvprint.hpp"
 #include "nvmath/nvmath.h"
 
+#if VK_NV_ray_tracing
+
 // See https://www.khronos.org/registry/vulkan/specs/1.1-extensions/html/chap33.html#acceleration-structure
 struct VkGeometryInstanceNV
 {
@@ -167,7 +169,7 @@ struct RaytracingBuilderNV
       memoryRequirementsInfo.accelerationStructure = blas.as.accel;
 
 
-      VkMemoryRequirements2 reqMem;
+      VkMemoryRequirements2 reqMem{VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2};
       vkGetAccelerationStructureMemoryRequirementsNV(m_device, &memoryRequirementsInfo, &reqMem);
       VkDeviceSize scratchSize = reqMem.memoryRequirements.size;
 
@@ -325,7 +327,7 @@ struct RaytracingBuilderNV
     memoryRequirementsInfo.type                  = VK_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_TYPE_BUILD_SCRATCH_NV;
     memoryRequirementsInfo.accelerationStructure = m_tlas.as.accel;
 
-    VkMemoryRequirements2 reqMem;
+    VkMemoryRequirements2 reqMem{VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2};
     vkGetAccelerationStructureMemoryRequirementsNV(m_device, &memoryRequirementsInfo, &reqMem);
     VkDeviceSize scratchSize = reqMem.memoryRequirements.size;
 
@@ -397,7 +399,7 @@ struct RaytracingBuilderNV
     memoryRequirementsInfo.type                  = VK_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_TYPE_UPDATE_SCRATCH_NV;
     memoryRequirementsInfo.accelerationStructure = m_tlas.as.accel;
 
-    VkMemoryRequirements2 reqMem;
+    VkMemoryRequirements2 reqMem{VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2};
     vkGetAccelerationStructureMemoryRequirementsNV(m_device, &memoryRequirementsInfo, &reqMem);
     VkDeviceSize scratchSize = reqMem.memoryRequirements.size;
 
@@ -445,7 +447,7 @@ struct RaytracingBuilderNV
     memoryRequirementsInfo.type                  = VK_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_TYPE_UPDATE_SCRATCH_NV;
     memoryRequirementsInfo.accelerationStructure = blas.as.accel;
 
-    VkMemoryRequirements2 reqMem;
+    VkMemoryRequirements2 reqMem{VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2};
     vkGetAccelerationStructureMemoryRequirementsNV(m_device, &memoryRequirementsInfo, &reqMem);
     VkDeviceSize scratchSize = reqMem.memoryRequirements.size;
 
@@ -514,3 +516,7 @@ public:
 };
 
 }  // namespace nvvk
+
+#else
+  #error This include requires VK_NV_ray_tracing support in the Vulkan SDK.
+#endif

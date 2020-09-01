@@ -61,7 +61,9 @@ public:
   }
 
   // clang-format off
+#if VK_NV_ray_tracing
   void setObjectName(VkAccelerationStructureNV object, const std::string& name) { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_NV); }
+#endif
   void setObjectName(VkBuffer object, const std::string& name)                  { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_BUFFER); }
   void setObjectName(VkBufferView object, const std::string& name)              { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_BUFFER_VIEW); }
   void setObjectName(VkCommandBuffer object, const std::string& name)           { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_COMMAND_BUFFER ); }

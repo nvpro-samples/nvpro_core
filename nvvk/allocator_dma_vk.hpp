@@ -109,13 +109,13 @@ struct TextureDma
   AllocationID          allocation;
   VkDescriptorImageInfo descriptor{};
 };
-
+#if VK_NV_ray_tracing
 struct AccelerationDmaNV
 {
   VkAccelerationStructureNV accel = VK_NULL_HANDLE;
   AllocationID              allocation;
 };
-
+#endif
 #if VK_KHR_ray_tracing
 struct AccelerationDmaKHR
 {
@@ -343,6 +343,7 @@ public:
                           isCube );
   }
 #endif
+#if VK_NV_ray_tracing
   //--------------------------------------------------------------------------------------------------
   // Create the acceleration structure
   //
@@ -354,7 +355,7 @@ public:
 
     return resultAccel;
   }
-
+#endif
 #if VK_KHR_ray_tracing
   AccelerationDmaKHR createAcceleration(VkAccelerationStructureCreateInfoKHR& accel,
                                         VkMemoryPropertyFlags memProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
@@ -427,7 +428,7 @@ public:
 
     t_ = TextureDma();
   }
-
+#if VK_NV_ray_tracing
   void destroy(AccelerationDmaNV& accel)
   {
     if(accel.accel)
@@ -441,7 +442,7 @@ public:
 
     accel = AccelerationDmaNV();
   }
-
+#endif
 
 #if VK_KHR_ray_tracing
   void destroy(AccelerationDmaKHR& accel)
@@ -515,10 +516,12 @@ public:
                        static_cast<VkImageLayout>(layout_));
   }
 
+#if VK_NV_ray_tracing
   AccelerationDmaNV createAcceleration(vk::AccelerationStructureCreateInfoNV& accel_)
   {
     return createAcceleration(static_cast<VkAccelerationStructureCreateInfoNV&>(accel_));
   }
+#endif
 #endif
 };
 

@@ -319,6 +319,7 @@ VkWriteDescriptorSet DescriptorSetBindings::makeWrite(VkDescriptorSet     dstSet
   return writeSet;
 }
 
+#if VK_NV_ray_tracing
 VkWriteDescriptorSet DescriptorSetBindings::makeWrite(VkDescriptorSet                                    dstSet,
                                                       uint32_t                                           dstBinding,
                                                       const VkWriteDescriptorSetAccelerationStructureNV* pAccel,
@@ -330,7 +331,8 @@ VkWriteDescriptorSet DescriptorSetBindings::makeWrite(VkDescriptorSet           
   writeSet.pNext = pAccel;
   return writeSet;
 }
-
+#endif
+#if VK_EXT_inline_uniform_block
 VkWriteDescriptorSet DescriptorSetBindings::makeWrite(VkDescriptorSet                                  dstSet,
                                                       uint32_t                                         dstBinding,
                                                       const VkWriteDescriptorSetInlineUniformBlockEXT* pInline,
@@ -342,7 +344,7 @@ VkWriteDescriptorSet DescriptorSetBindings::makeWrite(VkDescriptorSet           
   writeSet.pNext = pInline;
   return writeSet;
 }
-
+#endif
 VkWriteDescriptorSet DescriptorSetBindings::makeWriteArray(VkDescriptorSet              dstSet,
                                                            uint32_t                     dstBinding,
                                                            const VkDescriptorImageInfo* pImageInfo) const
@@ -378,6 +380,7 @@ VkWriteDescriptorSet DescriptorSetBindings::makeWriteArray(VkDescriptorSet dstSe
   return writeSet;
 }
 
+#if VK_NV_ray_tracing
 VkWriteDescriptorSet DescriptorSetBindings::makeWriteArray(VkDescriptorSet dstSet,
                                                            uint32_t        dstBinding,
                                                            const VkWriteDescriptorSetAccelerationStructureNV* pAccel) const
@@ -388,7 +391,8 @@ VkWriteDescriptorSet DescriptorSetBindings::makeWriteArray(VkDescriptorSet dstSe
   writeSet.pNext = pAccel;
   return writeSet;
 }
-
+#endif
+#if VK_EXT_inline_uniform_block
 VkWriteDescriptorSet DescriptorSetBindings::makeWriteArray(VkDescriptorSet                                  dstSet,
                                                            uint32_t                                         dstBinding,
                                                            const VkWriteDescriptorSetInlineUniformBlockEXT* pInline) const
@@ -399,7 +403,7 @@ VkWriteDescriptorSet DescriptorSetBindings::makeWriteArray(VkDescriptorSet      
   writeSet.pNext = pInline;
   return writeSet;
 }
-
+#endif
 
 //////////////////////////////////////////////////////////////////////////
 

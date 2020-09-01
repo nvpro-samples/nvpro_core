@@ -60,8 +60,12 @@ namespace nvvk {
 using Buffer       = nvvk::BufferDedicated;
 using Image        = nvvk::ImageDedicated;
 using Texture      = nvvk::TextureDedicated;
+#if VK_NV_ray_tracing
 using AccelNV      = nvvk::AccelerationDedicatedNV;
+#endif
+#if VK_KHR_ray_tracing
 using AccelKHR     = nvvk::AccelerationDedicatedKHR;
+#endif
 using Allocator    = nvvk::AllocatorDedicated;
 using MemAllocator = VkPhysicalDevice;
 }  // namespace nvvk
@@ -71,8 +75,12 @@ namespace nvvk {
 using Buffer       = nvvk::BufferDma;
 using Image        = nvvk::ImageDma;
 using Texture      = nvvk::TextureDma;
+#if VK_NV_ray_tracing
 using AccelNV      = nvvk::AccelerationDmaNV;
+#endif
+#if VK_KHR_ray_tracing
 using AccelKHR     = nvvk::AccelerationDmaKHR;
+#endif
 using Allocator    = nvvk::AllocatorDma;
 using MemAllocator = nvvk::DeviceMemoryAllocator;
 }  // namespace nvvk
@@ -82,8 +90,12 @@ namespace nvvk {
 using Buffer       = nvvk::BufferVma;
 using Image        = nvvk::ImageVma;
 using Texture      = nvvk::TextureVma;
+#if VK_NV_ray_tracing
 using AccelNV      = nvvk::AccelerationVmaNV;
+#endif
+#if VK_KHR_ray_tracing
 using AccelKHR     = nvvk::AccelerationVmaKHR;
+#endif
 using Allocator    = nvvk::AllocatorVma;
 using MemAllocator = VmaAllocator;
 }  // namespace nvvk
