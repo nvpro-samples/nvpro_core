@@ -140,22 +140,21 @@ VKAPI_ATTR VkBool32 VKAPI_CALL Context::debugMessengerCallback(VkDebugUtilsMessa
   // repeating nvprintfLevel to help with breakpoints : so we can selectively break right after the print
   if(messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT)
   {
-    nvprintfLevel(level, "VERBOSE: \n --> %s\n", callbackData->pMessageIdName, callbackData->pMessage);
+    nvprintfLevel(level, "VERBOSE: %s \n --> %s\n", callbackData->pMessageIdName, callbackData->pMessage);
   }
   else if(messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT)
   {
-    nvprintfLevel(level, "INFO: \n --> %s\n", callbackData->pMessageIdName, callbackData->pMessage);
+    nvprintfLevel(level, "INFO: %s \n --> %s\n", callbackData->pMessageIdName, callbackData->pMessage);
   }
   else if(messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
   {
     level = LOGLEVEL_WARNING;
-    nvprintfLevel(level, "WARNING: \n --> %s\n", callbackData->pMessageIdName, callbackData->pMessage);
+    nvprintfLevel(level, "WARNING: %s \n --> %s\n", callbackData->pMessageIdName, callbackData->pMessage);
   }
   else if(messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
   {
     level = LOGLEVEL_ERROR;
-    nvprintfLevel(level, "ERROR: %s \n --> %s", callbackData->pMessageIdName, callbackData->pMessage);
-    nvprintfLevel(level, "\n");  // placeholder for breakpoint
+    nvprintfLevel(level, "ERROR: %s \n --> %s\n", callbackData->pMessageIdName, callbackData->pMessage);
   }
   else if(messageType & VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT)
   {
@@ -166,6 +165,9 @@ VKAPI_ATTR VkBool32 VKAPI_CALL Context::debugMessengerCallback(VkDebugUtilsMessa
     nvprintfLevel(level, "%s \n --> %s\n", callbackData->pMessageIdName, callbackData->pMessage);
   }
 
+  // this seems redundant with the info already in callbackData->pMessage
+#if 0
+  
   if(callbackData->objectCount > 0)
   {
     for(uint32_t object = 0; object < callbackData->objectCount; ++object)
@@ -183,7 +185,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL Context::debugMessengerCallback(VkDebugUtilsMessa
            callbackData->pCmdBufLabels[label].color[0], callbackData->pCmdBufLabels[label].color[1],
            callbackData->pCmdBufLabels[label].color[2], callbackData->pCmdBufLabels[label].color[3]);
     }
-  }
+#endif
   // Don't bail out, but keep going.
   return VK_FALSE;
 }
@@ -296,6 +298,7 @@ bool Context::initInstance(const ContextCreateInfo& info)
   instanceCreateInfo.ppEnabledExtensionNames = m_usedInstanceExtensions.data();
   instanceCreateInfo.enabledLayerCount       = static_cast<uint32_t>(m_usedInstanceLayers.size());
   instanceCreateInfo.ppEnabledLayerNames     = m_usedInstanceLayers.data();
+  instanceCreateInfo.pNext = info.instanceCreateInfoExt;
 
   NVVK_CHECK(vkCreateInstance(&instanceCreateInfo, nullptr, &m_instance));
 
@@ -854,7 +857,7 @@ void Context::initDebugUtils()
     dbg_messenger_create_info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
     dbg_messenger_create_info.pNext = nullptr;
     dbg_messenger_create_info.flags = 0;
-    dbg_messenger_create_info.messageSeverity =
+    dbg_messenger_create_info.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
         VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
     dbg_messenger_create_info.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT
                                             | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;

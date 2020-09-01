@@ -138,6 +138,7 @@ struct ContextCreateInfo
   EntryArray instanceExtensions;
   EntryArray deviceExtensions;
   void*      deviceCreateInfoExt = nullptr;
+  void*      instanceCreateInfoExt = nullptr;
 };
 
 //////////////////////////////////////////////////////////////////////////
