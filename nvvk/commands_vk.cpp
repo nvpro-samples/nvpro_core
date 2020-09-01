@@ -151,7 +151,7 @@ VkCommandBuffer CommandPool::createCommandBuffer(VkCommandBufferLevel level /*= 
                                                  const VkCommandBufferInheritanceInfo* pInheritanceInfo /*= nullptr*/)
 {
   VkCommandBufferAllocateInfo allocInfo = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
-  allocInfo.level                       = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+  allocInfo.level                       = level;
   allocInfo.commandPool                 = m_commandPool;
   allocInfo.commandBufferCount          = 1;
 
