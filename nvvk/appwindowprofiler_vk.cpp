@@ -59,6 +59,8 @@ void AppWindowProfilerVK::contextInit()
 
   if(!m_context.init(contextInfo))
   {
+    LOGE("FATAL ERROR: failed to create Vulkan context\n");
+    exit(-1);
     return;
   }
 
