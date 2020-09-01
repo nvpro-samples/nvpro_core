@@ -200,7 +200,9 @@ bool ShaderModuleManager::setupShaderModule(ShaderModule& module)
         }
 
         shaderc_compile_options_set_optimization_level(m_shadercOptions, m_shadercOptimizationLevel);
-
+#ifdef _DEBUG
+        shaderc_compile_options_set_generate_debug_info(m_shadercOptions);
+#endif
         options = m_shadercOptions;
       }
 
