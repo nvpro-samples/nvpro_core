@@ -41,6 +41,7 @@ template<class T>  const vector2<T> operator*(const T s, const vector2<T>& u);
 template<class T>  const vector2<T> operator*(const vector2<T>& u, const T s);
 template<class T>  const vector2<T> operator/(const vector2<T>& u, const T s);
 template<class T>  const vector2<T> operator*(const vector2<T>&u, const vector2<T>&v);
+template<class T>  const vector2<T> operator/(const vector2<T>&u, const vector2<T>&v);
 
 template<class T>  vector3<T> mult(const matrix3<T>& M, const vector3<T>& v);
 template<class T>  vector3<T> mult(const matrix4<T>& M, const vector3<T>& v);
@@ -54,7 +55,7 @@ template<class T>  const vector3<T> operator*(const T s, const vector3<T>& u);
 template<class T>  const vector3<T> operator*(const vector3<T>& u, const T s);
 template<class T>  const vector3<T> operator/(const vector3<T>& u, const T s);
 template<class T>  const vector3<T> operator*(const vector3<T>& u, const vector3<T>& v);
-
+template<class T>  const vector3<T> operator/(const vector3<T>& u, const vector3<T>& v);
 
 template<class T>  const vector4<T> operator+(const vector4<T>& u, const vector4<T>& v);
 template<class T>  const vector4<T> operator-(const vector4<T>& u, const vector4<T>& v);
@@ -65,6 +66,7 @@ template<class T>  const vector4<T> operator*(const vector4<T>& u, const T s);
 template<class T>  const vector4<T> operator/(const vector4<T>& u, const T s);
 
 template<class T>  const vector4<T> operator*(const vector4<T>& u, const vector4<T>& v);
+template<class T>  const vector4<T> operator/(const vector4<T>& u, const vector4<T>& v);
 template<class T>  const vector3<T> operator*(const matrix3<T>&, const vector3<T>&);
 template<class T>  const vector3<T> operator*(const vector3<T>&, const matrix3<T>&);
 

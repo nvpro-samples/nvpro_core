@@ -78,6 +78,12 @@ inline const vector2<T> operator/(const vector2<T>& u, const T s)
 }
 
 template<class T>
+inline const vector2<T> operator/(const vector2<T>&u, const vector2<T>&v)
+{
+  return vector2<T>(u.x / v.x, u.y / v.y);
+}
+
+template<class T>
 inline const vector2<T> operator*(const vector2<T>&u, const vector2<T>&v)
 {
     return vector2<T>(u.x * v.x, u.y * v.y);
@@ -137,7 +143,11 @@ inline const vector3<T> operator*(const vector3<T>& u, const vector3<T>& v)
     return vector3<T>(u.x * v.x, u.y * v.y, u.z * v.z);
 }
 
-
+template<class T>
+inline const vector3<T> operator/(const vector3<T>& u, const vector3<T>& v)
+{
+  return vector3<T>(u.x / v.x, u.y / v.y, u.z / v.z);
+}
 
 template<class T>
 inline const vector4<T> operator+(const vector4<T>& u, const vector4<T>& v)
@@ -185,6 +195,12 @@ template<class T>
 inline const vector4<T> operator*(const vector4<T>& u, const vector4<T>& v)
 {
     return vector4<T>(u.x * v.x, u.y * v.y, u.z * v.z, u.w * v.w);
+}
+
+template<class T>
+inline const vector4<T> operator/(const vector4<T>& u, const vector4<T>& v)
+{
+  return vector4<T>(u.x / v.x, u.y / v.y, u.z / v.z, u.w / v.w);
 }
 
 template<class T>
