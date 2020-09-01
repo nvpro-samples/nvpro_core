@@ -2385,8 +2385,8 @@ bool LoadObj(attrib_t *attrib, std::vector<shape_t> *shapes,
       if (readMatFn) {
         token += 7;
 
-        std::vector<std::string> filenames;
-        SplitString(std::string(token), ' ', filenames);
+        std::vector<std::string> filenames(1, token);
+//        SplitString(std::string(token), ' ', filenames);
 
         if (filenames.empty()) {
           if (warn) {
