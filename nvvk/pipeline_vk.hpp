@@ -29,6 +29,7 @@
 
 #include <cassert>
 #include <string>
+#include <iterator>
 #include <vector>
 #include <vulkan/vulkan.h>
 
