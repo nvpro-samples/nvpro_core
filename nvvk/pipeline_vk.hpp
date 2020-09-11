@@ -28,6 +28,7 @@
 #pragma once
 
 #include <cassert>
+#include <iterator>
 #include <string>
 #include <vector>
 #include <vulkan/vulkan.h>
@@ -45,7 +46,7 @@ namespace nvvk {
 void nvprintPipelineStats(VkDevice device, VkPipeline pipeline, const char* name, bool verbose = false);
 // writes stats into single file
 void dumpPipelineStats(VkDevice device, VkPipeline pipeline, const char* fileName);
-// creates multiple files, one for each pipe executable and representation. 
+// creates multiple files, one for each pipe executable and representation.
 // The baseFilename will get appended along the lines of ".some details.bin"
 void dumpPipelineInternals(VkDevice device, VkPipeline pipeline, const char* baseFileName);
 
@@ -72,7 +73,6 @@ pipelineState.addAttributeDescriptions ({
     {2, 0, vk::Format::eR32G32B32Sfloat, static_cast<uint32_t>(offsetof(Vertex, col))}});
 ~~~~
 */
-
 
 
 struct GraphicsPipelineState
@@ -416,13 +416,12 @@ private:
 
 #endif
 
-// Helper to set objects for either C and C++
+  // Helper to set objects for either C and C++
   template <class T, class U>
   void setValue(T& target, const U& val)
   {
     target = (T)(val);
   }
-
 };
 
 
@@ -457,10 +456,10 @@ public:
   }
 
   GraphicsPipelineGenerator(const GraphicsPipelineGenerator& src)
-      : device(src.device)
-      , pipelineState(src.pipelineState)
-      , createInfo(src.createInfo)
+      : createInfo(src.createInfo)
+      , device(src.device)
       , pipelineCache(src.pipelineCache)
+      , pipelineState(src.pipelineState)
   {
     init();
   }
@@ -625,13 +624,12 @@ private:
     createInfo.pVertexInputState   = &pipelineState.vertexInputState;
   }
 
-// Helper to set objects for either C and C++
+  // Helper to set objects for either C and C++
   template <class T, class U>
   void setValue(T& target, const U& val)
   {
     target = (T)(val);
   }
-
 };
 
 
