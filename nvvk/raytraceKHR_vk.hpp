@@ -384,10 +384,6 @@ struct RaytracingBuilderKHR
     nvvk::CommandPool genCmdBuf(m_device, m_queueIndex);
     VkCommandBuffer   cmdBuf = genCmdBuf.createCommandBuffer();
 
-    // Create a buffer holding the actual instance data for use by the AS
-    // builder
-    VkDeviceSize instanceDescsSizeInBytes = instances.size() * sizeof(VkAccelerationStructureInstanceKHR);
-
     // Allocate the instance buffer and copy its contents from host to device
     // memory
     m_instBuffer = m_alloc->createBuffer(cmdBuf, geometryInstances,
@@ -406,7 +402,7 @@ struct RaytracingBuilderKHR
                          0, 1, &barrier, 0, nullptr, 0, nullptr);
 
     // Build the TLAS
-    VkAccelerationStructureGeometryDataKHR geometry{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR};
+    VkAccelerationStructureGeometryDataKHR geometry{{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR}};
     geometry.instances.arrayOfPointers    = VK_FALSE;
     geometry.instances.data.deviceAddress = instanceAddress;
     VkAccelerationStructureGeometryKHR topASGeometry{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR};
@@ -502,7 +498,7 @@ struct RaytracingBuilderKHR
                          0, 1, &barrier, 0, nullptr, 0, nullptr);
 
 
-    VkAccelerationStructureGeometryDataKHR geometry{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR};
+    VkAccelerationStructureGeometryDataKHR geometry{{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR}};
     geometry.instances.arrayOfPointers    = VK_FALSE;
     geometry.instances.data.deviceAddress = instanceAddress;
     VkAccelerationStructureGeometryKHR topASGeometry{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR};
@@ -636,5 +632,5 @@ public:
 }  // namespace nvvk
 
 #else
-  #error This include requires VK_KHR_ray_tracing support in the Vulkan SDK.
+#error This include requires VK_KHR_ray_tracing support in the Vulkan SDK.
 #endif
