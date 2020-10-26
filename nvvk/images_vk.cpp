@@ -244,15 +244,21 @@ void cmdGenerateMipmaps(VkCommandBuffer cmdBuf, VkImage image, VkFormat imageFor
   barrier.newLayout                       = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
   barrier.srcAccessMask                   = accessFlagsForImageLayout(currentLayout);
   barrier.dstAccessMask                   = VK_ACCESS_TRANSFER_READ_BIT;
-  vkCmdPipelineBarrier(cmdBuf, pipelineStageForLayout(currentLayout), VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+  barrier.srcQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
+  barrier.dstQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
+  vkCmdPipelineBarrier(cmdBuf, pipelineStageForLayout(currentLayout), VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0,
+                       nullptr, 1, &barrier);
 
-  // transfer remaining mips to DST optimal
-  barrier.newLayout                       = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-  barrier.dstAccessMask                   = VK_ACCESS_TRANSFER_WRITE_BIT;
-  barrier.subresourceRange.baseMipLevel   = 1;
-  barrier.subresourceRange.levelCount     = VK_REMAINING_MIP_LEVELS;
-  vkCmdPipelineBarrier(cmdBuf, pipelineStageForLayout(currentLayout), VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
-
+  if(levelCount > 1)
+  {
+    // transfer remaining mips to DST optimal
+    barrier.newLayout                     = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    barrier.dstAccessMask                 = VK_ACCESS_TRANSFER_WRITE_BIT;
+    barrier.subresourceRange.baseMipLevel = 1;
+    barrier.subresourceRange.levelCount   = VK_REMAINING_MIP_LEVELS;
+    vkCmdPipelineBarrier(cmdBuf, pipelineStageForLayout(currentLayout), VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr,
+                         0, nullptr, 1, &barrier);
+  };
 
   int32_t mipWidth  = size.width;
   int32_t mipHeight = size.height;
