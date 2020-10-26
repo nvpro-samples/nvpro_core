@@ -139,7 +139,7 @@ CSFAPI void* CSFileMemory_alloc(CSFileMemoryPTR mem, size_t sz, const void* fill
 
 CSFAPI void* CSFileMemory_allocPartial(CSFileMemoryPTR mem, size_t sz, size_t szPartial, const void* fillPartial)
 {
-  return mem->alloc(sz, fillPartial, szPartial);
+  return mem->alloc(sz, szPartial == 0 ? nullptr : fillPartial, szPartial);
 }
 
 static int CSFile_invalidVersion(const CSFile* csf)

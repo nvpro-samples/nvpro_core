@@ -29,7 +29,8 @@
 #include <vulkan/vulkan.hpp>
 
 #include "imgui.h"
-#include "imgui/imgui_impl_vk.h"
+#include "imgui_helper.h"
+#include "imgui_impl_vk.h"
 #include "nvh/camerainertia.hpp"
 #include "nvh/cameramanipulator.hpp"
 #include "swapchain_vk.hpp"
@@ -680,13 +681,17 @@ public:
       m_inputs.alt = pressed;
     }
 
-    if(action == GLFW_RELEASE || capture)
+    // Skip key release, capture by ImGui except for F10 and ESC key
+    if(action == GLFW_RELEASE || ((key == GLFW_KEY_F10 || key == GLFW_KEY_ESCAPE) ? false : capture))
     {
       return;
     }
 
     switch(key)
     {
+      case GLFW_KEY_F10:
+        m_show_gui = !m_show_gui;
+        break;
       case GLFW_KEY_ESCAPE:
         glfwSetWindowShouldClose(m_window, 1);
         break;
@@ -789,8 +794,14 @@ public:
 
     // UI
     ImGui::CreateContext();
+    ImGuiIO& io    = ImGui::GetIO();
+    io.IniFilename = nullptr;  // Avoiding the INI file
+    io.LogFilename = nullptr;
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    ImGuiH::setStyle();
+    ImGuiH::setFonts();
+
     ImGui::InitVK(m_device, m_physicalDevice, m_queue, m_graphicsQueueIndex, m_renderPass, subpassID);
-    ImGui::GetIO().IniFilename = nullptr;  // Avoiding the INI file
   }
 
   //--------------------------------------------------------------------------------------------------
@@ -892,6 +903,7 @@ public:
   uint32_t                              getCurFrame() const { return m_swapChain.getActiveImageIndex(); }
   vk::Format                            getColorFormat() const { return m_colorFormat; }
   vk::Format                            getDepthFormat() const { return m_depthFormat; }
+  bool                                  showGui() { return m_show_gui; }
 
 protected:
   uint32_t getMemoryType(uint32_t typeBits, const vk::MemoryPropertyFlags& properties) const
@@ -957,7 +969,8 @@ protected:
 
   // Other
   bool m_showHelp{false};  // Show help, pressing
-};                         // namespace nvvkpp
+  bool m_show_gui{true};
+};  // namespace nvvk
 
 
 }  // namespace nvvk

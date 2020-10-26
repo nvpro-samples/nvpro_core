@@ -355,9 +355,15 @@ General defines
 
 #define NV_PAD_POW2(value, pad)               (((value) + ((pad)-1)) & (~((pad)-1)))
 
+// _DEBUG is provided only by MSVC, but not GCC.
+// NDEBUG is the canonical platform agnostic way to detect debug/release builds
+#if !defined(_DEBUG) && !defined(NDEBUG)
+#define _DEBUG 1
+#endif
+
 // check that exactly one of NDEBUG and _DEBUG is defined
 #if !(defined NDEBUG ^ defined _DEBUG)
-#define NDEBUG
+#error "NDEBUG and _DEBUG are mutually exclusive"
 #endif
 
 // make sure NV_CHECKED is defined in all _DEBUG configurations as well

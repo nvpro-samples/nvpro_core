@@ -702,7 +702,11 @@ public:
   const DescriptorSetContainer& at(uint32_t set) const { return m_sets[set]; }
   DescriptorSetContainer&       operator[](uint32_t set) { return m_sets[set]; }
   const DescriptorSetContainer& operator[](uint32_t set) const { return m_sets[set]; }
-  VkPipelineLayout              getPipeLayout(uint32_t pipe = 0) const { return m_pipelayouts[pipe]; }
+  VkPipelineLayout              getPipeLayout(uint32_t pipe = 0) const
+  {
+    assert(pipe <= PIPES);
+    return m_pipelayouts[pipe];
+  }
 
 protected:
   VkPipelineLayout       m_pipelayouts[PIPES] = {};
@@ -718,6 +722,8 @@ VkPipelineLayout TDescriptorSetContainer<SETS, PIPES>::initPipeLayout(uint32_t  
                                                                       const VkPushConstantRange*  ranges /*= nullptr*/,
                                                                       VkPipelineLayoutCreateFlags flags /*= 0*/)
 {
+  assert(pipe <= PIPES);
+
   VkDevice device = m_sets[0].getDevice();
 
   VkDescriptorSetLayout setLayouts[SETS];
@@ -745,6 +751,8 @@ VkPipelineLayout TDescriptorSetContainer<SETS, PIPES>::initPipeLayout(uint32_t  
                                                                       const VkPushConstantRange*  ranges /*= nullptr*/,
                                                                       VkPipelineLayoutCreateFlags flags /*= 0*/)
 {
+  assert(pipe <= PIPES);
+
   VkDevice device = m_sets[0].getDevice();
 
   VkDescriptorSetLayout setLayouts[SETS];

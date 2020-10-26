@@ -339,7 +339,7 @@ struct RaytracingBuilderKHR
     VkAccelerationStructureCreateGeometryTypeInfoKHR geometryCreate{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_GEOMETRY_TYPE_INFO_KHR};
     geometryCreate.geometryType      = VK_GEOMETRY_TYPE_INSTANCES_KHR;
     geometryCreate.maxPrimitiveCount = (static_cast<uint32_t>(instances.size()));
-    geometryCreate.allowsTransforms  = (VK_TRUE);
+    geometryCreate.allowsTransforms  = VK_FALSE;
 
     VkAccelerationStructureCreateInfoKHR asCreateInfo{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR};
     asCreateInfo.type             = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;

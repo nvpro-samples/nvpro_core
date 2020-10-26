@@ -108,6 +108,9 @@ local extensionSubset = [[
 
     VK_KHR_external_memory_fd
     VK_KHR_external_semaphore_fd
+    
+    VK_EXT_validation_features
+    VK_KHR_swapchain
     ]]
     
 

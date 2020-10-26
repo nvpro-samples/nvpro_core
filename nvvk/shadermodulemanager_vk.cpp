@@ -200,9 +200,10 @@ bool ShaderModuleManager::setupShaderModule(ShaderModule& module)
         }
 
         shaderc_compile_options_set_optimization_level(m_shadercOptions, m_shadercOptimizationLevel);
-#ifdef _DEBUG
+        
+        // keep debug info, doesn't cost perf
         shaderc_compile_options_set_generate_debug_info(m_shadercOptions);
-#endif
+
         options = m_shadercOptions;
       }
 
@@ -262,6 +263,10 @@ bool ShaderModuleManager::setupShaderModule(ShaderModule& module)
     }
 
     vkresult = ::vkCreateShaderModule(m_device, &shaderModuleInfo, nullptr, &module.module);
+
+    if (vkresult == VK_SUCCESS && m_keepModuleSPIRV) {
+      module.moduleSPIRV = std::string((const char*)shaderModuleInfo.pCode, shaderModuleInfo.codeSize);
+    }
 
 #if USESHADERC
     if(result)
@@ -422,5 +427,19 @@ const size_t ShaderModuleManager::getCodeLen(ShaderModuleID idx) const
   return m_shadermodules[idx].definition.content.size();
 }
 
+
+bool ShaderModuleManager::dumpSPIRV(ShaderModuleID idx, const char* filename) const 
+{
+  if (m_shadermodules[idx].moduleSPIRV.empty()) return false;
+
+  FILE* f = fopen(filename, "wb");
+  if (f) {
+    fwrite(m_shadermodules[idx].moduleSPIRV.data(), m_shadermodules[idx].moduleSPIRV.size(), 1, f);
+    fclose(f);
+    return true;
+  }
+
+  return false;
+}
 
 }  // namespace nvvk

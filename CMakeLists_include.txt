@@ -379,6 +379,38 @@ macro(_optional_package_AntTweakBar)
   endif(ANTTWEAKBAR_FOUND)
 endmacro(_optional_package_AntTweakBar)
 
+
+#####################################################################################
+# FreeImage
+#
+macro(_add_package_FreeImage)
+  Message(STATUS "--> using package FreeImage")
+  find_package(FreeImage)
+  if(FREEIMAGE_FOUND)
+    add_definitions(-DUSEFREEIMAGE)
+    include_directories(${FREEIMAGE_INCLUDE_DIR})
+    LIST(APPEND PACKAGE_SOURCE_FILES 
+      ${FREEIMAGE_HEADERS}
+    )
+    LIST(APPEND LIBRARIES_OPTIMIZED ${FREEIMAGE_LIB})
+    LIST(APPEND LIBRARIES_DEBUG ${FREEIMAGE_LIB})
+    # source_group(AntTweakBar FILES 
+    #   ${ANTTWEAKBAR_HEADERS}
+    # )
+  endif()
+endmacro()
+# this macro is needed for the samples to add this package, although not needed
+# this happens when the shared_sources library was built with these stuff in it
+# so many samples can share the same library for many purposes
+macro(_optional_package_FreeImage)
+  if(FREEIMAGE_FOUND)
+    _add_package_FreeImage()
+  endif(FREEIMAGE_FOUND)
+endmacro(_optional_package_FreeImage)
+
+
+
+
 #####################################################################################
 # VMA (Vulkan Memory Allocator)
 #
@@ -939,6 +971,11 @@ macro(_copy_binaries_to_target _PROJNAME)
     install(FILES ${ANTTWEAKBAR_DLL} CONFIGURATIONS Release DESTINATION bin_${ARCH})
     install(FILES ${ANTTWEAKBAR_DLL} CONFIGURATIONS Debug DESTINATION bin_${ARCH}_debug)
   endif()
+   if(FREEIMAGE_FOUND)
+    _copy_files_to_target( ${_PROJNAME} "${FREEIMAGE_DLL}")
+    install(FILES ${FREEIMAGE_DLL} CONFIGURATIONS Release DESTINATION bin_${ARCH})
+    install(FILES ${FREEIMAGE_DLL} CONFIGURATIONS Debug DESTINATION bin_${ARCH}_debug)
+  endif()
   if(OPTIX_FOUND)
     _copy_files_to_target( ${_PROJNAME} "${OPTIX_DLL}")
     install(FILES ${OPTIX_DLL} CONFIGURATIONS Release DESTINATION bin_${ARCH})
@@ -980,29 +1017,60 @@ macro(_download_files _FILELIST _URL _TARGET _FORCE FILELISTOUT)
 endmacro()
 
 #####################################################################################
-# Macro to add custom build for Spir-V
+# Macro to add custom build for SPIR-V, with additional arbitrary glslangvalidator
+# flags (run glslangvalidator --help for a list of possible flags).
+# Inputs:
 # _SOURCE can be more than one file (.vert + .frag)
 # _OUTPUT is the .spv file, resulting from the linkage
+# _FLAGS are the flags to add to the command line
+# Outputs:
+# SOURCE_LIST has _SOURCE appended to it
+# OUTPUT_LIST has _OUTPUT appended to it
 #
-macro(_compile_GLSL _SOURCE _OUTPUT SOURCE_LIST OUTPUT_LIST)
+macro(_compile_GLSL_flags _SOURCE _OUTPUT _FLAGS SOURCE_LIST OUTPUT_LIST)
   if(NOT DEFINED VULKAN_TARGET_ENV)
     SET(VULKAN_TARGET_ENV vulkan1.1)
   endif()
   LIST(APPEND ${SOURCE_LIST} ${_SOURCE})
   LIST(APPEND ${OUTPUT_LIST} ${_OUTPUT})
-  #Message(STATUS "${GLSLANGVALIDATOR} --target-env ${VULKAN_TARGET_ENV} -o ${_OUTPUT} ${_SOURCE}")
-  #Message(STATUS "${_OUTPUT} : ${_SOURCE}")
   if(GLSLANGVALIDATOR)
+    set(_COMMAND ${GLSLANGVALIDATOR} --target-env ${VULKAN_TARGET_ENV} -o ${_OUTPUT} ${_FLAGS} ${_SOURCE})
     add_custom_command(
       OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/${_OUTPUT}
-      COMMAND echo ${GLSLANGVALIDATOR} --target-env ${VULKAN_TARGET_ENV} -o ${_OUTPUT}  ${_SOURCE}
-      COMMAND ${GLSLANGVALIDATOR} --target-env ${VULKAN_TARGET_ENV} -o ${_OUTPUT} ${_SOURCE}
+      COMMAND echo ${_COMMAND}
+      COMMAND ${_COMMAND}
       MAIN_DEPENDENCY ${_SOURCE}
       WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
       )
   else(GLSLANGVALIDATOR)
     MESSAGE(WARNING "could not find GLSLANGVALIDATOR to compile shaders")
   endif(GLSLANGVALIDATOR)
+endmacro()
+
+#####################################################################################
+# Macro to add custom build for SPIR-V, with debug information (glslangvalidator's -g flag)
+# Inputs:
+# _SOURCE can be more than one file (.vert + .frag)
+# _OUTPUT is the .spv file, resulting from the linkage
+# Outputs:
+# SOURCE_LIST has _SOURCE appended to it
+# OUTPUT_LIST has _OUTPUT appended to it
+#
+macro(_compile_GLSL _SOURCE _OUTPUT SOURCE_LIST OUTPUT_LIST)
+  _compile_GLSL_flags(${_SOURCE} ${_OUTPUT} "-g" ${SOURCE_LIST} ${OUTPUT_LIST})
+endmacro()
+
+#####################################################################################
+# Macro to add custom build for SPIR-V, without debug information
+# Inputs:
+# _SOURCE can be more than one file (.vert + .frag)
+# _OUTPUT is the .spv file, resulting from the linkage
+# Outputs:
+# SOURCE_LIST has _SOURCE appended to it
+# OUTPUT_LIST has _OUTPUT appended to it
+#
+macro(_compile_GLSL_no_debug_info _SOURCE _OUTPUT SOURCE_LIST OUTPUT_LIST)
+  _compile_GLSL_flags(${_SOURCE} ${_OUTPUT} "" ${SOURCE_LIST} ${OUTPUT_LIST})
 endmacro()
 
 #####################################################################################

@@ -123,6 +123,7 @@ public:
     }
 
     VkShaderModule module;
+    std::string    moduleSPIRV;
     Definition     definition;
     bool           useNVextension;
   };
@@ -156,13 +157,14 @@ public:
   const ShaderModule& getShaderModule(ShaderModuleID idx) const;
   const char*         getCode(ShaderModuleID idx, size_t* len = NULL) const;
   const size_t        getCodeLen(ShaderModuleID idx) const;
+  bool                dumpSPIRV(ShaderModuleID idx, const char * filename) const;
 
 
   // state will affect the next created shader module
   // also keep m_filetype in mind!
-  bool m_preprocessOnly = false;
-  bool m_useNVextension = false;
-
+  bool m_preprocessOnly    = false;
+  bool m_useNVextension    = false;
+  bool m_keepModuleSPIRV = false;
 
   //////////////////////////////////////////////////////////////////////////
   //

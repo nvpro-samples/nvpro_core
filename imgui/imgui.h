@@ -1140,6 +1140,9 @@ enum ImGuiColorEditFlags_
     ImGuiColorEditFlags_NoLabel         = 1 << 7,   //              // ColorEdit, ColorPicker: disable display of inline text label (the label is still forwarded to the tooltip and picker).
     ImGuiColorEditFlags_NoSidePreview   = 1 << 8,   //              // ColorPicker: disable bigger color preview on right side of the picker, use small colored square preview instead.
     ImGuiColorEditFlags_NoDragDrop      = 1 << 9,   //              // ColorEdit: disable drag and drop target. ColorButton: disable drag and drop source.
+    // BEGIN NVIDIA modification
+    ImGuiColorEditFlags_BigPreview      = 1 << 10 | ImGuiColorEditFlags_NoInputs, // ColorEdit, ColorPicker: disable inputs sliders/text widgets and show a wide preview colored bar).
+    // END NVIDIA modifications
 
     // User Options (right-click on widget to change some of them).
     ImGuiColorEditFlags_AlphaBar        = 1 << 16,  //              // ColorEdit, ColorPicker: show vertical alpha bar/gradient in picker.

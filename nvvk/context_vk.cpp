@@ -511,35 +511,75 @@ bool Context::initDevice(uint32_t deviceIndex, const ContextCreateInfo& info)
   nvvk::DebugUtil::setEnabled(has_VK_EXT_debug_utils != 0);
 
   // Now we have the device and instance, we can initialize the debug tool
-
   nvvk::DebugUtil debugUtil(m_device);
 
-  // get some default queues
-  uint32_t queueFamilyIndex = 0;
-  for(auto& it : m_physicalInfo.queueProperties)
+  // Now pick 3 distinct queues for graphics, compute and transfer operations
+  struct QueueScore
   {
-    if((it.queueFlags & (VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT | VK_QUEUE_TRANSFER_BIT))
-       == (VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT | VK_QUEUE_TRANSFER_BIT))
-    {
-      vkGetDeviceQueue(m_device, queueFamilyIndex, 0 /*queueIndex*/, &m_queueGCT.queue);
-      m_queueGCT.familyIndex = queueFamilyIndex;
-      debugUtil.setObjectName(m_queueGCT.queue, "queueGCT");
-    }
-    else if((it.queueFlags & VK_QUEUE_TRANSFER_BIT) == VK_QUEUE_TRANSFER_BIT)
-    {
-      vkGetDeviceQueue(m_device, queueFamilyIndex, 0 /*queueIndex*/, &m_queueT.queue);
-      m_queueT.familyIndex = queueFamilyIndex;
-      debugUtil.setObjectName(m_queueT.queue, "queueT");
-    }
-    else if((it.queueFlags & VK_QUEUE_COMPUTE_BIT))
-    {
-      vkGetDeviceQueue(m_device, queueFamilyIndex, 0 /*queueIndex*/, &m_queueC.queue);
-      m_queueC.familyIndex = queueFamilyIndex;
-      debugUtil.setObjectName(m_queueC.queue, "queueC");
-    }
+    uint32_t score;  // the lower the score, the more 'specialized' it is
+    uint32_t familyIndex;
+    uint32_t queueIndex;
+  };
 
-    queueFamilyIndex++;
+  std::vector<QueueScore> queueScores;
+  for(uint32_t qF = 0; qF < m_physicalInfo.queueProperties.size(); ++qF)
+  {
+    const auto& queueFamily = m_physicalInfo.queueProperties[qF];
+
+    QueueScore score{0, qF, 0};
+    if(queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
+    {
+      score.score++;
+    }
+    if(queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT)
+    {
+      score.score++;
+    }
+    if(queueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT)
+    {
+      score.score++;
+    }
+    for(uint32_t qI = 0; qI < queueFamily.queueCount; ++qI)
+    {
+      score.queueIndex = qI;
+      queueScores.emplace_back(score);
+    }
   }
+
+  // Sort the queues for specialization, highest specialization has lowest score
+  std::sort(queueScores.begin(), queueScores.end(), [](const QueueScore& lhs, const QueueScore& rhs) {
+    if(lhs.score < rhs.score)
+      return true;
+    if(lhs.score > rhs.score)
+      return false;
+    return lhs.queueIndex < rhs.queueIndex;
+  });
+
+  auto findQueue = [this, &queueScores, &debugUtil](VkQueueFlags needFlags, const std::string& name) -> Queue {
+    for(uint32_t q = 0; q < queueScores.size(); ++q)
+    {
+      const QueueScore& score  = queueScores[q];
+      auto&             family = m_physicalInfo.queueProperties[score.familyIndex];
+      if((family.queueFlags & needFlags) == needFlags)
+      {
+        Queue queue;
+        vkGetDeviceQueue(m_device, score.familyIndex, score.queueIndex, &queue.queue);
+        queue.familyIndex = score.familyIndex;
+        queue.queueIndex  = score.queueIndex;
+        debugUtil.setObjectName(queue.queue, name);
+        // we used this queue
+        queueScores.erase(queueScores.begin() + q);
+        return queue;
+      }
+    }
+    return Queue();
+  };
+
+  m_queueGCT = findQueue(VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT | VK_QUEUE_TRANSFER_BIT, "queueGCT");
+  assert(m_queueGCT.familyIndex != ~uint32_t(0));
+
+  m_queueC = findQueue(VK_QUEUE_COMPUTE_BIT, "queueC");
+  m_queueT = findQueue(VK_QUEUE_TRANSFER_BIT, "queueT");
 
   return true;
 }

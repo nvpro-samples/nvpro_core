@@ -438,7 +438,11 @@ void GltfScene::processMesh(const tinygltf::Model& tmodel, const tinygltf::Primi
         // In case of degenerated UV coordinates
         if(s1 == 0 || s2 == 0 || t1 == 0 || t2 == 0)
         {
-          const nvmath::vec3f N = nvmath::cross<float>({x1, y1, z1}, {x2, y2, z2});
+          const auto& nrm1 = m_normals[g_idx0];
+          const auto& nrm2 = m_normals[g_idx1];
+          const auto& nrm3 = m_normals[g_idx2];
+          const auto  N    = nvmath::vec3(nrm1 + nrm2 + nrm3) / nvmath::vec3(3);  // Average on the triangle normals
+
           if(abs(N.x) > abs(N.y))
             sdir = vec3(N.z, 0, -N.x) / sqrt(N.x * N.x + N.z * N.z);
           else

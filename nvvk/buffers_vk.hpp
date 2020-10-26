@@ -45,6 +45,8 @@ namespace nvvk {
   - makeBufferViewCreateInfo : wraps setup of VkBufferViewCreateInfo
   - createBuffer : wraps vkCreateBuffer
   - createBufferView : wraps vkCreateBufferView
+  - getBufferDeviceAddressKHR : wraps vkGetBufferDeviceAddressKHR
+  - getBufferDeviceAddress : wraps vkGetBufferDeviceAddress
 
   ~~~ C++
   VkBufferCreateInfo bufferCreate = makeBufferCreateInfo (size, VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT);
@@ -94,6 +96,21 @@ inline VkBufferViewCreateInfo makeBufferViewCreateInfo(const VkDescriptorBufferI
   return createInfo;
 }
 
+
+inline VkDeviceAddress getBufferDeviceAddressKHR(VkDevice device, VkBuffer buffer)
+{
+  VkBufferDeviceAddressInfo info = {VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR};
+  info.buffer = buffer;
+  return vkGetBufferDeviceAddressKHR(device, &info);
+}
+
+inline VkDeviceAddress getBufferDeviceAddress(VkDevice device, VkBuffer buffer)
+{
+  VkBufferDeviceAddressInfo info = {VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO};
+  info.buffer = buffer;
+  return vkGetBufferDeviceAddress(device, &info);
+}
+
 //////////////////////////////////////////////////////////////////////////
 // these use pass by value so one can easily chain createBuffer(device, makeBufferCreateInfo(...));
 
@@ -112,5 +129,6 @@ inline VkBufferView createBufferView(VkDevice device, VkBufferViewCreateInfo inf
   assert(result == VK_SUCCESS);
   return bufferView;
 }
+
 
 }  // namespace nvvk

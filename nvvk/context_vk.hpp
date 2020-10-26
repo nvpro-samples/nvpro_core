@@ -29,6 +29,7 @@
 #define NV_VK_DEVICEINSTANCE_INCLUDED
 
 #include <vector>
+#include <string.h>  // memcpy
 #include <unordered_set>
 #include <vulkan/vulkan_core.h>
 
@@ -312,6 +313,7 @@ public:
   {
     VkQueue  queue       = VK_NULL_HANDLE;
     uint32_t familyIndex = ~0;
+    uint32_t queueIndex  = ~0;
 
     operator VkQueue() const { return queue; }
     operator uint32_t() const { return familyIndex; }
@@ -323,9 +325,10 @@ public:
   VkPhysicalDevice   m_physicalDevice{VK_NULL_HANDLE};
   PhysicalDeviceInfo m_physicalInfo;
 
+  // All the queues (if present) is distinct from each other
   Queue m_queueGCT;  // for Graphics/Compute/Transfer (must exist)
-  Queue m_queueT;    // for pure async Transfer Queue (can exist, only contains transfer nothing else)
-  Queue m_queueC;    // for async Compute (can exist, may contain other non-graphics support)
+  Queue m_queueT;    // for pure async Transfer Queue (can exist, supports at least transfer)
+  Queue m_queueC;    // for async Compute (can exist, supports at least compute)
 
   operator VkDevice() const { return m_device; }
 
