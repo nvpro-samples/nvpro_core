@@ -36,7 +36,7 @@ This class does not implement all what you need to do raytracing, but
 helps creating the BLAS and TLAS, which then can be used by different
 raytracing usage.
 
-# Setup and Usage
+# Setup and Usage   TODO make this better... much better
 ~~~~ C++
 m_rtBuilder.setup(device, memoryAllocator, queueIndex);
 // Create array of VkGeometryNV
@@ -47,7 +47,6 @@ m_rtBuilder.buildTlas(instances);
 const VkAccelerationStructureNV& tlas = m.rtBuilder.getAccelerationStructure()
 ~~~~
 */
-
 
 #include <mutex>
 #include <vulkan/vulkan.h>
@@ -60,7 +59,7 @@ const VkAccelerationStructureNV& tlas = m.rtBuilder.getAccelerationStructure()
 
 #include "nvh/nvprint.hpp"
 
-#if VK_KHR_ray_tracing
+#if VK_KHR_acceleration_structure
 
 namespace nvvk {
 struct RaytracingBuilderKHR
@@ -70,21 +69,46 @@ struct RaytracingBuilderKHR
 
   RaytracingBuilderKHR() = default;
 
-  // Bottom-level acceleration structure
-  struct Blas
+  // Inputs used to build Bottom-level acceleration structure.
+  // You manage the lifetime of the buffer(s) referenced by the
+  // VkAccelerationStructureGeometryKHRs within. In particular, you must
+  // make sure they are still valid and not being modified when the BLAS
+  // is built or updated.
+  struct BlasInput_
   {
-    nvvk::AccelKHR                       as;     // VkAccelerationStructureKHR
-    VkBuildAccelerationStructureFlagsKHR flags;  // specifying additional parameters for acceleration structure
-                                                 // builds
-    std::vector<VkAccelerationStructureCreateGeometryTypeInfoKHR> asCreateGeometryInfo;  // specifies the shape of geometries that will be
-        // built into an acceleration structure
-    std::vector<VkAccelerationStructureGeometryKHR> asGeometry;  // data used to build acceleration structure geometry
-    std::vector<VkAccelerationStructureBuildOffsetInfoKHR> asBuildOffsetInfo;
+    // Data used to build acceleration structure geometry
+    std::vector<VkAccelerationStructureGeometryKHR> asGeometry;
+    std::vector<VkAccelerationStructureBuildRangeInfoKHR> asBuildOffsetInfo;
   };
 
+private:
+  // Bottom-level acceleration structure, along with the information needed to re-build it.
+  struct BlasEntry
+  {
+    // User-provided input.
+    BlasInput_ input;
+
+    // VkAccelerationStructureKHR plus extra info needed for our memory allocator.
+    // The RaytracingBuilderKHR that created this DOES destroy it when destroyed.
+    nvvk::AccelKHR as;
+
+    // Additional parameters for acceleration structure builds
+    VkBuildAccelerationStructureFlagsKHR flags = 0;
+
+    BlasEntry() = default;
+    BlasEntry(BlasInput_ input_)
+        : input(std::move(input_))
+        , as()
+    {
+    }
+  };
+
+public:
+  using BlasInput = BlasInput_; // XXX
   //--------------------------------------------------------------------------------------------------
   // Initializing the allocator and querying the raytracing properties
   //
+
   void setup(const VkDevice& device, nvvk::Allocator* allocator, uint32_t queueIndex)
   {
     m_device     = device;
@@ -107,6 +131,7 @@ struct RaytracingBuilderKHR
   //--------------------------------------------------------------------------------------------------
   // Destroying all allocations
   //
+
   void destroy()
   {
     for(auto& b : m_blas)
@@ -123,77 +148,80 @@ struct RaytracingBuilderKHR
   VkAccelerationStructureKHR getAccelerationStructure() const { return m_tlas.as.accel; }
 
   //--------------------------------------------------------------------------------------------------
-  // Create all the BLAS from the vector of vectors of VkGeometryNV
-  // - There will be one BLAS per vector of VkGeometryNV
-  // - There will be as many BLAS there are items in the geoms vector
-  // - The resulting BLAS are stored in m_blas
+  // Create all the BLAS from the vector of BlasInput
+  // - There will be one BLAS per input-vector entry
+  // - There will be as many BLAS as input.size()
+  // - The resulting BLAS (along with the inputs used to build) are stored in m_blas
   //
-  void buildBlas(const std::vector<RaytracingBuilderKHR::Blas>& blas_,
+
+  void buildBlas(const std::vector<RaytracingBuilderKHR::BlasInput>& input,
                  VkBuildAccelerationStructureFlagsKHR flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR)
   {
-    m_blas = blas_;  // Keeping a copy
+    // Make our own copy of the user-provided inputs.
+    m_blas          = std::vector<BlasEntry>(input.begin(), input.end());
+    uint32_t nbBlas = static_cast<uint32_t>(m_blas.size());
 
-    VkDeviceSize maxScratch{0};  // Largest scratch buffer for our BLAS
-
-    // Is compaction requested?
-    bool doCompaction = (flags & VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_KHR)
-                        == VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_KHR;
-    std::vector<VkDeviceSize> originalSizes;
-    originalSizes.resize(m_blas.size());
-
-    // Iterate over the groups of geometries, creating one BLAS for each group
-    int idx{0};
-    for(auto& blas : m_blas)
+    // Preparing all build information, acceleration is filled later
+    std::vector<VkAccelerationStructureBuildGeometryInfoKHR> buildInfos(nbBlas);
+    for(uint32_t idx = 0; idx < nbBlas; idx++)
     {
-      VkAccelerationStructureCreateInfoKHR asCreateInfo{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR};
-      asCreateInfo.type             = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
-      asCreateInfo.flags            = flags;
-      asCreateInfo.maxGeometryCount = (uint32_t)blas.asCreateGeometryInfo.size();
-      asCreateInfo.pGeometryInfos   = blas.asCreateGeometryInfo.data();
+      buildInfos[idx].sType                    = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
+      buildInfos[idx].flags                    = flags;
+      buildInfos[idx].geometryCount            = (uint32_t)m_blas[idx].input.asGeometry.size();
+      buildInfos[idx].pGeometries              = m_blas[idx].input.asGeometry.data();
+      buildInfos[idx].mode                     = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
+      buildInfos[idx].type                     = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
+      buildInfos[idx].srcAccelerationStructure = VK_NULL_HANDLE;
+    }
 
-      // Create an acceleration structure identifier and allocate memory to
-      // store the resulting structure data
-      blas.as = m_alloc->createAcceleration(asCreateInfo);
-      m_debug.setObjectName(blas.as.accel, (std::string("Blas" + std::to_string(idx)).c_str()));
+    // Finding sizes to create acceleration structures and scratch
+    // Keep the largest scratch buffer size, to use only one scratch for all build
+    VkDeviceSize              maxScratch{0};          // Largest scratch buffer for our BLAS
+    std::vector<VkDeviceSize> originalSizes(nbBlas);  // use for stats
 
-      // Estimate the amount of scratch memory required to build the BLAS, and
-      // update the size of the scratch buffer that will be allocated to
-      // sequentially build all BLASes
-      VkAccelerationStructureMemoryRequirementsInfoKHR memoryRequirementsInfo{
-          VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_INFO_KHR};
-      memoryRequirementsInfo.type = VK_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_TYPE_BUILD_SCRATCH_KHR;
-      memoryRequirementsInfo.accelerationStructure = blas.as.accel;
-      memoryRequirementsInfo.buildType             = VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR;
+    for(size_t idx = 0; idx < nbBlas; idx++)
+    {
+      // Find size to build on the device
+      std::vector<uint32_t> maxPrimCount(m_blas[idx].input.asBuildOffsetInfo.size());
+      for(auto tt = 0; tt < m_blas[idx].input.asBuildOffsetInfo.size(); tt++)
+        maxPrimCount[tt] = m_blas[idx].input.asBuildOffsetInfo[tt].primitiveCount;  // Number of primitives/triangles
+      VkAccelerationStructureBuildSizesInfoKHR sizeInfo{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR};
+      vkGetAccelerationStructureBuildSizesKHR(m_device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
+                                              &buildInfos[idx], maxPrimCount.data(), &sizeInfo);
 
-      VkMemoryRequirements2 reqMem{VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2};
-      vkGetAccelerationStructureMemoryRequirementsKHR(m_device, &memoryRequirementsInfo, &reqMem);
-      VkDeviceSize scratchSize = reqMem.memoryRequirements.size;
+      // Create acceleration structure
+      VkAccelerationStructureCreateInfoKHR createInfo{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR};
+      createInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
+      createInfo.size = sizeInfo.accelerationStructureSize;
+      // Actual creation of buffer and acceleration structure
+      m_blas[idx].as = m_alloc->createAcceleration(createInfo);
+      m_debug.setObjectName(m_blas[idx].as.accel, (std::string("BlasInput" + std::to_string(idx)).c_str()));
+      buildInfos[idx].dstAccelerationStructure = m_blas[idx].as.accel;  // Setting the where the build lands
 
+      // Keeping info
+      m_blas[idx].flags = flags;
+      maxScratch        = std::max(maxScratch, sizeInfo.buildScratchSize);
 
-      blas.flags = flags;
-      maxScratch = std::max(maxScratch, scratchSize);
-
-      // Original size
-      memoryRequirementsInfo.type = VK_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_TYPE_OBJECT_KHR;
-      vkGetAccelerationStructureMemoryRequirementsKHR(m_device, &memoryRequirementsInfo, &reqMem);
-      originalSizes[idx] = reqMem.memoryRequirements.size;
-
-      idx++;
+      // Stats - Original size
+      originalSizes[idx] = sizeInfo.accelerationStructureSize;
     }
 
     // Allocate the scratch buffers holding the temporary data of the
     // acceleration structure builder
-
     nvvk::Buffer scratchBuffer =
-        m_alloc->createBuffer(maxScratch, VK_BUFFER_USAGE_RAY_TRACING_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);
+        m_alloc->createBuffer(maxScratch, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
     VkBufferDeviceAddressInfo bufferInfo{VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO};
     bufferInfo.buffer              = scratchBuffer.buffer;
     VkDeviceAddress scratchAddress = vkGetBufferDeviceAddress(m_device, &bufferInfo);
 
 
-    // Query size of compact BLAS
+    // Is compaction requested?
+    bool doCompaction = (flags & VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_KHR)
+                        == VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_KHR;
+
+    // Query size for compacting BLAS
     VkQueryPoolCreateInfo qpci{VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO};
-    qpci.queryCount = (uint32_t)m_blas.size();
+    qpci.queryCount = nbBlas;
     qpci.queryType  = VK_QUERY_TYPE_ACCELERATION_STRUCTURE_COMPACTED_SIZE_KHR;
     VkQueryPool queryPool;
     vkCreateQueryPool(m_device, &qpci, nullptr, &queryPool);
@@ -201,33 +229,25 @@ struct RaytracingBuilderKHR
 
     // Create a command buffer containing all the BLAS builds
     nvvk::CommandPool            genCmdBuf(m_device, m_queueIndex);
-    int                          ctr{0};
-    std::vector<VkCommandBuffer> allCmdBufs;
-    allCmdBufs.reserve(m_blas.size());
-    for(auto& blas : m_blas)
-    {
-      VkCommandBuffer cmdBuf = genCmdBuf.createCommandBuffer();
-      allCmdBufs.push_back(cmdBuf);
+    std::vector<VkCommandBuffer> allCmdBufs(nbBlas);
 
-      const VkAccelerationStructureGeometryKHR* pGeometry = blas.asGeometry.data();
-      VkAccelerationStructureBuildGeometryInfoKHR bottomASInfo{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR};
-      bottomASInfo.type                      = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
-      bottomASInfo.flags                     = flags;
-      bottomASInfo.update                    = VK_FALSE;
-      bottomASInfo.srcAccelerationStructure  = VK_NULL_HANDLE;
-      bottomASInfo.dstAccelerationStructure  = blas.as.accel;
-      bottomASInfo.geometryArrayOfPointers   = VK_FALSE;
-      bottomASInfo.geometryCount             = (uint32_t)blas.asGeometry.size();
-      bottomASInfo.ppGeometries              = &pGeometry;
-      bottomASInfo.scratchData.deviceAddress = scratchAddress;
+    // Building the acceleration structures
+    for(uint32_t idx = 0; idx < nbBlas; idx++)
+    {
+      auto&           blas   = m_blas[idx];
+      VkCommandBuffer cmdBuf = genCmdBuf.createCommandBuffer();
+      allCmdBufs[idx]        = cmdBuf;
+
+      // All build are using the same scratch buffer
+      buildInfos[idx].scratchData.deviceAddress = scratchAddress;
 
       // Pointers of offset
-      std::vector<const VkAccelerationStructureBuildOffsetInfoKHR*> pBuildOffset(blas.asBuildOffsetInfo.size());
-      for(size_t i = 0; i < blas.asBuildOffsetInfo.size(); i++)
-        pBuildOffset[i] = &blas.asBuildOffsetInfo[i];
+      std::vector<const VkAccelerationStructureBuildRangeInfoKHR*> pBuildOffset(blas.input.asBuildOffsetInfo.size());
+      for(size_t infoIdx = 0; infoIdx < blas.input.asBuildOffsetInfo.size(); infoIdx++)
+        pBuildOffset[infoIdx] = &blas.input.asBuildOffsetInfo[infoIdx];
 
       // Building the AS
-      vkCmdBuildAccelerationStructureKHR(cmdBuf, 1, &bottomASInfo, pBuildOffset.data());
+      vkCmdBuildAccelerationStructuresKHR(cmdBuf, 1, &buildInfos[idx], pBuildOffset.data());
 
       // Since the scratch buffer is reused across builds, we need a barrier to ensure one build
       // is finished before starting the next one
@@ -241,7 +261,7 @@ struct RaytracingBuilderKHR
       if(doCompaction)
       {
         vkCmdWriteAccelerationStructuresPropertiesKHR(cmdBuf, 1, &blas.as.accel,
-                                                      VK_QUERY_TYPE_ACCELERATION_STRUCTURE_COMPACTED_SIZE_KHR, queryPool, ctr++);
+                                                      VK_QUERY_TYPE_ACCELERATION_STRUCTURE_COMPACTED_SIZE_KHR, queryPool, idx);
       }
     }
     genCmdBuf.submitAndWait(allCmdBufs);
@@ -253,35 +273,34 @@ struct RaytracingBuilderKHR
       VkCommandBuffer cmdBuf = genCmdBuf.createCommandBuffer();
 
       // Get the size result back
-      std::vector<VkDeviceSize> compactSizes(m_blas.size());
+      std::vector<VkDeviceSize> compactSizes(nbBlas);
       vkGetQueryPoolResults(m_device, queryPool, 0, (uint32_t)compactSizes.size(), compactSizes.size() * sizeof(VkDeviceSize),
                             compactSizes.data(), sizeof(VkDeviceSize), VK_QUERY_RESULT_WAIT_BIT);
 
 
       // Compacting
-      std::vector<nvvk::AccelKHR> cleanupAS(m_blas.size());
-      uint32_t                    totOriginalSize{0}, totCompactSize{0};
-      for(int i = 0; i < m_blas.size(); i++)
+      std::vector<nvvk::AccelKHR> cleanupAS(nbBlas);  // previous AS to destroy
+      uint32_t                    statTotalOriSize{0}, statTotalCompactSize{0};
+      for(uint32_t idx = 0; idx < nbBlas; idx++)
       {
         // LOGI("Reducing %i, from %d to %d \n", i, originalSizes[i], compactSizes[i]);
-        totOriginalSize += (uint32_t)originalSizes[i];
-        totCompactSize += (uint32_t)compactSizes[i];
+        statTotalOriSize += (uint32_t)originalSizes[idx];
+        statTotalCompactSize += (uint32_t)compactSizes[idx];
 
         // Creating a compact version of the AS
         VkAccelerationStructureCreateInfoKHR asCreateInfo{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR};
-        asCreateInfo.compactedSize = compactSizes[i];
-        asCreateInfo.type          = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
-        asCreateInfo.flags         = flags;
-        auto as                    = m_alloc->createAcceleration(asCreateInfo);
+        asCreateInfo.size = compactSizes[idx];
+        asCreateInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
+        auto as           = m_alloc->createAcceleration(asCreateInfo);
 
         // Copy the original BLAS to a compact version
         VkCopyAccelerationStructureInfoKHR copyInfo{VK_STRUCTURE_TYPE_COPY_ACCELERATION_STRUCTURE_INFO_KHR};
-        copyInfo.src  = m_blas[i].as.accel;
+        copyInfo.src  = m_blas[idx].as.accel;
         copyInfo.dst  = as.accel;
         copyInfo.mode = VK_COPY_ACCELERATION_STRUCTURE_MODE_COMPACT_KHR;
         vkCmdCopyAccelerationStructureKHR(cmdBuf, &copyInfo);
-        cleanupAS[i] = m_blas[i].as;
-        m_blas[i].as = as;
+        cleanupAS[idx] = m_blas[idx].as;
+        m_blas[idx].as = as;
       }
       genCmdBuf.submitAndWait(cmdBuf);
 
@@ -289,8 +308,9 @@ struct RaytracingBuilderKHR
       for(auto as : cleanupAS)
         m_alloc->destroy(as);
 
-      LOGI(" RT BLAS: reducing from: %u to: %u = %u (%2.2f%s smaller) \n", totOriginalSize, totCompactSize,
-           totOriginalSize - totCompactSize, (totOriginalSize - totCompactSize) / float(totOriginalSize) * 100.f, "%%");
+      LOGI(" RT BLAS: reducing from: %u to: %u = %u (%2.2f%s smaller) \n", statTotalOriSize, statTotalCompactSize,
+           statTotalOriSize - statTotalCompactSize,
+           (statTotalOriSize - statTotalCompactSize) / float(statTotalOriSize) * 100.f, "%%");
     }
 
     vkDestroyQueryPool(m_device, queryPool, nullptr);
@@ -298,12 +318,14 @@ struct RaytracingBuilderKHR
     m_alloc->finalizeAndReleaseStaging();
   }
 
+
   //--------------------------------------------------------------------------------------------------
-  // Convert an Instance object into a VkGeometryInstanceNV
+  // Convert an Instance object into a VkAccelerationStructureInstanceKHR
 
   VkAccelerationStructureInstanceKHR instanceToVkGeometryInstanceKHR(const Instance& instance)
   {
-    Blas& blas{m_blas[instance.blasId]};
+    assert(size_t(instance.blasId) < m_blas.size());
+    BlasEntry& blas{m_blas[instance.blasId]};
 
     VkAccelerationStructureDeviceAddressInfoKHR addressInfo{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR};
     addressInfo.accelerationStructure = blas.as.accel;
@@ -330,47 +352,19 @@ struct RaytracingBuilderKHR
   // Creating the top-level acceleration structure from the vector of Instance
   // - See struct of Instance
   // - The resulting TLAS will be stored in m_tlas
+  // - update is to rebuild the Tlas with updated matrices
   //
   void buildTlas(const std::vector<Instance>&         instances,
-                 VkBuildAccelerationStructureFlagsKHR flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR)
+                 VkBuildAccelerationStructureFlagsKHR flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR,
+                 bool                                 update = false)
   {
+    nvvk::CommandPool genCmdBuf(m_device, m_queueIndex);
+    VkCommandBuffer   cmdBuf = genCmdBuf.createCommandBuffer();
+
     m_tlas.flags = flags;
 
-    VkAccelerationStructureCreateGeometryTypeInfoKHR geometryCreate{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_GEOMETRY_TYPE_INFO_KHR};
-    geometryCreate.geometryType      = VK_GEOMETRY_TYPE_INSTANCES_KHR;
-    geometryCreate.maxPrimitiveCount = (static_cast<uint32_t>(instances.size()));
-    geometryCreate.allowsTransforms  = VK_FALSE;
-
-    VkAccelerationStructureCreateInfoKHR asCreateInfo{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR};
-    asCreateInfo.type             = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
-    asCreateInfo.flags            = flags;
-    asCreateInfo.maxGeometryCount = 1;
-    asCreateInfo.pGeometryInfos   = &geometryCreate;
-
-    // Create the acceleration structure object and allocate the memory
-    // required to hold the TLAS data
-    m_tlas.as = m_alloc->createAcceleration(asCreateInfo);
-    m_debug.setObjectName(m_tlas.as.accel, "Tlas");
-
-    // Compute the amount of scratch memory required by the acceleration structure builder
-    VkAccelerationStructureMemoryRequirementsInfoKHR memoryRequirementsInfo{
-        VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_INFO_KHR};
-    memoryRequirementsInfo.type                  = VK_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_TYPE_BUILD_SCRATCH_KHR;
-    memoryRequirementsInfo.accelerationStructure = m_tlas.as.accel;
-    memoryRequirementsInfo.buildType             = VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR;
-
-    VkMemoryRequirements2 reqMem{VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2};
-    vkGetAccelerationStructureMemoryRequirementsKHR(m_device, &memoryRequirementsInfo, &reqMem);
-    VkDeviceSize scratchSize = reqMem.memoryRequirements.size;
-
-
-    // Allocate the scratch memory
-    nvvk::Buffer scratchBuffer =
-        m_alloc->createBuffer(scratchSize, VK_BUFFER_USAGE_RAY_TRACING_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);
-    VkBufferDeviceAddressInfo bufferInfo{VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO};
-    bufferInfo.buffer              = scratchBuffer.buffer;
-    VkDeviceAddress scratchAddress = vkGetBufferDeviceAddress(m_device, &bufferInfo);
-
+    // Geometry of the instances
+    // - Building the instance geometry structs and uploading the data to the device
 
     // For each instance, build the corresponding instance descriptor
     std::vector<VkAccelerationStructureInstanceKHR> geometryInstances;
@@ -380,16 +374,15 @@ struct RaytracingBuilderKHR
       geometryInstances.push_back(instanceToVkGeometryInstanceKHR(inst));
     }
 
-    // Building the TLAS
-    nvvk::CommandPool genCmdBuf(m_device, m_queueIndex);
-    VkCommandBuffer   cmdBuf = genCmdBuf.createCommandBuffer();
+    // Create a buffer holding the actual instance data (matrices++) for use by the AS builder
+    VkDeviceSize instanceDescsSizeInBytes = instances.size() * sizeof(VkAccelerationStructureInstanceKHR);
 
-    // Allocate the instance buffer and copy its contents from host to device
-    // memory
-    m_instBuffer = m_alloc->createBuffer(cmdBuf, geometryInstances,
-                                         VK_BUFFER_USAGE_RAY_TRACING_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);
+    // Allocate the instance buffer and copy its contents from host to device memory
+    if(update)
+      m_alloc->destroy(m_instBuffer);
+    m_instBuffer = m_alloc->createBuffer(cmdBuf, geometryInstances, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);
     m_debug.setObjectName(m_instBuffer.buffer, "TLASInstances");
-    //VkBufferDeviceAddressInfo bufferInfo{VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO};
+    VkBufferDeviceAddressInfo bufferInfo{VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO};
     bufferInfo.buffer               = m_instBuffer.buffer;
     VkDeviceAddress instanceAddress = vkGetBufferDeviceAddress(m_device, &bufferInfo);
 
@@ -401,8 +394,11 @@ struct RaytracingBuilderKHR
     vkCmdPipelineBarrier(cmdBuf, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
                          0, 1, &barrier, 0, nullptr, 0, nullptr);
 
+
+    //--------------------------------------------------------------------------------------------------
+
     // Build the TLAS
-    VkAccelerationStructureGeometryDataKHR geometry{{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR}};
+    VkAccelerationStructureGeometryDataKHR geometry{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR};
     geometry.instances.arrayOfPointers    = VK_FALSE;
     geometry.instances.data.deviceAddress = instanceAddress;
     VkAccelerationStructureGeometryKHR topASGeometry{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR};
@@ -410,25 +406,51 @@ struct RaytracingBuilderKHR
     topASGeometry.geometry     = geometry;
 
 
-    const VkAccelerationStructureGeometryKHR* pGeometry = &topASGeometry;
-    VkAccelerationStructureBuildGeometryInfoKHR topASInfo{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR};
-    topASInfo.type                      = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
-    topASInfo.flags                     = flags;
-    topASInfo.update                    = VK_FALSE;
-    topASInfo.srcAccelerationStructure  = VK_NULL_HANDLE;
-    topASInfo.dstAccelerationStructure  = m_tlas.as.accel;
-    topASInfo.geometryArrayOfPointers   = VK_FALSE;
-    topASInfo.geometryCount             = 1;
-    topASInfo.ppGeometries              = &pGeometry;
-    topASInfo.scratchData.deviceAddress = scratchAddress;
+    // Find sizes
+    VkAccelerationStructureBuildGeometryInfoKHR buildInfo{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR};
+    buildInfo.flags         = flags;
+    buildInfo.geometryCount = 1;
+    buildInfo.pGeometries   = &topASGeometry;
+    buildInfo.mode = update ? VK_BUILD_ACCELERATION_STRUCTURE_MODE_UPDATE_KHR : VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
+    buildInfo.type                     = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
+    buildInfo.srcAccelerationStructure = VK_NULL_HANDLE;
+
+    uint32_t                                 count = (uint32_t)instances.size();
+    VkAccelerationStructureBuildSizesInfoKHR sizeInfo{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR};
+    vkGetAccelerationStructureBuildSizesKHR(m_device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &buildInfo, &count, &sizeInfo);
+
+
+    // Create TLAS
+    if(update == false)
+    {
+      VkAccelerationStructureCreateInfoKHR createInfo{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR};
+      createInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
+      createInfo.size = sizeInfo.accelerationStructureSize;
+
+      m_tlas.as = m_alloc->createAcceleration(createInfo);
+      m_debug.setObjectName(m_tlas.as.accel, "Tlas");
+    }
+
+    // Allocate the scratch memory
+    nvvk::Buffer scratchBuffer =
+        m_alloc->createBuffer(sizeInfo.buildScratchSize, VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR
+                                                             | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);
+    bufferInfo.buffer              = scratchBuffer.buffer;
+    VkDeviceAddress scratchAddress = vkGetBufferDeviceAddress(m_device, &bufferInfo);
+
+
+    // Update build information
+    buildInfo.srcAccelerationStructure  = update ? m_tlas.as.accel : VK_NULL_HANDLE;
+    buildInfo.dstAccelerationStructure  = m_tlas.as.accel;
+    buildInfo.scratchData.deviceAddress = scratchAddress;
+
 
     // Build Offsets info: n instances
-    VkAccelerationStructureBuildOffsetInfoKHR        buildOffsetInfo{static_cast<uint32_t>(instances.size()), 0, 0, 0};
-    const VkAccelerationStructureBuildOffsetInfoKHR* pBuildOffsetInfo = &buildOffsetInfo;
+    VkAccelerationStructureBuildRangeInfoKHR        buildOffsetInfo{static_cast<uint32_t>(instances.size()), 0, 0, 0};
+    const VkAccelerationStructureBuildRangeInfoKHR* pBuildOffsetInfo = &buildOffsetInfo;
 
     // Build the TLAS
-    vkCmdBuildAccelerationStructureKHR(cmdBuf, 1, &topASInfo, &pBuildOffsetInfo);
-
+    vkCmdBuildAccelerationStructuresKHR(cmdBuf, 1, &buildInfo, &pBuildOffsetInfo);
 
     genCmdBuf.submitAndWait(cmdBuf);
     m_alloc->finalizeAndReleaseStaging();
@@ -436,147 +458,42 @@ struct RaytracingBuilderKHR
   }
 
   //--------------------------------------------------------------------------------------------------
-  // Refit the TLAS using new instance matrices
-  //
-  void updateTlasMatrices(const std::vector<Instance>& instances)
-  {
-    VkDeviceSize bufferSize = instances.size() * sizeof(VkAccelerationStructureInstanceKHR);
-    // Create a staging buffer on the host to upload the new instance data
-    nvvk::Buffer stagingBuffer = m_alloc->createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-#if defined(NVVK_ALLOC_VMA)
-                                                       VmaMemoryUsage::VMA_MEMORY_USAGE_CPU_TO_GPU
-#else
-                                                       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-#endif
-    );
-
-    // Copy the instance data into the staging buffer
-    auto* gInst = reinterpret_cast<VkAccelerationStructureInstanceKHR*>(m_alloc->map(stagingBuffer));
-    for(int i = 0; i < instances.size(); i++)
-    {
-      gInst[i] = instanceToVkGeometryInstanceKHR(instances[i]);
-    }
-    m_alloc->unmap(stagingBuffer);
-
-    // Compute the amount of scratch memory required by the AS builder to update
-    VkAccelerationStructureMemoryRequirementsInfoKHR memoryRequirementsInfo{
-        VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_INFO_KHR};
-    memoryRequirementsInfo.type = VK_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_TYPE_UPDATE_SCRATCH_KHR;
-    memoryRequirementsInfo.accelerationStructure = m_tlas.as.accel;
-    memoryRequirementsInfo.buildType             = VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR;
-
-    VkMemoryRequirements2 reqMem{VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2};
-    vkGetAccelerationStructureMemoryRequirementsKHR(m_device, &memoryRequirementsInfo, &reqMem);
-    VkDeviceSize scratchSize = reqMem.memoryRequirements.size;
-
-    // Allocate the scratch buffer
-    nvvk::Buffer scratchBuffer =
-        m_alloc->createBuffer(scratchSize, VK_BUFFER_USAGE_RAY_TRACING_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);
-    VkBufferDeviceAddressInfo bufferInfo{VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO};
-    bufferInfo.buffer              = scratchBuffer.buffer;
-    VkDeviceAddress scratchAddress = vkGetBufferDeviceAddress(m_device, &bufferInfo);
-
-
-    // Update the instance buffer on the device side and build the TLAS
-    nvvk::CommandPool genCmdBuf(m_device, m_queueIndex);
-    VkCommandBuffer   cmdBuf = genCmdBuf.createCommandBuffer();
-
-    VkBufferCopy region{0, 0, bufferSize};
-    vkCmdCopyBuffer(cmdBuf, stagingBuffer.buffer, m_instBuffer.buffer, 1, &region);
-
-    //VkBufferDeviceAddressInfo bufferInfo{VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO};
-    bufferInfo.buffer               = m_instBuffer.buffer;
-    VkDeviceAddress instanceAddress = vkGetBufferDeviceAddress(m_device, &bufferInfo);
-
-
-    // Make sure the copy of the instance buffer are copied before triggering the
-    // acceleration structure build
-    VkMemoryBarrier barrier{VK_STRUCTURE_TYPE_MEMORY_BARRIER};
-    barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-    barrier.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
-    vkCmdPipelineBarrier(cmdBuf, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
-                         0, 1, &barrier, 0, nullptr, 0, nullptr);
-
-
-    VkAccelerationStructureGeometryDataKHR geometry{{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR}};
-    geometry.instances.arrayOfPointers    = VK_FALSE;
-    geometry.instances.data.deviceAddress = instanceAddress;
-    VkAccelerationStructureGeometryKHR topASGeometry{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR};
-    topASGeometry.geometryType = VK_GEOMETRY_TYPE_INSTANCES_KHR;
-    topASGeometry.geometry     = geometry;
-    topASGeometry.flags        = m_tlas.flags;
-
-    const VkAccelerationStructureGeometryKHR* pGeometry = &topASGeometry;
-
-
-    VkAccelerationStructureBuildGeometryInfoKHR topASInfo{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR};
-    topASInfo.type                      = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
-    topASInfo.flags                     = m_tlas.flags;
-    topASInfo.update                    = VK_TRUE;
-    topASInfo.srcAccelerationStructure  = m_tlas.as.accel;
-    topASInfo.dstAccelerationStructure  = m_tlas.as.accel;
-    topASInfo.geometryArrayOfPointers   = VK_FALSE;
-    topASInfo.geometryCount             = 1;
-    topASInfo.ppGeometries              = &pGeometry;
-    topASInfo.scratchData.deviceAddress = scratchAddress;
-
-    uint32_t                                         nbInstances      = (uint32_t)instances.size();
-    VkAccelerationStructureBuildOffsetInfoKHR        buildOffsetInfo  = {nbInstances, 0, 0, 0};
-    const VkAccelerationStructureBuildOffsetInfoKHR* pBuildOffsetInfo = &buildOffsetInfo;
-
-    // Build the TLAS
-
-    // Update the acceleration structure. Note the VK_TRUE parameter to trigger the update,
-    // and the existing TLAS being passed and updated in place
-    vkCmdBuildAccelerationStructureKHR(cmdBuf, 1, &topASInfo, &pBuildOffsetInfo);
-
-    genCmdBuf.submitAndWait(cmdBuf);
-
-    m_alloc->destroy(scratchBuffer);
-    m_alloc->destroy(stagingBuffer);
-  }
-
-  //--------------------------------------------------------------------------------------------------
   // Refit the BLAS from updated buffers
   //
   void updateBlas(uint32_t blasIdx)
   {
-    Blas& blas = m_blas[blasIdx];
+    BlasEntry& blas = m_blas[blasIdx];  // The blas to update
 
-    // Compute the amount of scratch memory required by the AS builder to update    the BLAS
-    VkAccelerationStructureMemoryRequirementsInfoKHR memoryRequirementsInfo{
-        VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_INFO_KHR};
-    memoryRequirementsInfo.type = VK_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_TYPE_UPDATE_SCRATCH_KHR;
-    memoryRequirementsInfo.accelerationStructure = blas.as.accel;
-    memoryRequirementsInfo.buildType             = VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR;
+    // Preparing all build information, acceleration is filled later
+    VkAccelerationStructureBuildGeometryInfoKHR buildInfos{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR};
+    buildInfos.flags                    = blas.flags;
+    buildInfos.geometryCount            = (uint32_t)blas.input.asGeometry.size();
+    buildInfos.pGeometries              = blas.input.asGeometry.data();
+    buildInfos.mode                     = VK_BUILD_ACCELERATION_STRUCTURE_MODE_UPDATE_KHR;  // UPDATE
+    buildInfos.type                     = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
+    buildInfos.srcAccelerationStructure = blas.as.accel;  // UPDATE
+    buildInfos.dstAccelerationStructure = blas.as.accel;
 
-    VkMemoryRequirements2 reqMem{VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2};
-    vkGetAccelerationStructureMemoryRequirementsKHR(m_device, &memoryRequirementsInfo, &reqMem);
-    VkDeviceSize scratchSize = reqMem.memoryRequirements.size;
+    // Find size to build on the device
+    std::vector<uint32_t> maxPrimCount(blas.input.asBuildOffsetInfo.size());
+    for(auto tt = 0; tt < blas.input.asBuildOffsetInfo.size(); tt++)
+      maxPrimCount[tt] = blas.input.asBuildOffsetInfo[tt].primitiveCount;  // Number of primitives/triangles
+    VkAccelerationStructureBuildSizesInfoKHR sizeInfo{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR};
+    vkGetAccelerationStructureBuildSizesKHR(m_device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &buildInfos,
+                                            maxPrimCount.data(), &sizeInfo);
 
-    // Allocate the scratch buffer
+    // Allocate the scratch buffer and setting the scratch info
     nvvk::Buffer scratchBuffer =
-        m_alloc->createBuffer(scratchSize, VK_BUFFER_USAGE_RAY_TRACING_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);
+        m_alloc->createBuffer(sizeInfo.buildScratchSize, VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR
+                                                             | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);
     VkBufferDeviceAddressInfo bufferInfo{VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO};
-    bufferInfo.buffer              = scratchBuffer.buffer;
-    VkDeviceAddress scratchAddress = vkGetBufferDeviceAddress(m_device, &bufferInfo);
+    bufferInfo.buffer                    = scratchBuffer.buffer;
+    buildInfos.scratchData.deviceAddress = vkGetBufferDeviceAddress(m_device, &bufferInfo);
 
 
-    const VkAccelerationStructureGeometryKHR*   pGeometry = blas.asGeometry.data();
-    VkAccelerationStructureBuildGeometryInfoKHR asInfo{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR};
-    asInfo.type                      = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
-    asInfo.flags                     = blas.flags;
-    asInfo.update                    = VK_TRUE;
-    asInfo.srcAccelerationStructure  = blas.as.accel;
-    asInfo.dstAccelerationStructure  = blas.as.accel;
-    asInfo.geometryArrayOfPointers   = VK_FALSE;
-    asInfo.geometryCount             = (uint32_t)blas.asGeometry.size();
-    asInfo.ppGeometries              = &pGeometry;
-    asInfo.scratchData.deviceAddress = scratchAddress;
-
-    std::vector<const VkAccelerationStructureBuildOffsetInfoKHR*> pBuildOffset(blas.asBuildOffsetInfo.size());
-    for(size_t i = 0; i < blas.asBuildOffsetInfo.size(); i++)
-      pBuildOffset[i] = &blas.asBuildOffsetInfo[i];
+    std::vector<const VkAccelerationStructureBuildRangeInfoKHR*> pBuildOffset(blas.input.asBuildOffsetInfo.size());
+    for(size_t i = 0; i < blas.input.asBuildOffsetInfo.size(); i++)
+      pBuildOffset[i] = &blas.input.asBuildOffsetInfo[i];
 
     // Update the instance buffer on the device side and build the TLAS
     nvvk::CommandPool genCmdBuf(m_device, m_queueIndex);
@@ -585,7 +502,7 @@ struct RaytracingBuilderKHR
 
     // Update the acceleration structure. Note the VK_TRUE parameter to trigger the update,
     // and the existing BLAS being passed and updated in place
-    vkCmdBuildAccelerationStructureKHR(cmdBuf, 1, &asInfo, pBuildOffset.data());
+    vkCmdBuildAccelerationStructuresKHR(cmdBuf, 1, &buildInfos, pBuildOffset.data());
 
     genCmdBuf.submitAndWait(cmdBuf);
     m_alloc->destroy(scratchBuffer);
@@ -596,14 +513,12 @@ private:
   struct Tlas
   {
     nvvk::AccelKHR                       as;
-    VkAccelerationStructureCreateInfoKHR asInfo{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR, nullptr, 0,
-                                                VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR};
     VkBuildAccelerationStructureFlagsKHR flags;
   };
 
   //--------------------------------------------------------------------------------------------------
-  // Vector containing all the BLASes built and referenced by the TLAS
-  std::vector<Blas> m_blas;
+  // Vector containing all the BLASes built in buildBlas (and referenced by the TLAS)
+  std::vector<BlasEntry> m_blas;
   // Top-level acceleration structure
   Tlas m_tlas;
   // Instance buffer containing the matrices and BLAS ids
@@ -617,13 +532,17 @@ private:
 
 #ifdef VULKAN_HPP
 public:
-  void buildBlas(const std::vector<RaytracingBuilderKHR::Blas>& blas_, vk::BuildAccelerationStructureFlagsKHR flags)
+  void nvvk::RaytracingBuilderKHR::buildBlas(const std::vector<RaytracingBuilderKHR::BlasInput>& blas_,
+                                             vk::BuildAccelerationStructureFlagsKHR              flags)
   {
     buildBlas(blas_, static_cast<VkBuildAccelerationStructureFlagsKHR>(flags));
   }
-  void buildTlas(const std::vector<Instance>& instances, vk::BuildAccelerationStructureFlagsKHR flags)
+
+  void nvvk::RaytracingBuilderKHR::buildTlas(const std::vector<Instance>&           instances,
+                                             vk::BuildAccelerationStructureFlagsKHR flags,
+                                             bool                                   update = false)
   {
-    buildTlas(instances, static_cast<VkBuildAccelerationStructureFlagsKHR>(flags));
+    buildTlas(instances, static_cast<VkBuildAccelerationStructureFlagsKHR>(flags), update);
   }
 
 #endif
