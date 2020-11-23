@@ -44,7 +44,6 @@ namespace nvh {
   - Pan          (LMB + CTRL  | MMB)
   - Dolly        (LMB + SHIFT | RMB)
   - Look Around  (LMB + ALT   | LMB + CTRL + SHIFT)
-  - Trackball
 
   In a various ways:
   - examiner(orbit around object)
@@ -89,94 +88,104 @@ class CameraManipulator
 {
 public:
   // clang-format off
-    enum Modes { Examine, Fly, Walk, Trackball };
+    enum Modes { Examine, Fly, Walk};
     enum Actions { NoAction, Orbit, Dolly, Pan, LookAround };
     struct Inputs {bool lmb=false; bool mmb=false; bool rmb=false; 
                    bool shift=false; bool ctrl=false; bool alt=false;};
   // clang-format on
 
-  /// Main function to call from the application
-  /// On application mouse move, call this function with the current mouse position, mouse
-  /// button presses and keyboard modifier. The camera matrix will be updated and
-  /// can be retrieved calling getMatrix
+  struct Camera
+  {
+    nvmath::vec3f eye = nvmath::vec3f(10, 10, 10);
+    nvmath::vec3f ctr = nvmath::vec3f(0, 0, 0);
+    nvmath::vec3f up  = nvmath::vec3f(0, 1, 0);
+    float         fov = 60.0f;
+
+    bool operator!=(const Camera& rhr) const
+    {
+      return (eye != rhr.eye) || (ctr != rhr.ctr) || (up != rhr.up) || (fov != rhr.fov);
+    }
+    bool operator==(const Camera& rhr) const
+    {
+      return (eye == rhr.eye) && (ctr == rhr.ctr) && (up == rhr.up) && (fov == rhr.fov);
+    }
+  };
+
+public:
+  // Main function to call from the application
+  // On application mouse move, call this function with the current mouse position, mouse
+  // button presses and keyboard modifier. The camera matrix will be updated and
+  // can be retrieved calling getMatrix
   Actions mouseMove(int x, int y, const Inputs& inputs);
 
-  /// Set the camera to look at the interest point
-  /// instantSet = true will not interpolate to the new position
+  // Set the camera to look at the interest point
+  // instantSet = true will not interpolate to the new position
   void setLookat(const nvmath::vec3& eye, const nvmath::vec3& center, const nvmath::vec3& up, bool instantSet = true);
 
+  // This should be called in an application loop to update the camera matrix if this one is animated: new position, key movement
   void updateAnim();
-  /// Changing the size of the window. To call when the size of the window change.
-  /// This allows to do nicer movement according to the window size.
+
+  // To call when the size of the window change.  This allows to do nicer movement according to the window size.
   void setWindowSize(int w, int h);
 
-  /// Setting the current mouse position, to call on mouse button down
+  // Setting the current mouse position, to call on mouse button down. Allow to compute properly the deltas
   void setMousePosition(int x, int y);
 
-  // Factory.
-  static CameraManipulator& Singleton()
-  {
-    static CameraManipulator manipulator;
-    return manipulator;
-  }
+  Camera getCamera() const { return m_current; }
+  void   setCamera(Camera camera, bool instantSet = true);
 
-  /// Retrieve the position, interest and up vector of the camera
+  // Retrieve the position, interest and up vector of the camera
   void getLookat(nvmath::vec3& eye, nvmath::vec3& center, nvmath::vec3& up) const;
 
-  /// Set the manipulator mode, from Examiner, to walk, to fly, ...
-  void setMode(Modes mode);
+  // Set the manipulator mode, from Examiner, to walk, to fly, ...
+  void setMode(Modes mode) { m_mode = mode; }
 
-  /// Retrieve the current manipulator mode
-  Modes getMode() const;
+  // Retrieve the current manipulator mode
+  Modes getMode() const { return m_mode; }
 
-  /// Setting the roll (radian) around the Z axis
-  void setRoll(float roll);
+  // Retrieving the transformation matrix of the camera
+  const nvmath::mat4& getMatrix() const { return m_matrix; }
 
-  /// Retrieve the camera roll
-  float getRoll() const;
-
-  /// Retrieving the transformation matrix of the camera
-  const nvmath::mat4& getMatrix() const;
-
-  /// Set the position, interest from the matrix.
-  /// instantSet = true will not interpolate to the new position
-  /// centerDistance is the distance of the center from the eye
+  // Set the position, interest from the matrix.
+  // instantSet = true will not interpolate to the new position
+  // centerDistance is the distance of the center from the eye
   void setMatrix(const nvmath::mat4& mat_, bool instantSet = true, float centerDistance = 1.f);
 
-  /// Changing the default speed movement
-  void setSpeed(float speed);
+  // Changing the default speed movement
+  void setSpeed(float speed) { m_speed = speed; }
 
-  /// Retrieving the current speed
-  float getSpeed();
+  // Retrieving the current speed
+  float getSpeed() { return m_speed; }
 
-  /// Retrieving the last mouse position
+  // Retrieving the last mouse position
   void getMousePosition(int& x, int& y);
 
-  /// Main function which is called to apply a camera motion.
-  /// It is preferable to
+  // Main function which is called to apply a camera motion.
+  // It is preferable to
   void motion(int x, int y, int action = 0);
 
-  /// To call when the mouse wheel change
+  void keyMotion(float dx, float dy, int action);
+
+  // To call when the mouse wheel change
   void wheel(int value, const Inputs& inputs);
 
-  /// Retrieve the screen width
-  int getWidth() const;
+  // Retrieve the screen dimension
+  int getWidth() const { return m_width; }
+  int getHeight() const { return m_height; }
 
-  /// Retrieve the screen height
-  int getHeight() const;
+  // Field of view
+  void  setFov(float _fov) { m_current.fov = _fov; }
+  float getFov() { return m_current.fov; }
 
-  /// Field of view
-  void  setFov(float _fov) { m_fov = _fov; }
-  float getFov() { return m_fov; }
+  // Animation duration
+  double getAnimationDuration() const { return m_duration; }
+  void   setAnimationDuration(double val) { m_duration = val; }
+  bool   isAnimated() { return m_anim_done == false; }
 
-  CameraManipulator::Inputs getInputs(const int& mouseButtonFlags, const bool* keyPressed);
-
-
-  double getDuration() const { return m_duration; }
-  void   setDuration(double val) { m_duration = val; }
-
+  // Returning a default help string
   const std::string& getHelp();
 
+  // Fitting the camera position and interest to see the bounding box
   void fit(const nvmath::vec3f& boxMin, const nvmath::vec3f& boxMax, bool instantFit = true, bool tight = false, float aspect = 1.0f);
 
 protected:
@@ -184,52 +193,41 @@ protected:
 
 private:
   // Update the internal matrix.
-  void update();
+  void update() { m_matrix = nvmath::look_at(m_current.eye, m_current.ctr, m_current.up); }
+
   // Do panning: movement parallels to the screen
   void pan(float dx, float dy);
-  // Do orbiting: rotation around the center of interest. If invert, the interest orbit around the
-  // camera position
+  // Do orbiting: rotation around the center of interest. If invert, the interest orbit around the camera position
   void orbit(float dx, float dy, bool invert = false);
   // Do dolly: movement toward the interest.
   void dolly(float dx, float dy);
-  // Trackball: movement like the object is inside a ball
-  void trackball(int x, int y);
-  // Used by the trackball
-  double projectOntoTBSphere(const nvmath::vec2& p);
+
+
   double getSystemTime();
 
   nvmath::vec3f computeBezier(float t, nvmath::vec3f& p0, nvmath::vec3f& p1, nvmath::vec3f& p2);
   void          findBezierPoints();
 
 protected:
-  struct Camera
-  {
-    nvmath::vec3f eye = nvmath::vec3f(10, 10, 10);
-    nvmath::vec3f ctr = nvmath::vec3f(0, 0, 0);
-    nvmath::vec3f up  = nvmath::vec3f(0, 1, 0);
-  };
-
-
-  float         m_roll   = 0;  // Rotation around the Z axis in RAD
   nvmath::mat4f m_matrix = nvmath::mat4f(1);
-  float         m_fov    = 60.0f;
 
   Camera m_current;   // Current camera position
   Camera m_goal;      // Wish camera position
-  Camera m_snapshot;  // Current camera the moment a set lookat is done
+  Camera m_snapshot;  // Current camera the moment a set look-at is done
 
   // Animation
   std::array<nvmath::vec3f, 3> m_bezier;
   double                       m_start_time = 0;
   double                       m_duration   = 0.5;
   bool                         m_anim_done{true};
+  nvmath::vec3f                m_key_vec{0, 0, 0};
 
   // Screen
   int m_width  = 1;
   int m_height = 1;
 
   // Other
-  float         m_speed = 30;
+  float         m_speed = 3.f;
   nvmath::vec2f m_mouse = nvmath::vec2f(0.f, 0.f);
 
   bool  m_button = false;  // Button pressed
@@ -237,6 +235,14 @@ protected:
   float m_tbsize = 0.8f;   // Trackball size;
 
   Modes m_mode = Examine;
+
+public:
+  // Factory.
+  static CameraManipulator& Singleton()
+  {
+    static CameraManipulator manipulator;
+    return manipulator;
+  }
 };
 
 // Global Manipulator

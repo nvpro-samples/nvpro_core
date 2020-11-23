@@ -47,41 +47,70 @@ CameraManipulator::CameraManipulator()
 }
 
 //--------------------------------------------------------------------------------------------------
+// Set the new camera as a goal
+//
+void CameraManipulator::setCamera(Camera camera, bool instantSet /*=true*/)
+{
+  m_anim_done = true;
+
+  if(instantSet)
+  {
+    m_current = camera;
+    update();
+  }
+  else if(camera != m_current)
+  {
+    m_goal       = camera;
+    m_snapshot   = m_current;
+    m_anim_done  = false;
+    m_start_time = getSystemTime();
+    findBezierPoints();
+  }
+}
+
+//--------------------------------------------------------------------------------------------------
 // Creates a viewing matrix derived from an eye point, a reference point indicating the center of
 // the scene, and an up vector
 //
 void CameraManipulator::setLookat(const nvmath::vec3& eye, const nvmath::vec3& center, const nvmath::vec3& up, bool instantSet)
 {
-  if(instantSet)
-  {
-    m_current.eye = eye;
-    m_current.ctr = center;
-    m_current.up  = up;
-    m_goal        = m_current;
-    m_start_time  = 0;
-  }
-  else
-  {
-    m_anim_done  = false;
-    m_goal.eye   = eye;
-    m_goal.ctr   = center;
-    m_goal.up    = up;
-    m_snapshot   = m_current;
-    m_start_time = getSystemTime();
-    findBezierPoints();
-  }
-  update();
+  Camera camera{eye, center, up, m_current.fov};
+  setCamera(camera, instantSet);
 }
 
+//--------------------------------------------------------------------------------------------------
+// Modify the position of the camera over time
+// - The camera can be updated through keys. A key set a direction which is added to both
+//   eye and center, until the key is released
+// - A new position of the camera is defined and the camera will reach that position
+//   over time.
 void CameraManipulator::updateAnim()
 {
   auto elapse = static_cast<float>(getSystemTime() - m_start_time) / 1000.f;
-  if(elapse > m_duration && m_anim_done)
+
+  // Key animation
+  if(m_key_vec != nvmath::vec3f(0, 0, 0))
+  {
+    m_current.eye += m_key_vec * elapse;
+    m_current.ctr += m_key_vec * elapse;
+    update();
+    m_start_time = getSystemTime();
+    return;
+  }
+
+  // Camera moving to new position
+  if(m_anim_done)
     return;
 
   float t = std::min(elapse / float(m_duration), 1.0f);
   // Evaluate polynomial (smoother step from Perlin)
   t = t * t * t * (t * (t * 6.0f - 15.0f) + 10.0f);
+  if(t >= 1.0f)
+  {
+    m_current   = m_goal;
+    m_anim_done = true;
+    return;
+  }
 
   // Interpolate camera position and interest
   // The distance of the camera between the interest is preserved to
@@ -90,11 +119,12 @@ void CameraManipulator::updateAnim()
   m_current.ctr = nvmath::lerp(t, m_snapshot.ctr, m_goal.ctr);
   m_current.up  = nvmath::lerp(t, m_snapshot.up, m_goal.up);
   m_current.eye = computeBezier(t, m_bezier[0], m_bezier[1], m_bezier[2]);
+  m_current.fov = nvmath::lerp(t, m_snapshot.fov, m_goal.fov);
+
 
   update();
-  if(t >= 1.0f)
-    m_anim_done = true;
 }
+
 
 //-----------------------------------------------------------------------------
 // Get the current camera information
@@ -111,68 +141,25 @@ void CameraManipulator::getLookat(nvmath::vec3& eye, nvmath::vec3& center, nvmat
 
 //--------------------------------------------------------------------------------------------------
 //
-//
-void CameraManipulator::setMode(Modes mode)
+void CameraManipulator::setMatrix(const nvmath::mat4& matrix, bool instantSet, float centerDistance)
 {
-  m_mode = mode;
-}
+  Camera camera;
+  matrix.get_translation(camera.eye);
+  auto rotMat = matrix.get_rot_mat3();
+  camera.ctr  = {0, 0, -centerDistance};
+  camera.ctr  = camera.eye + (rotMat * camera.ctr);
+  camera.up   = {0, 1, 0};
+  camera.fov  = m_current.fov;
 
-//--------------------------------------------------------------------------------------------------
-//
-//
-CameraManipulator::Modes CameraManipulator::getMode() const
-{
-  return m_mode;
-}
-
-//--------------------------------------------------------------------------------------------------
-//
-//
-void CameraManipulator::setRoll(float roll)
-{
-  m_roll = roll;
-  update();
-}
-
-//--------------------------------------------------------------------------------------------------
-//
-//
-float CameraManipulator::getRoll() const
-{
-  return m_roll;
-}
-
-//--------------------------------------------------------------------------------------------------
-//
-//
-const nvmath::mat4& CameraManipulator::getMatrix() const
-{
-  return m_matrix;
-}
-
-void CameraManipulator::setMatrix(const nvmath::mat4& mat_, bool instantSet, float centerDistance)
-{
-  nvmath::vec3f eye, center, up;
-
-  mat_.get_translation(eye);
-  auto rotMat = mat_.get_rot_mat3();
-  center      = {0, 0, -centerDistance};
-  center      = eye + (rotMat * center);
-  up          = {0, 1, 0};
+  m_anim_done = instantSet;
 
   if(instantSet)
   {
-    m_current.eye = eye;
-    m_current.ctr = center;
-    m_current.up  = up;
-    m_goal        = m_current;
-    m_start_time  = 0;
+    m_current = camera;
   }
   else
   {
-    m_goal.eye   = eye;
-    m_goal.ctr   = center;
-    m_goal.up    = up;
+    m_goal       = camera;
     m_snapshot   = m_current;
     m_start_time = getSystemTime();
     findBezierPoints();
@@ -183,26 +170,9 @@ void CameraManipulator::setMatrix(const nvmath::mat4& mat_, bool instantSet, flo
 //--------------------------------------------------------------------------------------------------
 //
 //
-void CameraManipulator::setSpeed(float speed)
-{
-  m_speed = speed;
-}
-
-//--------------------------------------------------------------------------------------------------
-//
-//
-float CameraManipulator::getSpeed()
-{
-  return m_speed;
-}
-
-//--------------------------------------------------------------------------------------------------
-//
-//
 void CameraManipulator::setMousePosition(int x, int y)
 {
-  m_mouse[0] = static_cast<float>(x);
-  m_mouse[1] = static_cast<float>(y);
+  m_mouse = {static_cast<float>(x), static_cast<float>(y)};
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -234,11 +204,8 @@ void CameraManipulator::motion(int x, int y, int action)
 
   switch(action)
   {
-    case CameraManipulator::Orbit:
-      if(m_mode == Trackball)
-        orbit(dx, dy, true);  // trackball(x, y);
-      else
-        orbit(dx, dy, false);
+    case Orbit:
+      orbit(dx, dy, false);
       break;
     case CameraManipulator::Dolly:
       dolly(dx, dy);
@@ -247,21 +214,59 @@ void CameraManipulator::motion(int x, int y, int action)
       pan(dx, dy);
       break;
     case CameraManipulator::LookAround:
-      if(m_mode == Trackball)
-        trackball(x, y);
-      else
-        orbit(dx, -dy, true);
+      orbit(dx, -dy, true);
       break;
   }
 
   // Resetting animation
-  m_start_time = 0;
+  m_anim_done = true;
 
   update();
 
   m_mouse[0] = static_cast<float>(x);
   m_mouse[1] = static_cast<float>(y);
 }
+
+
+//
+// Function for when the camera move with keys.
+//
+void CameraManipulator::keyMotion(float dx, float dy, int action)
+{
+  if(action == NoAction)
+  {
+    m_key_vec = {0, 0, 0};
+    return;
+  }
+
+  auto d = nvmath::normalize(m_current.ctr - m_current.eye);
+  dx *= m_speed * 2.f;
+  dy *= m_speed * 2.f;
+
+  nvmath::vec3f key_vec;
+  if(action == Dolly)
+  {
+    key_vec = d * dx;
+    if(m_mode == Walk)
+    {
+      if(m_current.up.y > m_current.up.z)
+        key_vec.y = 0;
+      else
+        key_vec.z = 0;
+    }
+  }
+  else if(action == Pan)
+  {
+    auto r  = nvmath::cross(d, m_current.up);
+    key_vec = r * dx + m_current.up * dy;
+  }
+
+  m_key_vec += key_vec;
+
+  // Resetting animation
+  m_start_time = getSystemTime();
+}
+
 
 //--------------------------------------------------------------------------------------------------
 // To call when the mouse is moving
@@ -311,7 +316,7 @@ void CameraManipulator::wheel(int value, const Inputs& inputs)
 
   if(inputs.shift)
   {
-    m_fov += fval;
+    m_current.fov += fval;
   }
   else
   {
@@ -323,91 +328,6 @@ void CameraManipulator::wheel(int value, const Inputs& inputs)
     dolly(dx * m_speed, dx * m_speed);
     update();
   }
-}
-
-//--------------------------------------------------------------------------------------------------
-//
-//
-int CameraManipulator::getWidth() const
-{
-  return m_width;
-}
-
-//--------------------------------------------------------------------------------------------------
-//
-//
-int CameraManipulator::getHeight() const
-{
-  return m_height;
-}
-
-//--------------------------------------------------------------------------------------------------
-//
-// Start trackball calculation
-// Calculate the axis and the angle (radians) by the given mouse coordinates.
-// Project the points onto the virtual trackball, then figure out the axis of rotation, which is the
-// cross product of p0 p1 and O p0 (O is the center of the ball, 0,0,0)
-//
-// NOTE: This is a deformed trackball -- is a trackball in the center, but is deformed into a
-// hyperbolic sheet of rotation away from the center.
-//
-void CameraManipulator::trackball(int x, int y)
-{
-  nvmath::vec2 p0(2 * (m_mouse[0] - m_width / 2) / double(m_width), 2 * (m_height / 2 - m_mouse[1]) / double(m_height));
-  nvmath::vec2 p1(2 * (x - m_width / 2) / double(m_width), 2 * (m_height / 2 - y) / double(m_height));
-
-  // determine the z coordinate on the sphere
-  nvmath::vec3 pTB0(p0[0], p0[1], projectOntoTBSphere(p0));
-  nvmath::vec3 pTB1(p1[0], p1[1], projectOntoTBSphere(p1));
-
-  // calculate the rotation axis via cross product between p0 and p1
-  nvmath::vec3 axis = nvmath::cross(pTB0, pTB1);
-  axis              = nvmath::normalize(axis);
-
-  // calculate the angle
-  double t = nvmath::length(pTB0 - pTB1) / (2.f * m_tbsize);
-
-  // clamp between -1 and 1
-  if(t > 1.0)
-    t = 1.0;
-  else if(t < -1.0)
-    t = -1.0;
-
-  float rad = (float)(2.0 * asin(t));
-
-  {
-    nvmath::vec4 rot_axis = m_matrix * nvmath::vec4(axis, 0);
-    nvmath::mat4 rot_mat  = nvmath::mat4f().as_rot(rad, nvmath::vec3(rot_axis.x, rot_axis.y, rot_axis.z));
-
-    nvmath::vec3 pnt  = m_current.eye - m_current.ctr;
-    nvmath::vec4 pnt2 = rot_mat * nvmath::vec4(pnt.x, pnt.y, pnt.z, 1);
-    m_current.eye     = m_current.ctr + nvmath::vec3(pnt2.x, pnt2.y, pnt2.z);
-    nvmath::vec4 up2  = rot_mat * nvmath::vec4(m_current.up.x, m_current.up.y, m_current.up.z, 0);
-    m_current.up      = nvmath::vec3(up2.x, up2.y, up2.z);
-  }
-}
-
-//--------------------------------------------------------------------------------------------------
-// Project an x,y pair onto a sphere of radius r OR a hyperbolic sheet
-// if we are away from the center of the sphere.
-//
-double CameraManipulator::projectOntoTBSphere(const nvmath::vec2& p)
-{
-  double z;
-  double d = length(p);
-  if(d < m_tbsize * 0.70710678118654752440)
-  {
-    // inside sphere
-    z = sqrt(m_tbsize * m_tbsize - d * d);
-  }
-  else
-  {
-    // on hyperbola
-    double t = m_tbsize / 1.41421356237309504880;
-    z        = t * t / d;
-  }
-
-  return z;
 }
 
 
@@ -445,20 +365,6 @@ void CameraManipulator::findBezierPoints()
   m_bezier[0] = p0;
   m_bezier[1] = p1;
   m_bezier[2] = p2;
-}
-
-//--------------------------------------------------------------------------------------------------
-// Update the internal matrix.
-//
-void CameraManipulator::update()
-{
-  m_matrix = nvmath::look_at(m_current.eye, m_current.ctr, m_current.up);
-
-  if(m_roll != 0.f)
-  {
-    nvmath::mat4 rot = nvmath::mat4f().as_rot(m_roll, nvmath::vec3(0, 0, 1));
-    m_matrix         = m_matrix * rot;
-  }
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -563,18 +469,22 @@ void CameraManipulator::dolly(float dx, float dy)
     dd = -dy;
   else
     dd = fabs(dx) > fabs(dy) ? dx : -dy;
-  float factor = m_speed * dd / length;
+  float factor = m_speed * dd;
 
   // Adjust speed based on distance.
-  length /= 10;
-  length = length < 0.001f ? 0.001f : length;
-  factor *= length;
+  if(m_mode == Examine)
+  {
+    // Don't move over the point of interest.
+    if(factor >= 1.0f)
+      return;
 
-  // Don't move to or through the point of interest.
-  if(factor >= 1.0f)
-    return;
-
-  z *= factor;
+    z *= factor;
+  }
+  else
+  {
+    // Normalize the Z vector and make it faster
+    z *= factor / length * 10.0f;
+  }
 
   // Not going up
   if(m_mode == Walk)
@@ -590,18 +500,6 @@ void CameraManipulator::dolly(float dx, float dy)
   // In fly mode, the interest moves with us.
   if(m_mode != Examine)
     m_current.ctr += z;
-}
-
-CameraManipulator::Inputs CameraManipulator::getInputs(const int& mouseButtonFlags, const bool* keyPressed)
-{
-  CameraManipulator::Inputs inputs;
-  inputs.lmb   = !!(mouseButtonFlags & NVPWindow::MOUSE_BUTTONFLAG_LEFT);
-  inputs.mmb   = !!(mouseButtonFlags & NVPWindow::MOUSE_BUTTONFLAG_MIDDLE);
-  inputs.rmb   = !!(mouseButtonFlags & NVPWindow::MOUSE_BUTTONFLAG_RIGHT);
-  inputs.ctrl  = keyPressed[NVPWindow::KEY_LEFT_CONTROL];
-  inputs.shift = keyPressed[NVPWindow::KEY_LEFT_SHIFT];
-  inputs.alt   = keyPressed[NVPWindow::KEY_LEFT_ALT];
-  return inputs;
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -646,8 +544,8 @@ void CameraManipulator::fit(const nvmath::vec3f& boxMin, const nvmath::vec3f& bo
   const nvmath::vec3f boxCenter   = boxMin + boxHalfSize;
 
   float offset = 0;
-  float yfov   = m_fov;
-  float xfov   = m_fov * aspect;
+  float yfov   = m_current.fov;
+  float xfov   = m_current.fov * aspect;
 
   if(!tight)
   {
