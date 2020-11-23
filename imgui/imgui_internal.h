@@ -450,7 +450,8 @@ enum ImGuiAxis
 enum ImGuiPlotType
 {
     ImGuiPlotType_Lines,
-    ImGuiPlotType_Histogram
+    ImGuiPlotType_Histogram,
+    ImGuiPlotType_Area, // NVIDIA
 };
 
 enum ImGuiInputSource

@@ -327,9 +327,9 @@ macro(_add_package_ImGUI)
   include_directories(${IMGUI_PATH})
 
   set(IMGUI_H ${IMGUI_PATH}/imconfig.h ${IMGUI_PATH}/imgui.h ${IMGUI_PATH}/imgui_internal.h  
-              ${IMGUI_PATH}/imgui_impl_glfw.h ${IMGUI_PATH}/imgui_helper.h ${IMGUI_PATH}/imgui_orient.h)
+              ${IMGUI_PATH}/imgui_impl_glfw.h ${IMGUI_PATH}/imgui_helper.h ${IMGUI_PATH}/imgui_orient.h ${IMGUI_PATH}/imgui_camera_widget.h)
   set(IMGUI_CPP ${IMGUI_PATH}/imgui.cpp ${IMGUI_PATH}/imgui_draw.cpp ${IMGUI_PATH}/imgui_helper.cpp 
-                ${IMGUI_PATH}/imgui_impl_glfw.cpp ${IMGUI_PATH}/imgui_widgets.cpp ${IMGUI_PATH}/imgui_orient.cpp)
+                ${IMGUI_PATH}/imgui_impl_glfw.cpp ${IMGUI_PATH}/imgui_widgets.cpp ${IMGUI_PATH}/imgui_orient.cpp ${IMGUI_PATH}/imgui_camera_widget.cpp)
 
   if(USING_OPENGL)
     list(APPEND IMGUI_H ${IMGUI_PATH}/imgui_impl_gl.h)

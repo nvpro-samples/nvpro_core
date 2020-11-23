@@ -23,22 +23,25 @@ OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 -----------------------------------------------------------------------*/
+#define GLFW_INCLUDE_NONE
 #include "imgui_helper.h"
 #include "nvmath/nvmath.h"
 #include "nvmath/nvmath_glsltypes.h"
+#include <GLFW/glfw3.h>
 
 #include <fstream>
 
 namespace ImGuiH {
 
-void Init(int width, int height, void* userData)
+void Init(int width, int height, void* userData, FontMode fontmode)
 {
   ImGui::CreateContext();
+  setFonts(fontmode);
   auto& imgui_io       = ImGui::GetIO();
   imgui_io.IniFilename = nullptr;
-  imgui_io.Fonts->AddFontDefault();
-  imgui_io.UserData                    = userData;
-  imgui_io.DisplaySize                 = ImVec2(float(width), float(height));
+  imgui_io.UserData    = userData;
+  imgui_io.DisplaySize = ImVec2(float(width), float(height));
+  imgui_io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable keyboard controls (tab, space, arrow keys)
   imgui_io.KeyMap[ImGuiKey_Tab]        = NVPWindow::KEY_TAB;
   imgui_io.KeyMap[ImGuiKey_LeftArrow]  = NVPWindow::KEY_LEFT;
   imgui_io.KeyMap[ImGuiKey_RightArrow] = NVPWindow::KEY_RIGHT;
@@ -60,6 +63,10 @@ void Init(int width, int height, void* userData)
   imgui_io.KeyMap[ImGuiKey_X]          = NVPWindow::KEY_X;
   imgui_io.KeyMap[ImGuiKey_Y]          = NVPWindow::KEY_Y;
   imgui_io.KeyMap[ImGuiKey_Z]          = NVPWindow::KEY_Z;
+
+  // Scale style sizes for high-DPI monitors
+  ImGuiStyle& imgui_style = ImGui::GetStyle();
+  imgui_style.ScaleAllSizes( fontmode == FONT_FIXED ? 1 : getDPIScale());
 }
 
 void Combo(const char* label, size_t numEnums, const Enum* enums, void* valuePtr, ImGuiComboFlags flags, ValueType valueType, bool* valueChanged)
@@ -119,6 +126,48 @@ void Combo(const char* label, size_t numEnums, const Enum* enums, void* valuePtr
 }
 
 //--------------------------------------------------------------------------------------------------
+//
+// If GLFW has been initialized, returns the DPI scale of the primary monitor. Otherwise, returns 1.
+//
+float getDPIScale()
+{
+  // Cached DPI scale, so that this doesn't change after the first time code calls getDPIScale.
+  // A negative value indicates that the value hasn't been computed yet.
+  static float cached_dpi_scale = -1.0f;
+
+  if(cached_dpi_scale < 0.0f)
+  {
+    // Compute the product of the monitor DPI scale and any DPI scale
+    // set in the NVPRO_DPI_SCALE variable.
+    cached_dpi_scale = 1.0f;
+
+    GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+    if(monitor != nullptr)
+    {
+      float y_scale;
+      glfwGetMonitorContentScale(monitor, &cached_dpi_scale, &y_scale);
+    }
+    // Otherwise, GLFW isn't initialized yet, but might be in the future.
+    // (Note that this code assumes all samples use GLFW.)
+
+    // Multiply by the value of the NVPRO_DPI_SCALE environment variable.
+    const char* dpi_env = getenv("NVPRO_DPI_SCALE");
+    if(dpi_env)
+    {
+      const float parsed_dpi_env = strtof(dpi_env, nullptr);
+      if(parsed_dpi_env != 0.0f)
+      {
+        cached_dpi_scale *= parsed_dpi_env;
+      }
+    }
+
+    cached_dpi_scale = (cached_dpi_scale > 0.0f ? cached_dpi_scale : 1.0f);
+  }
+
+  return cached_dpi_scale;
+}
+
+//--------------------------------------------------------------------------------------------------
 // Setting a dark style for the GUI
 //
 void setStyle()
@@ -140,31 +189,40 @@ void setStyle()
   style.Colors[ImGuiCol_Border]      = ImVec4(0.4f, 0.4f, 0.4f, 0.5f);
   style.Colors[ImGuiCol_FrameBg]     = ImVec4(0.05f, 0.05f, 0.05f, 0.5f);
 
-  std::vector<ImGuiCol> to_change;
-  to_change.push_back(ImGuiCol_Header);
-  to_change.push_back(ImGuiCol_HeaderActive);
-  to_change.push_back(ImGuiCol_HeaderHovered);
-  to_change.push_back(ImGuiCol_SliderGrab);
-  to_change.push_back(ImGuiCol_SliderGrabActive);
-  to_change.push_back(ImGuiCol_Button);
-  to_change.push_back(ImGuiCol_ButtonActive);
-  to_change.push_back(ImGuiCol_ButtonHovered);
-  to_change.push_back(ImGuiCol_FrameBgActive);
-  to_change.push_back(ImGuiCol_FrameBgHovered);
-  to_change.push_back(ImGuiCol_CheckMark);
-  to_change.push_back(ImGuiCol_ResizeGrip);
-  to_change.push_back(ImGuiCol_ResizeGripActive);
-  to_change.push_back(ImGuiCol_ResizeGripHovered);
-  to_change.push_back(ImGuiCol_TextSelectedBg);
-  to_change.push_back(ImGuiCol_Separator);
-  to_change.push_back(ImGuiCol_SeparatorHovered);
-  to_change.push_back(ImGuiCol_SeparatorActive);
-  for(auto c : to_change)
+  // Normal & Active
+  ImVec4                normal_color(0.465f, 0.465f, 0.525f, 1.0f);
+  std::vector<ImGuiCol> to_change_nrm;
+  to_change_nrm.push_back(ImGuiCol_Header);
+  to_change_nrm.push_back(ImGuiCol_HeaderActive);
+  to_change_nrm.push_back(ImGuiCol_SliderGrab);
+  to_change_nrm.push_back(ImGuiCol_SliderGrabActive);
+  to_change_nrm.push_back(ImGuiCol_Button);
+  to_change_nrm.push_back(ImGuiCol_ButtonActive);
+  to_change_nrm.push_back(ImGuiCol_FrameBgActive);
+  to_change_nrm.push_back(ImGuiCol_CheckMark);
+  to_change_nrm.push_back(ImGuiCol_ResizeGrip);
+  to_change_nrm.push_back(ImGuiCol_ResizeGripActive);
+  to_change_nrm.push_back(ImGuiCol_TextSelectedBg);
+  to_change_nrm.push_back(ImGuiCol_Separator);
+  to_change_nrm.push_back(ImGuiCol_SeparatorActive);
+  for(auto c : to_change_nrm)
   {
-    style.Colors[c].x = 0.465f;
-    style.Colors[c].y = 0.495f;
-    style.Colors[c].z = 0.525f;
+    style.Colors[c] = normal_color;
   }
+
+  // Hovered
+  ImVec4                hovered_color(0.565f, 0.565f, 0.625f, 1.0f);
+  std::vector<ImGuiCol> to_change_hover;
+  to_change_hover.push_back(ImGuiCol_HeaderHovered);
+  to_change_hover.push_back(ImGuiCol_ButtonHovered);
+  to_change_hover.push_back(ImGuiCol_FrameBgHovered);
+  to_change_hover.push_back(ImGuiCol_ResizeGripHovered);
+  to_change_hover.push_back(ImGuiCol_SeparatorHovered);
+  for(auto c : to_change_hover)
+  {
+    style.Colors[c] = hovered_color;
+  }
+
 
   style.Colors[ImGuiCol_TitleBgActive]    = ImVec4(0.465f, 0.465f, 0.465f, 1.0f);
   style.Colors[ImGuiCol_TitleBg]          = ImVec4(0.125f, 0.125f, 0.125f, 1.0f);
@@ -191,28 +249,44 @@ static bool fileExists(const char* filename)
 //--------------------------------------------------------------------------------------------------
 // Looking for TTF fonts, first on the VULKAN SDK, then Windows default fonts
 //
-void setFonts()
+void setFonts(FontMode fontmode)
 {
-  ImGuiIO& io = ImGui::GetIO();
+  ImGuiIO&    io             = ImGui::GetIO();
+  const float high_dpi_scale = getDPIScale();
+
 
   // Nicer fonts
   ImFont*     font    = nullptr;
-  const char* vk_path = getenv("VK_SDK_PATH");
-  if(vk_path)
-  {
-    const std::string p = std::string(vk_path) + R"(\Samples\Layer-Samples\data\FreeSans.ttf)";
-    if(fileExists(p.c_str()))
-      font = io.Fonts->AddFontFromFileTTF(p.c_str(), 16.0f);
+  if (fontmode == FONT_MONOSPACED_SCALED) {
+    if(font == nullptr)
+    {
+      const std::string p = R"(C:/Windows/Fonts/consola.ttf)";
+      if(fileExists(p.c_str()))
+        font = io.Fonts->AddFontFromFileTTF(p.c_str(), 12.0f * high_dpi_scale);
+    }
   }
-  if(font == nullptr)
-  {
-    const std::string p = R"(C:\\Windows\\Fonts\\SegoeWP.ttf)";
-    if(fileExists(p.c_str()))
-      font = io.Fonts->AddFontFromFileTTF(p.c_str(), 16.0f);
+  else if (fontmode == FONT_PROPORTIONAL_SCALED){
+    const char* vk_path = getenv("VK_SDK_PATH");
+    if(vk_path)
+    {
+      const std::string p = std::string(vk_path) + R"(/Samples/Layer-Samples/data/FreeSans.ttf)";
+      if(fileExists(p.c_str()))
+        font = io.Fonts->AddFontFromFileTTF(p.c_str(), 16.0f * high_dpi_scale);
+    }
+    if(font == nullptr)
+    {
+      const std::string p = R"(C:/Windows/Fonts/segoeui.ttf)";
+      if(fileExists(p.c_str()))
+        font = io.Fonts->AddFontFromFileTTF(p.c_str(), 16.0f * high_dpi_scale);
+    }
   }
 
   if(font == nullptr)
-    io.Fonts->AddFontDefault();
+  {
+    ImFontConfig font_config = ImFontConfig();
+    font_config.SizePixels   = 13.0f * ((fontmode == FONT_FIXED) ? 1 : high_dpi_scale);  // 13 is the default font size
+    io.Fonts->AddFontDefault(&font_config);
+  }
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -436,3 +510,149 @@ Panel::Style   Panel::style{};
 Control::Style Control::style{};
 
 }  // namespace ImGuiH
+
+void ImGui::PlotMultiEx(const char* label, int num_datas, ImPlotMulti* datas, const char* overlay_text, ImVec2 frame_size)
+{
+  ImGuiWindow* window = GetCurrentWindow();
+  if(window->SkipItems)
+    return;
+
+  ImGuiContext&     g     = *GImGui;
+  const ImGuiStyle& style = g.Style;
+  const ImGuiID     id    = window->GetID(label);
+
+  const ImVec2 label_size = CalcTextSize(label, nullptr, true);
+  if(frame_size.x == 0.0f)
+    frame_size.x = CalcItemWidth();
+  if(frame_size.y == 0.0f)
+    frame_size.y = label_size.y + (style.FramePadding.y * 2);
+
+  const ImRect frame_bb(window->DC.CursorPos, window->DC.CursorPos + frame_size);
+  const ImRect inner_bb(frame_bb.Min + style.FramePadding, frame_bb.Max - style.FramePadding);
+  const ImRect total_bb(frame_bb.Min,
+                        frame_bb.Max + ImVec2(label_size.x > 0.0f ? style.ItemInnerSpacing.x + label_size.x : 0.0f, 0));
+  ItemSize(total_bb, style.FramePadding.y);
+  if(!ItemAdd(total_bb, 0, &frame_bb))
+    return;
+  const bool hovered = ItemHoverable(frame_bb, id);
+
+  // Determine scale from values if not specified
+  for(int data_idx = 0; data_idx < num_datas; data_idx++)
+  {
+    auto& cur_data = datas[data_idx];
+    if(cur_data.scale_min == FLT_MAX || cur_data.scale_max == FLT_MAX)
+    {
+      float v_min = FLT_MAX;
+      float v_max = -FLT_MAX;
+
+      for(int i = 0; i < cur_data.values_count; i++)
+      {
+        const float v = cur_data.data[i];
+        v_min         = ImMin(v_min, v);
+        v_max         = ImMax(v_max, v);
+      }
+
+      if(cur_data.scale_min == FLT_MAX)
+        cur_data.scale_min = v_min;
+      if(cur_data.scale_max == FLT_MAX)
+        cur_data.scale_max = v_max;
+    }
+  }
+
+  RenderFrame(frame_bb.Min, frame_bb.Max, GetColorU32(ImGuiCol_FrameBg), true, style.FrameRounding);
+
+
+  if(hovered && inner_bb.Contains(g.IO.MousePos))
+  {
+    ImGui::BeginTooltip();
+    for(int data_idx = 0; data_idx < num_datas; data_idx++)
+    {
+      auto& cur_data = datas[data_idx];
+
+      bool type_line = (cur_data.plot_type == ImGuiPlotType_Lines) || (cur_data.plot_type == ImGuiPlotType_Area);
+
+      int res_w      = ImMin((int)frame_size.x, cur_data.values_count) + (type_line ? -1 : 0);
+      int item_count = cur_data.values_count + (type_line ? -1 : 0);
+
+      // Tooltip on hover
+      const float t = ImClamp((g.IO.MousePos.x - inner_bb.Min.x) / (inner_bb.Max.x - inner_bb.Min.x), 0.0f, 0.9999f);
+      const int   v_idx = (int)(t * item_count);
+      IM_ASSERT(v_idx >= 0 && v_idx < cur_data.values_count);
+
+      const float v0 = cur_data.data[(v_idx + cur_data.values_offset) % cur_data.values_count];
+      TextColored(cur_data.color, "%8.4g | %s", v0, cur_data.name);
+    }
+    ImGui::EndTooltip();
+
+    ImVec2 pos0 = ImVec2(g.IO.MousePos.x, inner_bb.Max.y);
+    ImVec2 pos1 = ImVec2(g.IO.MousePos.x, inner_bb.Min.y);
+
+    window->DrawList->AddLine(pos0, pos1, GetColorU32(ImGuiCol_PlotLinesHovered));
+  }
+
+  for(int data_idx = 0; data_idx < num_datas; data_idx++)
+  {
+    auto& cur_data  = datas[data_idx];
+    bool  type_line = (cur_data.plot_type == ImGuiPlotType_Lines) || (cur_data.plot_type == ImGuiPlotType_Area);
+
+    int res_w      = ImMin((int)frame_size.x, cur_data.values_count) + (type_line ? -1 : 0);
+    int item_count = cur_data.values_count + (type_line ? -1 : 0);
+
+    const float t_step = 1.0f / (float)res_w;
+    const float inv_scale =
+        (cur_data.scale_min == cur_data.scale_max) ? 0.0f : (1.0f / (cur_data.scale_max - cur_data.scale_min));
+
+    float  v0                    = cur_data.data[(0 + cur_data.values_offset) % cur_data.values_count];
+    float  t0                    = 0.0f;
+    ImVec2 tp0                   = ImVec2(t0, 1.0f - ImSaturate((v0 - cur_data.scale_min) * inv_scale));  // Point in the normalized space of our target rectangle
+    float  histogram_zero_line_t = (cur_data.scale_min * cur_data.scale_max < 0.0f) ?
+                                      (-cur_data.scale_min * inv_scale) :
+                                      (cur_data.scale_min < 0.0f ? 0.0f : 1.0f);  // Where does the zero line stands
+
+    const ImU32 col_base   = ColorConvertFloat4ToU32(cur_data.color);
+    const ImU32 col_base_a = ColorConvertFloat4ToU32(
+        ImColor(cur_data.color.Value.x, cur_data.color.Value.y, cur_data.color.Value.z, cur_data.color.Value.w = 0.5));
+
+    for(int n = 0; n < res_w; n++)
+    {
+      const float t1     = t0 + t_step;
+      const int   v1_idx = (int)(t0 * item_count + 0.5f);
+      IM_ASSERT(v1_idx >= 0 && v1_idx < cur_data.values_count);
+      const float  v1  = cur_data.data[(v1_idx + cur_data.values_offset + 1) % cur_data.values_count];
+      const ImVec2 tp1 = ImVec2(t1, 1.0f - ImSaturate((v1 - cur_data.scale_min) * inv_scale));
+
+      // NB: Draw calls are merged together by the DrawList system. Still, we should render our batch are lower level to save a bit of CPU.
+      ImVec2 pos0 = ImLerp(inner_bb.Min, inner_bb.Max, tp0);
+      ImVec2 pos1 = ImLerp(inner_bb.Min, inner_bb.Max, type_line ? tp1 : ImVec2(tp1.x, histogram_zero_line_t));
+      if(cur_data.plot_type == ImGuiPlotType_Lines)
+      {
+        window->DrawList->AddLine(pos0, pos1, col_base, cur_data.thickness);
+      }
+      else if(cur_data.plot_type == ImGuiPlotType_Area)
+      {
+        ImDrawListFlags backup_flags = window->DrawList->Flags;
+        window->DrawList->Flags &= ~ImDrawListFlags_AntiAliasedFill;  // Disable AA on Quad to look nice when next to each other.
+        window->DrawList->AddQuadFilled(pos0, pos1, ImVec2(pos1.x, inner_bb.Max.y), ImVec2(pos0.x, inner_bb.Max.y), col_base_a);
+        window->DrawList->Flags = backup_flags;
+        window->DrawList->AddLine(pos0, pos1, col_base, cur_data.thickness);
+      }
+      else if(cur_data.plot_type == ImGuiPlotType_Histogram)
+      {
+        if(pos1.x >= pos0.x + 2.0f)
+          pos1.x -= 1.0f;
+        window->DrawList->AddRectFilled(pos0, pos1, col_base, cur_data.thickness - 1, ImDrawCornerFlags_Top);
+      }
+
+      t0  = t1;
+      tp0 = tp1;
+    }
+  }
+
+  // Text overlay
+  if(overlay_text)
+    RenderTextClipped(ImVec2(frame_bb.Min.x, frame_bb.Min.y + style.FramePadding.y), frame_bb.Max, overlay_text, NULL,
+                      NULL, ImVec2(0.5f, 0.0f));
+
+  if(label_size.x > 0.0f)
+    RenderText(ImVec2(frame_bb.Max.x + style.ItemInnerSpacing.x, inner_bb.Min.y), label);
+}

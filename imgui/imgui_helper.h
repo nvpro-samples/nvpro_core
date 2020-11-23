@@ -28,6 +28,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define NV_IMGUI_INCLUDED
 
 #define IMGUI_DISABLE_OBSOLETE_FUNCTIONS 1
+#define IMGUI_DEFINE_MATH_OPERATORS
 #include "imgui.h"
 #include "imgui_internal.h"
 
@@ -90,7 +91,14 @@ inline bool key_button(int button, int action, int mods)
 
 //////////////////////////////////////////////////////////////////////////
 
-void Init(int width, int height, void* userData);
+enum FontMode
+{
+  FONT_FIXED,
+  FONT_PROPORTIONAL_SCALED,
+  FONT_MONOSPACED_SCALED,
+};
+
+void Init(int width, int height, void* userData, FontMode fontmode = FONT_FIXED);
 
 template <typename T>
 bool Clamped(bool changed, T* value, T min, T max)
@@ -304,6 +312,11 @@ public:
   }
 };
 
+//--------------------------------------------------------------------------------------------------
+//
+// If GLFW has been initialized, returns the DPI scale of the primary monitor. Otherwise, returns 1.
+//
+float getDPIScale();
 
 //--------------------------------------------------------------------------------------------------
 //
@@ -315,7 +328,7 @@ void setStyle();
 //
 // Setting nicer default fonts
 //
-void setFonts();
+void setFonts(FontMode fontmode = FONT_PROPORTIONAL_SCALED);
 
 
 //--------------------------------------------------------------------------------------------------
@@ -370,7 +383,7 @@ public:
   }
 
   // Mirror begin but can use directly End()
-  static void end() { ImGui::End(); }
+  static void End() { ImGui::End(); }
 };
 
 
@@ -504,6 +517,9 @@ public:
     Info(label, description, info_text.c_str(), flags);
   }
 
+
+  template <typename TTooltip>
+  static bool Custom(const std::string& label, TTooltip description, std::function<bool()> show_content, Flags flags = Flags::Normal);
 
 private:
   template <typename TTooltip>
@@ -943,7 +959,111 @@ bool Control::show_slider_control_scalar(TScalar* value, TScalar* min, TScalar* 
   return changed;
 }
 
+template <typename TTooltip>
+bool ImGuiH::Control::Custom(const std::string& label, TTooltip description, std::function<bool()> show_content, Flags flags /*= Flags::Normal*/)
+{
+  //ImGui::PushID(value);
+  show_property_label(label, description, flags);
+  if(flags == Flags::Disabled)
+  {
+    ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
+    ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+  }
+  ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+
+  bool changed = show_content();
+
+  if(flags == Flags::Disabled)
+  {
+    ImGui::PopItemFlag();
+    ImGui::PopStyleVar();
+  }
+  // ImGui::PopID();
+  return changed;
+}
+
+//////////////////////////////////////////////////////////////////////////
+// Property Editor like Helper
+// - Entries are always between Begin/End
+// - Entries are made of a 'property' and a 'value'
+//
+// There is one Entry with a string from both property and value,
+// the other one is a string for the property and a std::function for
+// the value. The last one can be implemented with a lambda, therefore
+// any Imgui widget can be used on the right side.
+//
+// Ex:
+// ImGuiH::PropertyEditor::Begin();
+// ImGuiH::PropertyEditor::Entry("Total Render GPU [ms]", "0.401");
+// ImGuiH::PropertyEditor::Entry("Vertex Size [MB]", "0");
+// ImGuiH::PropertyEditor::Entry("Attrib Size [MB]", "0");
+// ImGuiH::PropertyEditor::Entry("Custom widget",
+//                               [&] { return ImGui::DragFloat3("##tt", &helloVk.m_pushConstant.lightPosition.x); });
+// ImGuiH::PropertyEditor::End();
+//
+struct PropertyEditor
+{
+  // Beginning the Property Editor
+  static void Begin()
+  {
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(2, 2));
+    ImGui::Columns(2);
+    ImGui::Separator();
+  }
+
+  // Generic entry, the lambda function should return if the widget changed
+  static bool Entry(const std::string& property_name, std::function<bool()> content_fct)
+  {
+    ImGui::AlignTextToFramePadding();
+    ImGui::SetNextItemWidth(-1);
+    ImGui::Text(property_name.c_str());
+    ImGui::NextColumn();
+    ImGui::AlignTextToFramePadding();
+    ImGui::SetNextItemWidth(-1);
+    bool result = content_fct();
+    ImGui::NextColumn();
+    return result;  // returning if the widget changed
+  }
+
+  // Text specialization
+  static void Entry(const std::string& property_name, const std::string& value)
+  {
+    Entry(property_name, [&] {
+      ImGui::Text(value.c_str());
+      return false;  // dummy, no change
+    });
+  }
+
+  // Ending the Editor
+  static void End()
+  {
+    ImGui::Columns(1);
+    ImGui::Separator();
+    ImGui::PopStyleVar();
+  }
+};
 
 }  // namespace ImGuiH
+
+
+namespace ImGui {
+
+struct ImPlotMulti
+{
+  ImGuiPlotType plot_type{ImGuiPlotType_Lines};
+  const char*   name{nullptr};
+  ImColor       color{0xFFFFFFFF};
+  float         thickness{1.0};
+  const float*  data{nullptr};
+  int           values_count{0};
+  int           values_offset{0};
+  float         scale_min{FLT_MIN};
+  float         scale_max{FLT_MAX};
+};
+
+void PlotMultiEx(const char* label, int num_datas, ImPlotMulti* datas, const char* overlay_text, ImVec2 frame_size);
+
+
+}  // namespace ImGui
 
 #endif
