@@ -425,7 +425,7 @@ int AppWindowProfiler::run(const std::string& title, int argc, const char** argv
 
   if(quickExit)
   {
-    exit(0);
+    exit(EXIT_SUCCESS);
     return EXIT_SUCCESS;
   }
 
