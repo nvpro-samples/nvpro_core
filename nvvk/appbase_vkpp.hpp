@@ -29,9 +29,9 @@
 #include <vulkan/vulkan.hpp>
 
 #include "imgui.h"
+#include "imgui_camera_widget.h"
 #include "imgui_helper.h"
 #include "imgui_impl_vk.h"
-#include "nvh/camerainertia.hpp"
 #include "nvh/cameramanipulator.hpp"
 #include "swapchain_vk.hpp"
 
@@ -46,12 +46,10 @@
 #include "GLFW/glfw3native.h"
 
 #include <cmath>
+#include <set>
 #include <vector>
 
 namespace nvvk {
-static float const s_keyTau    = 0.10f;
-static float const s_cameraTau = 0.03f;
-static float const s_moveStep  = 0.2f;
 
 //--------------------------------------------------------------------------------------------------
 /**
@@ -78,36 +76,80 @@ class MyExample : public AppBase
 
 ## Setup
 
-In the `main()` of the example, after creating the Vulkan instance and device, call `setup()`.
-This will hold the VkInstance, VkDevice, VkPhysicalDevice and create the VkQueue, VkPool, plus it
-will initialize all Vulkan extensions for the C++ API (vulkan.hpp).
+In the `main()` of an application,  call `setup()` which is taking a Vulkan instance, device, physical device, 
+and a queue family index.  Setup copies the given Vulkan handles into AppBase, and query the 0th VkQueue of the 
+specified family, which must support graphics operations and drawing to the surface passed to createSurface.
+Furthermore, it is creating a VkCommandPool plus it
+will initialize all Vulkan extensions for the C++ API (vulkan.hpp). 
+See: [VULKAN_HPP_DEFAULT_DISPATCHER](https://github.com/KhronosGroup/Vulkan-Hpp#vulkan_hpp_default_dispatcher)
 
-Prior to calling setup, if you are using the `nvvk::Context` class to create and initalize Vulkan instances,
+Prior to calling setup, if you are using the `nvvk::Context` class to create and initialize Vulkan instances,
 you may want to create a VkSurfaceKHR from the window (glfw for example) and call `setGCTQueueWithPresent()`.
-This will make sure the Queue indices are adapted.
+This will make sure the m_queueGCT queue of nvvk::Context can draw to the surface, and m_queueGCT.familyIndex 
+will meet the requirements of setup().
 
-Creating the surface, will actually create the swapchain for displaying. Arguments are
-width and height, color and depth format, and vsync on/off. Defaults will create the best format.
+Creating the swapchain for displaying. Arguments are
+width and height, color and depth format, and vsync on/off. Defaults will create the best format for the surface.
 
-Before creating the framebuffers to display the results, a depth buffer has to be create which will
-be used by all framebuffers. Then we can create the framebuffer.
+
+Creating framebuffers has a dependency on the renderPass and depth buffer. All those are virtual and can be overridden
+in a sample, but default implementation exist.
+
+- createDepthBuffer: creates a 2D depth/stencil image
+- createRenderPass : creates a color/depth pass and clear both buffers.
+
+Here is the dependency order:
+
+~~~~C++
+  example.createDepthBuffer();
+  example.createRenderPass();
+  example.createFrameBuffers();
+~~~~
+
+
+The nvvk::Swapchain will create n images, typically 3. With this information, AppBase is also creating 3 VkFence, 
+3 VkCommandBuffer and 3 VkFrameBuffer.
+
+### Frame Buffers
+
+The created frame buffers are “display” frame buffers,  made to be presented on screen. The frame buffers will be created 
+using one of the images from swapchain, and a depth buffer. There is only one depth buffer because that resource is not 
+used simultaneously. For example, when we clear the depth buffer, it is not done immediately, but done through a command 
+buffer, which will be executed later. 
+
 
 **Note**: the imageView(s) are part of the swapchain. 
 
-There is also a 'default renderpass', which is a color/depth, clear both buffers.
+### Command Buffers
+
+AppBase works with 3 “frame command buffers”. Each frame is filling a command buffer and gets submitted, one after the 
+other. This is a design choice that can be debated, but makes it simple. I think it is still possible to submit other 
+command buffers in a frame, but those command buffers will have to be submitted before the “frame” one. The “frame” 
+command buffer when submitted with submitFrame, will use the current fence.
+
+### Fences
+
+There are as many fences as there are images in the swapchain. At the beginning of a frame, we call prepareFrame(). 
+This is calling the acquire() from nvvk::SwapChain and wait until the image is available. The very first time, the 
+fence will not stop, but later it will wait until the submit is completed on the GPU. 
+
+
+
+## ImGui
 
 If the application is using Dear ImGui, there are convenient functions for initializing it and
 setting the callbacks (glfw). The first one to call is `initGUI(0)`, where the argument is the subpass
-where it will be use. Default is 0, but if the application creates a renderpass with multi-sampling and
+it will be using. Default is 0, but if the application creates a renderpass with multi-sampling and
 resolves in the second subpass, this makes it possible.
 
-Then call `setupGlfwCallbacks(window)` to have all the window callback: key, mouse, window resizing.
-By default AppBase will handle resizing of the window. It will recreate the images and framebuffers,
-but a sample may need to overload that function, or to be aware of that change, therefore can overload
-`onResize(width, height)`.
+## Glfw Callbacks
 
-Last setup for ImGui is to call `ImGui_ImplGlfw_InitForVulkan(window, true)`, where true is for the 
-callbacks for Imgui.
+Call `setupGlfwCallbacks(window)` to have all the window callback: key, mouse, window resizing.
+By default AppBase will handle resizing of the window and will recreate the images and framebuffers. 
+If a sample needs to be aware of the resize, it can implement `onResize(width, height)`.
+
+To handle the callbacks in Imgui, call `ImGui_ImplGlfw_InitForVulkan(window, true)`, where true 
+will handle the default ImGui callback .
 
 **Note**: All the methods are virtual and can be overloaded if they are not doing the typical setup. 
 
@@ -230,6 +272,8 @@ public:
     m_queue              = m_device.getQueue(m_graphicsQueueIndex, 0);
     m_cmdPool = m_device.createCommandPool({vk::CommandPoolCreateFlagBits::eResetCommandBuffer, graphicsQueueIndex});
     m_pipelineCache = device.createPipelineCache(vk::PipelineCacheCreateInfo());
+
+    ImGuiH::SetCameraJsonFile(PROJECT_NAME);
   }
 
   //--------------------------------------------------------------------------------------------------
@@ -245,21 +289,21 @@ public:
       ImGui::DestroyContext();
     }
 
-    m_device.destroyRenderPass(m_renderPass);
-    m_device.destroyImageView(m_depthView);
-    m_device.destroyImage(m_depthImage);
+    m_device.destroy(m_renderPass);
+    m_device.destroy(m_depthView);
+    m_device.destroy(m_depthImage);
     m_device.freeMemory(m_depthMemory);
-    m_device.destroyPipelineCache(m_pipelineCache);
+    m_device.destroy(m_pipelineCache);
 
     for(uint32_t i = 0; i < m_swapChain.getImageCount(); i++)
     {
-      m_device.destroyFence(m_waitFences[i]);
-      m_device.destroyFramebuffer(m_framebuffers[i]);
+      m_device.destroy(m_waitFences[i]);
+      m_device.destroy(m_framebuffers[i]);
       m_device.freeCommandBuffers(m_cmdPool, m_commandBuffers[i]);
     }
     m_swapChain.deinit();
 
-    m_device.destroyCommandPool(m_cmdPool);
+    m_device.destroy(m_cmdPool);
     if(m_surface)
       m_instance.destroySurfaceKHR(m_surface);
   }
@@ -288,12 +332,12 @@ public:
   //--------------------------------------------------------------------------------------------------
   // Creating the surface for rendering
   //
-  void createSurface(const vk::SurfaceKHR& surface,
-                     uint32_t              width,
-                     uint32_t              height,
-                     vk::Format            colorFormat = vk::Format::eB8G8R8A8Unorm,
-                     vk::Format            depthFormat = vk::Format::eD32SfloatS8Uint,
-                     bool                  vsync       = false)
+  void createSwapchain(const vk::SurfaceKHR& surface,
+                       uint32_t              width,
+                       uint32_t              height,
+                       vk::Format            colorFormat = vk::Format::eB8G8R8A8Unorm,
+                       vk::Format            depthFormat = vk::Format::eD32SfloatS8Uint,
+                       bool                  vsync       = false)
   {
     m_size        = vk::Extent2D(width, height);
     m_depthFormat = depthFormat;
@@ -338,7 +382,7 @@ public:
     // Recreate the frame buffers
     for(auto framebuffer : m_framebuffers)
     {
-      m_device.destroyFramebuffer(framebuffer);
+      m_device.destroy(framebuffer);
     }
 
     // Array of attachment (color, depth)
@@ -381,7 +425,7 @@ public:
   {
     if(m_renderPass)
     {
-      m_device.destroyRenderPass(m_renderPass);
+      m_device.destroy(m_renderPass);
     }
 
     std::array<vk::AttachmentDescription, 2> attachments;
@@ -438,9 +482,9 @@ public:
   virtual void createDepthBuffer()
   {
     if(m_depthView)
-      m_device.destroyImageView(m_depthView);
+      m_device.destroy(m_depthView);
     if(m_depthImage)
-      m_device.destroyImage(m_depthImage);
+      m_device.destroy(m_depthImage);
     if(m_depthMemory)
       m_device.freeMemory(m_depthMemory);
 
@@ -510,6 +554,14 @@ public:
   //
   void prepareFrame()
   {
+    // Resize protection - should be cached by the glFW callback
+    int w, h;
+    glfwGetWindowSize(m_window, &w, &h);
+    if(w != (int)m_size.width || h != (int)m_size.height)
+    {
+      onWindowResize(w, h);
+    }
+
     // Acquire the next image from the swap chain
     if(!m_swapChain.acquire())
     {
@@ -621,41 +673,9 @@ public:
       return;
     }
 
-    int ox, oy;  // Old mouse position
-    CameraManip.getMousePosition(ox, oy);
-
     if(m_inputs.lmb || m_inputs.rmb || m_inputs.mmb)
     {
       CameraManip.mouseMove(x, y, m_inputs);
-    }
-
-    const int dx = x - ox, dy = y - oy;  // difference mouse position
-    //---------------------------- LEFT
-    if(m_inputs.lmb)
-    {
-      const float hval  = 2 * dx / static_cast<float>(m_size.width);
-      const float vval  = 2 * dy / static_cast<float>(m_size.height);
-      m_inertCamera.tau = s_cameraTau;
-      m_inertCamera.rotateH(hval);
-      m_inertCamera.rotateV(vval);
-    }
-    //---------------------------- MIDDLE
-    if(m_inputs.mmb)
-    {
-      const float hval  = 2 * dx / static_cast<float>(m_size.width);
-      const float vval  = 2 * dy / static_cast<float>(m_size.height);
-      m_inertCamera.tau = s_cameraTau;
-      m_inertCamera.rotateH(hval, true);
-      m_inertCamera.rotateV(vval, true);
-    }
-    //---------------------------- RIGHT
-    if(m_inputs.rmb)
-    {
-      const float hval  = 2 * dx / static_cast<float>(m_size.width);
-      const float vval  = -2 * dy / static_cast<float>(m_size.height);
-      m_inertCamera.tau = s_cameraTau;
-      m_inertCamera.rotateH(hval, m_inputs.ctrl);
-      m_inertCamera.move(vval, m_inputs.ctrl);
     }
   }
 
@@ -668,59 +688,57 @@ public:
     const bool capture = ImGui::GetCurrentContext() != nullptr && ImGui::GetIO().WantCaptureKeyboard;
     const bool pressed = action != GLFW_RELEASE;
 
-    if(key == GLFW_KEY_LEFT_CONTROL)
+    // Keeping track of the modifiers
+    m_inputs.ctrl  = mods & GLFW_MOD_CONTROL;
+    m_inputs.shift = mods & GLFW_MOD_SHIFT;
+    m_inputs.alt   = mods & GLFW_MOD_ALT;
+
+    // Remember all keys that are pressed for animating the camera when
+    // many keys are pressed and stop when all keys are released.
+    if(pressed)
     {
-      m_inputs.ctrl = pressed;
+      m_keys.insert(key);
     }
-    if(key == GLFW_KEY_LEFT_SHIFT)
+    else
     {
-      m_inputs.shift = pressed;
-    }
-    if(key == GLFW_KEY_LEFT_ALT)
-    {
-      m_inputs.alt = pressed;
+      m_keys.erase(key);
     }
 
-    // Skip key release, capture by ImGui except for F10 and ESC key
-    if(action == GLFW_RELEASE || ((key == GLFW_KEY_F10 || key == GLFW_KEY_ESCAPE) ? false : capture))
+    // For all pressed keys - apply the action
+    CameraManip.keyMotion(0, 0, nvh::CameraManipulator::NoAction);
+    for(auto key : m_keys)
     {
-      return;
-    }
-
-    switch(key)
-    {
-      case GLFW_KEY_F10:
-        m_show_gui = !m_show_gui;
-        break;
-      case GLFW_KEY_ESCAPE:
-        glfwSetWindowShouldClose(m_window, 1);
-        break;
-      case GLFW_KEY_LEFT:
-        m_inertCamera.tau = s_keyTau;
-        m_inertCamera.rotateH(s_moveStep, m_inputs.ctrl);
-        break;
-      case GLFW_KEY_UP:
-        m_inertCamera.tau = s_keyTau;
-        m_inertCamera.rotateV(s_moveStep, m_inputs.ctrl);
-        break;
-      case GLFW_KEY_RIGHT:
-        m_inertCamera.tau = s_keyTau;
-        m_inertCamera.rotateH(-s_moveStep, m_inputs.ctrl);
-        break;
-      case GLFW_KEY_DOWN:
-        m_inertCamera.tau = s_keyTau;
-        m_inertCamera.rotateV(-s_moveStep, m_inputs.ctrl);
-        break;
-      case GLFW_KEY_PAGE_UP:
-        m_inertCamera.tau = s_keyTau;
-        m_inertCamera.move(s_moveStep, m_inputs.ctrl);
-        break;
-      case GLFW_KEY_PAGE_DOWN:
-        m_inertCamera.tau = s_keyTau;
-        m_inertCamera.move(-s_moveStep, m_inputs.ctrl);
-        break;
-      default:
-        break;
+      switch(key)
+      {
+        case GLFW_KEY_F10:
+          m_show_gui = !m_show_gui;
+          break;
+        case GLFW_KEY_ESCAPE:
+          glfwSetWindowShouldClose(m_window, 1);
+          break;
+        case GLFW_KEY_W:
+          CameraManip.keyMotion(1.f, 0, nvh::CameraManipulator::Dolly);
+          break;
+        case GLFW_KEY_S:
+          CameraManip.keyMotion(-1.f, 0, nvh::CameraManipulator::Dolly);
+          break;
+        case GLFW_KEY_A:
+        case GLFW_KEY_LEFT:
+          CameraManip.keyMotion(-1.f, 0, nvh::CameraManipulator::Pan);
+          break;
+        case GLFW_KEY_UP:
+          CameraManip.keyMotion(0, 1, nvh::CameraManipulator::Pan);
+          break;
+        case GLFW_KEY_D:
+        case GLFW_KEY_RIGHT:
+          CameraManip.keyMotion(1.f, 0, nvh::CameraManipulator::Pan);
+          break;
+        case GLFW_KEY_DOWN:
+          CameraManip.keyMotion(0, -1, nvh::CameraManipulator::Pan);
+          break;
+        default:
+          break;
+      }
     }
   }
 
@@ -777,9 +795,6 @@ public:
     }
 
     CameraManip.wheel(delta > 0 ? 1 : -1, m_inputs);
-
-    m_inertCamera.tau = s_keyTau;
-    m_inertCamera.move(delta > 0 ? s_moveStep : -s_moveStep, m_inputs.ctrl);
   }
 
   virtual void onFileDrop(const char* filename) {}
@@ -963,9 +978,9 @@ protected:
   vk::Format m_colorFormat{vk::Format::eB8G8R8A8Unorm};
   vk::Format m_depthFormat{vk::Format::eUndefined};
 
-  // Two different camera manipulators
-  nvh::CameraManipulator::Inputs m_inputs;       // Camera manipulator, like in Maya, 3dsmax, Softimage, ...
-  InertiaCamera                  m_inertCamera;  // Camera Inertia
+  // Camera manipulators
+  nvh::CameraManipulator::Inputs m_inputs;  // Mouse button pressed
+  std::set<int>                  m_keys;    // Keyboard pressed
 
   // Other
   bool m_showHelp{false};  // Show help, pressing
