@@ -26,8 +26,8 @@
  */
 
 #include "profiler_vk.hpp"
-#include "error_vk.hpp"
 #include "debug_util_vk.hpp"
+#include "error_vk.hpp"
 #include <assert.h>
 
 
@@ -35,7 +35,7 @@
 
 namespace nvvk {
 
-void ProfilerVK::init(VkDevice device, VkPhysicalDevice physicalDevice)
+void ProfilerVK::init(VkDevice device, VkPhysicalDevice physicalDevice, int queueFamilyIndex)
 {
   assert(!m_device);
   m_device = device;
@@ -53,24 +53,19 @@ void ProfilerVK::init(VkDevice device, VkPhysicalDevice physicalDevice)
   vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, nullptr);
   queueProperties.resize(queueFamilyCount);
   vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, queueProperties.data());
-  
-  uint32_t validBits = queueProperties[0].timestampValidBits;
-  m_queueFamilyMask = validBits == 64 ?
-                                uint64_t(-1) :
-                                ((uint64_t(1) << validBits) - uint64_t(1));
 
-  for(uint32_t i = 1; i < queueFamilyCount; i++)
-  {
-    // no vendor seems to have queue specific validBits so far
-    assert(queueProperties[i].timestampValidBits == validBits);
-  }
+  uint32_t validBits = queueProperties[queueFamilyIndex].timestampValidBits;
+
+  m_queueFamilyMask  = validBits == 64 ? uint64_t(-1) : ((uint64_t(1) << validBits) - uint64_t(1));
+
 
   resize();
 }
 
 void ProfilerVK::deinit()
 {
-  if(m_queryPool) {
+  if(m_queryPool)
+  {
     vkDestroyQueryPool(m_device, m_queryPool, nullptr);
     m_queryPool = VK_NULL_HANDLE;
   }
@@ -123,11 +118,11 @@ nvh::Profiler::SectionID ProfilerVK::beginSection(const char* name, VkCommandBuf
   {
     resize();
   }
-  if (m_useLabels)
+  if(m_useLabels)
   {
     VkDebugUtilsLabelEXT label = {VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT};
-    label.pLabelName = name;
-    label.color[1] = 1.0f;
+    label.pLabelName           = name;
+    label.color[1]             = 1.0f;
     vkCmdBeginDebugUtilsLabelEXT(cmd, &label);
   }
 #if 0
@@ -139,7 +134,7 @@ nvh::Profiler::SectionID ProfilerVK::beginSection(const char* name, VkCommandBuf
   }
 #endif
 
-  uint32_t idx         = getTimerIdx(slot, getSubFrame(slot), true);
+  uint32_t idx = getTimerIdx(slot, getSubFrame(slot), true);
 
   if(useHostReset)
   {
@@ -169,7 +164,7 @@ void ProfilerVK::endSection(SectionID slot, VkCommandBuffer cmd)
 {
   uint32_t idx = getTimerIdx(slot, getSubFrame(slot), false);
   vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, m_queryPool, idx);
-  if (m_useLabels)
+  if(m_useLabels)
   {
     vkCmdEndDebugUtilsLabelEXT(cmd);
   }

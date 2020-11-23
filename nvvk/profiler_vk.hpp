@@ -27,8 +27,8 @@
 
 #pragma once
 
+#include "nvh/profiler.hpp"
 #include <string>
-#include <nvh/profiler.hpp>
 #include <vulkan/vulkan_core.h>
 
 namespace nvvk {
@@ -40,7 +40,7 @@ namespace nvvk {
   ProfilerVK derives from nvh::Profiler and uses vkCmdWriteTimestamp
   to measure the gpu time within a section.
 
-  If profiler.setMarkerUsage(true) was used then it will make use
+  If profiler.setLabelUsage(true) was used then it will make use
   of vkCmdDebugMarkerBeginEXT and vkCmdDebugMarkerEndEXT for each
   section so that it shows up in tools like NsightGraphics and renderdoc.
   
@@ -57,8 +57,8 @@ namespace nvvk {
   nvvk::ProfilerVK profiler;
   std::string     profilerStats;
 
-  profiler.init(device, physicalDevice);
-  profiler.setMarkerUsage(true); // depends on VK_EXT_debug_utils
+  profiler.init(device, physicalDevice, queueFamilyIndex);
+  profiler.setLabelUsage(true); // depends on VK_EXT_debug_utils
   
   while(true)
   {
@@ -146,7 +146,7 @@ public:
 
   ~ProfilerVK() { deinit(); }
 
-  void init(VkDevice device, VkPhysicalDevice physicalDevice);
+  void init(VkDevice device, VkPhysicalDevice physicalDevice, int queueFamilyIndex = 0);
   void deinit();
   void setDebugName(const std::string& name) { m_debugName = name; }
 
@@ -165,12 +165,11 @@ private:
   bool m_useCoreHostReset = false;
 #endif
 
-  VkDevice    m_device                = VK_NULL_HANDLE;
-  VkQueryPool m_queryPool             = VK_NULL_HANDLE;
-  uint32_t    m_queryPoolSize         = 0;
-  float       m_frequency             = 1.0f;
-  uint64_t    m_queueFamilyMask       = ~0;
+  VkDevice    m_device          = VK_NULL_HANDLE;
+  VkQueryPool m_queryPool       = VK_NULL_HANDLE;
+  uint32_t    m_queryPoolSize   = 0;
+  float       m_frequency       = 1.0f;
+  uint64_t    m_queueFamilyMask = ~0;
   std::string m_debugName;
-  
 };
 }  // namespace nvvk
