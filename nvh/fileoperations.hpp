@@ -54,7 +54,7 @@ inline bool fileExists(const char* filename)
 }
 
 // returns first found filename (searches within directories provided)
-inline std::string findFile(const std::string& infilename, const std::vector<std::string>& directories)
+inline std::string findFile(const std::string& infilename, const std::vector<std::string>& directories, bool warn = false)
 {
   std::ifstream stream;
 
@@ -70,6 +70,17 @@ inline std::string findFile(const std::string& infilename, const std::vector<std
     stream.open(filename.c_str());
     if(stream.is_open())
       return filename;
+  }
+
+  if(warn)
+  {
+    nvprintfLevel(LOGLEVEL_WARNING, "File not found: %s\n", infilename.c_str());
+    nvprintfLevel(LOGLEVEL_WARNING, "In directories: \n");
+    for(const auto& directory : directories)
+    {
+      nvprintfLevel(LOGLEVEL_WARNING, " - %s\n", directory.c_str());
+    }
+    nvprintfLevel(LOGLEVEL_WARNING, "\n");
   }
 
   return {};
@@ -104,13 +115,9 @@ inline std::string loadFile(const std::string&              filename,
                             std::string&                    filenameFound,
                             bool                            warn = false)
 {
-  filenameFound = findFile(filename, directories);
+  filenameFound = findFile(filename, directories, warn);
   if(filenameFound.empty())
   {
-    if(warn)
-    {
-      nvprintfLevel(LOGLEVEL_WARNING, "file not found: %s\n", filename.c_str());
-    }
     return {};
   }
   else
