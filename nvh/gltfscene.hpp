@@ -134,7 +134,11 @@ struct GltfStats
 
 struct GltfCamera
 {
-  nvmath::mat4f    worldMatrix{1};
+  nvmath::mat4f worldMatrix{1};
+  nvmath::vec3f eye{0, 0, 0};
+  nvmath::vec3f center{0, 0, 0};
+  nvmath::vec3f up{0, 1, 0};
+
   tinygltf::Camera cam;
 };
 
@@ -304,5 +308,13 @@ private:
 
     return true;
   }
+
+  inline bool hasExtension(const tinygltf::ExtensionMap& extensions, const std::string& name)
+  {
+    return extensions.find(name) != extensions.end();
+  }
+  void computeCamera();
 };
+
+
 }  // namespace nvh
