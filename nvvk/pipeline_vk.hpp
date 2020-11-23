@@ -439,8 +439,8 @@ Example of usage :
 nvvk::GraphicsPipelineState pipelineState();
 ...
 nvvk::GraphicsPipelineGenerator pipelineGenerator(m_device, m_pipelineLayout, m_renderPass, pipelineState);
-pipelineGenerator.loadShader(readFile("shaders/vert_shader.vert.spv"), VkShaderStageFlagBits::eVertex);
-pipelineGenerator.loadShader(readFile("shaders/frag_shader.frag.spv"), VkShaderStageFlagBits::eFragment);
+pipelineGenerator.addShader(readFile("shaders/vert_shader.vert.spv"), VkShaderStageFlagBits::eVertex);
+pipelineGenerator.addShader(readFile("shaders/frag_shader.frag.spv"), VkShaderStageFlagBits::eFragment);
 
 m_pipeline = pipelineGenerator.createPipeline();
 ~~~~
@@ -651,8 +651,8 @@ pipelineGenerator.addAttributeDescriptions ({
     {1, 0, vk::Format::eR32G32B32Sfloat, static_cast<uint32_t>(offsetof(Vertex, nrm))},
     {2, 0, vk::Format::eR32G32B32Sfloat, static_cast<uint32_t>(offsetof(Vertex, col))}});
 
-pipelineGenerator.loadShader(readFile("shaders/vert_shader.vert.spv"), VkShaderStageFlagBits::eVertex);
-pipelineGenerator.loadShader(readFile("shaders/frag_shader.frag.spv"), VkShaderStageFlagBits::eFragment);
+pipelineGenerator.addShader(readFile("shaders/vert_shader.vert.spv"), VkShaderStageFlagBits::eVertex);
+pipelineGenerator.addShader(readFile("shaders/frag_shader.frag.spv"), VkShaderStageFlagBits::eFragment);
 
 m_pipeline = pipelineGenerator.createPipeline();
 ~~~~
