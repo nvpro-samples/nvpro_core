@@ -695,18 +695,7 @@ namespace nvvk {
     return VkMultisamplePropertiesEXT{VK_STRUCTURE_TYPE_MULTISAMPLE_PROPERTIES_EXT};
   }
 #endif
-#if VK_KHR_ray_tracing
-  template<> inline VkRayTracingShaderGroupCreateInfoKHR make<VkRayTracingShaderGroupCreateInfoKHR>(){
-    VkRayTracingShaderGroupCreateInfoKHR ret = {VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR};
-    ret.generalShader = VK_SHADER_UNUSED_KHR;
-    ret.closestHitShader = VK_SHADER_UNUSED_KHR;
-    ret.anyHitShader = VK_SHADER_UNUSED_KHR;
-    ret.intersectionShader = VK_SHADER_UNUSED_KHR;
-    return ret;
-  }
-  template<> inline VkRayTracingPipelineCreateInfoKHR make<VkRayTracingPipelineCreateInfoKHR>(){
-    return VkRayTracingPipelineCreateInfoKHR{VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR};
-  }
+#if VK_KHR_acceleration_structure
   template<> inline VkAccelerationStructureGeometryTrianglesDataKHR make<VkAccelerationStructureGeometryTrianglesDataKHR>(){
     return VkAccelerationStructureGeometryTrianglesDataKHR{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR};
   }
@@ -722,32 +711,23 @@ namespace nvvk {
   template<> inline VkAccelerationStructureGeometryKHR make<VkAccelerationStructureGeometryKHR>(){
     return VkAccelerationStructureGeometryKHR{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR};
   }
-  template<> inline VkAccelerationStructureCreateGeometryTypeInfoKHR make<VkAccelerationStructureCreateGeometryTypeInfoKHR>(){
-    return VkAccelerationStructureCreateGeometryTypeInfoKHR{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_GEOMETRY_TYPE_INFO_KHR};
-  }
   template<> inline VkAccelerationStructureCreateInfoKHR make<VkAccelerationStructureCreateInfoKHR>(){
     return VkAccelerationStructureCreateInfoKHR{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR};
-  }
-  template<> inline VkBindAccelerationStructureMemoryInfoKHR make<VkBindAccelerationStructureMemoryInfoKHR>(){
-    return VkBindAccelerationStructureMemoryInfoKHR{VK_STRUCTURE_TYPE_BIND_ACCELERATION_STRUCTURE_MEMORY_INFO_KHR};
   }
   template<> inline VkWriteDescriptorSetAccelerationStructureKHR make<VkWriteDescriptorSetAccelerationStructureKHR>(){
     return VkWriteDescriptorSetAccelerationStructureKHR{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR};
   }
-  template<> inline VkAccelerationStructureMemoryRequirementsInfoKHR make<VkAccelerationStructureMemoryRequirementsInfoKHR>(){
-    return VkAccelerationStructureMemoryRequirementsInfoKHR{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_INFO_KHR};
+  template<> inline VkPhysicalDeviceAccelerationStructureFeaturesKHR make<VkPhysicalDeviceAccelerationStructureFeaturesKHR>(){
+    return VkPhysicalDeviceAccelerationStructureFeaturesKHR{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR};
   }
-  template<> inline VkPhysicalDeviceRayTracingFeaturesKHR make<VkPhysicalDeviceRayTracingFeaturesKHR>(){
-    return VkPhysicalDeviceRayTracingFeaturesKHR{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_FEATURES_KHR};
-  }
-  template<> inline VkPhysicalDeviceRayTracingPropertiesKHR make<VkPhysicalDeviceRayTracingPropertiesKHR>(){
-    return VkPhysicalDeviceRayTracingPropertiesKHR{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PROPERTIES_KHR};
+  template<> inline VkPhysicalDeviceAccelerationStructurePropertiesKHR make<VkPhysicalDeviceAccelerationStructurePropertiesKHR>(){
+    return VkPhysicalDeviceAccelerationStructurePropertiesKHR{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR};
   }
   template<> inline VkAccelerationStructureDeviceAddressInfoKHR make<VkAccelerationStructureDeviceAddressInfoKHR>(){
     return VkAccelerationStructureDeviceAddressInfoKHR{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR};
   }
-  template<> inline VkAccelerationStructureVersionKHR make<VkAccelerationStructureVersionKHR>(){
-    return VkAccelerationStructureVersionKHR{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_VERSION_KHR};
+  template<> inline VkAccelerationStructureVersionInfoKHR make<VkAccelerationStructureVersionInfoKHR>(){
+    return VkAccelerationStructureVersionInfoKHR{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_VERSION_INFO_KHR};
   }
   template<> inline VkCopyAccelerationStructureToMemoryInfoKHR make<VkCopyAccelerationStructureToMemoryInfoKHR>(){
     return VkCopyAccelerationStructureToMemoryInfoKHR{VK_STRUCTURE_TYPE_COPY_ACCELERATION_STRUCTURE_TO_MEMORY_INFO_KHR};
@@ -758,8 +738,35 @@ namespace nvvk {
   template<> inline VkCopyAccelerationStructureInfoKHR make<VkCopyAccelerationStructureInfoKHR>(){
     return VkCopyAccelerationStructureInfoKHR{VK_STRUCTURE_TYPE_COPY_ACCELERATION_STRUCTURE_INFO_KHR};
   }
+  template<> inline VkAccelerationStructureBuildSizesInfoKHR make<VkAccelerationStructureBuildSizesInfoKHR>(){
+    return VkAccelerationStructureBuildSizesInfoKHR{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR};
+  }
+#endif
+#if VK_KHR_ray_tracing_pipeline
+  template<> inline VkRayTracingShaderGroupCreateInfoKHR make<VkRayTracingShaderGroupCreateInfoKHR>(){
+    VkRayTracingShaderGroupCreateInfoKHR ret = {VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR};
+    ret.generalShader = VK_SHADER_UNUSED_KHR;
+    ret.closestHitShader = VK_SHADER_UNUSED_KHR;
+    ret.anyHitShader = VK_SHADER_UNUSED_KHR;
+    ret.intersectionShader = VK_SHADER_UNUSED_KHR;
+    return ret;
+  }
+  template<> inline VkRayTracingPipelineCreateInfoKHR make<VkRayTracingPipelineCreateInfoKHR>(){
+    return VkRayTracingPipelineCreateInfoKHR{VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR};
+  }
+  template<> inline VkPhysicalDeviceRayTracingPipelineFeaturesKHR make<VkPhysicalDeviceRayTracingPipelineFeaturesKHR>(){
+    return VkPhysicalDeviceRayTracingPipelineFeaturesKHR{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR};
+  }
+  template<> inline VkPhysicalDeviceRayTracingPipelinePropertiesKHR make<VkPhysicalDeviceRayTracingPipelinePropertiesKHR>(){
+    return VkPhysicalDeviceRayTracingPipelinePropertiesKHR{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR};
+  }
   template<> inline VkRayTracingPipelineInterfaceCreateInfoKHR make<VkRayTracingPipelineInterfaceCreateInfoKHR>(){
     return VkRayTracingPipelineInterfaceCreateInfoKHR{VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_INTERFACE_CREATE_INFO_KHR};
+  }
+#endif
+#if VK_KHR_ray_query
+  template<> inline VkPhysicalDeviceRayQueryFeaturesKHR make<VkPhysicalDeviceRayQueryFeaturesKHR>(){
+    return VkPhysicalDeviceRayQueryFeaturesKHR{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR};
   }
 #endif
 #if VK_NV_shading_rate_image
@@ -807,6 +814,12 @@ namespace nvvk {
     VkAccelerationStructureCreateInfoNV ret = {VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_NV};
     ret.info = {VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_INFO_NV};
     return ret;
+  }
+  template<> inline VkBindAccelerationStructureMemoryInfoNV make<VkBindAccelerationStructureMemoryInfoNV>(){
+    return VkBindAccelerationStructureMemoryInfoNV{VK_STRUCTURE_TYPE_BIND_ACCELERATION_STRUCTURE_MEMORY_INFO_NV};
+  }
+  template<> inline VkWriteDescriptorSetAccelerationStructureNV make<VkWriteDescriptorSetAccelerationStructureNV>(){
+    return VkWriteDescriptorSetAccelerationStructureNV{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_NV};
   }
   template<> inline VkAccelerationStructureMemoryRequirementsInfoNV make<VkAccelerationStructureMemoryRequirementsInfoNV>(){
     return VkAccelerationStructureMemoryRequirementsInfoNV{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_INFO_NV};
