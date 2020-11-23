@@ -139,11 +139,11 @@ static bool LoadFreeImage(Image* image, FIBITMAP* dib)
 ///
 static void loadExternalImages(Model* model, const std::string& gltf_filename)
 {
-  namespace fs = std::filesystem;
-  auto basedir = fs::path(gltf_filename).parent_path();
-
   if(model->images.empty())
     return;
+
+  namespace fs = std::filesystem;
+  auto basedir = fs::path(gltf_filename).parent_path();
 
   // Loading all images from disk sequentially
   std::vector<FIBITMAP*> all_fib;
