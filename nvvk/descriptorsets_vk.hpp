@@ -265,6 +265,12 @@ public:
                                  const VkWriteDescriptorSetAccelerationStructureNV* pAccel,
                                  uint32_t                                           arrayElement = 0) const;
 #endif
+#if VK_KHR_acceleration_structure
+  VkWriteDescriptorSet makeWrite(VkDescriptorSet                                     dstSet,
+                                 uint32_t                                            dstBinding,
+                                 const VkWriteDescriptorSetAccelerationStructureKHR* pAccel,
+                                 uint32_t                                            arrayElement = 0) const;
+#endif
 #if VK_EXT_inline_uniform_block
   VkWriteDescriptorSet makeWrite(VkDescriptorSet                                  dstSet,
                                  uint32_t                                         dstBinding,
@@ -280,6 +286,11 @@ public:
   VkWriteDescriptorSet makeWriteArray(VkDescriptorSet                                    dstSet,
                                       uint32_t                                           dstBinding,
                                       const VkWriteDescriptorSetAccelerationStructureNV* pAccel) const;
+#endif
+#if VK_KHR_acceleration_structure
+  VkWriteDescriptorSet makeWriteArray(VkDescriptorSet                                     dstSet,
+                                      uint32_t                                            dstBinding,
+                                      const VkWriteDescriptorSetAccelerationStructureKHR* pAccel) const;
 #endif
 #if VK_EXT_inline_uniform_block
   VkWriteDescriptorSet makeWriteArray(VkDescriptorSet                                  dstSet,
@@ -343,6 +354,15 @@ public:
     return makeWrite(dstSet, dstBinding, reinterpret_cast<const VkWriteDescriptorSetAccelerationStructureNV*>(pAccel), arrayElement);
   }
 #endif
+#if VK_KHR_acceleration_structure
+  vk::WriteDescriptorSet makeWrite(vk::DescriptorSet                                     dstSet,
+                                   uint32_t                                              dstBinding,
+                                   const vk::WriteDescriptorSetAccelerationStructureKHR* pAccel,
+                                   uint32_t                                              arrayElement = 0) const
+  {
+    return makeWrite(dstSet, dstBinding, reinterpret_cast<const VkWriteDescriptorSetAccelerationStructureKHR*>(pAccel), arrayElement);
+  }
+#endif
 #if VK_EXT_inline_uniform_block
   vk::WriteDescriptorSet makeWrite(vk::DescriptorSet                                  dstSet,
                                    uint32_t                                           dstBinding,
@@ -371,6 +391,14 @@ public:
                                         const vk::WriteDescriptorSetAccelerationStructureNV* pAccel) const
   {
     return makeWriteArray(dstSet, dstBinding, reinterpret_cast<const VkWriteDescriptorSetAccelerationStructureNV*>(pAccel));
+  }
+#endif
+#if VK_KHR_acceleration_structure
+  vk::WriteDescriptorSet makeWriteArray(vk::DescriptorSet                                     dstSet,
+                                        uint32_t                                              dstBinding,
+                                        const vk::WriteDescriptorSetAccelerationStructureKHR* pAccel) const
+  {
+    return makeWriteArray(dstSet, dstBinding, reinterpret_cast<const VkWriteDescriptorSetAccelerationStructureKHR*>(pAccel));
   }
 #endif
 #if VK_EXT_inline_uniform_block
@@ -496,6 +524,15 @@ public:
     return m_bindings.makeWrite(getSet(dstSetIdx), dstBinding, pAccel, arrayElement);
   }
 #endif
+#if VK_KHR_acceleration_structure
+  VkWriteDescriptorSet makeWrite(uint32_t                                            dstSetIdx,
+                                 uint32_t                                            dstBinding,
+                                 const VkWriteDescriptorSetAccelerationStructureKHR* pAccel,
+                                 uint32_t                                            arrayElement = 0) const
+  {
+    return m_bindings.makeWrite(getSet(dstSetIdx), dstBinding, pAccel, arrayElement);
+  }
+#endif
 #if VK_EXT_inline_uniform_block
   VkWriteDescriptorSet makeWrite(uint32_t                                         dstSetIdx,
                                  uint32_t                                         dstBinding,
@@ -520,6 +557,12 @@ public:
   }
 #if VK_NV_ray_tracing
   VkWriteDescriptorSet makeWriteArray(uint32_t dstSetIdx, uint32_t dstBinding, const VkWriteDescriptorSetAccelerationStructureNV* pAccel) const
+  {
+    return m_bindings.makeWriteArray(getSet(dstSetIdx), dstBinding, pAccel);
+  }
+#endif
+#if VK_KHR_acceleration_structure
+  VkWriteDescriptorSet makeWriteArray(uint32_t dstSetIdx, uint32_t dstBinding, const VkWriteDescriptorSetAccelerationStructureKHR* pAccel) const
   {
     return m_bindings.makeWriteArray(getSet(dstSetIdx), dstBinding, pAccel);
   }
@@ -577,6 +620,16 @@ public:
                                 reinterpret_cast<const VkWriteDescriptorSetAccelerationStructureNV*>(pAccel), arrayElement);
   }
 #endif
+#if VK_KHR_acceleration_structure
+  vk::WriteDescriptorSet makeWrite(uint32_t                                              dstSetIdx,
+                                   uint32_t                                              dstBinding,
+                                   const vk::WriteDescriptorSetAccelerationStructureKHR* pAccel,
+                                   uint32_t                                              arrayElement = 0) const
+  {
+    return m_bindings.makeWrite(getSet(dstSetIdx), dstBinding,
+                                reinterpret_cast<const VkWriteDescriptorSetAccelerationStructureKHR*>(pAccel), arrayElement);
+  }
+#endif
   vk::WriteDescriptorSet makeWrite(uint32_t                                           dstSetIdx,
                                    uint32_t                                           dstBinding,
                                    const vk::WriteDescriptorSetInlineUniformBlockEXT* pInlineUniform,
@@ -602,6 +655,15 @@ public:
   {
     return m_bindings.makeWriteArray(getSet(dstSetIdx), dstBinding,
                                      reinterpret_cast<const VkWriteDescriptorSetAccelerationStructureNV*>(pAccel));
+  }
+#endif
+#if VK_KHR_acceleration_structure
+  vk::WriteDescriptorSet makeWriteArray(uint32_t                                              dstSetIdx,
+                                        uint32_t                                              dstBinding,
+                                        const vk::WriteDescriptorSetAccelerationStructureKHR* pAccel) const
+  {
+    return m_bindings.makeWriteArray(getSet(dstSetIdx), dstBinding,
+                                     reinterpret_cast<const VkWriteDescriptorSetAccelerationStructureKHR*>(pAccel));
   }
 #endif
 #if VK_EXT_inline_uniform_block
@@ -722,14 +784,17 @@ VkPipelineLayout TDescriptorSetContainer<SETS, PIPES>::initPipeLayout(uint32_t  
                                                                       const VkPushConstantRange*  ranges /*= nullptr*/,
                                                                       VkPipelineLayoutCreateFlags flags /*= 0*/)
 {
-  assert(pipe <= PIPES);
+  assert(pipe <= uint32_t(PIPES));
+  assert(numDsets <= uint32_t(SETS));
+  assert(m_pipelayouts[pipe] == VK_NULL_HANDLE);
 
   VkDevice device = m_sets[0].getDevice();
 
   VkDescriptorSetLayout setLayouts[SETS];
-  for(int d = 0; d < SETS; d++)
+  for(uint32_t d = 0; d < numDsets; d++)
   {
     setLayouts[d] = m_sets[d].getLayout();
+    assert(setLayouts[d]);
   }
 
   VkResult                   result;
@@ -751,7 +816,8 @@ VkPipelineLayout TDescriptorSetContainer<SETS, PIPES>::initPipeLayout(uint32_t  
                                                                       const VkPushConstantRange*  ranges /*= nullptr*/,
                                                                       VkPipelineLayoutCreateFlags flags /*= 0*/)
 {
-  assert(pipe <= PIPES);
+  assert(pipe <= uint32_t(PIPES));
+  assert(m_pipelayouts[pipe] == VK_NULL_HANDLE);
 
   VkDevice device = m_sets[0].getDevice();
 

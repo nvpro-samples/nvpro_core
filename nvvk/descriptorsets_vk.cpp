@@ -33,6 +33,7 @@ namespace nvvk {
 
 void DescriptorSetContainer::init(VkDevice device)
 {
+  assert(m_device == VK_NULL_HANDLE);
   m_device = device;
 }
 
@@ -60,14 +61,19 @@ void DescriptorSetContainer::setBindingFlags(uint32_t binding, VkDescriptorBindi
   m_bindings.setBindingFlags(binding, bindingFlag);
 }
 
-VkDescriptorSetLayout DescriptorSetContainer::initLayout(VkDescriptorSetLayoutCreateFlags flags /*= 0*/,  DescriptorSupport supportFlags)
+VkDescriptorSetLayout DescriptorSetContainer::initLayout(VkDescriptorSetLayoutCreateFlags flags /*= 0*/, DescriptorSupport supportFlags)
 {
+  assert(m_layout == VK_NULL_HANDLE);
+
   m_layout = m_bindings.createLayout(m_device, flags, supportFlags);
   return m_layout;
 }
 
 VkDescriptorPool DescriptorSetContainer::initPool(uint32_t numAllocatedSets)
 {
+  assert(m_pool == VK_NULL_HANDLE);
+  assert(m_layout);
+
   m_pool = m_bindings.createPool(m_device, numAllocatedSets);
   allocateDescriptorSets(m_device, m_pool, m_layout, numAllocatedSets, m_descriptorSets);
   return m_pool;
@@ -77,6 +83,9 @@ VkPipelineLayout DescriptorSetContainer::initPipeLayout(uint32_t                
                                                         const VkPushConstantRange*  ranges /*= nullptr*/,
                                                         VkPipelineLayoutCreateFlags flags /*= 0*/)
 {
+  assert(m_pipelineLayout == VK_NULL_HANDLE);
+  assert(m_layout);
+
   VkResult                   result;
   VkPipelineLayoutCreateInfo layoutCreateInfo = {VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
   layoutCreateInfo.setLayoutCount             = 1;
@@ -123,23 +132,28 @@ void DescriptorSetContainer::deinit()
 {
   deinitLayout();
   deinitPool();
-  m_device = nullptr;
+  m_device = VK_NULL_HANDLE;
 }
 
 //////////////////////////////////////////////////////////////////////////
 
 VkDescriptorSetLayout DescriptorSetBindings::createLayout(VkDevice device, VkDescriptorSetLayoutCreateFlags flags, DescriptorSupport supportFlags) const
 {
-  VkResult                        result;
-  VkDescriptorSetLayoutBindingFlagsCreateInfo bindingsInfo = {isSet(supportFlags,DescriptorSupport::CORE_1_2) ? VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO : VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO_EXT};
-  bindingsInfo.bindingCount                                = uint32_t(m_bindingFlags.size());
-  bindingsInfo.pBindingFlags                               = m_bindingFlags.data();
+  VkResult                                    result;
+  VkDescriptorSetLayoutBindingFlagsCreateInfo bindingsInfo = {
+      isSet(supportFlags, DescriptorSupport::CORE_1_2) ? VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO :
+                                                         VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO_EXT};
+  bindingsInfo.bindingCount  = uint32_t(m_bindingFlags.size());
+  bindingsInfo.pBindingFlags = m_bindingFlags.data();
 
   VkDescriptorSetLayoutCreateInfo createInfo = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
   createInfo.bindingCount                    = uint32_t(m_bindings.size());
   createInfo.pBindings                       = m_bindings.data();
   createInfo.flags                           = flags;
-  createInfo.pNext                           = m_bindingFlags.empty() && !(isAnySet(supportFlags,(DescriptorSupport::CORE_1_2 | DescriptorSupport::INDEXING_EXT))) ? nullptr : &bindingsInfo;
+  createInfo.pNext =
+      m_bindingFlags.empty() && !(isAnySet(supportFlags, (DescriptorSupport::CORE_1_2 | DescriptorSupport::INDEXING_EXT))) ?
+          nullptr :
+          &bindingsInfo;
 
   VkDescriptorSetLayout descriptorSetLayout;
   result = vkCreateDescriptorSetLayout(device, &createInfo, nullptr, &descriptorSetLayout);
@@ -332,6 +346,20 @@ VkWriteDescriptorSet DescriptorSetBindings::makeWrite(VkDescriptorSet           
   return writeSet;
 }
 #endif
+#if VK_KHR_acceleration_structure
+VkWriteDescriptorSet DescriptorSetBindings::makeWrite(VkDescriptorSet                                     dstSet,
+                                                      uint32_t                                            dstBinding,
+                                                      const VkWriteDescriptorSetAccelerationStructureKHR* pAccel,
+                                                      uint32_t arrayElement) const
+{
+  VkWriteDescriptorSet writeSet = makeWrite(dstSet, dstBinding, arrayElement);
+  assert(writeSet.descriptorType == VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR);
+
+  writeSet.pNext = pAccel;
+  return writeSet;
+}
+#endif
+
 #if VK_EXT_inline_uniform_block
 VkWriteDescriptorSet DescriptorSetBindings::makeWrite(VkDescriptorSet                                  dstSet,
                                                       uint32_t                                         dstBinding,
@@ -387,6 +415,18 @@ VkWriteDescriptorSet DescriptorSetBindings::makeWriteArray(VkDescriptorSet dstSe
 {
   VkWriteDescriptorSet writeSet = makeWriteArray(dstSet, dstBinding);
   assert(writeSet.descriptorType == VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV);
+
+  writeSet.pNext = pAccel;
+  return writeSet;
+}
+#endif
+#if VK_KHR_acceleration_structure
+VkWriteDescriptorSet DescriptorSetBindings::makeWriteArray(VkDescriptorSet dstSet,
+                                                           uint32_t        dstBinding,
+                                                           const VkWriteDescriptorSetAccelerationStructureKHR* pAccel) const
+{
+  VkWriteDescriptorSet writeSet = makeWriteArray(dstSet, dstBinding);
+  assert(writeSet.descriptorType == VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR);
 
   writeSet.pNext = pAccel;
   return writeSet;

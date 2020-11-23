@@ -30,8 +30,8 @@
 
 #include "images_vk.hpp"
 #include "memorymanagement_vk.hpp"
-#include "samplers_vk.hpp"
 #include "nvvk/error_vk.hpp"
+#include "samplers_vk.hpp"
 
 #include <memory>
 
@@ -116,11 +116,11 @@ struct AccelerationDmaNV
   AllocationID              allocation;
 };
 #endif
-#if VK_KHR_ray_tracing
+#if VK_KHR_acceleration_structure
 struct AccelerationDmaKHR
 {
   VkAccelerationStructureKHR accel = VK_NULL_HANDLE;
-  AllocationID               allocation;
+  BufferDma                  buffer;
 };
 #endif
 
@@ -290,13 +290,13 @@ public:
   // - creates the image
   // - creates the texture part by associating image and sampler
   //
-  TextureDma createTexture(const VkCommandBuffer&           cmdBuff,
-                                 size_t                     size_,
-                                 const void*                data_,
-                                 const VkImageCreateInfo&   info_,
-                                 const VkSamplerCreateInfo& samplerCreateInfo,
-                                 const VkImageLayout&       layout_ = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                                 bool                       isCube  = false)
+  TextureDma createTexture(const VkCommandBuffer&     cmdBuff,
+                           size_t                     size_,
+                           const void*                data_,
+                           const VkImageCreateInfo&   info_,
+                           const VkSamplerCreateInfo& samplerCreateInfo,
+                           const VkImageLayout&       layout_ = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                           bool                       isCube  = false)
   {
     ImageDma image = createImage(cmdBuff, size_, data_, info_, layout_);
 
@@ -329,18 +329,16 @@ public:
     return resultTexture;
   }
 #ifdef VULKAN_HPP
-  inline TextureDma createTexture(const vk::CommandBuffer& cmdBuff,
-                           size_t                       size_,
-                           const void*                  data_,
-                           const vk::ImageCreateInfo&   info_,
-                           const vk::SamplerCreateInfo& samplerCreateInfo,
-                           const vk::ImageLayout&       layout_ = vk::ImageLayout::eShaderReadOnlyOptimal,
-                           bool                         isCube  = false)
+  inline TextureDma createTexture(const vk::CommandBuffer&     cmdBuff,
+                                  size_t                       size_,
+                                  const void*                  data_,
+                                  const vk::ImageCreateInfo&   info_,
+                                  const vk::SamplerCreateInfo& samplerCreateInfo,
+                                  const vk::ImageLayout&       layout_ = vk::ImageLayout::eShaderReadOnlyOptimal,
+                                  bool                         isCube  = false)
   {
-    return createTexture(static_cast<VkCommandBuffer>(cmdBuff), 
-                          size_, data_, info_, samplerCreateInfo,
-                          static_cast<VkImageLayout>(layout_),
-                          isCube );
+    return createTexture(static_cast<VkCommandBuffer>(cmdBuff), size_, data_, info_, samplerCreateInfo,
+                         static_cast<VkImageLayout>(layout_), isCube);
   }
 #endif
 #if VK_NV_ray_tracing
@@ -356,12 +354,22 @@ public:
     return resultAccel;
   }
 #endif
-#if VK_KHR_ray_tracing
+#if VK_KHR_acceleration_structure
   AccelerationDmaKHR createAcceleration(VkAccelerationStructureCreateInfoKHR& accel,
                                         VkMemoryPropertyFlags memProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
   {
     AccelerationDmaKHR resultAccel;
-    resultAccel.accel = m_allocator->createAccStructure(accel, resultAccel.allocation, memProps);
+
+    // Creating the buffer for the acceleration structure
+    VkBufferCreateInfo createBInfo = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+    createBInfo.usage              = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR
+                        | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+    createBInfo.size          = accel.size;
+    resultAccel.buffer.buffer = m_allocator->createBuffer(createBInfo, resultAccel.buffer.allocation, memProps);
+
+    // Create the acceleration structure
+    accel.buffer = resultAccel.buffer.buffer;
+    vkCreateAccelerationStructureKHR(m_device, &accel, nullptr, &resultAccel.accel);
 
     return resultAccel;
   }
@@ -444,17 +452,14 @@ public:
   }
 #endif
 
-#if VK_KHR_ray_tracing
+#if VK_KHR_acceleration_structure
   void destroy(AccelerationDmaKHR& accel)
   {
     if(accel.accel)
     {
       vkDestroyAccelerationStructureKHR(m_device, accel.accel, nullptr);
     }
-    if(accel.allocation)
-    {
-      m_allocator->free(accel.allocation);
-    }
+    destroy(accel.buffer);
 
     accel = AccelerationDmaKHR();
   }

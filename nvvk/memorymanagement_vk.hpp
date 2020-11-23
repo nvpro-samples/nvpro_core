@@ -381,20 +381,6 @@ public:
   }
 #endif
 
-#if VK_KHR_ray_tracing
-  VkAccelerationStructureKHR createAccStructure(const VkAccelerationStructureCreateInfoKHR& createInfo,
-                                                AllocationID&                               allocationID,
-                                                VkMemoryPropertyFlags                       memProps,
-                                                VkResult&                                   result);
-  VkAccelerationStructureKHR createAccStructure(const VkAccelerationStructureCreateInfoKHR& createInfo,
-                                                AllocationID&                               allocationID,
-                                                VkMemoryPropertyFlags memProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
-  {
-    VkResult result;
-    return createAccStructure(createInfo, allocationID, memProps, result);
-  }
-#endif
-
 
 protected:
   static const VkMemoryDedicatedAllocateInfo* DEDICATED_PROXY;
@@ -657,7 +643,7 @@ public:
 
   // pointer is only valid until associated resources haven't been released
   const void* cmdFromBuffer(VkCommandBuffer cmd, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size);
-  
+
   template <class T>
   const T* cmdFromBufferT(VkCommandBuffer cmd, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size)
   {
@@ -694,10 +680,10 @@ protected:
 
   struct Block
   {
-    uint32_t                  index  = INVALID_ID_INDEX;
-    VkDeviceSize              size   = 0;
-    VkBuffer                  buffer = VK_NULL_HANDLE;
-    VkDeviceMemory            memory = VK_NULL_HANDLE;
+    uint32_t                  index    = INVALID_ID_INDEX;
+    VkDeviceSize              size     = 0;
+    VkBuffer                  buffer   = VK_NULL_HANDLE;
+    VkDeviceMemory            memory   = VK_NULL_HANDLE;
     bool                      toDevice = true;
     nvh::TRangeAllocator<256> range;
     uint8_t*                  mapping;

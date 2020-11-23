@@ -94,6 +94,10 @@ local extensionSubset = [[
 
     VK_KHR_external_memory_fd
     VK_KHR_external_semaphore_fd
+	
+	VK_KHR_acceleration_structure
+    VK_KHR_ray_tracing_pipeline
+	VK_KHR_pipeline_library
     ]]
 
 local function extractFeatureDefs(features, filename, enablelist)

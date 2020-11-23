@@ -86,11 +86,11 @@ struct AccelerationDedicatedNV
   VkDeviceMemory            allocation{VK_NULL_HANDLE};
 };
 #endif
-#if VK_KHR_ray_tracing
+#if VK_KHR_acceleration_structure
 struct AccelerationDedicatedKHR
 {
   VkAccelerationStructureKHR accel{VK_NULL_HANDLE};
-  VkDeviceMemory             allocation{VK_NULL_HANDLE};
+  BufferDedicated            buffer;
 };
 #endif
 
@@ -412,40 +412,20 @@ public:
   }
 #endif
 
-#if VK_KHR_ray_tracing
+#if VK_KHR_acceleration_structure
   //--------------------------------------------------------------------------------------------------
   // Create the acceleration structure
   //
   AccelerationDedicatedKHR createAcceleration(VkAccelerationStructureCreateInfoKHR& accel_)
   {
     AccelerationDedicatedKHR resultAccel;
-    // 1. Create the acceleration structure
-    NVVK_CHECK(vkCreateAccelerationStructureKHR(m_device, &accel_, nullptr, &resultAccel.accel));
-
-    // 2. Find memory requirements
-    VkAccelerationStructureMemoryRequirementsInfoKHR memInfo{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_INFO_KHR};
-    memInfo.accelerationStructure = resultAccel.accel;
-    memInfo.buildType             = VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR;
-    memInfo.type                  = VK_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_TYPE_OBJECT_KHR;
-    VkMemoryRequirements2 memReqs{VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2};
-    vkGetAccelerationStructureMemoryRequirementsKHR(m_device, &memInfo, &memReqs);
-
-
-    VkMemoryAllocateFlagsInfo memFlagInfo{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
-    memFlagInfo.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT;
-
-    // 3. Allocate memory
-    VkMemoryAllocateInfo memAlloc{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
-    memAlloc.allocationSize = memReqs.memoryRequirements.size;
-    memAlloc.memoryTypeIndex = getMemoryType(memReqs.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    resultAccel.allocation = AllocateMemory(memAlloc);
-
-    // 4. Bind memory with acceleration structure
-    VkBindAccelerationStructureMemoryInfoKHR bind{VK_STRUCTURE_TYPE_BIND_ACCELERATION_STRUCTURE_MEMORY_INFO_KHR};
-    bind.accelerationStructure = resultAccel.accel;
-    bind.memory                = resultAccel.allocation;
-    bind.memoryOffset          = 0;
-    NVVK_CHECK(vkBindAccelerationStructureMemoryKHR(m_device, 1, &bind));
+    // Allocating the buffer to hold the acceleration structure
+    resultAccel.buffer = createBuffer(accel_.size, VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR
+                                                       | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);
+    // Setting the buffer
+    accel_.buffer = resultAccel.buffer.buffer;
+    // Create the acceleration structure
+    vkCreateAccelerationStructureKHR(m_device, &accel_, nullptr, &resultAccel.accel);
 
     return resultAccel;
   }
@@ -488,11 +468,11 @@ public:
     vkFreeMemory(m_device, a_.allocation, nullptr);
   }
 #endif
-#if VK_KHR_ray_tracing
+#if VK_KHR_acceleration_structure
   void destroy(AccelerationDedicatedKHR& a_)
   {
     vkDestroyAccelerationStructureKHR(m_device, a_.accel, nullptr);
-    vkFreeMemory(m_device, a_.allocation, nullptr);
+    destroy(a_.buffer);
   }
 #endif
 
@@ -662,7 +642,7 @@ public:
   }
 #endif
 
-#if VK_KHR_ray_tracing
+#if VK_KHR_acceleration_structure
   AccelerationDedicatedKHR createAcceleration(vk::AccelerationStructureCreateInfoKHR& accel_)
   {
     return createAcceleration(static_cast<VkAccelerationStructureCreateInfoKHR&>(accel_));

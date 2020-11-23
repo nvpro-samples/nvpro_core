@@ -740,56 +740,6 @@ VkAccelerationStructureNV DeviceMemoryAllocator::createAccStructure(const VkAcce
 #endif
 
 
-#if VK_KHR_ray_tracing
-VkAccelerationStructureKHR DeviceMemoryAllocator::createAccStructure(const VkAccelerationStructureCreateInfoKHR& createInfo,
-                                                                     AllocationID&         allocationID,
-                                                                     VkMemoryPropertyFlags memProps,
-                                                                     VkResult&             result)
-{
-  VkAccelerationStructureKHR accel;
-  result = vkCreateAccelerationStructureKHR(m_device, &createInfo, nullptr, &accel);
-  if(result != VK_SUCCESS)
-  {
-    return VK_NULL_HANDLE;
-  }
-
-  VkMemoryRequirements2                            memReqs = {VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2};
-  VkAccelerationStructureMemoryRequirementsInfoKHR memInfo{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_INFO_KHR};
-  memInfo.accelerationStructure = accel;
-  vkGetAccelerationStructureMemoryRequirementsKHR(m_device, &memInfo, &memReqs);
-
-  allocationID = alloc(memReqs.memoryRequirements, memProps, true, m_forceDedicatedAllocation ? DEDICATED_PROXY : nullptr);
-
-  Allocation allocation = allocationID.isValid() ? getAllocation(allocationID) : Allocation();
-
-  if(allocation.mem == VK_NULL_HANDLE)
-  {
-    vkDestroyAccelerationStructureKHR(m_device, accel, nullptr);
-    result = VK_ERROR_OUT_OF_POOL_MEMORY;
-    return VK_NULL_HANDLE;
-  }
-
-  VkBindAccelerationStructureMemoryInfoKHR bind = {VK_STRUCTURE_TYPE_BIND_ACCELERATION_STRUCTURE_MEMORY_INFO_KHR};
-  bind.accelerationStructure                    = accel;
-  bind.memory                                   = allocation.mem;
-  bind.memoryOffset                             = allocation.offset;
-
-  assert(allocation.offset % memReqs.memoryRequirements.alignment == 0);
-
-  result = vkBindAccelerationStructureMemoryKHR(m_device, 1, &bind);
-  if(result != VK_SUCCESS)
-  {
-    vkDestroyAccelerationStructureKHR(m_device, accel, nullptr);
-    free(allocationID);
-    allocationID = AllocationID();
-    return VK_NULL_HANDLE;
-  }
-
-  return accel;
-}
-#endif
-
-
 //////////////////////////////////////////////////////////////////////////
 
 void StagingMemoryManager::init(VkDevice device, VkPhysicalDevice physicalDevice, VkDeviceSize stagingBlockSize /*= 64 * 1024 * 1024*/)
@@ -906,7 +856,7 @@ const void* StagingMemoryManager::cmdFromBuffer(VkCommandBuffer cmd, VkBuffer bu
 {
   VkBuffer     dstBuffer;
   VkDeviceSize dstOffset;
-  void* mapping = getStagingSpace(size, dstBuffer, dstOffset, false);
+  void*        mapping = getStagingSpace(size, dstBuffer, dstOffset, false);
 
   VkBufferCopy cpy;
   cpy.size      = size;
