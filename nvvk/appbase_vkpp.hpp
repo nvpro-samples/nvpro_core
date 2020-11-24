@@ -559,7 +559,7 @@ public:
     glfwGetWindowSize(m_window, &w, &h);
     if(w != (int)m_size.width || h != (int)m_size.height)
     {
-      onWindowResize(w, h);
+      onFramebufferSize(w, h);
     }
 
     // Acquire the next image from the swap chain
@@ -633,30 +633,35 @@ public:
   // - Destroy allocated frames, then rebuild them with the new size
   // - Call onResize() of the derived class
   //
-  virtual void onWindowResize(int w, int h)
+  virtual void onFramebufferSize(int w, int h)
   {
     if(w == 0 || h == 0)
     {
       return;
     }
 
-    m_size.width  = w;
-    m_size.height = h;
-
-    // Update imgui and camera
-
+    // Update imgui
     if(ImGui::GetCurrentContext() != nullptr)
     {
       auto& imgui_io       = ImGui::GetIO();
       imgui_io.DisplaySize = ImVec2(static_cast<float>(w), static_cast<float>(h));
     }
-    CameraManip.setWindowSize(w, h);
-
+    // Wait to finish what is currently drawing
     m_device.waitIdle();
     m_queue.waitIdle();
 
-    m_swapChain.update(m_size.width, m_size.height, m_vsync);
-    onResize(w, h);
+    // Request new swapschain image size
+    m_size = m_swapChain.update(m_size.width, m_size.height, m_vsync);
+
+    if(m_size.width != w || m_size.height != h)
+    {
+      LOGW("Requested size (%d, %d) is different from created size (%u, %u) ", w, h, m_size.width, m_size.height);
+    }
+
+    CameraManip.setWindowSize(m_size.width, m_size.height);
+    // Invoking Sample callback
+    onResize(m_size.width, m_size.height);
+    // Recreating other resources
     createDepthBuffer();
     createFrameBuffers();
   }
@@ -856,13 +861,13 @@ public:
     glfwSetCursorPosCallback(window, &cursorpos_cb);
     glfwSetMouseButtonCallback(window, &mousebutton_cb);
     glfwSetScrollCallback(window, &scroll_cb);
-    glfwSetWindowSizeCallback(window, &windowsize_cb);
+    glfwSetFramebufferSizeCallback(window, &framebuffersize_cb);
     glfwSetDropCallback(window, &drop_cb);
   }
-  static void windowsize_cb(GLFWwindow* window, int w, int h)
+  static void framebuffersize_cb(GLFWwindow* window, int w, int h)
   {
     auto app = reinterpret_cast<AppBase*>(glfwGetWindowUserPointer(window));
-    app->onWindowResize(w, h);
+    app->onFramebufferSize(w, h);
   }
   static void mousebutton_cb(GLFWwindow* window, int button, int action, int mods)
   {
