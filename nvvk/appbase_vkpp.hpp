@@ -556,7 +556,7 @@ public:
   {
     // Resize protection - should be cached by the glFW callback
     int w, h;
-    glfwGetWindowSize(m_window, &w, &h);
+    glfwGetFramebufferSize(m_window, &w, &h);
     if(w != (int)m_size.width || h != (int)m_size.height)
     {
       onFramebufferSize(w, h);
