@@ -345,7 +345,7 @@ public:
     m_vsync       = vsync;
 
     m_swapChain.init(m_device, m_physicalDevice, m_queue, m_graphicsQueueIndex, surface, static_cast<VkFormat>(colorFormat));
-    m_swapChain.update(m_size.width, m_size.height, vsync);
+    m_size        = m_swapChain.update(m_size.width, m_size.height, vsync);
     m_colorFormat = static_cast<vk::Format>(m_swapChain.getFormat());
 
     // Create Synchronization Primitives
