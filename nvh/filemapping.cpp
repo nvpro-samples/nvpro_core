@@ -67,6 +67,8 @@ bool FileMapping::open(const char* fileName, MappingType mappingType, size_t fil
 #endif
   }
 
+  m_mappingType = mappingType;
+
   if(mappingType == MAPPING_READOVERWRITE)
   {
     assert(fileSize);
@@ -121,7 +123,7 @@ bool FileMapping::open(const char* fileName, MappingType mappingType, size_t fil
     if(m_isValid)
     {
       m_mappingPtr = MapViewOfFile(m_win32.fileMapping, mappingType == MAPPING_READONLY ? FILE_MAP_READ : FILE_MAP_ALL_ACCESS,
-                                   HIDWORD(0), LODWORD(0), (SIZE_T)m_mappingSize);
+                                   HIDWORD(0), LODWORD(0), (SIZE_T)0);
       if (!m_mappingPtr)
       {
     #if 0
