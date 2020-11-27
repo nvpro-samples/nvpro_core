@@ -147,13 +147,6 @@ You must add include directories to the base-class for this.
 It also comes with some convenience functions to reload shaders etc.
 That is why we pass out the **ProgramID** rather than a GLuint directly.
 
-To change the compilation behavior manipulate the public member variables
-prior createShaderModule.
-
-m_filetype is crucial for this. You can pass raw spir-v files or GLSL.
-If GLSL is used either the backdoor m_useNVextension must be used, or
-preferrable shaderc (which must be added via _add_package_ShaderC() in CMake of the project)
-
 Example:
 
 ``` c++

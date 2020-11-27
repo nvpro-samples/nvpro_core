@@ -1236,8 +1236,8 @@ To change the compilation behavior manipulate the public member variables
 prior createShaderModule.
 
 m_filetype is crucial for this. You can pass raw spir-v files or GLSL.
-If GLSL is used either the backdoor m_useNVextension must be used, or
-preferrable shaderc (which must be added via _add_package_ShaderC() in CMake of the project)
+If GLSL is used, shaderc must be used as well (which must be added via 
+_add_package_ShaderC() in CMake of the project)
 
 Example:
 

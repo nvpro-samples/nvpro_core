@@ -180,7 +180,7 @@ bool ShaderModuleManager::setupShaderModule(ShaderModule& module)
 
 #if USESHADERC
     shaderc_compilation_result_t result = nullptr;
-    if(definition.filetype == FILETYPE_GLSL && !module.useNVextension)
+    if(definition.filetype == FILETYPE_GLSL)
     {
       shaderc_shader_kind shaderkind = (shaderc_shader_kind)m_usedSetupIF->getTypeShadercKind(definition.type);
       shaderc_compile_options_t options = (shaderc_compile_options_t)m_usedSetupIF->getShadercCompileOption(s_shadercCompiler);
@@ -201,7 +201,9 @@ bool ShaderModuleManager::setupShaderModule(ShaderModule& module)
 
         shaderc_compile_options_set_optimization_level(m_shadercOptions, m_shadercOptimizationLevel);
         
-        // keep debug info, doesn't cost perf
+        // Keep debug info, doesn't cost shader execution perf, only compile-time and memory size.
+        // Improves usage for debugging tools, not recommended for shipping application,
+        // but good for developmenent builds.
         shaderc_compile_options_set_generate_debug_info(m_shadercOptions);
 
         options = m_shadercOptions;
@@ -250,7 +252,7 @@ bool ShaderModuleManager::setupShaderModule(ShaderModule& module)
     }
     else
 #else
-    if(definition.filetype == FILETYPE_GLSL && !module.useNVextension)
+    if(definition.filetype == FILETYPE_GLSL)
     {
       LOGW("No direct GLSL support\n");
       return false;
@@ -297,7 +299,6 @@ ShaderModuleID ShaderModuleManager::createShaderModule(const Definition& definit
 {
   ShaderModule module;
   module.definition     = definition;
-  module.useNVextension = m_useNVextension;
 
   setupShaderModule(module);
 
