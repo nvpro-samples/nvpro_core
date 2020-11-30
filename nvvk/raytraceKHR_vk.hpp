@@ -99,7 +99,7 @@ struct RaytracingBuilderKHR
   struct BlasInput
   {
     // Data used to build acceleration structure geometry
-    std::vector<VkAccelerationStructureGeometryKHR> asGeometry;
+    std::vector<VkAccelerationStructureGeometryKHR>       asGeometry;
     std::vector<VkAccelerationStructureBuildRangeInfoKHR> asBuildOffsetInfo;
   };
 
@@ -141,10 +141,10 @@ public:
   // This is an instance of a BLAS
   struct Instance
   {
-    uint32_t                   blasId{0};      // Index of the BLAS in m_blas
-    uint32_t                   instanceId{0};  // Instance Index (gl_InstanceID)
-    uint32_t                   hitGroupId{0};  // Hit group index in the SBT
-    uint32_t                   mask{0xFF};     // Visibility mask, will be AND-ed with ray mask
+    uint32_t                   blasId{0};            // Index of the BLAS in m_blas
+    uint32_t                   instanceCustomId{0};  // Instance Index (gl_InstanceCustomIndexEXT)
+    uint32_t                   hitGroupId{0};        // Hit group index in the SBT
+    uint32_t                   mask{0xFF};           // Visibility mask, will be AND-ed with ray mask
     VkGeometryInstanceFlagsKHR flags{VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR};
     nvmath::mat4f              transform{nvmath::mat4f(1)};  // Identity
   };
@@ -221,7 +221,7 @@ public:
       // Create acceleration structure object. Not yet bound to memory.
       VkAccelerationStructureCreateInfoKHR createInfo{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR};
       createInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
-      createInfo.size = sizeInfo.accelerationStructureSize; // Will be used to allocate memory.
+      createInfo.size = sizeInfo.accelerationStructureSize;  // Will be used to allocate memory.
 
       // Actual allocation of buffer and acceleration structure. Note: This relies on createInfo.offset == 0
       // and fills in createInfo.buffer with the buffer allocated to store the BLAS. The underlying
@@ -299,7 +299,7 @@ public:
                                                       VK_QUERY_TYPE_ACCELERATION_STRUCTURE_COMPACTED_SIZE_KHR, queryPool, idx);
       }
     }
-    genCmdBuf.submitAndWait(allCmdBufs); // vkQueueWaitIdle behind this call.
+    genCmdBuf.submitAndWait(allCmdBufs);  // vkQueueWaitIdle behind this call.
     allCmdBufs.clear();
 
     // Compacting all BLAS
@@ -337,7 +337,7 @@ public:
         cleanupAS[idx] = m_blas[idx].as;
         m_blas[idx].as = as;
       }
-      genCmdBuf.submitAndWait(cmdBuf); // vkQueueWaitIdle within.
+      genCmdBuf.submitAndWait(cmdBuf);  // vkQueueWaitIdle within.
 
       // Destroying the previous version
       for(auto as : cleanupAS)
@@ -375,7 +375,7 @@ public:
     // the matrix is row-major, we simply copy the first 12 values of the
     // original 4x4 matrix
     memcpy(&gInst.transform, &transp, sizeof(gInst.transform));
-    gInst.instanceCustomIndex                    = instance.instanceId;
+    gInst.instanceCustomIndex                    = instance.instanceCustomId;
     gInst.mask                                   = instance.mask;
     gInst.instanceShaderBindingTableRecordOffset = instance.hitGroupId;
     gInst.flags                                  = instance.flags;
@@ -434,13 +434,13 @@ public:
     // Create VkAccelerationStructureGeometryInstancesDataKHR
     // This wraps a device pointer to the above uploaded instances.
     VkAccelerationStructureGeometryInstancesDataKHR instancesVk{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR};
-    instancesVk.arrayOfPointers = VK_FALSE;
+    instancesVk.arrayOfPointers    = VK_FALSE;
     instancesVk.data.deviceAddress = instanceAddress;
 
     // Put the above into a VkAccelerationStructureGeometryKHR. We need to put the
     // instances struct in a union and label it as instance data.
     VkAccelerationStructureGeometryKHR topASGeometry{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR};
-    topASGeometry.geometryType = VK_GEOMETRY_TYPE_INSTANCES_KHR;
+    topASGeometry.geometryType       = VK_GEOMETRY_TYPE_INSTANCES_KHR;
     topASGeometry.geometry.instances = instancesVk;
 
     // Find sizes
@@ -489,7 +489,7 @@ public:
     // Build the TLAS
     vkCmdBuildAccelerationStructuresKHR(cmdBuf, 1, &buildInfo, &pBuildOffsetInfo);
 
-    genCmdBuf.submitAndWait(cmdBuf); // queueWaitIdle inside.
+    genCmdBuf.submitAndWait(cmdBuf);  // queueWaitIdle inside.
     m_alloc->finalizeAndReleaseStaging();
     m_alloc->destroy(scratchBuffer);
   }
