@@ -861,6 +861,23 @@ endmacro(_optional_package_NSight)
 
 
 #####################################################################################
+# NVML
+# Note that NVML often needs to be delay-loaded on Windows using
+# set_target_properties(${PROJNAME} PROPERTIES LINK_FLAGS "/DELAYLOAD:nvml.dll")!
+#
+macro(_add_package_NVML)
+  message(STATUS "--> using package NVML")
+  find_package(NVML)
+  if(NVML_FOUND)
+    add_definitions(-DUSENVML)
+    include_directories(${NVML_INCLUDE_DIRS})
+    LIST(APPEND LIBRARIES_OPTIMIZED ${NVML_LIBRARIES})
+    LIST(APPEND LIBRARIES_DEBUG ${NVML_LIBRARIES})
+  endif()
+endmacro()
+
+
+#####################################################################################
 # Generate PTX files
 # NVCUDA_COMPILE_PTX( SOURCES file1.cu file2.cu TARGET_PATH <path where ptxs should be stored> GENERATED_FILES ptx_sources NVCC_OPTIONS -arch=sm_20)
 # Generates ptx files for the given source files. ptx_sources will contain the list of generated files.
