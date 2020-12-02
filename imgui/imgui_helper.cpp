@@ -66,7 +66,7 @@ void Init(int width, int height, void* userData, FontMode fontmode)
 
   // Scale style sizes for high-DPI monitors
   ImGuiStyle& imgui_style = ImGui::GetStyle();
-  imgui_style.ScaleAllSizes( fontmode == FONT_FIXED ? 1 : getDPIScale());
+  imgui_style.ScaleAllSizes(fontmode == FONT_FIXED ? 1 : getDPIScale());
 }
 
 void Combo(const char* label, size_t numEnums, const Enum* enums, void* valuePtr, ImGuiComboFlags flags, ValueType valueType, bool* valueChanged)
@@ -189,25 +189,33 @@ void setStyle()
   style.Colors[ImGuiCol_Border]      = ImVec4(0.4f, 0.4f, 0.4f, 0.5f);
   style.Colors[ImGuiCol_FrameBg]     = ImVec4(0.05f, 0.05f, 0.05f, 0.5f);
 
-  // Normal & Active
+  // Normal
   ImVec4                normal_color(0.465f, 0.465f, 0.525f, 1.0f);
   std::vector<ImGuiCol> to_change_nrm;
   to_change_nrm.push_back(ImGuiCol_Header);
-  to_change_nrm.push_back(ImGuiCol_HeaderActive);
   to_change_nrm.push_back(ImGuiCol_SliderGrab);
-  to_change_nrm.push_back(ImGuiCol_SliderGrabActive);
   to_change_nrm.push_back(ImGuiCol_Button);
-  to_change_nrm.push_back(ImGuiCol_ButtonActive);
-  to_change_nrm.push_back(ImGuiCol_FrameBgActive);
   to_change_nrm.push_back(ImGuiCol_CheckMark);
   to_change_nrm.push_back(ImGuiCol_ResizeGrip);
-  to_change_nrm.push_back(ImGuiCol_ResizeGripActive);
   to_change_nrm.push_back(ImGuiCol_TextSelectedBg);
   to_change_nrm.push_back(ImGuiCol_Separator);
-  to_change_nrm.push_back(ImGuiCol_SeparatorActive);
+  to_change_nrm.push_back(ImGuiCol_FrameBgActive);
   for(auto c : to_change_nrm)
   {
     style.Colors[c] = normal_color;
+  }
+
+  // Active
+  ImVec4                active_color(0.365f, 0.365f, 0.425f, 1.0f);
+  std::vector<ImGuiCol> to_change_act;
+  to_change_act.push_back(ImGuiCol_HeaderActive);
+  to_change_act.push_back(ImGuiCol_SliderGrabActive);
+  to_change_act.push_back(ImGuiCol_ButtonActive);
+  to_change_act.push_back(ImGuiCol_ResizeGripActive);
+  to_change_act.push_back(ImGuiCol_SeparatorActive);
+  for(auto c : to_change_act)
+  {
+    style.Colors[c] = active_color;
   }
 
   // Hovered
@@ -256,8 +264,9 @@ void setFonts(FontMode fontmode)
 
 
   // Nicer fonts
-  ImFont*     font    = nullptr;
-  if (fontmode == FONT_MONOSPACED_SCALED) {
+  ImFont* font = nullptr;
+  if(fontmode == FONT_MONOSPACED_SCALED)
+  {
     if(font == nullptr)
     {
       const std::string p = R"(C:/Windows/Fonts/consola.ttf)";
@@ -265,7 +274,8 @@ void setFonts(FontMode fontmode)
         font = io.Fonts->AddFontFromFileTTF(p.c_str(), 12.0f * high_dpi_scale);
     }
   }
-  else if (fontmode == FONT_PROPORTIONAL_SCALED){
+  else if(fontmode == FONT_PROPORTIONAL_SCALED)
+  {
     const char* vk_path = getenv("VK_SDK_PATH");
     if(vk_path)
     {
