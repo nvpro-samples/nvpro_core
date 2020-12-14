@@ -573,8 +573,15 @@ struct matrix3
       mat_array[i] *= lambda;
     return *this;
   }
-  //TL
-  matrix3<T>& operator*=(const matrix3<T>& M) { return *this; }
+
+  matrix3<T> operator*(const matrix3<T>&) const;
+
+  matrix3<T>& operator*=(const matrix3<T>& M)
+  {
+    *this = mult(*this, M);
+    return *this;
+  }
+
 
   matrix3<T>& operator-=(const matrix3<T>& M)
   {
@@ -696,10 +703,10 @@ struct matrix4
   {
   }
 
-  template<typename T2>
+  template <typename T2>
   explicit matrix4(const matrix4<T2>& M)
   {
-    for (int i = 0; i < 16; ++i)
+    for(int i = 0; i < 16; ++i)
     {
       mat_array[i] = static_cast<T>(M.mat_array[i]);
     }
@@ -788,7 +795,7 @@ struct matrix4
   vector3<T>&        get_translation(vector3<T>& t) const;
   matrix4<T>&        as_translation(const vector3<T>& t);
 
-  matrix4<T> operator*(const matrix4<T>&)const;
+  matrix4<T> operator*(const matrix4<T>&) const;
   //TL
   matrix4<T>& operator*=(const matrix4<T>& M)
   {

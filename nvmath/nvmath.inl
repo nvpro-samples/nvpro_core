@@ -702,7 +702,7 @@ template<class T>
 inline matrix3<T> mult(const matrix3<T>& A, const matrix3<T>& B)
 {
     matrix3<T> C;
-                                // If there is sel fassignment involved
+                                // If there is self assignment involved
                                 // we can't go without a temporary.
     C.a00 = A.a00 * B.a00 + A.a01 * B.a10 + A.a02 * B.a20;
     C.a10 = A.a10 * B.a00 + A.a11 * B.a10 + A.a12 * B.a20;
@@ -715,6 +715,25 @@ inline matrix3<T> mult(const matrix3<T>& A, const matrix3<T>& B)
     C.a22 = A.a20 * B.a02 + A.a21 * B.a12 + A.a22 * B.a22;
     return C;
 }
+
+template <class T>
+inline matrix3<T> matrix3<T>::operator*(const matrix3<T>& B) const
+{
+  matrix3<T> C;
+  // If there is self assignment involved
+  // we can't go without a temporary.
+  C.a00 = a00 * B.a00 + a01 * B.a10 + a02 * B.a20;
+  C.a10 = a10 * B.a00 + a11 * B.a10 + a12 * B.a20;
+  C.a20 = a20 * B.a00 + a21 * B.a10 + a22 * B.a20;
+  C.a01 = a00 * B.a01 + a01 * B.a11 + a02 * B.a21;
+  C.a11 = a10 * B.a01 + a11 * B.a11 + a12 * B.a21;
+  C.a21 = a20 * B.a01 + a21 * B.a11 + a22 * B.a21;
+  C.a02 = a00 * B.a02 + a01 * B.a12 + a02 * B.a22;
+  C.a12 = a10 * B.a02 + a11 * B.a12 + a12 * B.a22;
+  C.a22 = a20 * B.a02 + a21 * B.a12 + a22 * B.a22;
+  return C;
+}
+
 
 template<class T>
 inline matrix4<T> transpose(const matrix4<T>& A)
