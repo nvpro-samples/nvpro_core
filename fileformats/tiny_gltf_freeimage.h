@@ -9,6 +9,7 @@
 */
 
 #include "FreeImage.h"
+#include "nvh/nvprint.hpp"
 #include <filesystem>
 #include <iostream>
 #include <thread>
@@ -64,6 +65,9 @@ static FIBITMAP* ConvertToRGBAF(FIBITMAP* pDib)
 ///
 static bool LoadFreeImage(Image* image, FIBITMAP* dib)
 {
+  if(dib == nullptr)
+    return false;
+
   image->width  = FreeImage_GetWidth(dib);
   image->height = FreeImage_GetHeight(dib);
 
@@ -153,7 +157,11 @@ static void loadExternalImages(Model* model, const std::string& gltf_filename)
     FREE_IMAGE_FORMAT fif     = FreeImage_GetFileType(img_uri.c_str(), 0);
 
     if(fif == FIF_UNKNOWN || FreeImage_FIFSupportsReading(fif) == false)
+    {
+      LOGE("Couldn't load: %s \n", img_uri.c_str());
+      all_fib.emplace_back(nullptr);
       continue;
+    }
 
     int flags{0};
     // Import JPEGs with full accuracy (to get identical results as with the default settings of the JPEG library).
@@ -163,11 +171,9 @@ static void loadExternalImages(Model* model, const std::string& gltf_filename)
     all_fib.emplace_back(FreeImage_Load(fif, img_uri.c_str(), flags));
   }
 
-  assert(all_fib.size() == model->images.size());  // Some images couldn't be parsed
-
   // Converting in parallel the images to an appropriate format
   std::vector<std::thread> tasks;
-  for(size_t i = 0; i < model->images.size(); i++)
+  for(size_t i = 0; i < all_fib.size(); i++)
   {
     tasks.emplace_back(std::thread([&, i]() { LoadFreeImage(&model->images[i], all_fib[i]); }));
   }
