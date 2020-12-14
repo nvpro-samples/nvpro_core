@@ -36,7 +36,7 @@
 #include <nvvk/debug_util_vk.hpp>
 
 namespace nvvk {
-  
+
 static std::string ObjectTypeToString(VkObjectType value)
 {
   switch(value)
@@ -126,14 +126,15 @@ static std::string ObjectTypeToString(VkObjectType value)
 
 
 // Define a callback to capture the messages
-VKAPI_ATTR VkBool32 VKAPI_CALL Context::debugMessengerCallback(VkDebugUtilsMessageSeverityFlagBitsEXT      messageSeverity,
-                                                      VkDebugUtilsMessageTypeFlagsEXT             messageType,
-                                                      const VkDebugUtilsMessengerCallbackDataEXT* callbackData,
-                                                      void*                                       userData)
+VKAPI_ATTR VkBool32 VKAPI_CALL Context::debugMessengerCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+                                                               VkDebugUtilsMessageTypeFlagsEXT        messageType,
+                                                               const VkDebugUtilsMessengerCallbackDataEXT* callbackData,
+                                                               void*                                       userData)
 {
   Context* ctx = reinterpret_cast<Context*>(userData);
 
-  if (ctx->m_dbgIgnoreMessages.find(callbackData->messageIdNumber) != ctx->m_dbgIgnoreMessages.end()) return VK_FALSE;
+  if(ctx->m_dbgIgnoreMessages.find(callbackData->messageIdNumber) != ctx->m_dbgIgnoreMessages.end())
+    return VK_FALSE;
 
 
   int level = LOGLEVEL_INFO;
@@ -249,7 +250,8 @@ bool Context::initInstance(const ContextCreateInfo& info)
       LOGI("Available Instance Layers :\n");
       for(auto it : layerProperties)
       {
-        LOGI("%s (v. %x %x) : %s\n", it.layerName, it.specVersion, it.implementationVersion, it.description);
+        LOGI("%s (v. %d.%d.%d %x) : %s\n", it.layerName, VK_VERSION_MAJOR(it.specVersion),
+             VK_VERSION_MINOR(it.specVersion), VK_VERSION_PATCH(it.specVersion), it.implementationVersion, it.description);
       }
     }
   }
@@ -298,7 +300,7 @@ bool Context::initInstance(const ContextCreateInfo& info)
   instanceCreateInfo.ppEnabledExtensionNames = m_usedInstanceExtensions.data();
   instanceCreateInfo.enabledLayerCount       = static_cast<uint32_t>(m_usedInstanceLayers.size());
   instanceCreateInfo.ppEnabledLayerNames     = m_usedInstanceLayers.data();
-  instanceCreateInfo.pNext = info.instanceCreateInfoExt;
+  instanceCreateInfo.pNext                   = info.instanceCreateInfoExt;
 
   NVVK_CHECK(vkCreateInstance(&instanceCreateInfo, nullptr, &m_instance));
 
@@ -774,25 +776,25 @@ VkResult Context::fillFilteredNameArray(Context::NameArray&                   us
                                         const std::vector<VkLayerProperties>& properties,
                                         const ContextCreateInfo::EntryArray&  requested)
 {
-  for(auto itr = requested.begin(); itr != requested.end(); ++itr)
+  for(const auto& itr : requested)
   {
     bool found = false;
     for(const auto& property : properties)
     {
-      if(strcmp(itr->name, property.layerName) == 0)
+      if(strcmp(itr.name, property.layerName) == 0)
       {
         found = true;
         break;
       }
     }
 
-    if(!found && !itr->optional)
+    if(!found && !itr.optional)
     {
-      LOGW("VK_ERROR_EXTENSION_NOT_PRESENT: %s\n", itr->name);
-      return VK_ERROR_EXTENSION_NOT_PRESENT;
+      LOGW("VK_ERROR_LAYER_NOT_PRESENT: %s\n", itr.name);
+      return VK_ERROR_LAYER_NOT_PRESENT;
     }
 
-    used.push_back(itr->name);
+    used.push_back(itr.name);
   }
 
   return VK_SUCCESS;
@@ -897,8 +899,8 @@ void Context::initDebugUtils()
     dbg_messenger_create_info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
     dbg_messenger_create_info.pNext = nullptr;
     dbg_messenger_create_info.flags = 0;
-    dbg_messenger_create_info.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
-        VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+    dbg_messenger_create_info.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
+                                                | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
     dbg_messenger_create_info.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT
                                             | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
     dbg_messenger_create_info.pfnUserCallback = debugMessengerCallback;
