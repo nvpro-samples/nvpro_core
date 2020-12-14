@@ -26,8 +26,10 @@
  */
 
 #include "gltfscene.hpp"
+#include "nvprint.hpp"
 #include <iostream>
 #include <numeric>
+#include <set>
 
 namespace nvh {
 
@@ -46,7 +48,7 @@ void GltfScene::importMaterials(const tinygltf::Model& tmodel)
 
     gmat.alphaCutoff        = static_cast<float>(tmat.alphaCutoff);
     gmat.alphaMode          = tmat.alphaMode == "MASK" ? 1 : (tmat.alphaMode == "BLEND" ? 2 : 0);
-    gmat.doubleSided        = tmat.doubleSided;
+    gmat.doubleSided        = tmat.doubleSided ? 1 : 0;
     gmat.emissiveFactor     = nvmath::vec3f(tmat.emissiveFactor[0], tmat.emissiveFactor[1], tmat.emissiveFactor[2]);
     gmat.emissiveTexture    = tmat.emissiveTexture.index;
     gmat.normalTexture      = tmat.normalTexture.index;
@@ -64,11 +66,11 @@ void GltfScene::importMaterials(const tinygltf::Model& tmodel)
     gmat.pbrRoughnessFactor          = static_cast<float>(tpbr.roughnessFactor);
 
     // KHR_materials_pbrSpecularGlossiness
-    if(tmat.extensions.find("KHR_materials_pbrSpecularGlossiness") != tmat.extensions.end())
+    if(tmat.extensions.find(KHR_MATERIALS_PBRSPECULARGLOSSINESS_EXTENSION_NAME) != tmat.extensions.end())
     {
       gmat.shadingModel = 1;
 
-      const auto& khr = tmat.extensions.find("KHR_materials_pbrSpecularGlossiness")->second;
+      const auto& khr = tmat.extensions.find(KHR_MATERIALS_PBRSPECULARGLOSSINESS_EXTENSION_NAME)->second;
       if(khr.Has("diffuseFactor"))
       {
         auto vec              = getVector<float>(khr.Get("diffuseFactor"));
@@ -86,6 +88,64 @@ void GltfScene::importMaterials(const tinygltf::Model& tmodel)
       if(khr.Has("diffuseTexture"))
       {
         gmat.khrDiffuseTexture = khr.Get("diffuseTexture").Get("index").Get<int>();
+      }
+      if(khr.Has("specularGlossinessTexture"))
+      {
+        gmat.khrSpecularGlossinessTexture = khr.Get("specularGlossinessTexture").Get("index").Get<int>();
+      }
+    }
+
+    // KHR_materials_pbrSpecularGlossiness
+    if(tpbr.baseColorTexture.extensions.find(KHR_TEXTURE_TRANSFORM_EXTENSION_NAME) != tpbr.baseColorTexture.extensions.end())
+    {
+      const auto& khr = tpbr.baseColorTexture.extensions.find(KHR_TEXTURE_TRANSFORM_EXTENSION_NAME)->second;
+
+      vec2  Offset{0, 0}, Scale{1, 1};
+      float Rotation{0};
+
+      if(khr.Has("offset"))
+      {
+        auto o = getVector<float>(khr.Get("offset"));
+        Offset = vec2{o[0], o[1]};
+      }
+      if(khr.Has("scale"))
+      {
+        auto s = getVector<float>(khr.Get("scale"));
+        Scale  = vec2{s[0], s[1]};
+      }
+      if(khr.Has("rotation"))
+      {
+        Rotation = static_cast<float>(khr.Get("rotation").Get<double>());
+      }
+
+      mat3 translation = mat3(1, 0, Offset.x, 0, 1, Offset.y, 0, 0, 1);
+      mat3 rotation    = mat3(cos(Rotation), sin(Rotation), 0, -sin(Rotation), cos(Rotation), 0, 0, 0, 1);
+      mat3 scale       = mat3(Scale.x, 0, 0, 0, Scale.y, 0, 0, 0, 1);
+
+      gmat.uvTransform = scale * rotation * translation;
+    }
+
+    // KHR_materials_unlit
+    if(tmat.extensions.find(KHR_MATERIALS_UNLIT_EXTENSION_NAME) != tmat.extensions.end())
+    {
+      gmat.unlit = 1;
+    }
+
+    if(tmat.extensions.find(KHR_MATERIALS_ANISOTROPY_EXTENSION_NAME) != tmat.extensions.end())
+    {
+      const auto& khr = tmat.extensions.find(KHR_MATERIALS_ANISOTROPY_EXTENSION_NAME)->second;
+      if(khr.Has("anisotropy"))
+      {
+        gmat.anisotropy = static_cast<float>(khr.Get("anisotropy").Get<double>());
+      }
+      if(khr.Has("anisotropyDirection"))
+      {
+        auto vec                 = getVector<float>(khr.Get("anisotropyDirection"));
+        gmat.anisotropyDirection = nvmath::vec3f(vec[0], vec[1], vec[2]);
+      }
+      if(khr.Has("anisotropyTexture"))
+      {
+        gmat.anisotropyTexture = khr.Get("anisotropyTexture").Get("index").Get<int>();
       }
     }
 
@@ -106,6 +166,8 @@ void GltfScene::importMaterials(const tinygltf::Model& tmodel)
 //
 void GltfScene::importDrawableNodes(const tinygltf::Model& tmodel, GltfAttributes attributes)
 {
+  checkRequiredExtensions(tmodel);
+
   // Find the number of vertex(attributes) and index
   uint32_t nbVert{0};
   uint32_t nbIndex{0};
@@ -120,8 +182,15 @@ void GltfScene::importDrawableNodes(const tinygltf::Model& tmodel, GltfAttribute
         continue;
       const auto& posAccessor = tmodel.accessors[primitive.attributes.find("POSITION")->second];
       nbVert += static_cast<uint32_t>(posAccessor.count);
-      const auto& indexAccessor = tmodel.accessors[primitive.indices];
-      nbIndex += static_cast<uint32_t>(indexAccessor.count);
+      if(primitive.indices > -1)
+      {
+        const auto& indexAccessor = tmodel.accessors[primitive.indices];
+        nbIndex += static_cast<uint32_t>(indexAccessor.count);
+      }
+      else
+      {
+        nbIndex += static_cast<uint32_t>(posAccessor.count);
+      }
       vprim.emplace_back(primCnt++);
     }
     m_meshToPrimMeshes[meshCnt++] = std::move(vprim);  // mesh-id = { prim0, prim1, ... }
@@ -217,10 +286,10 @@ void GltfScene::processNode(const tinygltf::Model& tmodel, int& nodeIdx, const n
 
     m_cameras.emplace_back(camera);
   }
-  else if(tnode.extensions.find(EXTENSION_LIGHT) != tnode.extensions.end())
+  else if(tnode.extensions.find(KHR_LIGHTS_PUNCTUAL_EXTENSION_NAME) != tnode.extensions.end())
   {
     GltfLight   light;
-    const auto& ext      = tnode.extensions.find(EXTENSION_LIGHT)->second;
+    const auto& ext      = tnode.extensions.find(KHR_LIGHTS_PUNCTUAL_EXTENSION_NAME)->second;
     auto        lightIdx = ext.Get("light").GetNumberAsInt();
     light.light          = tmodel.lights[lightIdx];
     light.worldMatrix    = worldMatrix;
@@ -250,6 +319,7 @@ void GltfScene::processMesh(const tinygltf::Model& tmodel, const tinygltf::Primi
     return;
 
   // INDICES
+  if(tmesh.indices > -1)
   {
     const tinygltf::Accessor&   indexAccessor = tmodel.accessors[tmesh.indices];
     const tinygltf::BufferView& bufferView    = tmodel.bufferViews[indexAccessor.bufferView];
@@ -284,6 +354,14 @@ void GltfScene::processMesh(const tinygltf::Model& tmodel, const tinygltf::Primi
         std::cerr << "Index component type " << indexAccessor.componentType << " not supported!" << std::endl;
         return;
     }
+  }
+  else
+  {
+    // Primitive without indices, creating them
+    const auto& accessor = tmodel.accessors[tmesh.attributes.find("POSITION")->second];
+    for(auto i = 0; i < accessor.count; i++)
+      m_indices.push_back(i);
+    resultMesh.indexCount = static_cast<uint32_t>(accessor.count);
   }
 
   // POSITION
@@ -643,8 +721,16 @@ GltfStats GltfScene::getStatistics(const tinygltf::Model& tinyModel)
   {
     for(const auto& primitive : mesh.primitives)
     {
-      const tinygltf::Accessor& indexAccessor = tinyModel.accessors[primitive.indices];
-      meshTriangle[meshIdx] += static_cast<uint32_t>(indexAccessor.count) / 3;
+      if(primitive.indices > -1)
+      {
+        const tinygltf::Accessor& indexAccessor = tinyModel.accessors[primitive.indices];
+        meshTriangle[meshIdx] += static_cast<uint32_t>(indexAccessor.count) / 3;
+      }
+      else
+      {
+        const auto& posAccessor = tinyModel.accessors[primitive.attributes.find("POSITION")->second];
+        meshTriangle[meshIdx] += static_cast<uint32_t>(posAccessor.count) / 3;
+      }
     }
     meshIdx++;
   }
@@ -679,6 +765,28 @@ void GltfScene::computeCamera()
       camera.center  = {0, 0, -distance};
       camera.center  = camera.eye + (rotMat * camera.center);
       camera.up      = {0, 1, 0};
+    }
+  }
+}
+
+void GltfScene::checkRequiredExtensions(const tinygltf::Model& tmodel)
+{
+  std::set<std::string> supportedExtensions{
+      KHR_LIGHTS_PUNCTUAL_EXTENSION_NAME,
+      KHR_TEXTURE_TRANSFORM_EXTENSION_NAME,
+      KHR_MATERIALS_PBRSPECULARGLOSSINESS_EXTENSION_NAME,
+      KHR_MATERIALS_UNLIT_EXTENSION_NAME,
+      KHR_MATERIALS_ANISOTROPY_EXTENSION_NAME,
+  };
+
+  for(auto& e : tmodel.extensionsRequired)
+  {
+    if(supportedExtensions.find(e) == supportedExtensions.end())
+    {
+      LOGE(
+          "\n---------------------------------------\n"
+          "The extension %s is REQUIRED and not supported \n",
+          e.c_str());
     }
   }
 }

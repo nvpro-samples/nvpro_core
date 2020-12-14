@@ -58,13 +58,18 @@
 #include "fileformats/tiny_gltf.h"
 #include "nvmath/nvmath.h"
 #include "nvmath/nvmath_glsltypes.h"
+#include <algorithm>
 #include <map>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
 using namespace nvmath;
-#define EXTENSION_LIGHT "KHR_lights_punctual"
+#define KHR_LIGHTS_PUNCTUAL_EXTENSION_NAME "KHR_lights_punctual"
+#define KHR_TEXTURE_TRANSFORM_EXTENSION_NAME "KHR_texture_transform"
+#define KHR_MATERIALS_PBRSPECULARGLOSSINESS_EXTENSION_NAME "KHR_materials_pbrSpecularGlossiness"
+#define KHR_MATERIALS_UNLIT_EXTENSION_NAME "KHR_materials_unlit"
+#define KHR_MATERIALS_ANISOTROPY_EXTENSION_NAME "KHR_materials_anisotropy"
 
 namespace nvh {
 
@@ -90,12 +95,23 @@ struct GltfMaterial
   vec3  emissiveFactor{0, 0, 0};
   int   alphaMode{0};
   float alphaCutoff{0.5f};
-  bool  doubleSided{false};
+  int   doubleSided{0};
 
   int   normalTexture{-1};
   float normalTextureScale{1.f};
   int   occlusionTexture{-1};
   float occlusionTextureStrength{1};
+
+  // KHR_texture_transform : https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_texture_transform
+  mat3 uvTransform{1};
+
+  // KHR_materials_unlit : https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_materials_unlit
+  int unlit{0};
+
+  // KHR_materials_anisotropy
+  float anisotropy{0};
+  vec3  anisotropyDirection{1, 0, 0};
+  int   anisotropyTexture{-1};
 };
 
 
@@ -258,6 +274,7 @@ private:
     const auto  bufData  = reinterpret_cast<const T*>(&(buffer.data[accessor.byteOffset + bufView.byteOffset]));
     const auto  nbElems  = accessor.count;
 
+    // Supporting KHR_mesh_quantization
     assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
 
     // Copying the attributes
@@ -297,7 +314,24 @@ private:
         for(int c = 0; c < nbComponents; c++)
         {
           float value = *reinterpret_cast<const float*>(bufferByteData);
-          vecValue[c] = accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE ? value / 255.0f : value / 65535.0f;
+          switch(accessor.componentType)
+          {
+            case TINYGLTF_COMPONENT_TYPE_BYTE:
+              vecValue[c] = std::max(value / 127.0f, -1.f);
+              break;
+            case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
+              vecValue[c] = value / 255.0f;
+              break;
+            case TINYGLTF_COMPONENT_TYPE_SHORT:
+              vecValue[c] = std::max(value / 32767.0f, -1.f);
+              break;
+            case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
+              vecValue[c] = value / 65535.0f;
+              break;
+            default:
+              assert(!"KHR_mesh_quantization unsupported format");
+              break;
+          }
           bufferByteData += strideComponent;
         }
         bufferByte += byteStride;
@@ -314,6 +348,7 @@ private:
     return extensions.find(name) != extensions.end();
   }
   void computeCamera();
+  void checkRequiredExtensions(const tinygltf::Model& tmodel);
 };
 
 
