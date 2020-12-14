@@ -570,15 +570,15 @@ private:
 
 #ifdef VULKAN_HPP
 public:
-  void nvvk::RaytracingBuilderKHR::buildBlas(const std::vector<RaytracingBuilderKHR::BlasInput>& blas_,
-                                             vk::BuildAccelerationStructureFlagsKHR              flags)
+  void buildBlas(const std::vector<RaytracingBuilderKHR::BlasInput>& blas_,
+                 vk::BuildAccelerationStructureFlagsKHR              flags)
   {
     buildBlas(blas_, static_cast<VkBuildAccelerationStructureFlagsKHR>(flags));
   }
 
-  void nvvk::RaytracingBuilderKHR::buildTlas(const std::vector<Instance>&           instances,
-                                             vk::BuildAccelerationStructureFlagsKHR flags,
-                                             bool                                   update = false)
+  void buildTlas(const std::vector<Instance>&           instances,
+                 vk::BuildAccelerationStructureFlagsKHR flags,
+                 bool                                   update = false)
   {
     buildTlas(instances, static_cast<VkBuildAccelerationStructureFlagsKHR>(flags), update);
   }
