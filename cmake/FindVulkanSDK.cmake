@@ -3,7 +3,6 @@
 
 # outputs
 unset(VULKAN_LIB CACHE)
-unset(VULKANSTATIC_LIB CACHE)
 unset(VULKANSDK_FOUND CACHE)
 unset(VULKANSDK_INCLUDE_DIR CACHE)
 unset(VULKANSDK_SHADERC_LIB CACHE)
@@ -42,10 +41,8 @@ macro(_find_version_path targetVersion targetPath searchList )
   SET ( bestpath "" )
   SET ( bestvernumeric "0000" )
   
-  Message(STATUS "searchList: ${searchList}" )
   foreach ( basedir ${searchList} )
     folder_list ( dirList ${basedir} )	
-    Message(STATUS "dirList: ${dirList}" )
 	  foreach ( checkdir ${dirList} )
       _check_version_on_folder(${checkdir} bestver bestvernumeric bestpath)
 	  endforeach ()		
@@ -58,8 +55,6 @@ macro(_find_files targetVar incDir dllName dllName64 folder)
   unset ( targetVar )
   unset ( fileList )
   if(ARCH STREQUAL "x86")
-      
-  
       file(GLOB fileList "${${incDir}}/../${folder}${dllName}")
        list(LENGTH fileList NUMLIST)
       if(NUMLIST EQUAL 0)
@@ -122,11 +117,10 @@ endif()
 
 
 if (VULKANSDK_ROOT_DIR)
-
+  #-------- Locate Vulkan and ShaderC libraries, and the glslangValidator executable.
+  
   if (WIN32) 
-	  #-------- Locate LIBS
     _find_files( VULKAN_LIB VULKANSDK_ROOT_DIR "Lib/vulkan-1.lib" "Lib/vulkan-1.lib" "")
-    # _find_files( VULKANSTATIC_LIB VULKANSDK_ROOT_DIR "Lib/VKstatic.1.lib" "Lib/VKstatic.1.lib" "")
     _find_files( VULKANSDK_SHADERC_LIB VULKANSDK_ROOT_DIR "Lib/shaderc_shared.lib" "Lib/shaderc_shared.lib" "")
     _find_files( VULKANSDK_SHADERC_DLL VULKANSDK_ROOT_DIR "Bin/shaderc_shared.dll" "Bin/shaderc_shared.dll" "")
     _find_files( GLSLANGVALIDATOR VULKANSDK_ROOT_DIR "bin/glslangValidator.exe" "bin/glslangValidator.exe" "")
@@ -156,23 +150,27 @@ if (VULKANSDK_ROOT_DIR)
   endif(VULKAN_LIB)
 else(VULKANSDK_ROOT_DIR)
 
-  #message(WARNING "
-  #    VULKANSDK not found. 
-  #    either env. VK_SDK_PATH should be set directly to the right version to use (C:\\VulkanSDK\\1.0.1.1)
-  #    or you can specify in cmake VULKANSDK_LOCATION to the folder where VulkanSDK versions are put (C:\\VulkanSDK)"
-  #)
+  message(WARNING "
+      Vulkan SDK not found.
+      Most likely, this means that the environment variable VK_SDK_PATH should be set directly to the
+      right version to use (e.g. C:\\VulkanSDK\\1.0.1.1; this contains the Vulkan SDK's Bin and Lib folders).
+      Another option is that you can set the CMake VULKANSDK_LOCATION variable to the folder where this script should
+      search for Vulkan SDK versions (e.g. C:\\VulkanSDK)."
+  )
+  
 endif(VULKANSDK_ROOT_DIR)
 
 include(FindPackageHandleStandardArgs)
 
 SET(VULKAN_LIB ${VULKAN_LIB} CACHE PATH "path")
-SET(VULKANSTATIC_LIB ${VULKANSTATIC_LIB} CACHE PATH "path")
 SET(VULKANSDK_INCLUDE_DIR "${VULKANSDK_ROOT_DIR}/Include" CACHE PATH "path")
 SET(VULKANSDK_SHADERC_LIB ${VULKANSDK_SHADERC_LIB} CACHE PATH "path")
 
 find_package_handle_standard_args(VulkanSDK DEFAULT_MSG
     VULKANSDK_INCLUDE_DIR
     VULKAN_LIB
+    VULKANSDK_SHADERC_LIB
+    GLSLANGVALIDATOR
 )
 
 mark_as_advanced( VULKANSDK_FOUND )
