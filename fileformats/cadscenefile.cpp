@@ -192,6 +192,7 @@ static void CSFile_fixSecondaryPointers(CSFile* csf, void* base)
     fixPointer(geo.normal, geo.normalOFFSET, base);
     fixPointer(geo.indexSolid, geo.indexSolidOFFSET, base);
     fixPointer(geo.indexWire, geo.indexWireOFFSET, base);
+    fixPointer(geo.tex, geo.texOFFSET, base);
     fixPointer(geo.parts, geo.partsOFFSET, base);
     fixPointer(geo.auxStorageOrder, geo.auxStorageOrderOFFSET, base);
     fixPointer(geo.aux, geo.auxOFFSET, base);
@@ -1400,6 +1401,14 @@ CSFAPI int CSFile_loadGTLF(CSFile** outcsf, const char* filename, CSFileMemoryPT
     return CADSCENEFILE_ERROR_OPERATION;
   }
 
+  const cgltf_scene* scene = gltfModel->scene ? gltfModel->scene : &gltfModel->scenes[0];
+  if(!scene)
+  {
+    printf("ERR: cgltf: no scene\n");
+    cgltf_free(gltfModel);
+    return CADSCENEFILE_ERROR_OPERATION;
+  }
+
   CSFile* csf = (CSFile*)CSFileMemory_alloc(mem, sizeof(CSFile), NULL);
   memset(csf, 0, sizeof(CSFile));
   csf->version = CADSCENEFILE_VERSION;
@@ -1754,7 +1763,6 @@ CSFAPI int CSFile_loadGTLF(CSFile** outcsf, const char* filename, CSFileMemoryPT
   csf->rootIDX = 0;
 
 
-  const cgltf_scene* scene = gltfModel->scene;
   for (size_t i = 0; i < scene->nodes_count; i++)
   {
     CSFile_countGLTFNodes(csf, gltfModel, scene->nodes[i]);

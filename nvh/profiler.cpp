@@ -69,8 +69,8 @@ void Profiler::setAveragingSize(uint32_t num)
 
 void Profiler::beginFrame()
 {
-  m_data->level        = 0;
-  m_data->nextSection  = 0;
+  m_data->level       = 0;
+  m_data->nextSection = 0;
   m_data->frameSections.clear();
 
   m_data->cpuCurrentTime = -m_clock.getMicroSeconds();
@@ -84,9 +84,9 @@ void Profiler::endFrame()
 
   if((uint32_t)m_data->frameSections.size() != m_data->numLastEntries)
   {
-    m_data->numLastEntries = (uint32_t)m_data->frameSections.size();
+    m_data->numLastEntries  = (uint32_t)m_data->frameSections.size();
     m_data->numLastSections = m_data->frameSections.back() + 1;
-    m_data->resetDelay  = CONFIG_DELAY;
+    m_data->resetDelay      = CONFIG_DELAY;
   }
 
   if(m_data->resetDelay)
@@ -95,7 +95,8 @@ void Profiler::endFrame()
     for(uint32_t i = 0; i < m_data->entries.size(); i++)
     {
       Entry& entry = m_data->entries[i];
-      if (entry.level != LEVEL_SINGLESHOT){
+      if(entry.level != LEVEL_SINGLESHOT)
+      {
         entry.numTimes = 0;
         entry.cpuTime.reset();
         entry.gpuTime.reset();
@@ -107,7 +108,7 @@ void Profiler::endFrame()
 
   if(m_data->numFrames > FRAME_DELAY)
   {
-    for (uint32_t i : m_data->frameSections)
+    for(uint32_t i : m_data->frameSections)
     {
       Entry& entry = m_data->entries[i];
 
@@ -125,13 +126,14 @@ void Profiler::endFrame()
       }
     }
 
-    for (uint32_t i : m_data->singleSections)
+    for(uint32_t i : m_data->singleSections)
     {
-      Entry& entry = m_data->entries[i];
+      Entry&   entry      = m_data->entries[i];
       uint32_t queryFrame = entry.subFrame;
 
       // query once
-      bool     available  = entry.cpuTime.numValid == 0 && (entry.api == nullptr || entry.gpuTimeProvider(i, queryFrame, entry.gpuTimes[queryFrame]));
+      bool available = entry.cpuTime.numValid == 0
+                       && (entry.api == nullptr || entry.gpuTimeProvider(i, queryFrame, entry.gpuTimes[queryFrame]));
 
       if(available)
       {
@@ -187,7 +189,11 @@ static std::string format(const char* msg, ...)
     return std::string();
 
   va_start(list, msg);
+#ifdef _WIN32
+  vsprintf_s(text, msg, list);
+#else  // #ifdef _WIN32
   vsprintf(text, msg, list);
+#endif
   va_end(list);
 
   return std::string(text);
@@ -238,11 +244,11 @@ bool Profiler::getTimerInfo(const char* name, TimerInfo& info)
 {
   if(name == nullptr)
   {
-    info                 = TimerInfo();
+    info = TimerInfo();
     if(!m_data->cpuTime.numValid)
     {
       return false;
-    }    
+    }
     info.cpu.average     = m_data->cpuTime.getAveraged();
     info.cpu.absMaxValue = m_data->cpuTime.absMaxValue;
     info.cpu.absMinValue = m_data->cpuTime.absMinValue;
@@ -262,7 +268,8 @@ bool Profiler::getTimerInfo(const char* name, TimerInfo& info)
   {
     Entry& entry = m_data->entries[i];
 
-    if (!entry.name) continue;
+    if(!entry.name)
+      continue;
 
     if(strcmp(name, entry.name))
       continue;
@@ -293,9 +300,10 @@ void Profiler::print(std::string& stats)
     static const char* spaces = "        ";  // 8
     Entry&             entry  = m_data->entries[i];
 
-    if (entry.level == LEVEL_SINGLESHOT) continue;
+    if(entry.level == LEVEL_SINGLESHOT)
+      continue;
 
-    uint32_t           level  = 7 - (entry.level > 7 ? 7 : entry.level);
+    uint32_t level = 7 - (entry.level > 7 ? 7 : entry.level);
 
     TimerInfo info;
     if(!getTimerInfo(i, info))
@@ -339,11 +347,14 @@ Profiler::SectionID Profiler::getSectionID(bool singleShot, const char* name)
 {
   uint32_t numEntries = (uint32_t)m_data->entries.size();
 
-  if (singleShot) {
+  if(singleShot)
+  {
     // find empty slot or with same name
-    for (uint32_t i = 0; i < numEntries; i++) {
+    for(uint32_t i = 0; i < numEntries; i++)
+    {
       Entry& entry = m_data->entries[i];
-      if (entry.name == name || entry.name == nullptr){
+      if(entry.name == name || entry.name == nullptr)
+      {
         m_data->singleSections.push_back(i);
         return i;
       }
@@ -351,9 +362,11 @@ Profiler::SectionID Profiler::getSectionID(bool singleShot, const char* name)
     m_data->singleSections.push_back(numEntries);
     return numEntries;
   }
-  else {    
+  else
+  {
     // find non-single shot slot
-    while (m_data->nextSection < numEntries && m_data->entries[m_data->nextSection].level == LEVEL_SINGLESHOT) {
+    while(m_data->nextSection < numEntries && m_data->entries[m_data->nextSection].level == LEVEL_SINGLESHOT)
+    {
       m_data->nextSection++;
     }
 
@@ -377,10 +390,11 @@ Profiler::SectionID Profiler::beginSection(const char* name, const char* api, gp
 
   if(entry.name != name || entry.api != api || entry.level != level)
   {
-    entry.name         = name;
-    entry.api          = api;
+    entry.name = name;
+    entry.api  = api;
 
-    if (!singleShot) {
+    if(!singleShot)
+    {
       m_data->resetDelay = CONFIG_DELAY;
     }
   }
@@ -390,7 +404,7 @@ Profiler::SectionID Profiler::beginSection(const char* name, const char* api, gp
   entry.splitter        = false;
   entry.gpuTimeProvider = gpuTimeProvider;
 
-#ifdef SUPPORT_NVTOOLSEXT
+#ifdef NVP_SUPPORTS_NVTOOLSEXT
   {
     nvtxEventAttributes_t eventAttrib = {0};
     eventAttrib.version               = NVTX_VERSION;
@@ -416,7 +430,8 @@ Profiler::SectionID Profiler::beginSection(const char* name, const char* api, gp
   entry.cpuTimes[subFrame] = -getMicroSeconds();
   entry.gpuTimes[subFrame] = 0;
 
-  if (singleShot){
+  if(singleShot)
+  {
     entry.cpuTime.init(1);
     entry.gpuTime.init(1);
   }
@@ -426,15 +441,16 @@ Profiler::SectionID Profiler::beginSection(const char* name, const char* api, gp
 
 void Profiler::endSection(SectionID sec)
 {
-  Entry&   entry    = m_data->entries[sec];
+  Entry& entry = m_data->entries[sec];
 
   entry.cpuTimes[entry.subFrame] += getMicroSeconds();
 
-#ifdef SUPPORT_NVTOOLSEXT
+#ifdef NVP_SUPPORTS_NVTOOLSEXT
   nvtxRangePop();
 #endif
 
-  if (entry.level != LEVEL_SINGLESHOT){
+  if(entry.level != LEVEL_SINGLESHOT)
+  {
     m_data->level--;
   }
 }
@@ -446,6 +462,7 @@ Profiler::Clock::Clock()
 
 double Profiler::Clock::getMicroSeconds() const
 {
-  return double(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now() - m_init).count()) / double(1000);
+  return double(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now() - m_init).count())
+         / double(1000);
 }
 }  // namespace nvh

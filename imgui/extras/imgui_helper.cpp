@@ -516,7 +516,7 @@ bool Control::show_drag_control<size_t>(size_t* value, float speed, size_t& min,
 }
 
 // Static member declaration
-Panel::Style   Panel::style{};
+ImGuiID        Panel::dockspaceID{0};
 Control::Style Control::style{};
 
 }  // namespace ImGuiH

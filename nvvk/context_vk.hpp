@@ -28,9 +28,9 @@
 #ifndef NV_VK_DEVICEINSTANCE_INCLUDED
 #define NV_VK_DEVICEINSTANCE_INCLUDED
 
-#include <vector>
 #include <string.h>  // memcpy
 #include <unordered_set>
+#include <vector>
 #include <vulkan/vulkan_core.h>
 
 static_assert(VK_HEADER_VERSION >= 131, "Vulkan SDK version needs to be 1.2.131.1 or greater");
@@ -78,7 +78,7 @@ struct ContextCreateInfo
 {
   ContextCreateInfo(bool bUseValidation = true);
 
-  void setVersion(int major, int minor);
+  void setVersion(uint32_t major, uint32_t minor);
 
   void addInstanceExtension(const char* name, bool optional = false);
   void addInstanceLayer(const char* name, bool optional = false);
@@ -100,8 +100,8 @@ struct ContextCreateInfo
   uint32_t compatibleDeviceIndex = 0;
 
   // instance properties
-  const char* appEngine = "nvpro-sample";
-  const char* appTitle  = "nvpro-sample";
+  std::string appEngine = "nvpro-sample";
+  std::string appTitle  = "nvpro-sample";
 
   // may impact performance hence disable by default
   bool disableRobustBufferAccess = true;
@@ -125,21 +125,22 @@ struct ContextCreateInfo
         , version(checkVersion)
     {
     }
-    const char* name{nullptr};
+
+    std::string name;
     bool        optional{false};
     void*       pFeatureStruct{nullptr};
     uint32_t    version{0};
   };
 
-  int apiMajor = 1;
-  int apiMinor = 1;
+  uint32_t apiMajor{1};
+  uint32_t apiMinor{1};
 
   using EntryArray = std::vector<Entry>;
   EntryArray instanceLayers;
   EntryArray instanceExtensions;
   EntryArray deviceExtensions;
-  void*      deviceCreateInfoExt = nullptr;
-  void*      instanceCreateInfoExt = nullptr;
+  void*      deviceCreateInfoExt{nullptr};
+  void*      instanceCreateInfoExt{nullptr};
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -199,8 +200,6 @@ public:
   Context& operator=(Context const&) = delete;
 
   Context() = default;
-
-  using NameArray = std::vector<const char*>;
 
   // Vulkan == 1.1 used individual structs
   // Vulkan >= 1.2  have per-version structs
@@ -324,6 +323,8 @@ public:
   VkDevice           m_device{VK_NULL_HANDLE};
   VkPhysicalDevice   m_physicalDevice{VK_NULL_HANDLE};
   PhysicalDeviceInfo m_physicalInfo;
+  uint32_t           m_apiMajor;
+  uint32_t           m_apiMinor;
 
   // All the queues (if present) is distinct from each other
   Queue m_queueGCT;  // for Graphics/Compute/Transfer (must exist)
@@ -343,7 +344,7 @@ public:
   bool initDevice(uint32_t deviceIndex, const ContextCreateInfo& info);
 
   // Helpers
-  std::vector<int>                             getCompatibleDevices(const ContextCreateInfo& info);
+  std::vector<uint32_t>                        getCompatibleDevices(const ContextCreateInfo& info);
   std::vector<VkPhysicalDevice>                getPhysicalDevices();
   std::vector<VkPhysicalDeviceGroupProperties> getPhysicalDeviceGroups();
   std::vector<VkExtensionProperties>           getInstanceExtensions();
@@ -360,34 +361,31 @@ public:
   bool hasDeviceExtension(const char* name) const;
   bool hasInstanceExtension(const char* name) const;
 
-  void ignoreDebugMessage(int32_t msgID)
-  {
-    m_dbgIgnoreMessages.insert(msgID);
-  }
+  void ignoreDebugMessage(int32_t msgID) { m_dbgIgnoreMessages.insert(msgID); }
 
 private:
-  static VKAPI_ATTR VkBool32 VKAPI_CALL debugMessengerCallback(VkDebugUtilsMessageSeverityFlagBitsEXT      messageSeverity,
-                                                      VkDebugUtilsMessageTypeFlagsEXT             messageType,
-                                                      const VkDebugUtilsMessengerCallbackDataEXT* callbackData,
-                                                      void*                                       userData);
+  static VKAPI_ATTR VkBool32 VKAPI_CALL debugMessengerCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+                                                               VkDebugUtilsMessageTypeFlagsEXT        messageType,
+                                                               const VkDebugUtilsMessengerCallbackDataEXT* callbackData,
+                                                               void*                                       userData);
 
-  NameArray m_usedInstanceLayers;
-  NameArray m_usedInstanceExtensions;
-  NameArray m_usedDeviceExtensions;
+  std::vector<std::string> m_usedInstanceLayers;
+  std::vector<std::string> m_usedInstanceExtensions;
+  std::vector<std::string> m_usedDeviceExtensions;
 
   // New Debug system
   PFN_vkCreateDebugUtilsMessengerEXT  m_createDebugUtilsMessengerEXT  = nullptr;
   PFN_vkDestroyDebugUtilsMessengerEXT m_destroyDebugUtilsMessengerEXT = nullptr;
   VkDebugUtilsMessengerEXT            m_dbgMessenger                  = nullptr;
 
-  std::unordered_set<int32_t>         m_dbgIgnoreMessages;
+  std::unordered_set<int32_t> m_dbgIgnoreMessages;
 
   void initDebugUtils();
 
-  VkResult    fillFilteredNameArray(Context::NameArray&                   used,
+  VkResult    fillFilteredNameArray(std::vector<std::string>&             used,
                                     const std::vector<VkLayerProperties>& properties,
                                     const ContextCreateInfo::EntryArray&  requested);
-  VkResult    fillFilteredNameArray(Context::NameArray&                       used,
+  VkResult    fillFilteredNameArray(std::vector<std::string>&                 used,
                                     const std::vector<VkExtensionProperties>& properties,
                                     const ContextCreateInfo::EntryArray&      requested,
                                     std::vector<void*>&                       featureStructs);

@@ -81,7 +81,7 @@ VkExtent2D SwapChain::update(int width, int height, bool vsync)
   VkResult       err;
   VkSwapchainKHR oldSwapchain = m_swapchain;
 
-  err = vkDeviceWaitIdle(m_device);
+  err = waitIdle();
   if(nvvk::checkResult(err, __FILE__, __LINE__))
   {
     exit(-1);
@@ -279,7 +279,7 @@ void SwapChain::deinitResources()
   if(!m_device)
     return;
 
-  VkResult result = vkDeviceWaitIdle(m_device);
+  VkResult result = waitIdle();
   if(nvvk::checkResult(result, __FILE__, __LINE__))
   {
     exit(-1);
@@ -312,27 +312,72 @@ void SwapChain::deinit()
   m_changeID       = 0;
 }
 
-bool SwapChain::acquire()
+bool SwapChain::acquire(bool* pRecreated, SwapChainAcquireState* pOut)
 {
-  return acquireCustom(getActiveReadSemaphore());
+  return acquireCustom(VK_NULL_HANDLE, m_updateWidth, m_updateHeight,
+                       pRecreated, pOut);
 }
 
-bool SwapChain::acquireCustom(VkSemaphore semaphore)
+bool SwapChain::acquireAutoResize(int                    width,
+                                  int                    height,
+                                  bool*                  pRecreated,
+                                  SwapChainAcquireState* pOut)
 {
+  return acquireCustom(VK_NULL_HANDLE, width, height, pRecreated, pOut);
+}
+
+bool SwapChain::acquireCustom(VkSemaphore            argSemaphore,
+                              bool*                  pRecreated,
+                              SwapChainAcquireState* pOut)
+{
+  return acquireCustom(argSemaphore, m_updateWidth, m_updateHeight, pRecreated,
+                       pOut);
+}
+
+bool SwapChain::acquireCustom(VkSemaphore            argSemaphore,
+                              int                    width,
+                              int                    height,
+                              bool*                  pRecreated,
+                              SwapChainAcquireState* pOut)
+{
+  bool didRecreate = false;
+
+  if(width != m_updateWidth || height != m_updateHeight)
+  {
+    deinitResources();
+    update(width, height);
+    m_updateWidth  = width;
+    m_updateHeight = height;
+    didRecreate    = true;
+  }
+  if(pRecreated != nullptr)
+  {
+    *pRecreated = didRecreate;
+  }
+
   // try recreation a few times
   for(int i = 0; i < 2; i++)
   {
+    VkSemaphore semaphore = argSemaphore ? argSemaphore : getActiveReadSemaphore();
     VkResult result;
     result = vkAcquireNextImageKHR(m_device, m_swapchain, UINT64_MAX, semaphore, (VkFence)VK_NULL_HANDLE, &m_currentImage);
 
     if(result == VK_SUCCESS)
     {
+      if (pOut != nullptr)
+      {
+        pOut->image = getActiveImage();
+        pOut->view = getActiveImageView();
+        pOut->index = getActiveImageIndex();
+        pOut->waitSem = getActiveReadSemaphore();
+        pOut->signalSem = getActiveWrittenSemaphore();
+      }
       return true;
     }
     else if(result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
     {
       deinitResources();
-      update(m_updateWidth, m_updateHeight, m_vsync);
+      update(width, height, m_vsync);
     }
     else
     {

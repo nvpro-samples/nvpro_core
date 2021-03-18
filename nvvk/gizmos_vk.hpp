@@ -54,7 +54,7 @@ namespace nvvk {
 class AxisVK
 {
 public:
-  void init(VkDevice device, VkRenderPass renderPass, uint32_t subpass = 0, float axisSize = 40.f)
+  void init(VkDevice device, VkRenderPass renderPass, uint32_t subpass = 0, float axisSize = 50.f)
   {
     m_device   = device;
     m_axisSize = axisSize;

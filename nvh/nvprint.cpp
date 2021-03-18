@@ -1,4 +1,4 @@
-/* Copyright (c) 2014-2018, NVIDIA CORPORATION. All rights reserved.
+/* Copyright (c) 2014-2021, NVIDIA CORPORATION. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,24 +27,24 @@
 
 #include "nvprint.hpp"
 
-#include <vector>
 #include <mutex>
+#include <vector>
 
 #ifdef _WIN32
 #include <windows.h>
 #endif
 
-static char   s_logFileNameDefault[] = "log_nvprosample.txt";
-static char*  s_logFileName = s_logFileNameDefault;
-static size_t s_strBuffer_sz = 0;
-static char*  s_strBuffer = nullptr;
-static FILE*  s_fd = nullptr;
-static bool   s_bLogReady = false;
-static bool   s_bPrintLogging = true;
-static uint32_t s_bPrintFileLogging = ~0;
-static int    s_printLevel = -1; // <0 mean no level prefix
-static PFN_NVPRINTCALLBACK s_printCallback = nullptr;
-static std::mutex s_mutex;
+static char                s_logFileNameDefault[] = "log_nvprosample.txt";
+static char*               s_logFileName          = s_logFileNameDefault;
+static size_t              s_strBuffer_sz         = 0;
+static char*               s_strBuffer            = nullptr;
+static FILE*               s_fd                   = nullptr;
+static bool                s_bLogReady            = false;
+static bool                s_bPrintLogging        = true;
+static uint32_t            s_bPrintFileLogging    = ~0;
+static int                 s_printLevel           = -1;  // <0 mean no level prefix
+static PFN_NVPRINTCALLBACK s_printCallback        = nullptr;
+static std::mutex          s_mutex;
 
 void nvprintSetLogFileName(const char* name)
 {
@@ -52,14 +52,15 @@ void nvprintSetLogFileName(const char* name)
 
   if(name == NULL || strcmp(s_logFileName, name) == 0)
     return;
-  
-  size_t l = strlen(name) + 1;
+
+  size_t l      = strlen(name) + 1;
   s_logFileName = new char[l];
   strncpy(s_logFileName, name, l);
 
-  if (s_fd) {
+  if(s_fd)
+  {
     fclose(s_fd);
-    s_fd = nullptr;
+    s_fd        = nullptr;
     s_bLogReady = false;
   }
 }
@@ -84,63 +85,74 @@ void nvprintSetFileLogging(bool state, uint32_t mask)
 {
   std::lock_guard<std::mutex> lockGuard(s_mutex);
 
-  if (state) {
+  if(state)
+  {
     s_bPrintFileLogging |= mask;
   }
-  else {
+  else
+  {
     s_bPrintFileLogging &= ~mask;
   }
 }
 
-void nvprintf2(va_list &vlist, const char * fmt, int level)
+void nvprintf2(va_list& vlist, const char* fmt, int level)
 {
-  if (s_bPrintLogging == false) {
+  if(s_bPrintLogging == false)
+  {
     return;
   }
 
   std::lock_guard<std::mutex> lockGuard(s_mutex);
-  if (s_strBuffer_sz == 0) {
+  if(s_strBuffer_sz == 0)
+  {
     s_strBuffer_sz = 1024;
-    s_strBuffer = (char*)malloc(s_strBuffer_sz);
+    s_strBuffer    = (char*)malloc(s_strBuffer_sz);
   }
-  while ((vsnprintf(s_strBuffer, s_strBuffer_sz, fmt, vlist)) < 0) // means there wasn't enough room
+  while((vsnprintf(s_strBuffer, s_strBuffer_sz, fmt, vlist)) < 0)  // means there wasn't enough room
   {
     s_strBuffer_sz *= 2;
     s_strBuffer = (char*)realloc(s_strBuffer, s_strBuffer_sz);
   }
+
+  // Do nothing if allocating/reallocating s_strBuffer failed
+  if(!s_strBuffer)
+  {
+    return;
+  }
+
 #ifdef WIN32
   OutputDebugStringA(s_strBuffer);
 #endif
-#if 1
-  if (s_bPrintFileLogging & (1 << level)) {
-    if (s_bLogReady == false)
+
+  if(s_bPrintFileLogging & (1 << level))
+  {
+    if(s_bLogReady == false)
     {
-      s_fd = fopen(s_logFileName, "wt");
+      s_fd        = fopen(s_logFileName, "wt");
       s_bLogReady = true;
     }
-    if (s_fd)
+    if(s_fd)
     {
-      fprintf(s_fd, s_strBuffer);
+      fputs(s_strBuffer, s_fd);
     }
   }
-#endif
-  if (s_printCallback) {
+
+  if(s_printCallback)
+  {
     s_printCallback(level, s_strBuffer);
   }
-  ::printf(s_strBuffer);
+  ::printf("%s", s_strBuffer);
 }
-void nvprintf(const char * fmt, ...)
+void nvprintf(const char* fmt, ...)
 {
   //    int r = 0;
-  va_list  vlist;
+  va_list vlist;
   va_start(vlist, fmt);
   nvprintf2(vlist, fmt, s_printLevel);
 }
-void nvprintfLevel(int level, const char * fmt, ...)
+void nvprintfLevel(int level, const char* fmt, ...)
 {
-  va_list  vlist;
+  va_list vlist;
   va_start(vlist, fmt);
   nvprintf2(vlist, fmt, level);
 }
-
-

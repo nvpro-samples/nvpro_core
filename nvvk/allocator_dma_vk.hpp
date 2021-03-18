@@ -394,10 +394,7 @@ public:
   //
   void destroy(BufferDma& buffer)
   {
-    if(buffer.buffer)
-    {
-      vkDestroyBuffer(m_device, buffer.buffer, nullptr);
-    }
+    vkDestroyBuffer(m_device, buffer.buffer, nullptr);
     if(buffer.allocation)
     {
       m_allocator->free(buffer.allocation);
@@ -408,10 +405,7 @@ public:
 
   void destroy(ImageDma& image)
   {
-    if(image.image)
-    {
-      vkDestroyImage(m_device, image.image, nullptr);
-    }
+    vkDestroyImage(m_device, image.image, nullptr);
     if(image.allocation)
     {
       m_allocator->free(image.allocation);
@@ -439,10 +433,7 @@ public:
 #if VK_NV_ray_tracing
   void destroy(AccelerationDmaNV& accel)
   {
-    if(accel.accel)
-    {
-      vkDestroyAccelerationStructureNV(m_device, accel.accel, nullptr);
-    }
+    vkDestroyAccelerationStructureNV(m_device, accel.accel, nullptr);
     if(accel.allocation)
     {
       m_allocator->free(accel.allocation);
@@ -455,10 +446,7 @@ public:
 #if VK_KHR_acceleration_structure
   void destroy(AccelerationDmaKHR& accel)
   {
-    if(accel.accel)
-    {
-      vkDestroyAccelerationStructureKHR(m_device, accel.accel, nullptr);
-    }
+    vkDestroyAccelerationStructureKHR(m_device, accel.accel, nullptr);
     destroy(accel.buffer);
 
     accel = AccelerationDmaKHR();

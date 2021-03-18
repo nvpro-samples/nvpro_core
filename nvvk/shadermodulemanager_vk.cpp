@@ -43,7 +43,7 @@
 namespace nvvk {
 
 const VkShaderModule ShaderModuleManager::PREPROCESS_ONLY_MODULE = (VkShaderModule)~0;
-#if USESHADERC
+#if NVP_SUPPORTS_SHADERC
 shaderc_compiler_t ShaderModuleManager::s_shadercCompiler      = nullptr;
 uint32_t           ShaderModuleManager::s_shadercCompilerUsers = 0;
 #endif
@@ -91,7 +91,7 @@ std::string ShaderModuleManager::DefaultInterface::getTypeDefine(uint32_t type) 
 
 uint32_t ShaderModuleManager::DefaultInterface::getTypeShadercKind(uint32_t type) const
 {
-#if USESHADERC
+#if NVP_SUPPORTS_SHADERC
   switch(type)
   {
     case VK_SHADER_STAGE_VERTEX_BIT:
@@ -178,7 +178,7 @@ bool ShaderModuleManager::setupShaderModule(ShaderModule& module)
     VkResult                 vkresult         = VK_ERROR_INVALID_SHADER_NV;
     VkShaderModuleCreateInfo shaderModuleInfo = {VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
 
-#if USESHADERC
+#if NVP_SUPPORTS_SHADERC
     shaderc_compilation_result_t result = nullptr;
     if(definition.filetype == FILETYPE_GLSL)
     {
@@ -270,7 +270,7 @@ bool ShaderModuleManager::setupShaderModule(ShaderModule& module)
       module.moduleSPIRV = std::string((const char*)shaderModuleInfo.pCode, shaderModuleInfo.codeSize);
     }
 
-#if USESHADERC
+#if NVP_SUPPORTS_SHADERC
     if(result)
     {
       shaderc_result_release(result);
@@ -386,7 +386,7 @@ void ShaderModuleManager::reloadShaderModules()
 
 bool ShaderModuleManager::isValid(ShaderModuleID idx) const
 {
-  return (m_shadermodules[idx].definition.type && m_shadermodules[idx].module != 0) || !m_shadermodules[idx].definition.type;
+  return idx.isValid() && ((m_shadermodules[idx].definition.type && m_shadermodules[idx].module != 0) || !m_shadermodules[idx].definition.type);
 }
 
 VkShaderModule ShaderModuleManager::get(ShaderModuleID idx) const

@@ -535,28 +535,16 @@ public:
   //
   void destroy(BufferVma& buffer)
   {
-    if(buffer.buffer)
-    {
-      vkDestroyBuffer(m_device, buffer.buffer, nullptr);
-    }
-    if(buffer.allocation)
-    {
-      vmaFreeMemory(m_allocator, buffer.allocation);
-    }
+    vkDestroyBuffer(m_device, buffer.buffer, nullptr);
+    vmaFreeMemory(m_allocator, buffer.allocation);
 
     buffer = BufferVma();
   }
 
   void destroy(ImageVma& image)
   {
-    if(image.image)
-    {
-      vkDestroyImage(m_device, image.image, nullptr);
-    }
-    if(image.allocation)
-    {
-      vmaFreeMemory(m_allocator, image.allocation);
-    }
+    vkDestroyImage(m_device, image.image, nullptr);
+    vmaFreeMemory(m_allocator, image.allocation);
 
     image = ImageVma();
   }
@@ -570,10 +558,7 @@ public:
     {
       m_samplerPool.releaseSampler(t_.descriptor.sampler);
     }
-    if(t_.allocation)
-    {
-      vmaFreeMemory(m_allocator, t_.allocation);
-    }
+    vmaFreeMemory(m_allocator, t_.allocation);
 
     t_ = TextureVma();
   }
@@ -581,14 +566,8 @@ public:
 #if VK_NV_ray_tracing
   void destroy(AccelerationVmaNV& accel)
   {
-    if(accel.accel)
-    {
-      vkDestroyAccelerationStructureNV(m_device, accel.accel, nullptr);
-    }
-    if(accel.allocation)
-    {
-      vmaFreeMemory(m_allocator, accel.allocation);
-    }
+    vkDestroyAccelerationStructureNV(m_device, accel.accel, nullptr);
+    vmaFreeMemory(m_allocator, accel.allocation);
 
     accel = AccelerationVmaNV();
   }
@@ -596,14 +575,8 @@ public:
 #if VK_KHR_ray_tracing
   void destroy(AccelerationVmaKHR& accel)
   {
-    if(accel.accel)
-    {
-      vkDestroyAccelerationStructureKHR(m_device, accel.accel, nullptr);
-    }
-    if(accel.allocation)
-    {
-      vmaFreeMemory(m_allocator, accel.allocation);
-    }
+    vkDestroyAccelerationStructureKHR(m_device, accel.accel, nullptr);
+    vmaFreeMemory(m_allocator, accel.allocation);
 
     accel = AccelerationVmaKHR();
   }

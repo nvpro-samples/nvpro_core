@@ -39,15 +39,30 @@ namespace nvvk {
 /**
 # class nvvk::SwapChain
 
-Its role is to help using VkSwapchainKHR. In Vulkan we have 
-to synchronize the backbuffer access ourselves, meaning we
-must not write into images that the operating system uses for
-presenting the image on the desktop or monitor.
+In Vulkan, we have to use `VkSwapchainKHR` to request a swap chain
+(front and back buffers) from the operating system and manually
+synchronize our and OS's access to the images within the swap chain.
+This helper abstracts that process.
 
-For each swapchain image there is an imageView,
-and one read and write semaphore. Furthermore there
-is a utility function to setup the image transitions from 
-VK_IMAGE_LAYOUT_UNDEFINED to VK_IMAGE_LAYOUT_PRESENT_SRC_KHR.
+For each swap chain image there is an ImageView, and one read and write
+semaphore synchronizing it (see `SwapChainAcquireState`).
+
+To start, you need to call `init`, then `update` with the window's
+initial framebuffer size (for example, use `glfwGetFramebufferSize`).
+Then, in your render loop, you need to call `acquire()` to get the
+swap chain image to draw to, draw your frame (waiting and signalling
+the appropriate semaphores), and call `present()`.
+
+Sometimes, the swap chain needs to be re-created (usually due to
+window resizes). `nvvk::SwapChain` detects this automatically and
+re-creates the swap chain for you. Every new swap chain is assigned a
+unique ID (`getChangeID()`), allowing you to detect swap chain
+re-creations. This usually triggers a `VkDeviceWaitIdle`; however, if
+this is not appropriate, see `setWaitQueue()`.
+
+Finally, there is a utility function to setup the image transitions
+from VK_IMAGE_LAYOUT_UNDEFINED to VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+which is the format an image must be in before it is presented.
 
 Example in combination with nvvk::Context :
 
@@ -75,7 +90,7 @@ ctx.setGCTQueueWithPresent(m_surface);
 The initialization can happen now :
 
 ~~~ C+
-m_swapChain.init(ctx.m_device, ctx.m_physicalDevice, ctx.m_queueGCT, ctx.m_queueGCT.familyIndex, 
+m_swapChain.init(ctx.m_device, ctx.m_physicalDevice, ctx.m_queueGCT, ctx.m_queueGCT.familyIndex,
                  m_surface, VK_FORMAT_B8G8R8A8_UNORM);
 ...
 // after init or update you also have to setup the image layouts at some point
@@ -83,7 +98,7 @@ VkCommandBuffer cmd = ...
 m_swapChain.cmdUpdateBarriers(cmd);
 ~~~
 
-During a resizing of a window, you must update the swapchain as well :
+During a resizing of a window, you can update the swapchain as well :
 
 ~~~ C++
 bool WindowSurface::resize(int w, int h)
@@ -100,13 +115,20 @@ A typical renderloop would look as follows:
 
 ~~~ C++
   // handles vkAcquireNextImageKHR and setting the active image
-  if(!m_swapChain.acquire())
+  // w,h only needed if update(w,h) not called reliably.
+  int w, h;
+  bool recreated;
+  glfwGetFramebufferSize(window, &w, &h);
+  if(!m_swapChain.acquire(w, h, &recreated, [, optional SwapChainAcquireState ptr]))
   {
-    ... handle acquire error
+    ... handle acquire error (shouldn't happen)
   }
 
   VkCommandBuffer cmd = ...
 
+  // acquire might have recreated the swap chain: respond if needed here.
+  // NOTE: you can also check the recreated variable above, but this
+  // only works if the swap chain was recreated this frame.
   if (m_swapChain.getChangeID() != lastChangeID){
     // after init or resize you have to setup the image layouts
     m_swapChain.cmdUpdateBarriers(cmd);
@@ -118,7 +140,9 @@ A typical renderloop would look as follows:
   VkImageView swapImageView = m_swapChain.getActiveImageView();
 
   // or you may always render offline int your own framebuffer
-  // and then simply blit into the backbuffer
+  // and then simply blit into the backbuffer. NOTE: use
+  // m_swapChain.getWidth() / getHeight() to get blit dimensions,
+  // actual swap chain image size may differ from requested width/height.
   VkImage swapImage = m_swapChain.getActiveImage();
   vkCmdBlitImage(cmd, ... swapImage ...);
 
@@ -151,6 +175,25 @@ A typical renderloop would look as follows:
 ~~~
 
 */
+
+// What SwapChain::acquire produces: a swap chain image plus
+// semaphores protecting it.
+struct SwapChainAcquireState
+{
+  // The image and its view and index in the swap chain.
+  VkImage image;
+  VkImageView view;
+  uint32_t index;
+  // MUST wait on this semaphore before writing to the image. ("The
+  // system" signals this semaphore when it's done presenting the
+  // image and can safely be reused).
+  VkSemaphore waitSem;
+  // MUST signal this semaphore when done writing to the image, and
+  // before presenting it. (The system waits for this before presenting).
+  VkSemaphore signalSem;
+};
+
+
 class SwapChain
 {
 private:
@@ -167,6 +210,7 @@ private:
   VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
 
   VkQueue  m_queue{};
+  VkQueue  m_waitQueue{}; // See waitIdle and setWaitQueue.
   uint32_t m_queueFamilyIndex{0};
 
   VkSurfaceKHR    m_surface{};
@@ -195,7 +239,13 @@ private:
   // if the swap operation is sync'ed with monitor
   bool m_vsync = false;
 
-  // triggers device wait idle
+  VkResult waitIdle()
+  {
+    if (m_waitQueue) return vkQueueWaitIdle(m_waitQueue);
+    else return vkDeviceWaitIdle(m_device);
+  }
+
+  // triggers device/queue wait idle
   void deinitResources();
 
 public:
@@ -211,26 +261,47 @@ public:
 
   bool init(VkDevice device, VkPhysicalDevice physicalDevice, VkQueue queue, uint32_t queueFamilyIndex, VkSurfaceKHR surface, VkFormat format = VK_FORMAT_B8G8R8A8_UNORM);
 
-  // triggers device wait idle
+  // triggers queue/device wait idle
   void deinit();
 
   // update the swapchain configuration
   // (must be called at least once after init)
-  // triggers device wait idle
+  // triggers queue/device wait idle
   // returns actual swapchain dimensions, which may differ from requested
   VkExtent2D update(int width, int height, bool vsync);
   VkExtent2D update(int width, int height) { return update(width, height, m_vsync); }
 
-  // returns true on success
-  // sets active index
-  // uses getActiveReadSemaphore()
-  bool acquire();
+  // Returns true on success.
+  //
+  // Sets active index to the next swap chain image to draw to.
+  // The handles and semaphores for this image are optionally written to *pOut.
+  //
+  // `acquire` and `acquireAutoResize` use getActiveReadSemaphore();
+  // `acquireCustom` allows you to provide your own semaphore.
+  //
+  // If the swap chain was invalidated (window resized, etc.), the
+  // swap chain will be recreated, which triggers queue/device wait
+  // idle.  If you are not calling `update` manually on window resize,
+  // you must pass the new swap image size explicitly.
+  //
+  // WARNING: The actual swap image size might not match what is
+  // requested; use getWidth/getHeight to check actual swap image
+  // size.
+  //
+  // If the swap chain was recreated, *pRecreated is set to true (if
+  // pRecreated != nullptr); otherwise, set to false.
+  //
+  // WARNING the swap chain could be spontaneously recreated, even if
+  // you are calling `update` whenever the window is resized.
+  bool acquire(bool* pRecreated=nullptr, SwapChainAcquireState* pOut = nullptr);
+  bool acquireAutoResize(int width, int height, bool* pRecreated, SwapChainAcquireState* pOut = nullptr);
 
-  // returns true on success
-  // sets active index
-  // allows to provide your own semaphore
-  bool acquireCustom(VkSemaphore semaphore);
+  // Can be made public if this functionality is needed again.
+private:
+  bool acquireCustom(VkSemaphore semaphore, bool* pRecreated=nullptr, SwapChainAcquireState* pOut = nullptr);
+  bool acquireCustom(VkSemaphore semaphore, int width, int height, bool* pRecreated, SwapChainAcquireState* pOut = nullptr);
 
+public:
   // all present functions bump semaphore cycle
 
   // present on provided queue
@@ -254,11 +325,16 @@ public:
   VkImage        getImage(uint32_t i) const;
   VkImageView    getImageView(uint32_t i) const;
   VkFormat       getFormat() const { return m_surfaceFormat; }
+
+  // Get the actual size of the swap chain images.
   uint32_t       getWidth() const { return m_extent.width; }
   uint32_t       getHeight() const { return m_extent.height; }
   VkExtent2D     getExtent() const { return m_extent; }
+
+  // Get the requested size of the swap chain images. THIS IS RARELY USEFUL.
   uint32_t       getUpdateWidth() const { return m_updateWidth; }
   uint32_t       getUpdateHeight() const { return m_updateHeight; }
+
   bool           getVsync() const { return m_vsync; }
   VkSwapchainKHR getSwapchain() const { return m_swapchain; }
 
@@ -267,6 +343,16 @@ public:
   void cmdUpdateBarriers(VkCommandBuffer cmd) const;
 
   uint32_t getChangeID() const;
+
+  // Ordinarily, `SwapChain` calls vkDeviceWaitIdle before recreating
+  // the swap chain. However, if setWaitQueue is called with a
+  // non-null queue, we only wait for that queue instead of the whole
+  // device.  This may be needed if you are using queues in other CPU
+  // threads that are not synchronized to the render loop.
+  void setWaitQueue(VkQueue waitQueue = VK_NULL_HANDLE)
+  {
+    m_waitQueue = waitQueue;
+  }
 };
 }  // namespace nvvk
 #endif

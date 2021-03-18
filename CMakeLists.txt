@@ -1,17 +1,17 @@
-cmake_minimum_required(VERSION 3.02)
+cmake_minimum_required(VERSION 3.5)
 #####################################################################################
 # offer the choice of having shared_sources as a sub-folder... good for packaging a sample
 #
 # if BASE_DIRECTORY not defined, it means this cmake file was called as the first entry point and not included
 if(NOT BASE_DIRECTORY) # if not defined, it means this cmake file was called as the first entry point and not included
-  Message(FATAL_ERROR "cannot be directly invoked")
+  message(FATAL_ERROR "cannot be directly invoked")
 else()
   Message(STATUS "-------------------------------")
   Message(STATUS "Processing shared_sources files")
 endif()
 
 
-SET(NVPWINDOW_SOURCE
+set(NVPWINDOW_SOURCE
   ${BASE_DIRECTORY}/shared_sources/nvpwindow.cpp
   ${BASE_DIRECTORY}/shared_sources/nvpwindow.hpp
   ${BASE_DIRECTORY}/shared_sources/nvpsystem.cpp
@@ -49,7 +49,6 @@ _optional_package_OpenCL()
 _optional_package_NSight()
 _optional_package_ZLIB()
 _optional_package_Sockets()
-_optional_package_ImGUI()
 
 # process the rest of some cmake code that needs to be done after the packages
 _process_shared_cmake_code()
@@ -58,6 +57,7 @@ file(GLOB FILEFORMATS_SOURCE fileformats/*.cpp fileformats/*.hpp fileformats/*.i
 file(GLOB NVMATH_SOURCE nvmath/*.cpp nvmath/*.hpp nvmath/*.inl nvmath/*.h)
 file(GLOB NVHELPERS_SOURCE nvh/*.cpp nvh/*.hpp nvh/*.inl nvh/*.h)
 file(GLOB NOISE_SOURCE noise/*.cpp noise/*.hpp noise/*.inl noise/*.h)
+
 
 set(library_name "shared_sources")
 
@@ -90,6 +90,20 @@ if(USING_VULKANSDK)
   endif(UNIX)
 endif()
 
+if(USING_IMGUI)
+  file(GLOB IMGUI_SOURCE imgui/imgui*.cpp imgui/imgui*.h imgui/extras/*.* imgui/backends/imgui_impl_glfw.* )
+  include_directories("imgui" "imgui/backends")
+  
+  if(USING_OPENGL)
+    list(APPEND IMGUI_SOURCE imgui/backends/imgui_impl_gl.cpp imgui/backends/imgui_impl_gl.h)
+  endif()
+
+  if(USING_VULKANSDK)
+  list(APPEND IMGUI_SOURCE imgui/backends/imgui_impl_vulkan.cpp imgui/backends/imgui_impl_vulkan.h)
+  endif()
+
+endif()
+
 if (USING_DIRECTX11)
   file(GLOB NVHELPERSDX11_SOURCE nvdx11/*.cpp nvdx11/*.hpp nvdx11/*.inl nvdx11/*.h)
   source_group("nvdx11" FILES ${NVHELPERSDX11_SOURCE})
@@ -109,6 +123,8 @@ if (USING_OPTIX)
   Message(STATUS "Note: adding Optix utility files")
   file(GLOB NVHELPERSOPTIX_FILES nvoptix/*.cpp nvoptix/*.h)
   source_group("nvoptix" FILES ${NVHELPERSOPTIX_FILES})
+  
+  string(CONCAT library_name ${library_name} "_optix")
 endif()
 
 
@@ -118,7 +134,7 @@ source_group("noise" FILES ${NOISE_SOURCE})
 source_group("nvmath" FILES ${NVMATH_SOURCE})
 source_group("nvh" FILES ${NVHELPERS_SOURCE})
 source_group("nvp" FILES ${NVPWINDOW_SOURCE})
-
+source_group("imgui" FILES ${IMGUI_SOURCE})
 
 if(MSVC)
   add_definitions(-D_CRT_SECURE_NO_WARNINGS)
@@ -132,11 +148,11 @@ if(SUPPORT_NVTOOLSEXT)
     ${BASE_DIRECTORY}/shared_sources/nvh/nsightevents.h
     ${BASE_DIRECTORY}/shared_external/NSight/nvToolsExt.h
   )
-  add_definitions(-DSUPPORT_NVTOOLSEXT)
+  add_definitions(-DNVP_SUPPORTS_NVTOOLSEXT)
 endif()
 
 if(USING_OPENGL)
-  SET(OPENGL_FILES
+  set(OPENGL_FILES
     ${has_GL_FILES} 
   )
 endif()
@@ -145,6 +161,7 @@ add_library(shared_sources STATIC
   ${NVHELPERS_SOURCE}
   ${NVMATH_SOURCE}
   ${NOISE_SOURCE}
+  ${IMGUI_SOURCE}
   ${FILEFORMATS_SOURCE}
   ${NVPWINDOW_SOURCE}
   ${OPENGL_FILES}
@@ -185,4 +202,6 @@ target_link_libraries(shared_sources
  )
 
 set_target_properties(shared_sources PROPERTIES OUTPUT_NAME ${library_name})
+_set_target_output(shared_sources)
+
 message(STATUS "shared_sources library name: ${library_name}")

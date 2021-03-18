@@ -29,7 +29,7 @@
 #define _nvmathtypes_h_
 
 #include <assert.h>
-#include <math.h>
+#include <cmath>
 
 #ifdef _WIN32
 #include <limits>

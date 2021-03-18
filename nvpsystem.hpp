@@ -31,9 +31,6 @@
 #pragma warning(disable : 4996)  // preventing snprintf >> _snprintf_s
 //#pragma message("---------- >including nvpwindow.hpp")
 
-#define GLFW_INCLUDE_NONE
-#include <GLFW/glfw3.h>
-
 #include "platform.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -70,10 +67,18 @@ class NVPSystem
 {
 public:
   ////////////////////////////////////////////////////////////////////////
-  // system related
-
-  // exeFileName is typically argv[0]
-  static void init(const char* exeFileNameWPath, const char* projectName);
+  //
+  // NVPSystem is a utility class to handle some basic system
+  // functionality that all projects likely make use of.
+  // It does not require any window to be opened.
+  // Typical usage is calling init right after main and deinit
+  // in the end, or use the NVPSystem object for that.
+  
+  // init 
+  // - calls glfwInit and registers the error callback for it
+  // - sets up and log filename based on projectName via nvprintSetLogFileName 
+  // - if NVP_SUPPORTS_SOCKETS is set, starts socket server as well
+  static void init(const char* projectName);
   static void deinit();
 
   static void pollEvents();
@@ -83,17 +88,22 @@ public:
   static double getTime();  // in seconds
   static void   sleep(double seconds);
 
+  // exePath() can be called without init called before
   static std::string exePath();
 
   static bool isInited();
 
-  // uses operating system specific code for sake of debugging/automated testing
-  static void        windowScreenshot(GLFWwindow* glfwin, const char* filename);
-  static void        windowClear(GLFWwindow* glfwin, uint32_t r, uint32_t g, uint32_t b);
-  static std::string windowOpenFileDialog(GLFWwindow* glfwin, const char* title, const char* exts);
+  // uses operating system specific code
+
+  // for sake of debugging/automated testing
+  static void        windowScreenshot(struct GLFWwindow* glfwin, const char* filename);
+  static void        windowClear(struct GLFWwindow* glfwin, uint32_t r, uint32_t g, uint32_t b);
+  // simple modal dialog
+  static std::string windowOpenFileDialog(struct GLFWwindow* glfwin, const char* title, const char* exts);
+  static std::string windowSaveFileDialog(struct GLFWwindow* glfwin, const char* title, const char* exts);
 
   // simple helper class, put it into your main function
-  NVPSystem(const char* exeFileNameWPath, const char* projectName) { init(exeFileNameWPath, projectName); }
+  NVPSystem(const char* projectName) { init(projectName); }
   ~NVPSystem() { deinit(); }
 
 private:

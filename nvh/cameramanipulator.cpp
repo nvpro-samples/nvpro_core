@@ -316,20 +316,20 @@ void CameraManipulator::wheel(int value, const Inputs& inputs)
 
   if(inputs.shift)
   {
-    m_current.fov += fval;
+    setFov(m_current.fov + fval);
   }
   else
   {
-    nvmath::vec3 z(m_current.eye - m_current.ctr);
-
-    float length = z.norm() * 0.1f;
-    length       = length < 0.001f ? 0.001f : length;
-
     dolly(dx * m_speed, dx * m_speed);
     update();
   }
 }
 
+// Set and clamp FOV between 0.01 and 179 degrees
+void CameraManipulator::setFov(float _fov)
+{
+  m_current.fov = std::min(std::max(_fov, 0.01f), 179.0f);
+}
 
 nvmath::vec3f CameraManipulator::computeBezier(float t, nvmath::vec3f& p0, nvmath::vec3f& p1, nvmath::vec3f& p2)
 {

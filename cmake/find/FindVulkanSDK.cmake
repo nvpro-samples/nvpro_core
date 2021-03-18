@@ -8,6 +8,10 @@ unset(VULKANSDK_INCLUDE_DIR CACHE)
 unset(VULKANSDK_SHADERC_LIB CACHE)
 unset(VULKANSDK_SHADERC_DLL CACHE)
 unset(GLSLANGVALIDATOR)
+unset(GLSLC) 
+
+set(VULKAN_BUILD_DEPENDENCIES OFF CACHE BOOL "Create dependies on GLSL files")
+
 # -------------------------------------------------------------------
 macro ( folder_list result curdir )
   FILE(GLOB children RELATIVE ${curdir} ${curdir}/*)
@@ -123,8 +127,10 @@ if (VULKANSDK_ROOT_DIR)
     _find_files( VULKAN_LIB VULKANSDK_ROOT_DIR "Lib/vulkan-1.lib" "Lib/vulkan-1.lib" "")
     _find_files( VULKANSDK_SHADERC_LIB VULKANSDK_ROOT_DIR "Lib/shaderc_shared.lib" "Lib/shaderc_shared.lib" "")
     _find_files( VULKANSDK_SHADERC_DLL VULKANSDK_ROOT_DIR "Bin/shaderc_shared.dll" "Bin/shaderc_shared.dll" "")
-    _find_files( GLSLANGVALIDATOR VULKANSDK_ROOT_DIR "bin/glslangValidator.exe" "bin/glslangValidator.exe" "")
-    
+    _find_files( GLSLANGVALIDATOR VULKANSDK_ROOT_DIR "bin/glslangValidator.exe" "bin/glslangValidator.exe" "")        
+    _find_files( GLSLC VULKANSDK_ROOT_DIR "" "bin/glslc.exe" "")
+
+
   endif(WIN32)
 
   if (UNIX)
@@ -133,6 +139,7 @@ if (VULKANSDK_ROOT_DIR)
     get_filename_component(VULKAN_LIB_DIR ${VULKAN_LIB} DIRECTORY)
     find_library(VULKANSDK_SHADERC_LIB "libshaderc_combined.a" HINTS ${VULKAN_LIB_DIR})
     find_file(GLSLANGVALIDATOR VULKANSDK_ROOT_DIR "glslangValidator" HINTS ${VULKANSDK_ROOT_DIR}"../bin/glslangValidator")
+    find_file(GLSLC VULKANSDK_ROOT_DIR "glslc" HINTS ${VULKANSDK_ROOT_DIR}"../bin/glslc")
 
 #    Message(STATUS "Vulkan Lib Dir : ${VULKAN_LIB_DIR}")
 #    Message(STATUS "Vulkan Include : ${VULKANSDK_ROOT_DIR}")

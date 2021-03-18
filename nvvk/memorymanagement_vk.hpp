@@ -552,13 +552,14 @@ protected:
 
   Usage:
   - Enqueue transfers into your VkCommandBuffer and then finalize the copy operations.
-  - Associate the copy operations with a VkFence
+  - Associate the copy operations with a VkFence or retrieve a SetID
   - The release of the resources allows to safely recycle the buffer space for future transfers.
   
   > We use fences as a way to garbage collect here, however a more robust solution
   > may be implementing some sort of ticketing/timeline system.
   > If a fence is recycled, then this class may not be aware that the fence represents a different
   > submission, likewise if the fence is deleted elsewhere problems can occur.
+  > You may want to use the manual "SetID" system in that case.
 
   Example :
 
@@ -576,19 +577,31 @@ protected:
   vertices = staging.cmdToBufferT<Vertex>(cmd, targetBufer, 0, targetSize);
 
   // OPTION A:
-  // associate all previous copy operations with a fence
+  // associate all previous copy operations with a fence (or not)
   staging.finalizeResources( fence );
   ..
   // every once in a while call
   staging.releaseResources();
+  // this will release all those without fence, or those
+  // who had a fence that completed (but never manual SetIDs, see next).
 
   // OPTION B
-  // alternatively manage the resource release yourself
-  sid = staging.finalizeResources();
+  // alternatively manage the resource release yourself.
+  // The SetID represents the staging resources
+  // since any last finalize.
+  sid = staging.finalizeResourceSet();
 
-  ... you need to ensure these uploads completed
+  ... 
+  // You need to ensure these transfers and their staging
+  // data access completed yourself prior releasing the set.
+  //
+  // This is particularly useful for managing downloads from
+  // device. The "from" functions return a pointer  where the 
+  // data will be copied to. You want to use this pointer
+  // after the device-side transfer completed, and then
+  // release its resources once you are done using it.
 
-  staging.releaseResources();
+  staging.releaseResourceSet(sid);
 
   ~~~
 */
@@ -597,6 +610,11 @@ class StagingMemoryManager
 {
 public:
   //////////////////////////////////////////////////////////////////////////
+  class SetID {
+  friend StagingMemoryManager;
+  private:
+    uint32_t index = INVALID_ID_INDEX;
+  };
 
   StagingMemoryManager(StagingMemoryManager const&) = delete;
   StagingMemoryManager& operator=(StagingMemoryManager const&) = delete;
@@ -628,8 +646,42 @@ public:
                    const VkExtent3D&               extent,
                    const VkImageSubresourceLayers& subresource,
                    VkDeviceSize                    size,
-                   const void*                     data);
+                   const void*                     data,
+                   VkImageLayout                   layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
+  template <class T>
+  T* cmdToImageT(VkCommandBuffer                 cmd,
+                 VkImage                         image,
+                 const VkOffset3D&               offset,
+                 const VkExtent3D&               extent,
+                 const VkImageSubresourceLayers& subresource,
+                 VkDeviceSize                    size,
+                 const void*                     data,
+                 VkImageLayout                   layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+  {
+    return (T*)cmdToImage(cmd, image, offset, extent, subresource, size, data, layout);
+  }
+
+  // pointer can be used after cmd execution but only valid until associated resources haven't been released
+  const void* cmdFromImage(VkCommandBuffer                 cmd,
+                           VkImage                         image,
+                           const VkOffset3D&               offset,
+                           const VkExtent3D&               extent,
+                           const VkImageSubresourceLayers& subresource,
+                           VkDeviceSize                    size,
+                           VkImageLayout                   layout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+
+  template <class T>
+  const T* cmdFromImageT(VkCommandBuffer                 cmd,
+                         VkImage                         image,
+                         const VkOffset3D&               offset,
+                         const VkExtent3D&               extent,
+                         const VkImageSubresourceLayers& subresource,
+                         VkDeviceSize                    size,
+                         VkImageLayout                   layout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
+  {
+    return (const T*)cmdFromImage(cmd, image, offset, extent, subresource, size, layout);
+  }
 
   // if data != nullptr memcpies to mapping and returns nullptr
   // otherwise returns temporary mapping (valid until appropriate release)
@@ -641,7 +693,7 @@ public:
     return (T*)cmdToBuffer(cmd, buffer, offset, size, nullptr);
   }
 
-  // pointer is only valid until associated resources haven't been released
+  // pointer can be used after cmd execution but only valid until associated resources haven't been released
   const void* cmdFromBuffer(VkCommandBuffer cmd, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size);
 
   template <class T>
@@ -650,15 +702,23 @@ public:
     return (const T*)cmdFromBuffer(cmd, buffer, offset, size);
   }
 
-  // FIXME readback "from" tasks may not want to use a fence
-
-  // closes the batch of staging resources since last finalizeResources call
+  // closes the batch of staging resources since last finalize call
   // and associates it with a fence for later release.
-  void finalizeResources(VkFence fence = VK_NULL_HANDLE);
+  void  finalizeResources(VkFence fence = VK_NULL_HANDLE);
 
   // releases the staging resources whose fences have completed
-  // and those who had no fence at all
+  // and those who had no fence at all, skips resourceSets.
   void releaseResources();
+
+  // closes the batch of staging resources since last finalize call
+  // and returns a resource set handle that can be used to release them
+  SetID finalizeResourceSet();
+
+  // releases the staging resources from this particular
+  // resource set.
+  void  releaseResourceSet(SetID setid) {
+    releaseResources(setid.index);
+  }
 
   // frees staging memory no longer in use
   void freeUnused() { free(true); }
@@ -700,6 +760,7 @@ protected:
   {
     uint32_t           index = INVALID_ID_INDEX;
     VkFence            fence = VK_NULL_HANDLE;
+    bool               manualSet = false;
     std::vector<Entry> entries;
   };
 

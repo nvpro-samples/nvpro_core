@@ -131,7 +131,8 @@ namespace nvh
     virtual void parseConfig(int argc, const char** argv, const std::string& path) {
       // if you want to handle parameters not represented in
       // m_parameterList then override this function accordingly.
-      m_parameterList.applyTokens( argc, argv, "-", path.c_str() );
+      // Always skip first argument, which contains the path to the executable.
+      m_parameterList.applyTokens( argc - 1, argv + 1, "-", path.c_str() );
       // This function is called before "begin" and provided with the commandline used in "run".
       // It can also be called by the benchmarking system, and parseConfigFile.
     }

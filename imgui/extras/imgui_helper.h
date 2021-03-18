@@ -29,12 +29,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #define IMGUI_DISABLE_OBSOLETE_FUNCTIONS 1
 #define IMGUI_DEFINE_MATH_OPERATORS
-#include "imgui.h"
-#include "imgui_internal.h"
+#include "imgui/imgui.h"
+#include "imgui/imgui_internal.h"
 
 #include <nvpwindow.hpp>
 
 #include <algorithm>
+#include <array>
 #include <climits>
 #include <functional>
 #include <string>
@@ -335,9 +336,10 @@ void setFonts(FontMode fontmode = FONT_PROPORTIONAL_SCALED);
 // Creating a window panel
 // - Panel will be on the left or the right side of the window.
 // - It fills the height of the window, and stays on the side it was created.
-// - Style can be overwritten using ImGuiH::Panel::settings
 class Panel /*static*/
 {
+  static ImGuiID dockspaceID;
+
 public:
   // Side where the panel will be
   enum class Side
@@ -346,44 +348,95 @@ public:
     Right,
   };
 
-  // Default style for the panel. Override those values
-  struct Style
-  {
-
-    ImGuiWindowFlags flags{ImGuiWindowFlags_NoTitleBar};  // No header, no collapse
-    ImVec2           panel_offset{300, 0};                // 300 pixel wide
-    float            bgAlpha{0.8f};                       // Slightly transparent
-    float            panel_min_width{100.f};              // 100 pixel wide
-    float            panel_max_perc{0.5};                 // Max width in percent of the window
-  };
-  static Style style;
 
   // Starting the panel, equivalent to ImGui::Begin for a window. Need ImGui::end()
-  static void Begin(Side side = Side::Right)
+  static void Begin(Side side = Side::Right, float alpha = 0.5f, char* name = nullptr)
   {
-    auto& io = ImGui::GetIO();
+    // Keeping the unique ID of the dock space
+    dockspaceID = ImGui::GetID("DockSpace");
 
-    ImVec2&          pw    = style.panel_offset;
-    ImGuiWindowFlags flags = style.flags;
-    ImVec2           ds    = io.DisplaySize;
-    float            pos_x = side == Side::Left ? 0 : ds.x - pw.x;
+    // The dock need a dummy window covering the entire viewport.
+    ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(viewport->GetWorkPos());
+    ImGui::SetNextWindowSize(viewport->GetWorkSize());
+    ImGui::SetNextWindowViewport(viewport->ID);
+    // All flags to dummy window
+    ImGuiWindowFlags host_window_flags = 0;
+    host_window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize;
+    host_window_flags |= ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDocking;
+    host_window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
+    host_window_flags |= ImGuiWindowFlags_NoBackground;
+    // Starting dummy window
+    char label[32];
+    ImFormatString(label, IM_ARRAYSIZE(label), "DockSpaceViewport_%08X", viewport->ID);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+    ImGui::Begin(label, NULL, host_window_flags);
+    ImGui::PopStyleVar(3);
 
+    // The central node is transparent, so that when UI is draw after, the image is visible
+    // Auto Hide Bar, no title of the panel
+    // Center is not dockable, that is for the scene
+    ImGuiDockNodeFlags dockspaceFlags = ImGuiDockNodeFlags_PassthruCentralNode | ImGuiDockNodeFlags_AutoHideTabBar
+                                        | ImGuiDockNodeFlags_NoDockingInCentralNode;
 
-    // Window characteristics
-    ImGui::SetNextWindowBgAlpha(style.bgAlpha);
-    ImGui::SetNextWindowPos(ImVec2(pos_x, pw.y), ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImVec2(pw.x, ds.y), ImGuiCond_Always);
-    ImGui::SetNextWindowSizeConstraints(ImVec2(style.panel_min_width, -1.0f), ImVec2(ds.x * style.panel_max_perc, -1.0f));
+    // Default panel/window is name setting
+    std::string dock_name("Settings");
+    if(name != nullptr)
+      dock_name = name;
 
-    // Begin window
-    ImGui::Begin("##_Panel", nullptr, flags);
+    // Building the splitting of the dock space is done only once
+    if(!ImGui::DockBuilderGetNode(dockspaceID))
     {
-      style.panel_offset.x = ImGui::GetWindowSize().x;
+
+      ImGui::DockBuilderRemoveNode(dockspaceID);
+      ImGui::DockBuilderAddNode(dockspaceID, ImGuiDockNodeFlags_DockSpace);
+
+      ImGuiID dock_main_id = dockspaceID;
+
+      // Slitting all 4 directions
+      ImGuiID id_left = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Left, 0.2f, nullptr, &dock_main_id);
+      ImGui::DockBuilderDockWindow(side == Side::Left ? dock_name.c_str() : "Dock_left", id_left);
+      ImGuiID id_right = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Right, 0.2f, nullptr, &dock_main_id);
+      ImGui::DockBuilderDockWindow(side == Side::Right ? dock_name.c_str() : "Dock_right", id_right);
+      ImGuiID id_up = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Up, 0.2f, nullptr, &dock_main_id);
+      ImGui::DockBuilderDockWindow("Dock_up", id_up);
+      ImGuiID id_down = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Down, 0.2f, nullptr, &dock_main_id);
+      ImGui::DockBuilderDockWindow("Dock_down", id_down);
+
+      ImGui::DockBuilderDockWindow("Scene", dock_main_id);  // Center
+
+      ImGui::DockBuilderFinish(dock_main_id);
     }
+
+    // Setting the panel to blend with alpha
+    ImVec4 col = ImGui::GetStyleColorVec4(ImGuiCol_WindowBg);
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(col.x, col.y, col.z, alpha));
+
+    ImGui::DockSpace(dockspaceID, ImVec2(0.0f, 0.0f), dockspaceFlags);
+    ImGui::PopStyleColor();
+    ImGui::End();
+
+    // The panel
+    if(alpha < 1)
+      ImGui::SetNextWindowBgAlpha(alpha);  // For when the panel becomes a floating window
+    ImGui::Begin(dock_name.c_str());
   }
 
   // Mirror begin but can use directly End()
   static void End() { ImGui::End(); }
+
+  // Return the position and size of the central display
+  static void CentralDimension(ImVec2& pos, ImVec2& size)
+  {
+    auto dock_main = ImGui::DockBuilderGetCentralNode(dockspaceID);
+    if(dock_main)
+    {
+      pos  = dock_main->Pos;
+      size = dock_main->Size;
+    }
+  }
 };
 
 

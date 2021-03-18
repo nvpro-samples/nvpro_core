@@ -50,7 +50,7 @@ const VkAccelerationStructureNV& tlas = m.rtBuilder.getAccelerationStructure()
 
 
 #include <mutex>
-#include <vulkan/vulkan.h>
+#include <vulkan/vulkan_core.h>
 
 #include "allocator_vk.hpp"
 #include "commands_vk.hpp"

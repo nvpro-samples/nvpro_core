@@ -21,7 +21,7 @@ It means that you must clone this repository prior to trying those samples that 
 * resources: icons etc.
 
 ## Files
-* CMakeLists_include.txt: common file that every samples CMakeLists.txt will include
+* setup.cmake: common file that every samples CMakeLists.txt will include
 * CMakeLists.txt: project definition for the shared_sources library
 * main.h: this is the primary include for samples as they derive from the application window definition.
 * main_internal_...: platform and api specific window creation

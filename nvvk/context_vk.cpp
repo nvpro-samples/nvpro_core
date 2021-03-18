@@ -218,9 +218,12 @@ bool Context::init(const ContextCreateInfo& info)
 bool Context::initInstance(const ContextCreateInfo& info)
 {
   VkApplicationInfo applicationInfo{VK_STRUCTURE_TYPE_APPLICATION_INFO};
-  applicationInfo.pApplicationName = info.appTitle;
-  applicationInfo.pEngineName      = info.appEngine;
+  applicationInfo.pApplicationName = info.appTitle.c_str();
+  applicationInfo.pEngineName      = info.appEngine.c_str();
   applicationInfo.apiVersion       = VK_MAKE_VERSION(info.apiMajor, info.apiMinor, 0);
+
+  m_apiMajor = info.apiMajor;
+  m_apiMinor = info.apiMinor;
 
   uint32_t count = 0;
 
@@ -282,29 +285,41 @@ bool Context::initInstance(const ContextCreateInfo& info)
   {
     LOGI("______________________\n");
     LOGI("Used Instance Layers :\n");
-    for(auto it : m_usedInstanceLayers)
+    for(const auto& it : m_usedInstanceLayers)
     {
-      LOGI("%s\n", it);
+      LOGI("%s\n", it.c_str());
     }
     LOGI("\n");
     LOGI("Used Instance Extensions :\n");
-    for(auto it : m_usedInstanceExtensions)
+    for(const auto& it : m_usedInstanceExtensions)
     {
-      LOGI("%s\n", it);
+      LOGI("%s\n", it.c_str());
     }
+  }
+
+
+  std::vector<const char*> usedInstanceLayers;
+  std::vector<const char*> usedInstanceExtensions;
+  for(const auto& it : m_usedInstanceExtensions)
+  {
+    usedInstanceExtensions.push_back(it.c_str());
+  }
+  for(const auto& it : m_usedInstanceLayers)
+  {
+    usedInstanceLayers.push_back(it.c_str());
   }
 
   VkInstanceCreateInfo instanceCreateInfo{VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
   instanceCreateInfo.pApplicationInfo        = &applicationInfo;
-  instanceCreateInfo.enabledExtensionCount   = static_cast<uint32_t>(m_usedInstanceExtensions.size());
-  instanceCreateInfo.ppEnabledExtensionNames = m_usedInstanceExtensions.data();
-  instanceCreateInfo.enabledLayerCount       = static_cast<uint32_t>(m_usedInstanceLayers.size());
-  instanceCreateInfo.ppEnabledLayerNames     = m_usedInstanceLayers.data();
+  instanceCreateInfo.enabledExtensionCount   = static_cast<uint32_t>(usedInstanceExtensions.size());
+  instanceCreateInfo.ppEnabledExtensionNames = usedInstanceExtensions.data();
+  instanceCreateInfo.enabledLayerCount       = static_cast<uint32_t>(usedInstanceLayers.size());
+  instanceCreateInfo.ppEnabledLayerNames     = usedInstanceLayers.data();
   instanceCreateInfo.pNext                   = info.instanceCreateInfoExt;
 
   NVVK_CHECK(vkCreateInstance(&instanceCreateInfo, nullptr, &m_instance));
 
-  for(const auto& it : m_usedInstanceExtensions)
+  for(const auto& it : usedInstanceExtensions)
   {
     if(strcmp(it, VK_EXT_DEBUG_UTILS_EXTENSION_NAME) == 0)
     {
@@ -422,9 +437,9 @@ bool Context::initDevice(uint32_t deviceIndex, const ContextCreateInfo& info)
   {
     LOGI("________________________\n");
     LOGI("Used Device Extensions :\n");
-    for(auto it : m_usedDeviceExtensions)
+    for(const auto& it : m_usedDeviceExtensions)
     {
-      LOGI("%s\n", it);
+      LOGI("%s\n", it.c_str());
     }
     LOGI("\n");
   }
@@ -463,8 +478,15 @@ bool Context::initDevice(uint32_t deviceIndex, const ContextCreateInfo& info)
     features2.features.robustBufferAccess = VK_FALSE;
   }
 
-  deviceCreateInfo.enabledExtensionCount   = static_cast<uint32_t>(m_usedDeviceExtensions.size());
-  deviceCreateInfo.ppEnabledExtensionNames = m_usedDeviceExtensions.data();
+
+  std::vector<const char*> usedDeviceExtensions;
+  for(const auto& it : m_usedDeviceExtensions)
+  {
+    usedDeviceExtensions.push_back(it.c_str());
+  }
+
+  deviceCreateInfo.enabledExtensionCount   = static_cast<uint32_t>(usedDeviceExtensions.size());
+  deviceCreateInfo.ppEnabledExtensionNames = usedDeviceExtensions.data();
 
   // Vulkan >= 1.1 uses pNext to enable features, and not pEnabledFeatures
   deviceCreateInfo.pEnabledFeatures = nullptr;
@@ -679,9 +701,9 @@ void Context::deinit()
 
 bool Context::hasDeviceExtension(const char* name) const
 {
-  for(const auto& usedDeviceExtension : m_usedDeviceExtensions)
+  for(const auto& it : m_usedDeviceExtensions)
   {
-    if(strcmp(name, usedDeviceExtension) == 0)
+    if(strcmp(name, it.c_str()) == 0)
     {
       return true;
     }
@@ -691,9 +713,9 @@ bool Context::hasDeviceExtension(const char* name) const
 
 bool Context::hasInstanceExtension(const char* name) const
 {
-  for(const auto& usedInstanceExtension : m_usedInstanceExtensions)
+  for(const auto& it : m_usedInstanceExtensions)
   {
-    if(strcmp(name, usedInstanceExtension) == 0)
+    if(strcmp(name, it.c_str()) == 0)
     {
       return true;
     }
@@ -736,7 +758,7 @@ void ContextCreateInfo::removeInstanceExtension(const char* name)
 {
   for(size_t i = 0; i < instanceExtensions.size(); i++)
   {
-    if(strcmp(instanceExtensions[i].name, name) == 0)
+    if(strcmp(instanceExtensions[i].name.c_str(), name) == 0)
     {
       instanceExtensions.erase(instanceExtensions.begin() + i);
     }
@@ -747,7 +769,7 @@ void ContextCreateInfo::removeInstanceLayer(const char* name)
 {
   for(size_t i = 0; i < instanceLayers.size(); i++)
   {
-    if(strcmp(instanceLayers[i].name, name) == 0)
+    if(strcmp(instanceLayers[i].name.c_str(), name) == 0)
     {
       instanceLayers.erase(instanceLayers.begin() + i);
     }
@@ -758,21 +780,21 @@ void ContextCreateInfo::removeDeviceExtension(const char* name)
 {
   for(size_t i = 0; i < deviceExtensions.size(); i++)
   {
-    if(strcmp(deviceExtensions[i].name, name) == 0)
+    if(strcmp(deviceExtensions[i].name.c_str(), name) == 0)
     {
       deviceExtensions.erase(deviceExtensions.begin() + i);
     }
   }
 }
 
-void ContextCreateInfo::setVersion(int major, int minor)
+void ContextCreateInfo::setVersion(uint32_t major, uint32_t minor)
 {
-  assert(apiMajor >= 1 && apiMinor >= 1);
+  assert(apiMajor == 1 && apiMinor >= 1);
   apiMajor = major;
   apiMinor = minor;
 }
 
-VkResult Context::fillFilteredNameArray(Context::NameArray&                   used,
+VkResult Context::fillFilteredNameArray(std::vector<std::string>&             used,
                                         const std::vector<VkLayerProperties>& properties,
                                         const ContextCreateInfo::EntryArray&  requested)
 {
@@ -781,27 +803,29 @@ VkResult Context::fillFilteredNameArray(Context::NameArray&                   us
     bool found = false;
     for(const auto& property : properties)
     {
-      if(strcmp(itr.name, property.layerName) == 0)
+      if(strcmp(itr.name.c_str(), property.layerName) == 0)
       {
         found = true;
         break;
       }
     }
 
-    if(!found && !itr.optional)
+    if(found)
     {
-      LOGW("VK_ERROR_LAYER_NOT_PRESENT: %s\n", itr.name);
+      used.push_back(itr.name);
+    }
+    else if(itr.optional == false)
+    {
+      LOGE("Requiered layer not found: %s\n", itr.name.c_str());
       return VK_ERROR_LAYER_NOT_PRESENT;
     }
-
-    used.push_back(itr.name);
   }
 
   return VK_SUCCESS;
-}
+}  // namespace nvvk
 
 
-VkResult Context::fillFilteredNameArray(Context::NameArray&                       used,
+VkResult Context::fillFilteredNameArray(std::vector<std::string>&                 used,
                                         const std::vector<VkExtensionProperties>& properties,
                                         const ContextCreateInfo::EntryArray&      requested,
                                         std::vector<void*>&                       featureStructs)
@@ -811,7 +835,7 @@ VkResult Context::fillFilteredNameArray(Context::NameArray&                     
     bool found = false;
     for(const auto& property : properties)
     {
-      if(strcmp(itr.name, property.extensionName) == 0 && (itr.version == 0 || itr.version == property.specVersion))
+      if(strcmp(itr.name.c_str(), property.extensionName) == 0 && (itr.version == 0 || itr.version == property.specVersion))
       {
         found = true;
         break;
@@ -828,7 +852,7 @@ VkResult Context::fillFilteredNameArray(Context::NameArray&                     
     }
     else if(!itr.optional)
     {
-      LOGW("VK_ERROR_EXTENSION_NOT_PRESENT: %s - %d\n", itr.name, itr.version);
+      LOGW("VK_ERROR_EXTENSION_NOT_PRESENT: %s - %d\n", itr.name.c_str(), itr.version);
       return VK_ERROR_EXTENSION_NOT_PRESENT;
     }
   }
@@ -846,7 +870,7 @@ void Context::initPhysicalInfo(PhysicalDeviceInfo& info, VkPhysicalDevice physic
 
   // for queries and device creation
   VkPhysicalDeviceFeatures2   features2{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
-  VkPhysicalDeviceProperties2 properties2 = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
+  VkPhysicalDeviceProperties2 properties2{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
   Properties11Old             properties11old;
   Features11Old               features11old;
 
@@ -912,10 +936,10 @@ void Context::initDebugUtils()
 //--------------------------------------------------------------------------------------------------
 // Returns the list of devices or groups compatible with the mandatory extensions
 //
-std::vector<int> Context::getCompatibleDevices(const ContextCreateInfo& info)
+std::vector<uint32_t> Context::getCompatibleDevices(const ContextCreateInfo& info)
 {
   assert(m_instance != nullptr);
-  std::vector<int>                             compatibleDevices;
+  std::vector<uint32_t>                        compatibleDevices;
   std::vector<VkPhysicalDeviceGroupProperties> groups;
   std::vector<VkPhysicalDevice>                physicalDevices;
 
@@ -1000,7 +1024,7 @@ bool Context::checkEntryArray(const std::vector<VkExtensionProperties>& properti
     bool found = false;
     for(const auto& property : properties)
     {
-      if(strcmp(itr.name, property.extensionName) == 0)
+      if(strcmp(itr.name.c_str(), property.extensionName) == 0)
       {
         found = true;
         break;
@@ -1011,7 +1035,7 @@ bool Context::checkEntryArray(const std::vector<VkExtensionProperties>& properti
     {
       if(bVerbose)
       {
-        LOGW("Could NOT locate mandatory extension '%s'\n", itr.name);
+        LOGW("Could NOT locate mandatory extension '%s'\n", itr.name.c_str());
       }
       return false;
     }

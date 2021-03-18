@@ -58,96 +58,104 @@ void GltfScene::importMaterials(const tinygltf::Model& tmodel)
 
     // PbrMetallicRoughness
     auto& tpbr = tmat.pbrMetallicRoughness;
-    gmat.pbrBaseColorFactor =
+    gmat.baseColorFactor =
         nvmath::vec4f(tpbr.baseColorFactor[0], tpbr.baseColorFactor[1], tpbr.baseColorFactor[2], tpbr.baseColorFactor[3]);
-    gmat.pbrBaseColorTexture         = tpbr.baseColorTexture.index;
-    gmat.pbrMetallicFactor           = static_cast<float>(tpbr.metallicFactor);
-    gmat.pbrMetallicRoughnessTexture = tpbr.metallicRoughnessTexture.index;
-    gmat.pbrRoughnessFactor          = static_cast<float>(tpbr.roughnessFactor);
+    gmat.baseColorTexture         = tpbr.baseColorTexture.index;
+    gmat.metallicFactor           = static_cast<float>(tpbr.metallicFactor);
+    gmat.metallicRoughnessTexture = tpbr.metallicRoughnessTexture.index;
+    gmat.roughnessFactor          = static_cast<float>(tpbr.roughnessFactor);
 
     // KHR_materials_pbrSpecularGlossiness
     if(tmat.extensions.find(KHR_MATERIALS_PBRSPECULARGLOSSINESS_EXTENSION_NAME) != tmat.extensions.end())
     {
       gmat.shadingModel = 1;
 
-      const auto& khr = tmat.extensions.find(KHR_MATERIALS_PBRSPECULARGLOSSINESS_EXTENSION_NAME)->second;
-      if(khr.Has("diffuseFactor"))
-      {
-        auto vec              = getVector<float>(khr.Get("diffuseFactor"));
-        gmat.khrDiffuseFactor = nvmath::vec4f(vec[0], vec[1], vec[2], vec[3]);
-      }
-      if(khr.Has("glossinessFactor"))
-      {
-        gmat.khrGlossinessFactor = static_cast<float>(khr.Get("glossinessFactor").GetNumberAsDouble());
-      }
-      if(khr.Has("specularFactor"))
-      {
-        auto vec               = getVector<float>(khr.Get("specularFactor"));
-        gmat.khrSpecularFactor = nvmath::vec3f(vec[0], vec[1], vec[2]);
-      }
-      if(khr.Has("diffuseTexture"))
-      {
-        gmat.khrDiffuseTexture = khr.Get("diffuseTexture").Get("index").Get<int>();
-      }
-      if(khr.Has("specularGlossinessTexture"))
-      {
-        gmat.khrSpecularGlossinessTexture = khr.Get("specularGlossinessTexture").Get("index").Get<int>();
-      }
+      const auto& ext = tmat.extensions.find(KHR_MATERIALS_PBRSPECULARGLOSSINESS_EXTENSION_NAME)->second;
+      getVec4(ext, "diffuseFactor", gmat.specularGlossiness.diffuseFactor);
+      getFloat(ext, "glossinessFactor", gmat.specularGlossiness.glossinessFactor);
+      getVec3(ext, "specularFactor", gmat.specularGlossiness.specularFactor);
+      getTexId(ext, "diffuseTexture", gmat.specularGlossiness.diffuseTexture);
+      getTexId(ext, "specularGlossinessTexture", gmat.specularGlossiness.specularGlossinessTexture);
     }
 
-    // KHR_materials_pbrSpecularGlossiness
+    // KHR_texture_transform
     if(tpbr.baseColorTexture.extensions.find(KHR_TEXTURE_TRANSFORM_EXTENSION_NAME) != tpbr.baseColorTexture.extensions.end())
     {
-      const auto& khr = tpbr.baseColorTexture.extensions.find(KHR_TEXTURE_TRANSFORM_EXTENSION_NAME)->second;
+      const auto& ext = tpbr.baseColorTexture.extensions.find(KHR_TEXTURE_TRANSFORM_EXTENSION_NAME)->second;
+      auto&       tt  = gmat.textureTransform;
+      getVec2(ext, "offset", tt.offset);
+      getVec2(ext, "scale", tt.scale);
+      getFloat(ext, "rotation", tt.rotation);
+      getInt(ext, "texCoord", tt.texCoord);
 
-      vec2  Offset{0, 0}, Scale{1, 1};
-      float Rotation{0};
-
-      if(khr.Has("offset"))
-      {
-        auto o = getVector<float>(khr.Get("offset"));
-        Offset = vec2{o[0], o[1]};
-      }
-      if(khr.Has("scale"))
-      {
-        auto s = getVector<float>(khr.Get("scale"));
-        Scale  = vec2{s[0], s[1]};
-      }
-      if(khr.Has("rotation"))
-      {
-        Rotation = static_cast<float>(khr.Get("rotation").Get<double>());
-      }
-
-      mat3 translation = mat3(1, 0, Offset.x, 0, 1, Offset.y, 0, 0, 1);
-      mat3 rotation    = mat3(cos(Rotation), sin(Rotation), 0, -sin(Rotation), cos(Rotation), 0, 0, 0, 1);
-      mat3 scale       = mat3(Scale.x, 0, 0, 0, Scale.y, 0, 0, 0, 1);
-
-      gmat.uvTransform = scale * rotation * translation;
+      // Computing the transformation
+      mat3 translation = mat3(1, 0, tt.offset.x, 0, 1, tt.offset.y, 0, 0, 1);
+      mat3 rotation    = mat3(cos(tt.rotation), sin(tt.rotation), 0, -sin(tt.rotation), cos(tt.rotation), 0, 0, 0, 1);
+      mat3 scale       = mat3(tt.scale.x, 0, 0, 0, tt.scale.y, 0, 0, 0, 1);
+      tt.uvTransform   = scale * rotation * translation;
     }
 
     // KHR_materials_unlit
     if(tmat.extensions.find(KHR_MATERIALS_UNLIT_EXTENSION_NAME) != tmat.extensions.end())
     {
-      gmat.unlit = 1;
+      gmat.unlit.active = 1;
     }
 
+    // KHR_materials_anisotropy
     if(tmat.extensions.find(KHR_MATERIALS_ANISOTROPY_EXTENSION_NAME) != tmat.extensions.end())
     {
-      const auto& khr = tmat.extensions.find(KHR_MATERIALS_ANISOTROPY_EXTENSION_NAME)->second;
-      if(khr.Has("anisotropy"))
-      {
-        gmat.anisotropy = static_cast<float>(khr.Get("anisotropy").Get<double>());
-      }
-      if(khr.Has("anisotropyDirection"))
-      {
-        auto vec                 = getVector<float>(khr.Get("anisotropyDirection"));
-        gmat.anisotropyDirection = nvmath::vec3f(vec[0], vec[1], vec[2]);
-      }
-      if(khr.Has("anisotropyTexture"))
-      {
-        gmat.anisotropyTexture = khr.Get("anisotropyTexture").Get("index").Get<int>();
-      }
+      const auto& ext = tmat.extensions.find(KHR_MATERIALS_ANISOTROPY_EXTENSION_NAME)->second;
+      getFloat(ext, "anisotropy", gmat.anisotropy.factor);
+      getVec3(ext, "anisotropyDirection", gmat.anisotropy.direction);
+      getTexId(ext, "anisotropyTexture", gmat.anisotropy.texture);
     }
+
+    // KHR_materials_clearcoat
+    if(tmat.extensions.find(KHR_MATERIALS_CLEARCOAT_EXTENSION_NAME) != tmat.extensions.end())
+    {
+      const auto& ext = tmat.extensions.find(KHR_MATERIALS_CLEARCOAT_EXTENSION_NAME)->second;
+      getFloat(ext, "clearcoatFactor", gmat.clearcoat.factor);
+      getTexId(ext, "clearcoatTexture", gmat.clearcoat.texture);
+      getFloat(ext, "clearcoatRoughnessFactor", gmat.clearcoat.roughnessFactor);
+      getTexId(ext, "clearcoatRoughnessTexture", gmat.clearcoat.roughnessTexture);
+      getTexId(ext, "clearcoatNormalTexture", gmat.clearcoat.normalTexture);
+    }
+
+    // KHR_materials_sheen
+    if(tmat.extensions.find(KHR_MATERIALS_SHEEN_EXTENSION_NAME) != tmat.extensions.end())
+    {
+      const auto& ext = tmat.extensions.find(KHR_MATERIALS_SHEEN_EXTENSION_NAME)->second;
+      getVec3(ext, "sheenColorFactor", gmat.sheen.colorFactor);
+      getTexId(ext, "sheenColorTexture", gmat.sheen.colorTexture);
+      getFloat(ext, "sheenRoughnessFactor", gmat.sheen.roughnessFactor);
+      getTexId(ext, "sheenRoughnessTexture", gmat.sheen.roughnessTexture);
+    }
+
+    // KHR_materials_transmission
+    if(tmat.extensions.find(KHR_MATERIALS_TRANSMISSION_EXTENSION_NAME) != tmat.extensions.end())
+    {
+      const auto& ext = tmat.extensions.find(KHR_MATERIALS_TRANSMISSION_EXTENSION_NAME)->second;
+      getFloat(ext, "transmissionFactor", gmat.transmission.factor);
+      getTexId(ext, "transmissionTexture", gmat.transmission.texture);
+    }
+
+    // KHR_materials_ior
+    if(tmat.extensions.find(KHR_MATERIALS_IOR_EXTENSION_NAME) != tmat.extensions.end())
+    {
+      const auto& ext = tmat.extensions.find(KHR_MATERIALS_IOR_EXTENSION_NAME)->second;
+      getFloat(ext, "ior", gmat.ior.ior);
+    }
+
+    // KHR_materials_volume
+    if(tmat.extensions.find(KHR_MATERIALS_VOLUME_EXTENSION_NAME) != tmat.extensions.end())
+    {
+      const auto& ext = tmat.extensions.find(KHR_MATERIALS_VOLUME_EXTENSION_NAME)->second;
+      getFloat(ext, "thicknessFactor", gmat.volume.thicknessFactor);
+      getTexId(ext, "thicknessTexture", gmat.volume.thicknessTexture);
+      getFloat(ext, "attenuationDistance", gmat.volume.attenuationDistance);
+      getVec3(ext, "attenuationColor", gmat.volume.attenuationColor);
+    };
+
 
     m_materials.emplace_back(gmat);
   }
@@ -156,7 +164,7 @@ void GltfScene::importMaterials(const tinygltf::Model& tmodel)
   if(m_materials.empty())
   {
     GltfMaterial gmat;
-    gmat.pbrMetallicFactor = 0;
+    gmat.metallicFactor = 0;
     m_materials.emplace_back(gmat);
   }
 }
@@ -213,7 +221,7 @@ void GltfScene::importDrawableNodes(const tinygltf::Model& tmodel, GltfAttribute
   {
     for(const auto& tprimitive : tmesh.primitives)
     {
-      processMesh(tmodel, tprimitive, attributes);
+      processMesh(tmodel, tprimitive, attributes, tmesh.name);
     }
   }
 
@@ -306,9 +314,10 @@ void GltfScene::processNode(const tinygltf::Model& tmodel, int& nodeIdx, const n
 //--------------------------------------------------------------------------------------------------
 // Extracting the values to a linear buffer
 //
-void GltfScene::processMesh(const tinygltf::Model& tmodel, const tinygltf::Primitive& tmesh, GltfAttributes attributes)
+void GltfScene::processMesh(const tinygltf::Model& tmodel, const tinygltf::Primitive& tmesh, GltfAttributes attributes, const std::string& name)
 {
   GltfPrimMesh resultMesh;
+  resultMesh.name          = name;
   resultMesh.materialIndex = std::max(0, tmesh.material);
   resultMesh.vertexOffset  = static_cast<uint32_t>(m_positions.size());
   resultMesh.firstIndex    = static_cast<uint32_t>(m_indices.size());
@@ -597,7 +606,7 @@ void GltfScene::processMesh(const tinygltf::Model& tmodel, const tinygltf::Primi
 //--------------------------------------------------------------------------------------------------
 // Return the matrix of the node
 //
-nvmath::mat4f GltfScene::getLocalMatrix(const tinygltf::Node& tnode)
+nvmath::mat4f getLocalMatrix(const tinygltf::Node& tnode)
 {
   nvmath::mat4f mtranslation{1};
   nvmath::mat4f mscale{1};
@@ -777,6 +786,9 @@ void GltfScene::checkRequiredExtensions(const tinygltf::Model& tmodel)
       KHR_MATERIALS_PBRSPECULARGLOSSINESS_EXTENSION_NAME,
       KHR_MATERIALS_UNLIT_EXTENSION_NAME,
       KHR_MATERIALS_ANISOTROPY_EXTENSION_NAME,
+      KHR_MATERIALS_IOR_EXTENSION_NAME,
+      KHR_MATERIALS_VOLUME_EXTENSION_NAME,
+      KHR_MATERIALS_TRANSMISSION_EXTENSION_NAME,
   };
 
   for(auto& e : tmodel.extensionsRequired)

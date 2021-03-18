@@ -8,7 +8,7 @@
 * license agreement from NVIDIA CORPORATION is strictly prohibited.
 */
 
-#include "imgui_camera_widget.h"
+#include "imgui/extras/imgui_camera_widget.h"
 #include "fileformats/json.hpp"
 #include "imgui.h"
 #include "imgui_helper.h"
@@ -338,7 +338,7 @@ void SavedCameraTab(nvh::CameraManipulator& cameraM, nvh::CameraManipulator::Cam
     }
 
     // Middle click to delete a camera
-    if(ImGui::IsItemHovered() && ImGui::GetIO().MouseClicked[GLFW_MOUSE_BUTTON_MIDDLE])
+    if(ImGui::IsItemHovered() && ImGui::GetIO().MouseClicked[NVPWindow::MOUSE_BUTTON_MIDDLE])
       delete_item = n;
 
     // Displaying the position of the camera when hovering the button

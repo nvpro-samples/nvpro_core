@@ -167,7 +167,28 @@ public:
   void destroy(const std::vector<VkCommandBuffer>& cmds) { destroy(cmds.size(), cmds.data()); }
   void destroy(VkCommandBuffer cmd) { destroy(1, &cmd); }
 
-  // ends and submits to queue, waits for queue idle and destroys cmds
+  VkCommandPool getCommandPool() const { return m_commandPool; }
+
+  // Ends command buffer recording and submits to queue, if 'fence' is not
+  // VK_NULL_HANDLE, it will be used to signal the completion of the command
+  // buffer execution. Does NOT destroy the command buffers! This is not
+  // optimal use for queue submission asity may lead to a large number of
+  // vkQueueSubmit() calls per frame. . Consider batching submissions up via
+  // FencedCommandPools and BatchedSubmission classes down below.
+  void submit(size_t count, const VkCommandBuffer* cmds, VkQueue queue, VkFence fence = VK_NULL_HANDLE);
+  void submit(size_t count, const VkCommandBuffer* cmds, VkFence fence = VK_NULL_HANDLE);
+  void submit(const std::vector<VkCommandBuffer>& cmds, VkFence fence = VK_NULL_HANDLE);
+#ifdef VULKAN_HPP
+  void submit(vk::ArrayProxy<vk::CommandBuffer>& cmds, vk::Fence fence = vk::Fence())
+  {
+    submit(cmds.size(), &static_cast<const VkCommandBuffer&>(*cmds.data()), m_queue, fence);
+  }
+#endif
+
+  // Non-optimal usage pattern using wait for idles, avoid in production use.
+  // Consider batching submissions up via FencedCommandPools and
+  // BatchedSubmission classes down below. Ends command buffer recording and
+  // submits to queue, waits for queue idle and destroys cmds.
   void submitAndWait(size_t count, const VkCommandBuffer* cmds, VkQueue queue);
   void submitAndWait(const std::vector<VkCommandBuffer>& cmds, VkQueue queue)
   {
@@ -179,7 +200,7 @@ public:
   void submitAndWait(size_t count, const VkCommandBuffer* cmds) { submitAndWait(count, cmds, m_queue); }
   void submitAndWait(const std::vector<VkCommandBuffer>& cmds) { submitAndWait(cmds.size(), cmds.data(), m_queue); }
   void submitAndWait(VkCommandBuffer cmd) { submitAndWait(1, &cmd, m_queue); }
-  VkCommandPool getCommandPool() const { return m_commandPool; }
+  
 
 #ifdef VULKAN_HPP
   void destroy(size_t count, const vk::CommandBuffer* cmds) { destroy(count, (const VkCommandBuffer*)cmds); }
@@ -244,7 +265,6 @@ public:
   ~ScopeCommandBuffer()
   {
     submitAndWait(m_cmd);
-    CommandPool::deinit();
   }
 
   operator VkCommandBuffer() const { return m_cmd; };

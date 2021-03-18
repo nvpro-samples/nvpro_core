@@ -174,7 +174,7 @@ public:
   int getHeight() const { return m_height; }
 
   // Field of view
-  void  setFov(float _fov) { m_current.fov = _fov; }
+  void  setFov(float _fov);
   float getFov() { return m_current.fov; }
 
   // Animation duration

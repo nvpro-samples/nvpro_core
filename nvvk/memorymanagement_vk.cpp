@@ -464,10 +464,10 @@ AllocationID DeviceMemoryAllocator::allocInternal(const VkMemoryRequirements&   
 
   result = allocBlockMemory(id, memInfo, block.mem);
 
-  nvvk::DebugUtil(m_device).setObjectName(block.mem, m_debugName);
-
   if(result == VK_SUCCESS)
   {
+    nvvk::DebugUtil(m_device).setObjectName(block.mem, m_debugName);
+
     m_allocatedSize += block.allocationSize;
 
     uint32_t offset;
@@ -793,7 +793,8 @@ void* StagingMemoryManager::cmdToImage(VkCommandBuffer                 cmd,
                                        const VkExtent3D&               extent,
                                        const VkImageSubresourceLayers& subresource,
                                        VkDeviceSize                    size,
-                                       const void*                     data)
+                                       const void*                     data,
+                                       VkImageLayout                   layout)
 {
   if(!image)
     return nullptr;
@@ -818,7 +819,7 @@ void* StagingMemoryManager::cmdToImage(VkCommandBuffer                 cmd,
   cpy.imageOffset       = offset;
   cpy.imageExtent       = extent;
 
-  vkCmdCopyBufferToImage(cmd, srcBuffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &cpy);
+  vkCmdCopyBufferToImage(cmd, srcBuffer, image, layout, 1, &cpy);
 
   return data ? nullptr : mapping;
 }
@@ -868,15 +869,56 @@ const void* StagingMemoryManager::cmdFromBuffer(VkCommandBuffer cmd, VkBuffer bu
   return mapping;
 }
 
+const void* StagingMemoryManager::cmdFromImage(VkCommandBuffer                 cmd,
+                                               VkImage                         image,
+                                               const VkOffset3D&               offset,
+                                               const VkExtent3D&               extent,
+                                               const VkImageSubresourceLayers& subresource,
+                                               VkDeviceSize                    size,
+                                               VkImageLayout                   layout)
+{
+  VkBuffer     dstBuffer;
+  VkDeviceSize dstOffset;
+  void*        mapping = getStagingSpace(size, dstBuffer, dstOffset, false);
+
+  VkBufferImageCopy cpy;
+  cpy.bufferOffset      = dstOffset;
+  cpy.bufferRowLength   = 0;
+  cpy.bufferImageHeight = 0;
+  cpy.imageSubresource  = subresource;
+  cpy.imageOffset       = offset;
+  cpy.imageExtent       = extent;
+
+  vkCmdCopyImageToBuffer(cmd, image, layout, dstBuffer, 1, &cpy);
+
+  return mapping;
+}
+
 void StagingMemoryManager::finalizeResources(VkFence fence)
 {
   if(m_sets[m_stagingIndex].entries.empty())
     return;
 
-  m_sets[m_stagingIndex].fence = fence;
-  m_stagingIndex               = newStagingIndex();
+  m_sets[m_stagingIndex].fence     = fence;
+  m_sets[m_stagingIndex].manualSet = false;
+  m_stagingIndex                   = newStagingIndex();
 }
 
+StagingMemoryManager::SetID StagingMemoryManager::finalizeResourceSet()
+{
+  SetID setID;
+
+  if(m_sets[m_stagingIndex].entries.empty())
+    return setID;
+
+  setID.index = m_stagingIndex;
+
+  m_sets[m_stagingIndex].fence     = nullptr;
+  m_sets[m_stagingIndex].manualSet = true;
+  m_stagingIndex                   = newStagingIndex();
+
+  return setID;
+}
 
 void* StagingMemoryManager::getStagingSpace(VkDeviceSize size, VkBuffer& buffer, VkDeviceSize& offset, bool toDevice)
 {
@@ -946,7 +988,8 @@ void* StagingMemoryManager::getStagingSpace(VkDeviceSize size, VkBuffer& buffer,
 
 void StagingMemoryManager::releaseResources(uint32_t stagingID)
 {
-  assert(stagingID != INVALID_ID_INDEX);
+  if (stagingID == INVALID_ID_INDEX) return;
+
   StagingSet& set = m_sets[stagingID];
   assert(set.index == stagingID);
 
@@ -974,10 +1017,11 @@ void StagingMemoryManager::releaseResources()
 {
   for(auto& itset : m_sets)
   {
-    if(!itset.entries.empty() && (!itset.fence || vkGetFenceStatus(m_device, itset.fence) == VK_SUCCESS))
+    if(!itset.entries.empty() && !itset.manualSet && (!itset.fence || vkGetFenceStatus(m_device, itset.fence) == VK_SUCCESS))
     {
       releaseResources(itset.index);
       itset.fence = NULL;
+      itset.manualSet = false;
     }
   }
   // special case for ease of use if there is only one
@@ -986,6 +1030,7 @@ void StagingMemoryManager::releaseResources()
     m_freeStagingIndex = setIndexValue(m_sets[0].index, 0);
   }
 }
+
 
 float StagingMemoryManager::getUtilization(VkDeviceSize& allocatedSize, VkDeviceSize& usedSize) const
 {
@@ -1083,8 +1128,8 @@ VkResult StagingMemoryManager::allocBlockMemory(uint32_t index, VkDeviceSize siz
     VkPhysicalDeviceMemoryProperties memoryProperties;
     vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &memoryProperties);
 
-    VkMemoryPropertyFlags memProps = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-                                     | (toDevice ? VK_MEMORY_PROPERTY_HOST_COHERENT_BIT : VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
+    VkMemoryPropertyFlags memProps = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+                                     | (toDevice ? 0 : VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
 
     // Find an available memory type that satisfies the requested properties.
     for(uint32_t memoryTypeIndex = 0; memoryTypeIndex < memoryProperties.memoryTypeCount; ++memoryTypeIndex)
@@ -1158,16 +1203,15 @@ VkResult StagingMemoryManagerDma::allocBlockMemory(uint32_t index, VkDeviceSize 
   float    priority = m_memAllocator->setPriority();
   block.buffer      = m_memAllocator->createBuffer(
       size, toDevice ? VK_BUFFER_USAGE_TRANSFER_SRC_BIT : VK_BUFFER_USAGE_TRANSFER_DST_BIT, m_blockAllocs[index],
-      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | (toDevice ? VK_MEMORY_PROPERTY_HOST_COHERENT_BIT : VK_MEMORY_PROPERTY_HOST_CACHED_BIT),
+      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | (toDevice ? 0 : VK_MEMORY_PROPERTY_HOST_CACHED_BIT),
       result);
   m_memAllocator->setPriority(priority);
   if(result == VK_SUCCESS)
   {
+    nvvk::DebugUtil(m_device).setObjectName(block.buffer, m_debugName);
     block.mapping = m_memAllocator->mapT<uint8_t>(m_blockAllocs[index]);
   }
-
-  nvvk::DebugUtil(m_device).setObjectName(block.buffer, m_debugName);
-
+  
   return result;
 }
 

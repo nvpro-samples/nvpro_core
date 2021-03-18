@@ -28,13 +28,15 @@
 
 #include "nvpsystem.hpp"
 
-#ifdef USESOCKETS
+#define GLFW_INCLUDE_NONE
+#include <GLFW/glfw3.h>
+
+#ifdef NVP_SUPPORTS_SOCKETS
 #include "socketSampleMessages.h"
 #endif
 
 #include <algorithm>
 
-static std::string s_exePath;
 static bool        s_sysInit = false;
 
 static void cb_errorfun(int, const char* str)
@@ -47,7 +49,7 @@ static void cb_errorfun(int, const char* str)
 // Message pump
 void NVPSystem::pollEvents()
 {
-#ifdef USESOCKETS
+#ifdef NVP_SUPPORTS_SOCKETS
   // check the stack of messages from remote connection, first
   processRemoteMessages();
 #endif
@@ -61,7 +63,7 @@ void NVPSystem::waitEvents()
 
 void NVPSystem::postTiming(float ms, int fps, const char* details)
 {
-#ifdef USESOCKETS
+#ifdef NVP_SUPPORTS_SOCKETS
   ::postTiming(ms, fps, details);
 #endif
 }
@@ -73,19 +75,10 @@ double NVPSystem::getTime()
 }
 
 
-void NVPSystem::init(const char* exeFileNameWPath, const char* projectName)
+void NVPSystem::init(const char* projectName)
 {
   std::string logfile = std::string("log_") + std::string(projectName) + std::string(".txt");
   nvprintSetLogFileName(logfile.c_str());
-
-  std::string exe = exeFileNameWPath;
-  std::replace(exe.begin(), exe.end(), '\\', '/');
-
-  size_t last = exe.rfind('/');
-  if(last != std::string::npos)
-  {
-    s_exePath = exe.substr(0, last) + std::string("/");
-  }
 
   int result = glfwInit();
   if (!result) {
@@ -96,7 +89,7 @@ void NVPSystem::init(const char* exeFileNameWPath, const char* projectName)
   glfwSetErrorCallback(cb_errorfun);
 
   //initNSight();
-#ifdef USESOCKETS
+#ifdef NVP_SUPPORTS_SOCKETS
   //
   // Socket init if needed
   //
@@ -111,11 +104,6 @@ void NVPSystem::deinit()
 {
   platformDeinit();
   glfwTerminate();
-}
-
-std::string NVPSystem::exePath()
-{
-  return s_exePath;
 }
 
 bool NVPSystem::isInited() {

@@ -25,7 +25,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#if USEOPENGL
+#if NVP_SUPPORTS_OPENGL
 
 /**
   This file contains helpers for resource interoperability between OpenGL and Vulkan.

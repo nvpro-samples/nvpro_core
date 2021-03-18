@@ -2443,7 +2443,7 @@ inline T nv_clamp(typename std::remove_reference<typename std::remove_const<T>::
                   const T min, const T max)
 { u = (u < min) ? min : u; u = (u > max) ? max : u; return u; }
 
-#ifdef USEOPTIX
+#ifdef NVP_SUPPORTS_OPTIX
 #pragma message("**WARNING** nvmath.h : Canceling the lerp() function here : already declared in OptiX")
 #else
 template<class T>

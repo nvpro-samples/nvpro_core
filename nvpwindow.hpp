@@ -47,16 +47,16 @@ public:
 
   enum ButtonAction
   {
-    BUTTON_RELEASE = GLFW_RELEASE,
-    BUTTON_PRESS   = GLFW_PRESS,
-    BUTTON_REPEAT  = GLFW_REPEAT,
+    BUTTON_RELEASE = 0,
+    BUTTON_PRESS   = 1,
+    BUTTON_REPEAT  = 2,
   };
 
   enum MouseButton
   {
-    MOUSE_BUTTON_LEFT   = GLFW_MOUSE_BUTTON_LEFT,
-    MOUSE_BUTTON_RIGHT  = GLFW_MOUSE_BUTTON_RIGHT,
-    MOUSE_BUTTON_MIDDLE = GLFW_MOUSE_BUTTON_MIDDLE,
+    MOUSE_BUTTON_LEFT   = 0,
+    MOUSE_BUTTON_RIGHT  = 1,
+    MOUSE_BUTTON_MIDDLE = 2,
     NUM_MOUSE_BUTTONIDX,
   };
 
@@ -70,153 +70,151 @@ public:
 
   enum KeyCode
   {
-    KEY_UNKNOWN           = GLFW_KEY_UNKNOWN,
-    KEY_SPACE             = GLFW_KEY_SPACE,
-    KEY_APOSTROPHE        = GLFW_KEY_APOSTROPHE, /* ' */
-    KEY_LEFT_PARENTHESIS  = 40,                  /* ( */
-    KEY_RIGHT_PARENTHESIS = 41,                  /* ) */
-    KEY_ASTERISK          = 42,                  /* * */
-    KEY_PLUS              = 43,                  /* + */
-    KEY_COMMA             = GLFW_KEY_COMMA,      /* , */
-    KEY_MINUS             = GLFW_KEY_MINUS,      /* - */
-    KEY_PERIOD            = GLFW_KEY_PERIOD,     /* . */
-    KEY_SLASH             = GLFW_KEY_SLASH,      /* / */
-    KEY_0                 = GLFW_KEY_0,
-    KEY_1                 = GLFW_KEY_1,
-    KEY_2                 = GLFW_KEY_2,
-    KEY_3                 = GLFW_KEY_3,
-    KEY_4                 = GLFW_KEY_4,
-    KEY_5                 = GLFW_KEY_5,
-    KEY_6                 = GLFW_KEY_6,
-    KEY_7                 = GLFW_KEY_7,
-    KEY_8                 = GLFW_KEY_8,
-    KEY_9                 = GLFW_KEY_9,
-    KEY_COLON             = 58,                 /* : */
-    KEY_SEMICOLON         = GLFW_KEY_SEMICOLON, /* ; */
-    KEY_LESS              = 60,                 /* < */
-    KEY_EQUAL             = GLFW_KEY_EQUAL,     /* = */
-    KEY_GREATER           = 62,                 /* > */
-    KEY_A                 = GLFW_KEY_A,
-    KEY_B                 = GLFW_KEY_B,
-    KEY_C                 = GLFW_KEY_C,
-    KEY_D                 = GLFW_KEY_D,
-    KEY_E                 = GLFW_KEY_E,
-    KEY_F                 = GLFW_KEY_F,
-    KEY_G                 = GLFW_KEY_G,
-    KEY_H                 = GLFW_KEY_H,
-    KEY_I                 = GLFW_KEY_I,
-    KEY_J                 = GLFW_KEY_J,
-    KEY_K                 = GLFW_KEY_K,
-    KEY_L                 = GLFW_KEY_L,
-    KEY_M                 = GLFW_KEY_M,
-    KEY_N                 = GLFW_KEY_N,
-    KEY_O                 = GLFW_KEY_O,
-    KEY_P                 = GLFW_KEY_P,
-    KEY_Q                 = GLFW_KEY_Q,
-    KEY_R                 = GLFW_KEY_R,
-    KEY_S                 = GLFW_KEY_S,
-    KEY_T                 = GLFW_KEY_T,
-    KEY_U                 = GLFW_KEY_U,
-    KEY_V                 = GLFW_KEY_V,
-    KEY_W                 = GLFW_KEY_W,
-    KEY_X                 = GLFW_KEY_X,
-    KEY_Y                 = GLFW_KEY_Y,
-    KEY_Z                 = GLFW_KEY_Z,
-    KEY_LEFT_BRACKET      = GLFW_KEY_LEFT_BRACKET,  /* [ */
-    KEY_BACKSLASH         = GLFW_KEY_BACKSLASH,     /* \ */
-    KEY_RIGHT_BRACKET     = GLFW_KEY_RIGHT_BRACKET, /* ] */
-    KEY_GRAVE_ACCENT      = GLFW_KEY_GRAVE_ACCENT,  /* ` */
-    KEY_WORLD_1           = GLFW_KEY_WORLD_1,       /* non-US #1 */
-    KEY_WORLD_2           = GLFW_KEY_WORLD_2,       /* non-US #2 */
+    KEY_UNKNOWN           = -1,
+    KEY_SPACE             = 32,
+    KEY_APOSTROPHE        = 39, /* ' */
+    KEY_LEFT_PARENTHESIS  = 40, /* ( */
+    KEY_RIGHT_PARENTHESIS = 41, /* ) */
+    KEY_ASTERISK          = 42, /* * */
+    KEY_PLUS              = 43, /* + */
+    KEY_COMMA             = 44, /* , */
+    KEY_MINUS             = 45, /* - */
+    KEY_PERIOD            = 46, /* . */
+    KEY_SLASH             = 47, /* / */
+    KEY_0                 = 48,
+    KEY_1                 = 49,
+    KEY_2                 = 50,
+    KEY_3                 = 51,
+    KEY_4                 = 52,
+    KEY_5                 = 53,
+    KEY_6                 = 54,
+    KEY_7                 = 55,
+    KEY_8                 = 56,
+    KEY_9                 = 57,
+    KEY_SEMICOLON         = 59, /* ; */
+    KEY_EQUAL             = 61, /* = */
+    KEY_A                 = 65,
+    KEY_B                 = 66,
+    KEY_C                 = 67,
+    KEY_D                 = 68,
+    KEY_E                 = 69,
+    KEY_F                 = 70,
+    KEY_G                 = 71,
+    KEY_H                 = 72,
+    KEY_I                 = 73,
+    KEY_J                 = 74,
+    KEY_K                 = 75,
+    KEY_L                 = 76,
+    KEY_M                 = 77,
+    KEY_N                 = 78,
+    KEY_O                 = 79,
+    KEY_P                 = 80,
+    KEY_Q                 = 81,
+    KEY_R                 = 82,
+    KEY_S                 = 83,
+    KEY_T                 = 84,
+    KEY_U                 = 85,
+    KEY_V                 = 86,
+    KEY_W                 = 87,
+    KEY_X                 = 88,
+    KEY_Y                 = 89,
+    KEY_Z                 = 90,
+    KEY_LEFT_BRACKET      = 91,  /* [ */
+    KEY_BACKSLASH         = 92,  /* \ */
+    KEY_RIGHT_BRACKET     = 93,  /* ] */
+    KEY_GRAVE_ACCENT      = 96,  /* ` */
+    KEY_WORLD_1           = 161, /* non-US #1 */
+    KEY_WORLD_2           = 162, /* non-US #2 */
+
     /* Function keys */
-    KEY_ESCAPE        = GLFW_KEY_ESCAPE,
-    KEY_ENTER         = GLFW_KEY_ENTER,
-    KEY_TAB           = GLFW_KEY_TAB,
-    KEY_BACKSPACE     = GLFW_KEY_BACKSPACE,
-    KEY_INSERT        = GLFW_KEY_INSERT,
-    KEY_DELETE        = GLFW_KEY_DELETE,
-    KEY_RIGHT         = GLFW_KEY_RIGHT,
-    KEY_LEFT          = GLFW_KEY_LEFT,
-    KEY_DOWN          = GLFW_KEY_DOWN,
-    KEY_UP            = GLFW_KEY_UP,
-    KEY_PAGE_UP       = GLFW_KEY_PAGE_UP,
-    KEY_PAGE_DOWN     = GLFW_KEY_PAGE_DOWN,
-    KEY_HOME          = GLFW_KEY_HOME,
-    KEY_END           = GLFW_KEY_END,
-    KEY_CAPS_LOCK     = GLFW_KEY_CAPS_LOCK,
-    KEY_SCROLL_LOCK   = GLFW_KEY_SCROLL_LOCK,
-    KEY_NUM_LOCK      = GLFW_KEY_NUM_LOCK,
-    KEY_PRINT_SCREEN  = GLFW_KEY_PRINT_SCREEN,
-    KEY_PAUSE         = GLFW_KEY_PAUSE,
-    KEY_F1            = GLFW_KEY_F1,
-    KEY_F2            = GLFW_KEY_F2,
-    KEY_F3            = GLFW_KEY_F3,
-    KEY_F4            = GLFW_KEY_F4,
-    KEY_F5            = GLFW_KEY_F5,
-    KEY_F6            = GLFW_KEY_F6,
-    KEY_F7            = GLFW_KEY_F7,
-    KEY_F8            = GLFW_KEY_F8,
-    KEY_F9            = GLFW_KEY_F9,
-    KEY_F10           = GLFW_KEY_F10,
-    KEY_F11           = GLFW_KEY_F11,
-    KEY_F12           = GLFW_KEY_F12,
-    KEY_F13           = GLFW_KEY_F13,
-    KEY_F14           = GLFW_KEY_F14,
-    KEY_F15           = GLFW_KEY_F15,
-    KEY_F16           = GLFW_KEY_F16,
-    KEY_F17           = GLFW_KEY_F17,
-    KEY_F18           = GLFW_KEY_F18,
-    KEY_F19           = GLFW_KEY_F19,
-    KEY_F20           = GLFW_KEY_F20,
-    KEY_F21           = GLFW_KEY_F21,
-    KEY_F22           = GLFW_KEY_F22,
-    KEY_F23           = GLFW_KEY_F23,
-    KEY_F24           = GLFW_KEY_F24,
-    KEY_F25           = GLFW_KEY_F25,
-    KEY_KP_0          = GLFW_KEY_KP_0,
-    KEY_KP_1          = GLFW_KEY_KP_1,
-    KEY_KP_2          = GLFW_KEY_KP_2,
-    KEY_KP_3          = GLFW_KEY_KP_3,
-    KEY_KP_4          = GLFW_KEY_KP_4,
-    KEY_KP_5          = GLFW_KEY_KP_5,
-    KEY_KP_6          = GLFW_KEY_KP_6,
-    KEY_KP_7          = GLFW_KEY_KP_7,
-    KEY_KP_8          = GLFW_KEY_KP_8,
-    KEY_KP_9          = GLFW_KEY_KP_9,
-    KEY_KP_DECIMAL    = GLFW_KEY_KP_DECIMAL,
-    KEY_KP_DIVIDE     = GLFW_KEY_KP_DIVIDE,
-    KEY_KP_MULTIPLY   = GLFW_KEY_KP_MULTIPLY,
-    KEY_KP_SUBTRACT   = GLFW_KEY_KP_SUBTRACT,
-    KEY_KP_ADD        = GLFW_KEY_KP_ADD,
-    KEY_KP_ENTER      = GLFW_KEY_KP_ENTER,
-    KEY_KP_EQUAL      = GLFW_KEY_KP_EQUAL,
-    KEY_LEFT_SHIFT    = GLFW_KEY_LEFT_SHIFT,
-    KEY_LEFT_CONTROL  = GLFW_KEY_LEFT_CONTROL,
-    KEY_LEFT_ALT      = GLFW_KEY_LEFT_ALT,
-    KEY_LEFT_SUPER    = GLFW_KEY_LEFT_SUPER,
-    KEY_RIGHT_SHIFT   = GLFW_KEY_RIGHT_SHIFT,
-    KEY_RIGHT_CONTROL = GLFW_KEY_RIGHT_CONTROL,
-    KEY_RIGHT_ALT     = GLFW_KEY_RIGHT_ALT,
-    KEY_RIGHT_SUPER   = GLFW_KEY_RIGHT_SUPER,
-    KEY_MENU          = GLFW_KEY_MENU,
-    KEY_LAST          = GLFW_KEY_LAST,
+    KEY_ESCAPE        = 256,
+    KEY_ENTER         = 257,
+    KEY_TAB           = 258,
+    KEY_BACKSPACE     = 259,
+    KEY_INSERT        = 260,
+    KEY_DELETE        = 261,
+    KEY_RIGHT         = 262,
+    KEY_LEFT          = 263,
+    KEY_DOWN          = 264,
+    KEY_UP            = 265,
+    KEY_PAGE_UP       = 266,
+    KEY_PAGE_DOWN     = 267,
+    KEY_HOME          = 268,
+    KEY_END           = 269,
+    KEY_CAPS_LOCK     = 280,
+    KEY_SCROLL_LOCK   = 281,
+    KEY_NUM_LOCK      = 282,
+    KEY_PRINT_SCREEN  = 283,
+    KEY_PAUSE         = 284,
+    KEY_F1            = 290,
+    KEY_F2            = 291,
+    KEY_F3            = 292,
+    KEY_F4            = 293,
+    KEY_F5            = 294,
+    KEY_F6            = 295,
+    KEY_F7            = 296,
+    KEY_F8            = 297,
+    KEY_F9            = 298,
+    KEY_F10           = 299,
+    KEY_F11           = 300,
+    KEY_F12           = 301,
+    KEY_F13           = 302,
+    KEY_F14           = 303,
+    KEY_F15           = 304,
+    KEY_F16           = 305,
+    KEY_F17           = 306,
+    KEY_F18           = 307,
+    KEY_F19           = 308,
+    KEY_F20           = 309,
+    KEY_F21           = 310,
+    KEY_F22           = 311,
+    KEY_F23           = 312,
+    KEY_F24           = 313,
+    KEY_F25           = 314,
+    KEY_KP_0          = 320,
+    KEY_KP_1          = 321,
+    KEY_KP_2          = 322,
+    KEY_KP_3          = 323,
+    KEY_KP_4          = 324,
+    KEY_KP_5          = 325,
+    KEY_KP_6          = 326,
+    KEY_KP_7          = 327,
+    KEY_KP_8          = 328,
+    KEY_KP_9          = 329,
+    KEY_KP_DECIMAL    = 330,
+    KEY_KP_DIVIDE     = 331,
+    KEY_KP_MULTIPLY   = 332,
+    KEY_KP_SUBTRACT   = 333,
+    KEY_KP_ADD        = 334,
+    KEY_KP_ENTER      = 335,
+    KEY_KP_EQUAL      = 336,
+    KEY_LEFT_SHIFT    = 340,
+    KEY_LEFT_CONTROL  = 341,
+    KEY_LEFT_ALT      = 342,
+    KEY_LEFT_SUPER    = 343,
+    KEY_RIGHT_SHIFT   = 344,
+    KEY_RIGHT_CONTROL = 345,
+    KEY_RIGHT_ALT     = 346,
+    KEY_RIGHT_SUPER   = 347,
+    KEY_MENU          = 348,
+    KEY_LAST          = KEY_MENU,
   };
 
   enum KeyModifiers
   {
-    KMOD_SHIFT   = GLFW_MOD_SHIFT,
-    KMOD_CONTROL = GLFW_MOD_CONTROL,
-    KMOD_ALT     = GLFW_MOD_ALT,
-    KMOD_SUPER   = GLFW_MOD_SUPER,
+    KMOD_SHIFT   = 1,
+    KMOD_CONTROL = 2,
+    KMOD_ALT     = 4,
+    KMOD_SUPER   = 8,
   };
 
   //////////////////////////////////////////////////////////////////////////
 
-  GLFWwindow* m_internal = nullptr;
-  std::string m_windowName;
+  struct GLFWwindow* m_internal = nullptr;
+  std::string        m_windowName;
 
 
-  inline bool pollEvents() // returns false on exit, can do while(pollEvents()){ ... }
+  inline bool pollEvents()  // returns false on exit, can do while(pollEvents()){ ... }
   {
     NVPSystem::pollEvents();
     return !isClosing();
@@ -245,15 +243,11 @@ public:
   }
 
   inline bool isFullScreen() const { return m_isFullScreen; }
-  inline bool isClosing() const { return m_isClosing || glfwWindowShouldClose(m_internal); }
-  inline bool isOpen() const
-  {
-    return glfwGetWindowAttrib(m_internal, GLFW_VISIBLE) == GLFW_TRUE
-           && glfwGetWindowAttrib(m_internal, GLFW_ICONIFIED) == GLFW_FALSE && !isClosing();
-  }
+  bool        isClosing() const;
+  bool        isOpen() const;
 
   virtual bool open(int posX, int posY, int width, int height, const char* title, bool requireGLContext);  // creates internal window and opens it
-  void deinit();                                                            // destroys internal window
+  void         deinit();  // destroys internal window
 
   void close();  //  triggers closing event, still needs deinit for final cleanup
   void maximize();
@@ -261,9 +255,14 @@ public:
   void minimize();
 
   // uses operating system specific code for sake of debugging/automated testing
-  void        screenshot(const char* filename);
-  void        clear(uint32_t r, uint32_t g, uint32_t b);
+  void screenshot(const char* filename);
+  void clear(uint32_t r, uint32_t g, uint32_t b);
+
+  // simple modal file dialog, uses OS basic api
+  // the exts string must be a | separated list that has two items per possible extension
+  // "extension descripton|*.ext"
   std::string openFileDialog(const char* title, const char* exts);
+  std::string saveFileDialog(const char* title, const char* exts);
 
   // derived windows/apps should override to handle events
   virtual void onWindowClose() {}

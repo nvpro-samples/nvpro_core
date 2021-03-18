@@ -292,7 +292,7 @@ template<class T>  void decomp_affine(const matrix4<T> & A, vector3<T> & v3, qua
 template<class T>  matrix3<T> & tangent_basis(const vector3<T> & v0,const vector3<T> & v1,const vector3<T> & v2,const vector2<T> & t0,const vector2<T> & t1,const vector2<T> & t2, const vector3<T> & n);
 
 // linear interpolation
-#ifdef USEOPTIX
+#ifdef NVP_SUPPORTS_OPTIX
 #pragma message("**WARNING** nvmath.h : Canceling the lerp() function here : already declared in OptiX")
 #else
 template<class T>  T lerp(const T t, const T a, const T b);

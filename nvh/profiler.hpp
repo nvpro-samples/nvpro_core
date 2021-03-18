@@ -40,7 +40,7 @@
 #include <float.h> // DBL_MAX
 #include <string.h> //memset
 
-#ifdef SUPPORT_NVTOOLSEXT
+#ifdef NVP_SUPPORTS_NVTOOLSEXT
 #define NVTX_STDINT_TYPES_ALREADY_DEFINED
 #include "NSight/nvToolsExt.h"
 #endif
@@ -303,7 +303,7 @@ private:
     uint32_t level = 0;
     uint32_t subFrame = 0;
 
-#ifdef SUPPORT_NVTOOLSEXT
+#ifdef NVP_SUPPORTS_NVTOOLSEXT
     nvtxRangeId_t m_nvrange;
 #endif
     double cpuTimes[FRAME_DELAY] = {0};

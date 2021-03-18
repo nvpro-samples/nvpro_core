@@ -1118,7 +1118,7 @@ struct Light {
   std::vector<double> color;
   double intensity{1.0};
   std::string type;
-  double range{0.0}; // 0.0 = inifinite
+  double range{0.0}; // 0.0 = infinite
   SpotLight spot;
 
   Light() : intensity(1.0), range(0.0) {}

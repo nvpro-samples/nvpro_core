@@ -61,7 +61,10 @@ inline std::string findFile(const std::string& infilename, const std::vector<std
   {
     stream.open(infilename.c_str());
     if(stream.is_open())
+    {
+      // nvprintfLevel(LOGLEVEL_INFO, "Found: %s\n", infilename.c_str());
       return infilename;
+    }
   }
 
   for(const auto& directory : directories)
@@ -69,7 +72,10 @@ inline std::string findFile(const std::string& infilename, const std::vector<std
     std::string filename = directory + "/" + infilename;
     stream.open(filename.c_str());
     if(stream.is_open())
+    {
+      // nvprintfLevel(LOGLEVEL_INFO, "Found: %s\n", filename.c_str());
       return filename;
+    }
   }
 
   if(warn)

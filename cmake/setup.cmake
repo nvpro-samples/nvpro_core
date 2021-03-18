@@ -1,19 +1,38 @@
-set(VERSION "1.3.3")
+#*****************************************************************************
+# Copyright 2020 NVIDIA Corporation. All rights reserved.
+#*****************************************************************************
+
+
+#The OLD behavior for this policy is to ignore <PackageName>_ROOT variables
 if(POLICY CMP0074)
   cmake_policy(SET CMP0074 NEW)
 endif()
 
+
+# Set the C/C++ specified in the projects as requirements
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 14)
-set(OpenGL_GL_PREFERENCE GLVND)
+# Find includes in corresponding build directories
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
+
+
 # we need the .exe suffix even on Linux to remove ambiguity between target
 # executable name  and data files stored in a directory of the same name
 set(CMAKE_EXECUTABLE_SUFFIX ".exe")
+
+# IDE Setup
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)  # Generate folders for IDE targets
+set_property(GLOBAL PROPERTY PREDEFINED_TARGETS_FOLDER "_cmake")
+
+# https://cmake.org/cmake/help/latest/policy/CMP0072.html
+set(OpenGL_GL_PREFERENCE GLVND)
 
 set(SUPPORT_SOCKETS OFF CACHE BOOL "add a socket protocol so samples can be controled remotely")
 set(SUPPORT_NVTOOLSEXT OFF CACHE BOOL "Use NSight for custom markers")
 
 if(WIN32)
-  SET( MEMORY_LEAKS_CHECK OFF CACHE BOOL "Check for Memory leaks" )
+  set( MEMORY_LEAKS_CHECK OFF CACHE BOOL "Check for Memory leaks" )
 endif(WIN32)
 
 if(MSVC)
@@ -47,14 +66,21 @@ else()
       execute_process(COMMAND ${CMAKE_COMMAND} -E tar -xf ${GLFW3_ZIP}
               WORKING_DIRECTORY ${BASE_DIRECTORY}/downloaded_resources)
       endif()
-    endif()
-    add_subdirectory(${GLFW3_DIR} ${BASE_DIRECTORY}/build/build_glfw3)
+	endif()
+
+	# prevent glfw from building all kinds of stuff we don't need
+	set(GLFW_BUILD_EXAMPLES OFF)
+	set(GLFW_BUILD_TESTS OFF)
+	set(GLFW_BUILD_DOCS OFF)
+	set(GLFW_INSTALL OFF)
+
+	add_subdirectory(${GLFW3_DIR} ${BASE_DIRECTORY}/build/build_glfw3/src)
     include_directories(${GLFW3_DIR}/include)
   endif()  
 endif()
 
 # Specify the list of directories to search for cmake modules.
-set(CMAKE_MODULE_PATH ${BASE_DIRECTORY}/shared_sources/cmake)
+set(CMAKE_MODULE_PATH ${BASE_DIRECTORY}/shared_sources/cmake ${BASE_DIRECTORY}/shared_sources/cmake/find)
 set(CMAKE_FIND_ROOT_PATH "")
 
 message(STATUS "BASE_DIRECTORY = ${BASE_DIRECTORY}")
@@ -66,8 +92,7 @@ else ()
   set(ARCH "x86" CACHE STRING "CPU Architecture")
 endif()
 
-set(LIBRARY_OUTPUT_PATH ${BASE_DIRECTORY}/bin_${ARCH} CACHE PATH "Directory where libraries will be stored")
-set(EXECUTABLE_OUTPUT_PATH ${BASE_DIRECTORY}/bin_${ARCH} CACHE PATH "Directory where executables will be stored")
+set(OUTPUT_PATH ${BASE_DIRECTORY}/bin_${ARCH} CACHE PATH "Directory where outputs will be stored")
 
 # Set the default build to Release.  Note this doesn't do anything for the VS
 # default build target.
@@ -75,70 +100,28 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build, options are: Debug Release RelWithDebInfo MinSizeRel." FORCE)
 endif()
 
-SET(DOWNLOAD_TARGET_DIR "${BASE_DIRECTORY}/downloaded_resources")
+if(NOT EXISTS ${BASE_DIRECTORY}/downloaded_resources)
+  file(MAKE_DIRECTORY ${BASE_DIRECTORY}/downloaded_resources)
+endif()
+
+set(DOWNLOAD_TARGET_DIR "${BASE_DIRECTORY}/downloaded_resources")
+set(DOWNLOAD_SITE http://developer.download.nvidia.com/ProGraphics/nvpro-samples)
 
 #####################################################################################
 function(_make_relative FROM TO OUT)
   #message(STATUS "FROM = ${FROM}")
   #message(STATUS "TO = ${TO}")
   
-  get_filename_component(FROM ${FROM} ABSOLUTE)
-  get_filename_component(TO ${TO} ABSOLUTE)
+  file(RELATIVE_PATH _TMP_STR "${FROM}" "${TO}")
   
-  string(REPLACE "/" ";" FROM_LIST ${FROM})
-  string(REPLACE "/" ";" TO_LIST ${TO})
+  #message(STATUS "_TMP_STR = ${_TMP_STR}")
   
-  #message(STATUS "FROM = ${FROM_LIST}")
-  #message(STATUS "TO = ${TO_LIST}")
-  
-  list(LENGTH FROM_LIST flen)
-  math(EXPR flen "${flen} - 1" )
-  #message(STATUS "flen = ${flen}")
-  list(LENGTH TO_LIST tlen)
-  math(EXPR tlen "${tlen} - 1" )
-  #message(STATUS "tlen = ${tlen}")
-  
-  set(REL_LIST)
-  foreach(loop_var RANGE ${flen})
-    #message(STATUS "i = ${loop_var}")
-    if ((loop_var GREATER tlen) OR (loop_var EQUAL tlen))
-      list(APPEND REL_LIST "..")
-      #message(STATUS "descend")
-    else()
-      list(GET FROM_LIST ${loop_var} f)
-      list(GET TO_LIST ${loop_var} t)
-      #message(STATUS "f = ${f}")
-      #message(STATUS "t = ${t}")
-      if (f STREQUAL t)
-        set(begin ${loop_var})
-        #message(STATUS "equal")
-      else()
-        list(APPEND REL_LIST "..")
-        #message(STATUS "descend")
-      endif()
-    endif()
-  endforeach(loop_var)
-  math(EXPR begin "${begin} + 1" )
-  
-  #message(STATUS "---")
-  
-  foreach(loop_var RANGE ${begin} ${tlen})
-    #message(STATUS "i = ${loop_var}")
-    #message(STATUS "t = ${t}")
-    #message(STATUS "ascend")
-    list(GET TO_LIST ${loop_var} t)
-    list(APPEND REL_LIST ${t})
-  endforeach(loop_var)
-  
-  #message(STATUS "relative = ${REL_LIST}")
-
-  string (REPLACE ";" "/" _TMP_STR "${REL_LIST}")
   set (${OUT} "${_TMP_STR}" PARENT_SCOPE)
 endfunction()
 
 macro(_add_project_definitions name)
   if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
-    SET(CMAKE_INSTALL_PREFIX "${BASE_DIRECTORY}/_install" CACHE PATH "folder in which INSTALL will put everything needed to run the binaries" FORCE)
+    set(CMAKE_INSTALL_PREFIX "${BASE_DIRECTORY}/_install" CACHE PATH "folder in which INSTALL will put everything needed to run the binaries" FORCE)
   endif(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
   if(CUDA_TOOLKIT_ROOT_DIR)
     string(REPLACE "\\" "/" CUDA_TOOLKIT_ROOT_DIR ${CUDA_TOOLKIT_ROOT_DIR})
@@ -149,25 +132,18 @@ macro(_add_project_definitions name)
   if(CMAKE_INSTALL_PREFIX)
     string(REPLACE "\\" "/" CMAKE_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX})
   endif()
-  if(MSVC)
-    _make_relative("${EXECUTABLE_OUTPUT_PATH}/config" "${CMAKE_CURRENT_SOURCE_DIR}" TOPROJECT)
-  else()
-    _make_relative("${EXECUTABLE_OUTPUT_PATH}" "${CMAKE_CURRENT_SOURCE_DIR}" TOPROJECT)
-  endif()
-  if(MSVC)
-    _make_relative("${EXECUTABLE_OUTPUT_PATH}/config" "${DOWNLOAD_TARGET_DIR}" TO_DOWNLOAD_TARGET_DIR)
-  else()
-    _make_relative("${EXECUTABLE_OUTPUT_PATH}" "${DOWNLOAD_TARGET_DIR}" TO_DOWNLOAD_TARGET_DIR)
-  endif()
   
-  add_definitions(-DPROJECT_RELDIRECTORY="${TOPROJECT}/")
-  add_definitions(-DPROJECT_ABSDIRECTORY="${CMAKE_CURRENT_SOURCE_DIR}/")
+  # the "config" directory doesn't really exist but serves as place holder
+  # for the actual CONFIG based directories (Release, RelWithDebInfo etc.)
+  _make_relative("${OUTPUT_PATH}/config" "${CMAKE_CURRENT_SOURCE_DIR}" TO_CURRENT_SOURCE_DIR)
+  _make_relative("${OUTPUT_PATH}/config" "${DOWNLOAD_TARGET_DIR}" TO_DOWNLOAD_TARGET_DIR)
+  
   add_definitions(-DPROJECT_NAME="${name}")
+  add_definitions(-DPROJECT_RELDIRECTORY="${TO_CURRENT_SOURCE_DIR}/")
   add_definitions(-DPROJECT_DOWNLOAD_RELDIRECTORY="${TO_DOWNLOAD_TARGET_DIR}/")
-  add_definitions(-DPROJECT_DOWNLOAD_ABSDIRECTORY="${DOWNLOAD_TARGET_DIR}/")
-  
+
   if (SUPPORT_NVTOOLSEXT)
-    add_definitions(-DSUPPORT_NVTOOLSEXT)
+    add_definitions(-DNVP_SUPPORTS_NVTOOLSEXT)
     # add the package if we checked SUPPORT_NVTOOLSEXT in cmake
     _add_package_NSight()
   endif(SUPPORT_NVTOOLSEXT)
@@ -261,10 +237,9 @@ macro(_add_package_OpenGL)
       get_directory_property(hasParent PARENT_DIRECTORY)
       if(hasParent)
         set( USING_OPENGL "YES" PARENT_SCOPE) # PARENT_SCOPE important to have this variable passed to parent. Here we want to notify that something used the OpenGL package
-      else()
-        set( USING_OPENGL "YES")
       endif()
-      add_definitions(-DUSEOPENGL)
+      set( USING_OPENGL "YES")
+      add_definitions(-DNVP_SUPPORTS_OPENGL)
  else(OPENGL_FOUND)
      Message(STATUS "--> NOT using package OpenGL")
  endif(OPENGL_FOUND)
@@ -288,6 +263,7 @@ macro(_add_package_ZLIB)
   Message(STATUS "--> using package ZLIB")
   find_package(ZLIB)
   if(ZLIB_FOUND)
+      add_definitions(-DNVP_SUPPORTS_GZLIB)
       include_directories(${ZLIB_INCLUDE_DIR})
       LIST(APPEND PACKAGE_SOURCE_FILES
         ${ZLIB_HEADERS}
@@ -295,8 +271,7 @@ macro(_add_package_ZLIB)
       LIST(APPEND LIBRARIES_OPTIMIZED ${ZLIB_LIBRARY})
       LIST(APPEND LIBRARIES_DEBUG ${ZLIB_LIBRARY})
   else()
-    Message(WARNING "ZLIB not available. setting NOGZLIB define")
-    add_definitions(-DNOGZLIB)
+      Message(WARNING "ZLIB not available.")
   endif()
 endmacro()
 # this macro is needed for the samples to add this package, although not needed
@@ -313,43 +288,15 @@ endmacro(_optional_package_ZLIB)
 #
 macro(_add_package_ImGUI)
   Message(STATUS "--> using package ImGUI")
+  include_directories(${BASE_DIRECTORY}/shared_sources/imgui)
 
-  set(IMGUI_PATH "${BASE_DIRECTORY}/shared_sources/imgui")
-
+  set(USING_IMGUI ON)
   get_directory_property(hasParent PARENT_DIRECTORY)
   if(hasParent)
-    set(USING_IMGUI "YES" PARENT_SCOPE) # PARENT_SCOPE important to have this variable passed to parent. Here we want to notify that something used the Vulkan package
-  else()
-    set(USING_IMGUI "YES")
+    set(USING_IMGUI ON PARENT_SCOPE) # PARENT_SCOPE important to have this variable passed to parent. Here we want to notify that something used the OpenGL package
   endif()
 
-  add_definitions(-DUSEIMGUI)
-  include_directories(${IMGUI_PATH})
-
-  set(IMGUI_H ${IMGUI_PATH}/imconfig.h ${IMGUI_PATH}/imgui.h ${IMGUI_PATH}/imgui_internal.h  
-              ${IMGUI_PATH}/imgui_impl_glfw.h ${IMGUI_PATH}/imgui_helper.h ${IMGUI_PATH}/imgui_orient.h ${IMGUI_PATH}/imgui_camera_widget.h)
-  set(IMGUI_CPP ${IMGUI_PATH}/imgui.cpp ${IMGUI_PATH}/imgui_draw.cpp ${IMGUI_PATH}/imgui_helper.cpp 
-                ${IMGUI_PATH}/imgui_impl_glfw.cpp ${IMGUI_PATH}/imgui_widgets.cpp ${IMGUI_PATH}/imgui_orient.cpp ${IMGUI_PATH}/imgui_camera_widget.cpp)
-
-  if(USING_OPENGL)
-    list(APPEND IMGUI_H ${IMGUI_PATH}/imgui_impl_gl.h)
-    list(APPEND IMGUI_CPP ${IMGUI_PATH}/imgui_impl_gl.cpp)
-  endif()
-  if(USING_VULKANSDK)
-    list(APPEND IMGUI_H ${IMGUI_PATH}/imgui_impl_vk.h)
-    list(APPEND IMGUI_CPP ${IMGUI_PATH}/imgui_impl_vk.cpp)
-  endif()
-  source_group("imgui" FILES ${IMGUI_H} ${IMGUI_CPP})
-  list(APPEND PACKAGE_SOURCE_FILES ${IMGUI_H} ${IMGUI_CPP})
 endmacro()
-# this macro is needed for the samples to add this package, although not needed
-# this happens when the shared_sources library was built with these stuff in it
-# so many samples can share the same library for many purposes
-macro(_optional_package_ImGUI)
-  if(USING_IMGUI)
-    _add_package_ImGUI()
-  endif(USING_IMGUI)
-endmacro(_optional_package_ImGUI)
 
 #####################################################################################
 # AntTweakBar UI
@@ -358,7 +305,7 @@ macro(_add_package_AntTweakBar)
   Message(STATUS "--> using package AntTweakBar")
   find_package(AntTweakBar)
   if(ANTTWEAKBAR_FOUND)
-    add_definitions(-DUSEANTTWEAKBAR)
+    add_definitions(-DNVP_SUPPORTS_ANTTWEAKBAR)
     include_directories(${ANTTWEAKBAR_INCLUDE_DIR})
     LIST(APPEND PACKAGE_SOURCE_FILES 
       ${ANTTWEAKBAR_HEADERS}
@@ -387,7 +334,7 @@ macro(_add_package_FreeImage)
   Message(STATUS "--> using package FreeImage")
   find_package(FreeImage)
   if(FREEIMAGE_FOUND)
-    add_definitions(-DUSEFREEIMAGE)
+    add_definitions(-DNVP_SUPPORTS_FREEIMAGE)
     include_directories(${FREEIMAGE_INCLUDE_DIR})
     LIST(APPEND PACKAGE_SOURCE_FILES 
       ${FREEIMAGE_HEADERS}
@@ -418,7 +365,7 @@ macro(_add_package_VMA)
   Message(STATUS "--> using package VMA")
   find_package(VMA)
   if(VMA_FOUND)
-    add_definitions(-DUSEVMA)
+    add_definitions(-DNVP_SUPPORTS_VMA)
     include_directories(${VMA_INCLUDE_DIR})
     LIST(APPEND PACKAGE_SOURCE_FILES 
       ${VMA_HEADERS}
@@ -444,7 +391,7 @@ macro(_add_package_OculusSDK)
   Message(STATUS "--> using package OculusSDK")
   find_package(OculusSDK)
   if(OCULUSSDK_FOUND)
-    add_definitions(-DUSEOCULUSSDK)
+    add_definitions(-DNVP_SUPPORTS_OCULUSSDK)
     include_directories(${OCULUSSDK_INCLUDE_DIRS})
     LIST(APPEND LIBRARIES_OPTIMIZED ${OCULUSSDK_LIBS})
     LIST(APPEND LIBRARIES_DEBUG ${OCULUSSDK_LIBS_DEBUG})
@@ -466,7 +413,7 @@ macro(_add_package_OpenVRSDK)
   Message(STATUS "--> using package OpenVRSDK")
   find_package(OpenVRSDK)
   if(OPENVRSDK_FOUND)
-    add_definitions(-DUSEOPENVRSDK)
+    add_definitions(-DNVP_SUPPORTS_OPENVRSDK)
     include_directories(${OPENVRSDK_INCLUDE_DIRS})
     LIST(APPEND LIBRARIES_OPTIMIZED ${OPENVRSDK_LIBS})
     LIST(APPEND LIBRARIES_DEBUG ${OPENVRSDK_LIBS})
@@ -493,7 +440,7 @@ macro(_add_package_Sockets)
   else()
     set( USING_SOCKETS "YES")
   endif()
-  add_definitions(-DUSESOCKETS)
+  add_definitions(-DNVP_SUPPORTS_SOCKETS)
   set(SOCKETS_H
     ${SOCKETS_PATH}/socketclient.hpp
     ${SOCKETS_PATH}/socketsamplemessages.hpp
@@ -536,7 +483,7 @@ macro(_add_package_Optix)
   find_package(Optix)  
   if(OPTIX_FOUND)
       Message(STATUS "--> using package OptiX")
-      add_definitions(-DUSEOPTIX)
+      add_definitions(-DNVP_SUPPORTS_OPTIX)
       include_directories(${OPTIX_INCLUDE_DIR})
       LIST(APPEND LIBRARIES_OPTIMIZED ${OPTIX_LIB} )
       LIST(APPEND LIBRARIES_DEBUG ${OPTIX_LIB} )
@@ -560,16 +507,15 @@ endmacro(_optional_package_Optix)
 # Optional VulkanSDK package
 #
 macro(_add_package_VulkanSDK)
-  find_package(VulkanSDK)
+  find_package(VulkanSDK REQUIRED)  
   if(VULKANSDK_FOUND)
       Message(STATUS "--> using package VulkanSDK (version ${VULKANSDK_VERSION})")
       get_directory_property(hasParent PARENT_DIRECTORY)
       if(hasParent)
         set( USING_VULKANSDK "YES" PARENT_SCOPE) # PARENT_SCOPE important to have this variable passed to parent. Here we want to notify that something used the Vulkan package
-      else()
-        set( USING_VULKANSDK "YES")
       endif()
-      add_definitions(-DUSEVULKANSDK)
+      set( USING_VULKANSDK "YES")
+      add_definitions(-DNVP_SUPPORTS_VULKANSDK)
       add_definitions(-DGLFW_INCLUDE_VULKAN)
       add_definitions(-DVK_ENABLE_BETA_EXTENSIONS)
 
@@ -608,20 +554,20 @@ endmacro(_optional_package_VulkanSDK)
 # Optional ShaderC package
 #
 macro(_add_package_ShaderC)
-  find_package(VulkanSDK)
+  find_package(VulkanSDK)  
   if(VULKANSDK_FOUND AND (VULKANSDK_SHADERC_LIB OR NVSHADERC_LIB))
       Message(STATUS "--> using package ShaderC")
       
-      add_definitions(-DUSESHADERC)
+      add_definitions(-DNVP_SUPPORTS_SHADERC)
       if (NVSHADERC_LIB)
         Message(STATUS "--> using NVShaderC LIB")
-        add_definitions(-DUSENVSHADERC)
+        add_definitions(-DNVP_SUPPORTS_NVSHADERC)
       endif()
       
       if(WIN32)
         add_definitions(-DSHADERC_SHAREDLIB)
         if (NOT VULKANSDK_SHADERC_DLL)
-          Message(FATAL_ERROR "Windows platform requires VulkanSDK with shaderc_shared.lib/dll (since SDK 1.2.135.0)")  
+          message(FATAL_ERROR "Windows platform requires VulkanSDK with shaderc_shared.lib/dll (since SDK 1.2.135.0)")  
         endif()
       endif()
       
@@ -663,7 +609,7 @@ macro(_add_package_DirectX11)
       else()
         set( USING_DIRECTX11 "YES")
       endif()
-      add_definitions(-DUSEDIRECTX11)
+      add_definitions(-DNVP_SUPPORTS_DIRECTX11)
       include_directories(${DX11SDK_INCLUDE_DIR})
       LIST(APPEND LIBRARIES_OPTIMIZED ${DX11SDK_D3D_LIBRARIES})
       LIST(APPEND LIBRARIES_DEBUG ${DX11SDK_D3D_LIBRARIES})
@@ -693,8 +639,9 @@ macro(_add_package_DirectX12)
       else()
         set( USING_DIRECTX12 "YES")
       endif()
-      add_definitions(-DUSEDIRECTX12)
+      add_definitions(-DNVP_SUPPORTS_DIRECTX12)
       include_directories(${DX12SDK_INCLUDE_DIR})
+      include_directories(${BASE_DIRECTORY}/shared_external/d3d12/include)
       LIST(APPEND LIBRARIES_OPTIMIZED ${DX12SDK_D3D_LIBRARIES})
       LIST(APPEND LIBRARIES_DEBUG ${DX12SDK_D3D_LIBRARIES})
  else()
@@ -717,7 +664,7 @@ macro(_add_package_Ftizb)
   find_package(FTIZB)  
   if(FTIZB_FOUND)
       Message(STATUS "--> using package FTIZB")
-      add_definitions(-DUSEFTIZB)
+      add_definitions(-DNVP_SUPPORTS_FTIZB)
       include_directories(${FTIZB_INCLUDE_DIR})
       LIST(APPEND LIBRARIES_OPTIMIZED ${FTIZB_LIB_RELEASE} )
       LIST(APPEND LIBRARIES_DEBUG ${FTIZB_LIB_DEBUG} )
@@ -745,7 +692,7 @@ macro(_add_package_Cuda)
   if(CUDA_FOUND)
       add_definitions("-DCUDA_PATH=R\"(${CUDA_TOOLKIT_ROOT_DIR})\"")
       Message(STATUS "--> using package CUDA (${CUDA_VERSION})")
-      add_definitions(-DUSECUDA)
+      add_definitions(-DNVP_SUPPORTS_CUDA)
       include_directories(${CUDA_INCLUDE_DIRS})
       LIST(APPEND LIBRARIES_OPTIMIZED ${CUDA_LIBRARIES} )
       LIST(APPEND LIBRARIES_DEBUG ${CUDA_LIBRARIES} )
@@ -794,15 +741,15 @@ macro(_add_package_OpenCL)
   find_package(OpenCL QUIET)  
   if(OpenCL_FOUND)
       Message(STATUS "--> using package OpenCL : ${OpenCL_LIBRARIES}")
-      add_definitions(-DUSEOPENCL)
+      add_definitions(-DNVP_SUPPORTS_OPENCL)
       include_directories(${OpenCL_INCLUDE_DIRS})
       # just do the copy only if we pointed to the local OpenCL package
       string(FIND ${OpenCL_INCLUDE_DIRS} "shared_external" OFFSET)
       if((OFFSET GREATER -1) AND WIN32 )
         if((ARCH STREQUAL "x86"))
-          #SET(OPENCL_DLL ${BASE_DIRECTORY}/shared_external/OpenCL/lib/x86/OpenCL.dll)
+          #set(OPENCL_DLL ${BASE_DIRECTORY}/shared_external/OpenCL/lib/x86/OpenCL.dll)
         else()
-          #SET(OPENCL_DLL ${BASE_DIRECTORY}/shared_external/OpenCL/lib/x64/OpenCL.dll)
+          #set(OPENCL_DLL ${BASE_DIRECTORY}/shared_external/OpenCL/lib/x64/OpenCL.dll)
         endif()
       endif()
       LIST(APPEND LIBRARIES_OPTIMIZED ${OpenCL_LIBRARIES} )
@@ -838,13 +785,13 @@ macro(_add_package_NSight)
       ${BASE_DIRECTORY}/shared_sources/nvh/nsightevents.h
       ${BASE_DIRECTORY}/shared_external/NSight/nvToolsExt.h
     )
-    add_definitions(-DSUPPORT_NVTOOLSEXT)
+    add_definitions(-DNVP_SUPPORTS_NVTOOLSEXT)
     if(ARCH STREQUAL "x86")
-      SET(NSIGHT_DLL ${BASE_DIRECTORY}/shared_external/NSight/nvToolsExt32_1.dll)
-      SET(NSIGHT_LIB ${BASE_DIRECTORY}/shared_external/NSight/nvToolsExt32_1.lib)
+      set(NSIGHT_DLL ${BASE_DIRECTORY}/shared_external/NSight/nvToolsExt32_1.dll)
+      set(NSIGHT_LIB ${BASE_DIRECTORY}/shared_external/NSight/nvToolsExt32_1.lib)
     else()
-      SET(NSIGHT_DLL ${BASE_DIRECTORY}/shared_external/NSight/nvToolsExt64_1.dll)
-      SET(NSIGHT_LIB ${BASE_DIRECTORY}/shared_external/NSight/nvToolsExt64_1.lib)
+      set(NSIGHT_DLL ${BASE_DIRECTORY}/shared_external/NSight/nvToolsExt64_1.dll)
+      set(NSIGHT_LIB ${BASE_DIRECTORY}/shared_external/NSight/nvToolsExt64_1.lib)
     endif()
     LIST(APPEND LIBRARIES_OPTIMIZED ${NSIGHT_LIB})
     LIST(APPEND LIBRARIES_DEBUG ${NSIGHT_LIB})
@@ -869,7 +816,7 @@ macro(_add_package_NVML)
   message(STATUS "--> using package NVML")
   find_package(NVML)
   if(NVML_FOUND)
-    add_definitions(-DUSENVML)
+    add_definitions(-DNVP_SUPPORTS_NVML)
     include_directories(${NVML_INCLUDE_DIRS})
     LIST(APPEND LIBRARIES_OPTIMIZED ${NVML_LIBRARIES})
     LIST(APPEND LIBRARIES_DEBUG ${NVML_LIBRARIES})
@@ -881,7 +828,7 @@ endmacro()
 # Generate PTX files
 # NVCUDA_COMPILE_PTX( SOURCES file1.cu file2.cu TARGET_PATH <path where ptxs should be stored> GENERATED_FILES ptx_sources NVCC_OPTIONS -arch=sm_20)
 # Generates ptx files for the given source files. ptx_sources will contain the list of generated files.
-function(NVCUDA_COMPILE_PTX)
+function(nvcuda_compile_ptx)
   set(options "")
   set(oneValueArgs TARGET_PATH GENERATED_FILES)
   set(multiValueArgs NVCC_OPTIONS SOURCES)
@@ -920,7 +867,7 @@ endfunction()
 # Generate CUBIN files
 # NVCUDA_COMPILE_CUBIN( SOURCES file1.cu file2.cu TARGET_PATH <path where cubin's should be stored> GENERATED_FILES cubin_sources NVCC_OPTIONS -arch=sm_20)
 # Generates cubin files for the given source files. cubin_sources will contain the list of generated files.
-function(NVCUDA_COMPILE_CUBIN)
+function(nvcuda_compile_cubin)
   set(options "")
   set(oneValueArgs TARGET_PATH GENERATED_FILES)
   set(multiValueArgs NVCC_OPTIONS SOURCES)
@@ -957,10 +904,23 @@ Message(STATUS "NVCUDA_COMPILE_CUBIN ${options} ${oneValueArgs} ${multiValueArgs
 endfunction()
 
 #####################################################################################
+# Macro to setup output directories 
+macro(_set_target_output _PROJNAME)
+  set_target_properties(${_PROJNAME}
+    PROPERTIES
+    ARCHIVE_OUTPUT_DIRECTORY "${OUTPUT_PATH}/$<CONFIG>/"
+    LIBRARY_OUTPUT_DIRECTORY "${OUTPUT_PATH}/$<CONFIG>/"
+    RUNTIME_OUTPUT_DIRECTORY "${OUTPUT_PATH}/$<CONFIG>/"
+  )
+endmacro()
+
+#####################################################################################
 # Macro that copies various binaries that need to be close to the exe files
 #
-macro(_copy_binaries_to_target _PROJNAME)
+macro(_finalize_target _PROJNAME)
 
+  _set_target_output(${_PROJNAME})
+  
   if(SUPPORT_NVTOOLSEXT)
     _copy_files_to_target( ${_PROJNAME} "${NSIGHT_DLL}")
     install(FILES ${NSIGHT_DLL} CONFIGURATIONS Release DESTINATION bin_${ARCH})
@@ -973,15 +933,6 @@ macro(_copy_binaries_to_target _PROJNAME)
       install(FILES ${VULKANSDK_SHADERC_DLL} CONFIGURATIONS Release DESTINATION bin_${ARCH})
       install(FILES ${VULKANSDK_SHADERC_DLL} CONFIGURATIONS Debug DESTINATION bin_${ARCH}_debug)
     endif()
-
-    if(SVCMFCUI_FOUND)
-        _copy_files_to_target( ${_PROJNAME} "${SVCMFCUI_DLL}")
-        install(FILES ${SVCMFCUI_DLL} CONFIGURATIONS Release DESTINATION bin_${ARCH})
-        if(SVCMFCUID_DLL)
-          _copy_files_to_target( ${_PROJNAME} "${SVCMFCUID_DLL}")
-          install(FILES ${SVCMFCUID_DLL} CONFIGURATIONS Debug DESTINATION bin_${ARCH}_debug)
-        endif()
-   endif()
   endif()
   if(ANTTWEAKBAR_FOUND)
     _copy_files_to_target( ${_PROJNAME} "${ANTTWEAKBAR_DLL}")
@@ -1003,34 +954,12 @@ macro(_copy_binaries_to_target _PROJNAME)
     install(FILES ${OPENCL_DLL} CONFIGURATIONS Release DESTINATION bin_${ARCH})
     install(FILES ${OPENCL_DLL} CONFIGURATIONS Debug DESTINATION bin_${ARCH}_debug)
   endif()
+  if(PERFWORKS_DLL)
+    install(FILES ${PERFWORKS_DLL} CONFIGURATIONS Release DESTINATION bin_${ARCH})
+    install(FILES ${PERFWORKS_DLL} CONFIGURATIONS Debug DESTINATION bin_${ARCH}_debug)
+  endif()
   install(TARGETS ${_PROJNAME} CONFIGURATIONS Release DESTINATION bin_${ARCH})
   install(TARGETS ${_PROJNAME} CONFIGURATIONS Debug DESTINATION bin_${ARCH}_debug)
-endmacro()
-
-#####################################################################################
-# Macro to download a file from a URL
-#
-macro(_download_file _URL _TARGET _FORCE)
-  if(${_FORCE} OR (NOT EXISTS ${_TARGET}))
-    Message(STATUS "downloading ${_URL} ==> ${_TARGET}")
-    file(DOWNLOAD ${_URL} ${_TARGET} SHOW_PROGRESS)
-  else()
-    Message(STATUS "model ${_TARGET} already loaded...")
-  endif()
-endmacro()
-# example: _download_files("${FILELIST}"  "http://..." "${BASE_DIRECTORY}/shared_external/..." ${DOWNLOAD_FORCE} )
-macro(_download_files _FILELIST _URL _TARGET _FORCE FILELISTOUT)
-  foreach(_FILE ${_FILELIST})
-    if(${_FORCE} OR (NOT EXISTS "${_TARGET}/${_FILE}"))
-      Message(STATUS "*******************************************")
-      Message(STATUS "downloading ${_URL}/${_FILE}\n ==>\n ${_TARGET}")
-      Message(STATUS "*******************************************")
-      file(DOWNLOAD ${_URL}/${_FILE} ${_TARGET}/${_FILE} SHOW_PROGRESS)
-    else()
-      Message(STATUS "model ${_FILE} already downloaded...")
-    endif()
-    LIST(APPEND ${FILELISTOUT} ${_TARGET}/${_FILE})
-  endforeach(_FILE)
 endmacro()
 
 #####################################################################################
@@ -1046,7 +975,7 @@ endmacro()
 #
 macro(_compile_GLSL_flags _SOURCE _OUTPUT _FLAGS SOURCE_LIST OUTPUT_LIST)
   if(NOT DEFINED VULKAN_TARGET_ENV)
-    SET(VULKAN_TARGET_ENV vulkan1.1)
+    set(VULKAN_TARGET_ENV vulkan1.1)
   endif()
   LIST(APPEND ${SOURCE_LIST} ${_SOURCE})
   LIST(APPEND ${OUTPUT_LIST} ${_OUTPUT})
@@ -1096,7 +1025,7 @@ endmacro()
 #
 macro(_process_shared_cmake_code)
   
-  SET(PLATFORM_LIBRARIES)
+  set(PLATFORM_LIBRARIES)
   
   if (USING_DIRECTX11)
     LIST(APPEND PLATFORM_LIBRARIES ${DX11SDK_D3D_LIBRARIES})
@@ -1122,6 +1051,17 @@ macro(_process_shared_cmake_code)
    
   if(UNIX)
     LIST(APPEND PLATFORM_LIBRARIES "Xxf86vm")
+
+	#Work around some obscure bug where samples would crash in std::filesystem::~path() when
+	#multiple GCC versions are installed. Details under:
+	#https://stackoverflow.com/questions/63902528/program-crashes-when-filesystempath-is-destroyed
+	#
+	#When the GCC version is less than 9, explicitly link against libstdc++fs to
+	#prevent accidentally picking up GCC9's implementation and thus create an ABI
+	#incompatibility that results in crashes
+	if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0)
+		 LIST(APPEND PLATFORM_LIBRARIES stdc++fs)
+	endif()
   endif()
 endmacro(_process_shared_cmake_code)
 
@@ -1134,9 +1074,14 @@ endmacro(_process_shared_cmake_code)
 #
 macro(_add_shared_sources_lib)
   #-----------------------------------------------------------------------------------
-  #  now we have added some packages, we can guess more
+  # now we have added some packages, we can guess more
   # on what is needed overall for the shared library
-  if(ADD_SUBDIR_BELOW)
+
+  # build_all adds individual samples, and then at the end 
+  # the shared_sources itself, otherwise we build a single 
+  # sample which does need shared_sources added here
+
+  if(NOT HAS_SHARED_SOURCES)
     add_subdirectory(${BASE_DIRECTORY}/shared_sources ${CMAKE_BINARY_DIR}/shared_sources)
   endif()
   #-----------------------------------------------------------------------------------
@@ -1172,12 +1117,12 @@ endmacro()
 
 macro(_find_package_OpenMP)
   if(UNIX)
-	set(EXE_SUFFIX ${CMAKE_EXECUTABLE_SUFFIX})
-	unset(CMAKE_EXECUTABLE_SUFFIX)
-	find_package(OpenMP)
-	set(CMAKE_EXECUTABLE_SUFFIX ${EXE_SUFFIX})
+    set(EXE_SUFFIX ${CMAKE_EXECUTABLE_SUFFIX})
+    unset(CMAKE_EXECUTABLE_SUFFIX)
+    find_package(OpenMP)
+    set(CMAKE_EXECUTABLE_SUFFIX ${EXE_SUFFIX})
   else()
-	find_package(OpenMP)
+    find_package(OpenMP)
   endif(UNIX)
 endmacro()
 
@@ -1191,7 +1136,7 @@ endmacro()
 #       FILES <absolute_file_path> [<absolute_file_path>]
 #       )
 #
-function(TARGET_COPY_TO_OUTPUT_DIR)
+function(target_copy_to_output_dir)
     set(options)
     set(oneValueArgs TARGET RELATIVE DEST_SUBFOLDER)
     set(multiValueArgs FILES)

@@ -33,7 +33,9 @@
 
 #pragma once
 
+#include <algorithm>
 #include <string>
+#include <string.h>
 #include <vulkan/vulkan_core.h>
 
 namespace nvvk {
@@ -157,4 +159,45 @@ private:
   static bool s_enabled;
 };
 
+//////////////////////////////////////////////////////////////////////////
+/// Macros to help automatically naming variables.
+/// Names will be in the form of MyClass::m_myBuffer (in example.cpp:123)
+///
+/// To use:
+/// - Debug member class MUST be named 'm_debug'
+/// - Individual name: NAME_VK(m_myBuffer.buffer) or with and index NAME_IDX_VK(m_texture.image, i)
+/// - Create/associate and name, instead of
+///     pipeline = createPipeline();
+///     NAME_VK(pipeline)
+///   call
+///     CREATE_NAMED_VK(pipeline , createPipeline());
+/// - Scope functions can also be automatically named, at the beginning of a function
+///   call LABEL_SCOPE_VK( commandBuffer )
+///
+///
+// clang-format off
+inline const char* fileNameSplitter(const char* n) { return std::max<const char*>(n, std::max(strrchr(n, '\\') + 1, strrchr(n, '/') + 1)); }
+inline const char* upToLastSpace(const char* n) { return std::max<const char*>(n, strrchr(n, ' ') + 1); }
+#define CLASS_NAME nvvk::upToLastSpace(typeid(*this).name())
+#define NAME_FILE_LOCATION  std::string(" in ") + std::string(nvvk::fileNameSplitter(__FILE__)) + std::string(":" S__LINE__ ")")
+
+// Individual naming
+#define NAME_VK(_x) m_debug.setObjectName(_x, (std::string(CLASS_NAME) + std::string("::") + std::string(#_x " (") + NAME_FILE_LOCATION).c_str())
+#define NAME_IDX_VK(_x, _i) m_debug.setObjectName(_x, \
+                            (std::string(CLASS_NAME) + std::string("::") + std::string(#_x " (" #_i "=") + std::to_string(_i) + std::string(", ") + NAME_FILE_LOCATION).c_str())
+
+// Name in creation
+#define CREATE_NAMED_VK(_x, _c)              \
+  _x = _c;                                   \
+  NAME_VK(_x);
+#define CREATE_NAMED_IDX_VK(_x, _i, _c)      \
+  _x = _c;                                   \
+  NAME_IDX_VK(_x, _i);
+
+// Running scope
+#define LABEL_SCOPE_VK(_cmd)                                                                                                                \
+  auto _scopeLabel =  m_debug.scopeLabel(_cmd, std::string(CLASS_NAME) + std::string("::") + std::string(__func__) + std::string(", in ")   \
+                                   + std::string(nvvk::fileNameSplitter(__FILE__)) + std::string(":" S__LINE__ ")"))
+
+// clang-format on
 }  // namespace nvvk

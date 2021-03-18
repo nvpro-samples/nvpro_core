@@ -453,12 +453,16 @@ public:
   {
     vkDestroyBuffer(m_device, b_.buffer, nullptr);
     vkFreeMemory(m_device, b_.allocation, nullptr);
+
+    b_ = BufferDedicated();
   }
 
   void destroy(ImageDedicated& i_)
   {
     vkDestroyImage(m_device, i_.image, nullptr);
     vkFreeMemory(m_device, i_.allocation, nullptr);
+
+    i_ = ImageDedicated();
   }
 
 #if VK_NV_ray_tracing
@@ -466,6 +470,8 @@ public:
   {
     vkDestroyAccelerationStructureNV(m_device, a_.accel, nullptr);
     vkFreeMemory(m_device, a_.allocation, nullptr);
+
+    a_ = AccelerationDedicatedNV();
   }
 #endif
 #if VK_KHR_acceleration_structure
@@ -473,6 +479,8 @@ public:
   {
     vkDestroyAccelerationStructureKHR(m_device, a_.accel, nullptr);
     destroy(a_.buffer);
+
+    a_ = AccelerationDedicatedKHR();
   }
 #endif
 

@@ -29,9 +29,9 @@
 #include <vulkan/vulkan.hpp>
 
 #include "imgui.h"
-#include "imgui_camera_widget.h"
-#include "imgui_helper.h"
-#include "imgui_impl_vk.h"
+#include "imgui/backends/imgui_impl_vulkan.h"
+#include "imgui/extras/imgui_camera_widget.h"
+#include "imgui/extras/imgui_helper.h"
 #include "nvh/cameramanipulator.hpp"
 #include "swapchain_vk.hpp"
 
@@ -223,7 +223,7 @@ void MyExample::display()
   // .. draw scene ...
 
   // Draw UI
-  ImGui::RenderDrawDataVK(cmdBuff, ImGui::GetDrawData());
+  ImGui_ImplVulkan_RenderDrawData( ImGui::GetDrawData(),cmdBuff)
 
   // End rendering
   cmdBuff.endRenderPass();
@@ -262,8 +262,7 @@ public:
     PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr =
         dl.getProcAddress<PFN_vkGetInstanceProcAddr>("vkGetInstanceProcAddr");
     VULKAN_HPP_DEFAULT_DISPATCHER.init(vkGetInstanceProcAddr);
-    VULKAN_HPP_DEFAULT_DISPATCHER.init(instance);
-    VULKAN_HPP_DEFAULT_DISPATCHER.init(device);
+    VULKAN_HPP_DEFAULT_DISPATCHER.init(instance, device);
 
     m_instance           = instance;
     m_device             = device;
@@ -285,7 +284,8 @@ public:
 
     if(ImGui::GetCurrentContext() != nullptr)
     {
-      ImGui::ShutdownVK();
+      //ImGui::ShutdownVK();
+      ImGui_ImplVulkan_Shutdown();
       ImGui::DestroyContext();
     }
 
@@ -302,6 +302,7 @@ public:
       m_device.freeCommandBuffers(m_cmdPool, m_commandBuffers[i]);
     }
     m_swapChain.deinit();
+    m_device.destroy(m_imguiDescPool);
 
     m_device.destroy(m_cmdPool);
     if(m_surface)
@@ -332,17 +333,31 @@ public:
   //--------------------------------------------------------------------------------------------------
   // Creating the surface for rendering
   //
-  void createSwapchain(const vk::SurfaceKHR& surface,
-                       uint32_t              width,
-                       uint32_t              height,
-                       vk::Format            colorFormat = vk::Format::eB8G8R8A8Unorm,
-                       vk::Format            depthFormat = vk::Format::eD32SfloatS8Uint,
-                       bool                  vsync       = false)
+  virtual void createSwapchain(const vk::SurfaceKHR& surface,
+                               uint32_t              width,
+                               uint32_t              height,
+                               vk::Format            colorFormat = vk::Format::eB8G8R8A8Unorm,
+                               vk::Format            depthFormat = vk::Format::eUndefined,
+                               bool                  vsync       = false)
   {
     m_size        = vk::Extent2D(width, height);
-    m_depthFormat = depthFormat;
     m_colorFormat = colorFormat;
+    m_depthFormat = depthFormat;
     m_vsync       = vsync;
+
+    // Find the most suitable depth format
+    if(m_depthFormat == vk::Format::eUndefined)
+    {
+      auto feature = vk::FormatFeatureFlagBits::eDepthStencilAttachment;
+      for(const auto& f : {vk::Format::eD24UnormS8Uint, vk::Format::eD32SfloatS8Uint, vk::Format::eD16UnormS8Uint})
+      {
+        if((m_physicalDevice.getFormatProperties(f).optimalTilingFeatures & feature) == feature)
+        {
+          m_depthFormat = f;
+          break;
+        }
+      }
+    }
 
     m_swapChain.init(m_device, m_physicalDevice, m_queue, m_graphicsQueueIndex, surface, static_cast<VkFormat>(colorFormat));
     m_size        = m_swapChain.update(m_size.width, m_size.height, vsync);
@@ -511,12 +526,7 @@ public:
     m_device.bindImageMemory(m_depthImage, m_depthMemory, 0);
 
     // Create an image barrier to change the layout from undefined to DepthStencilAttachmentOptimal
-    vk::CommandBuffer             cmdBuffer;
-    vk::CommandBufferAllocateInfo cmdBufAllocateInfo;
-    cmdBufAllocateInfo.commandPool        = m_cmdPool;
-    cmdBufAllocateInfo.level              = vk::CommandBufferLevel::ePrimary;
-    cmdBufAllocateInfo.commandBufferCount = 1;
-    cmdBuffer                             = m_device.allocateCommandBuffers(cmdBufAllocateInfo)[0];
+    vk::CommandBuffer cmdBuffer = m_device.allocateCommandBuffers({m_cmdPool, vk::CommandBufferLevel::ePrimary, 1})[0];
     cmdBuffer.begin(vk::CommandBufferBeginInfo{vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
 
     // Put barrier on top, Put barrier inside setup command buffer
@@ -544,7 +554,7 @@ public:
     vk::ImageViewCreateInfo depthStencilView;
     depthStencilView.setViewType(vk::ImageViewType::e2D);
     depthStencilView.setFormat(m_depthFormat);
-    depthStencilView.setSubresourceRange({aspect, 0, 1, 0, 1});
+    depthStencilView.setSubresourceRange(subresourceRange);
     depthStencilView.setImage(m_depthImage);
     m_depthView = m_device.createImageView(depthStencilView);
   }
@@ -578,7 +588,7 @@ public:
   //--------------------------------------------------------------------------------------------------
   // Convenient function to call for submitting the rendering command
   //
-  void submitFrame()
+  virtual void submitFrame()
   {
     uint32_t imageIndex = m_swapChain.getActiveImageIndex();
     m_device.resetFences(m_waitFences[imageIndex]);
@@ -817,11 +827,42 @@ public:
     ImGuiIO& io    = ImGui::GetIO();
     io.IniFilename = nullptr;  // Avoiding the INI file
     io.LogFilename = nullptr;
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;      // Enable Docking
+    //io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;    // Enable Multi-Viewport / Platform Windows
+
     ImGuiH::setStyle();
     ImGuiH::setFonts();
 
-    ImGui::InitVK(m_device, m_physicalDevice, m_queue, m_graphicsQueueIndex, m_renderPass, subpassID);
+    std::vector<vk::DescriptorPoolSize> poolSize{{vk::DescriptorType::eSampler, 1}, {vk::DescriptorType::eCombinedImageSampler, 1}};
+    vk::DescriptorPoolCreateInfo poolInfo{{}, 2, poolSize};
+    m_imguiDescPool = m_device.createDescriptorPool(poolInfo);
+
+    // Setup Platform/Renderer backends
+    ImGui_ImplVulkan_InitInfo init_info = {};
+    init_info.Instance                  = m_instance;
+    init_info.PhysicalDevice            = m_physicalDevice;
+    init_info.Device                    = m_device;
+    init_info.QueueFamily               = m_graphicsQueueIndex;
+    init_info.Queue                     = m_queue;
+    init_info.PipelineCache             = VK_NULL_HANDLE;
+    init_info.DescriptorPool            = m_imguiDescPool;
+    init_info.Subpass                   = subpassID;
+    init_info.MinImageCount             = 2;
+    init_info.ImageCount                = static_cast<int>(m_framebuffers.size());
+    init_info.MSAASamples               = VK_SAMPLE_COUNT_1_BIT;  // <--- need argument?
+    init_info.CheckVkResultFn           = nullptr;
+    init_info.Allocator                 = nullptr;
+    ImGui_ImplVulkan_Init(&init_info, m_renderPass);
+
+
+    // Upload Fonts
+    auto cmdbuf = m_device.allocateCommandBuffers({m_cmdPool, vk::CommandBufferLevel::ePrimary, 1})[0];
+    cmdbuf.begin(vk::CommandBufferBeginInfo{vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
+    ImGui_ImplVulkan_CreateFontsTexture(cmdbuf);
+    cmdbuf.end();
+    m_queue.submit(vk::SubmitInfo{0, nullptr, nullptr, 1, &cmdbuf}, vk::Fence());
+    m_device.waitIdle();
   }
 
   //--------------------------------------------------------------------------------------------------
@@ -963,6 +1004,7 @@ protected:
   vk::Queue          m_queue;
   uint32_t           m_graphicsQueueIndex{VK_QUEUE_FAMILY_IGNORED};
   vk::CommandPool    m_cmdPool;
+  vk::DescriptorPool m_imguiDescPool;
 
   // Drawing/Surface
   nvvk::SwapChain                m_swapChain;

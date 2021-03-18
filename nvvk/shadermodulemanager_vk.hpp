@@ -34,7 +34,7 @@
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
-#if USESHADERC
+#if NVP_SUPPORTS_SHADERC
 #define NV_EXTENSIONS
 #include <shaderc/shaderc.h>
 #undef NV_EXTENSIONS
@@ -70,7 +70,7 @@ namespace nvvk {
   ShaderModuleManager mgr(myDevice);
 
   // derived from ShaderFileManager
-  mgr.addDirectory("shaders/");
+  mgr.addDirectory("spv/");
 
   // all shaders get this injected after #version statement
   mgr.m_prepend = "#define USE_NOISE 1\n";
@@ -144,7 +144,7 @@ public:
   void deleteShaderModules();
   bool areShaderModulesValid();
 
-#if USESHADERC
+#if NVP_SUPPORTS_SHADERC
   void setOptimizationLevel(shaderc_optimization_level level) { m_shadercOptimizationLevel = level; }
 #endif
 
@@ -155,7 +155,7 @@ public:
   const ShaderModule& getShaderModule(ShaderModuleID idx) const;
   const char*         getCode(ShaderModuleID idx, size_t* len = NULL) const;
   const size_t        getCodeLen(ShaderModuleID idx) const;
-  bool                dumpSPIRV(ShaderModuleID idx, const char * filename) const;
+  bool                dumpSPIRV(ShaderModuleID idx, const char* filename) const;
 
 
   // state will affect the next created shader module
@@ -189,7 +189,7 @@ public:
   {
     m_usedSetupIF             = &m_defaultSetupIF;
     m_supportsExtendedInclude = true;
-#if USESHADERC
+#if NVP_SUPPORTS_SHADERC
     s_shadercCompilerUsers++;
     if(!s_shadercCompiler)
     {
@@ -202,7 +202,7 @@ public:
   {
     m_usedSetupIF             = &m_defaultSetupIF;
     m_supportsExtendedInclude = true;
-#if USESHADERC
+#if NVP_SUPPORTS_SHADERC
     s_shadercCompilerUsers++;
     if(!s_shadercCompiler)
     {
@@ -216,7 +216,7 @@ public:
   ~ShaderModuleManager()
   {
     deinit();
-#if USESHADERC
+#if NVP_SUPPORTS_SHADERC
     s_shadercCompilerUsers--;
     if(s_shadercCompiler && s_shadercCompilerUsers == 0)
     {
@@ -251,7 +251,7 @@ private:
   int m_apiMajor = 1;
   int m_apiMinor = 1;
 
-#if USESHADERC
+#if NVP_SUPPORTS_SHADERC
   static shaderc_compiler_t  s_shadercCompiler;
   static uint32_t            s_shadercCompilerUsers;
   shaderc_compile_options_t  m_shadercOptions           = nullptr;

@@ -90,7 +90,8 @@ VkRenderPass createRenderPass(VkDevice                     device,
     VkAttachmentDescription colorAttachment = {};
     colorAttachment.format                  = format;
     colorAttachment.samples                 = VK_SAMPLE_COUNT_1_BIT;
-    colorAttachment.loadOp                  = clearColor ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
+    colorAttachment.loadOp                  = clearColor ? VK_ATTACHMENT_LOAD_OP_CLEAR : 
+      ((initialLayout==VK_IMAGE_LAYOUT_UNDEFINED)?VK_ATTACHMENT_LOAD_OP_DONT_CARE:VK_ATTACHMENT_LOAD_OP_LOAD);
     colorAttachment.storeOp                 = VK_ATTACHMENT_STORE_OP_STORE;
     colorAttachment.stencilLoadOp           = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     colorAttachment.stencilStoreOp          = VK_ATTACHMENT_STORE_OP_DONT_CARE;

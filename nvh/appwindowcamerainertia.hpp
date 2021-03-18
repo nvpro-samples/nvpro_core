@@ -31,9 +31,9 @@
 
 #include "nvh/camerainertia.hpp"
 #include "nvh/timesampler.hpp"
-#include <imgui/imgui_helper.h>
+#include <imgui/extras/imgui_helper.h>
 
-#ifdef SUPPORT_NVTOOLSEXT
+#ifdef NVP_SUPPORTS_NVTOOLSEXT
 #include "nvh/nsightevents.h"
 #else
 // Note: they are defined inside "nsightevents.h"
@@ -64,9 +64,10 @@ struct POINT
   int y;
 };
 #endif
-struct ToggleInfo {
-  bool * p;
-  bool addToUI;
+struct ToggleInfo
+{
+  bool*       p;
+  bool        addToUI;
   std::string desc;
 };
 #ifdef WINDOWINERTIACAMERA_EXTERN
@@ -77,8 +78,8 @@ std::map<char, ToggleInfo> g_toggleMap;
 inline void addToggleKey(char c, bool* target, const char* desc, bool addToUI = true)
 {
   LOGI(desc);
-  g_toggleMap[c].desc = desc;
-  g_toggleMap[c].p = target;
+  g_toggleMap[c].desc    = desc;
+  g_toggleMap[c].p       = target;
   g_toggleMap[c].addToUI = addToUI;
 }
 //------------------------------------------------------------------------------
@@ -86,10 +87,11 @@ inline void addToggleKey(char c, bool* target, const char* desc, bool addToUI = 
 //------------------------------------------------------------------------------
 inline void DrawToggles()
 {
-  for (auto &it : g_toggleMap) {
-    if (!it.second.addToUI)
+  for(auto& it : g_toggleMap)
+  {
+    if(!it.second.addToUI)
       continue;
-    bool *pB = it.second.p;
+    bool* pB        = it.second.p;
     bool  prevValue = *pB;
     ImGui::Checkbox(it.second.desc.c_str(), pB);
   }
@@ -159,7 +161,7 @@ public:
   virtual void onMouseButton(NVPWindow::MouseButton button, ButtonAction action, int mods, int x, int y) override;
   virtual void onKeyboard(AppWindowCameraInertia::KeyCode key, ButtonAction action, int mods, int x, int y) override;
   virtual void onKeyboardChar(unsigned char key, int mods, int x, int y) override;
-  
+
   virtual int idle();
 
   const char* getHelpText(int* lines = NULL)
@@ -409,9 +411,7 @@ int AppWindowCameraInertia::idle()
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-void AppWindowCameraInertia::onWindowRefresh()
-{
-}
+void AppWindowCameraInertia::onWindowRefresh() {}
 
 //------------------------------------------------------------------------------
 //

@@ -71,7 +71,7 @@ const VkAccelerationStructureKHR tlas = m.rtBuilder.getAccelerationStructure()
 */
 
 #include <mutex>
-#include <vulkan/vulkan.h>
+#include <vulkan/vulkan_core.h>
 
 #include "allocator_vk.hpp"
 #include "commands_vk.hpp"
@@ -79,7 +79,6 @@ const VkAccelerationStructureKHR tlas = m.rtBuilder.getAccelerationStructure()
 #include "nvh/nvprint.hpp"
 #include "nvmath/nvmath.h"
 
-#include "nvh/nvprint.hpp"
 
 #if VK_KHR_acceleration_structure
 
@@ -227,7 +226,8 @@ public:
       // and fills in createInfo.buffer with the buffer allocated to store the BLAS. The underlying
       // vkCreateAccelerationStructureKHR call then consumes the buffer value.
       m_blas[idx].as = m_alloc->createAcceleration(createInfo);
-      m_debug.setObjectName(m_blas[idx].as.accel, (std::string("Blas" + std::to_string(idx)).c_str()));
+      NAME_IDX_VK(m_blas[idx].as.accel, idx);
+      NAME_IDX_VK(m_blas[idx].as.buffer.buffer, idx);
       buildInfos[idx].dstAccelerationStructure = m_blas[idx].as.accel;  // Setting the where the build lands
 
       // Keeping info
@@ -257,7 +257,7 @@ public:
     qpci.queryType  = VK_QUERY_TYPE_ACCELERATION_STRUCTURE_COMPACTED_SIZE_KHR;
     VkQueryPool queryPool;
     vkCreateQueryPool(m_device, &qpci, nullptr, &queryPool);
-
+    vkResetQueryPool(m_device, queryPool, 0, nbBlas);
 
     // Allocate a command pool for queue of given queue index.
     // To avoid timeout, record and submit one command buffer per AS build.
@@ -336,6 +336,8 @@ public:
         vkCmdCopyAccelerationStructureKHR(cmdBuf, &copyInfo);
         cleanupAS[idx] = m_blas[idx].as;
         m_blas[idx].as = as;
+        NAME_IDX_VK(m_blas[idx].as.accel, idx);
+        NAME_IDX_VK(m_blas[idx].as.buffer.buffer, idx);
       }
       genCmdBuf.submitAndWait(cmdBuf);  // vkQueueWaitIdle within.
 
@@ -349,8 +351,8 @@ public:
     }
 
     vkDestroyQueryPool(m_device, queryPool, nullptr);
-    m_alloc->destroy(scratchBuffer);
     m_alloc->finalizeAndReleaseStaging();
+    m_alloc->destroy(scratchBuffer);
   }
 
 
@@ -415,7 +417,7 @@ public:
     if(update)
       m_alloc->destroy(m_instBuffer);
     m_instBuffer = m_alloc->createBuffer(cmdBuf, geometryInstances, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);
-    m_debug.setObjectName(m_instBuffer.buffer, "TLASInstances");
+    NAME_VK(m_instBuffer.buffer);
     VkBufferDeviceAddressInfo bufferInfo{VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO};
     bufferInfo.buffer               = m_instBuffer.buffer;
     VkDeviceAddress instanceAddress = vkGetBufferDeviceAddress(m_device, &bufferInfo);
@@ -465,7 +467,7 @@ public:
       createInfo.size = sizeInfo.accelerationStructureSize;
 
       m_tlas.as = m_alloc->createAcceleration(createInfo);
-      m_debug.setObjectName(m_tlas.as.accel, "Tlas");
+      NAME_VK(m_tlas.as.accel);
     }
 
     // Allocate the scratch memory
@@ -570,15 +572,12 @@ private:
 
 #ifdef VULKAN_HPP
 public:
-  void buildBlas(const std::vector<RaytracingBuilderKHR::BlasInput>& blas_,
-                 vk::BuildAccelerationStructureFlagsKHR              flags)
+  void buildBlas(const std::vector<RaytracingBuilderKHR::BlasInput>& blas_, vk::BuildAccelerationStructureFlagsKHR flags)
   {
     buildBlas(blas_, static_cast<VkBuildAccelerationStructureFlagsKHR>(flags));
   }
 
-  void buildTlas(const std::vector<Instance>&           instances,
-                 vk::BuildAccelerationStructureFlagsKHR flags,
-                 bool                                   update = false)
+  void buildTlas(const std::vector<Instance>& instances, vk::BuildAccelerationStructureFlagsKHR flags, bool update = false)
   {
     buildTlas(instances, static_cast<VkBuildAccelerationStructureFlagsKHR>(flags), update);
   }

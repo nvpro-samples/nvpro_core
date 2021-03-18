@@ -3,7 +3,7 @@
 //-----------------------------------------------------------------------------
 // NSIGHT
 //-----------------------------------------------------------------------------
-#ifdef SUPPORT_NVTOOLSEXT
+#ifdef NVP_SUPPORTS_NVTOOLSEXT
 // NSight perf markers - take the whole stuff from "C:\Program Files (x86)\NVIDIA GPU Computing Toolkit\nvToolsExt"
 #include "NSight/nvToolsExt.h"
 

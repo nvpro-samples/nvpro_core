@@ -176,7 +176,20 @@ void CommandPool::destroy(size_t count, const VkCommandBuffer* cmds)
   vkFreeCommandBuffers(m_device, m_commandPool, (uint32_t)count, cmds);
 }
 
+
+
 void CommandPool::submitAndWait(size_t count, const VkCommandBuffer* cmds, VkQueue queue)
+{
+  submit(count, cmds, queue);
+  VkResult result = vkQueueWaitIdle(queue);
+  if(nvvk::checkResult(result, __FILE__, __LINE__))
+  {
+    exit(-1);
+  }
+  vkFreeCommandBuffers(m_device, m_commandPool, (uint32_t)count, cmds);
+}
+
+void CommandPool::submit(size_t count, const VkCommandBuffer* cmds,  VkQueue queue, VkFence fence)
 {
   for(size_t i = 0; i < count; i++)
   {
@@ -186,13 +199,17 @@ void CommandPool::submitAndWait(size_t count, const VkCommandBuffer* cmds, VkQue
   VkSubmitInfo submit       = {VK_STRUCTURE_TYPE_SUBMIT_INFO};
   submit.pCommandBuffers    = cmds;
   submit.commandBufferCount = (uint32_t)count;
-  vkQueueSubmit(queue, 1, &submit, VK_NULL_HANDLE);
-  VkResult result = vkQueueWaitIdle(queue);
-  if(nvvk::checkResult(result, __FILE__, __LINE__))
-  {
-    exit(-1);
-  }
-  vkFreeCommandBuffers(m_device, m_commandPool, (uint32_t)count, cmds);
+  vkQueueSubmit(queue, 1, &submit, fence);
+}
+
+void CommandPool::submit(size_t count, const VkCommandBuffer* cmds, VkFence fence)
+{
+  submit(count, cmds, m_queue, fence);
+}
+
+void CommandPool::submit(const std::vector<VkCommandBuffer> &cmds, VkFence fence)
+{
+  submit(cmds.size(), cmds.data(), m_queue, fence);
 }
 
 //////////////////////////////////////////////////////////////////////////

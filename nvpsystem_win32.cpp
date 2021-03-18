@@ -28,6 +28,8 @@
 
 #include "nvpsystem.hpp"
 
+#define GLFW_INCLUDE_NONE
+#include <GLFW/glfw3.h>
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3native.h>
 
@@ -37,13 +39,13 @@
 
 #include "resources.h"
 
-#include <vector>
 #include <algorithm>
 #include <io.h>
 #include <stdio.h>
 #include <string>
+#include <vector>
 
-#ifdef USESOCKETS
+#ifdef NVP_SUPPORTS_SOCKETS
 #include "socketSampleMessages.h"
 #endif
 
@@ -92,69 +94,71 @@ static int CaptureAnImage(HWND hWnd, const char* filename)
     goto done;
   }
 
-  // Get the BITMAP from the HBITMAP
-  GetObject(hbmScreen, sizeof(BITMAP), &bmpScreen);
+  {
+    // Get the BITMAP from the HBITMAP
+    GetObject(hbmScreen, sizeof(BITMAP), &bmpScreen);
 
-  BITMAPFILEHEADER bmfHeader;
-  BITMAPINFOHEADER bi;
+    BITMAPFILEHEADER bmfHeader;
+    BITMAPINFOHEADER bi;
 
-  bi.biSize          = sizeof(BITMAPINFOHEADER);
-  bi.biWidth         = bmpScreen.bmWidth;
-  bi.biHeight        = bmpScreen.bmHeight;
-  bi.biPlanes        = 1;
-  bi.biBitCount      = 32;
-  bi.biCompression   = BI_RGB;
-  bi.biSizeImage     = 0;
-  bi.biXPelsPerMeter = 0;
-  bi.biYPelsPerMeter = 0;
-  bi.biClrUsed       = 0;
-  bi.biClrImportant  = 0;
+    bi.biSize          = sizeof(BITMAPINFOHEADER);
+    bi.biWidth         = bmpScreen.bmWidth;
+    bi.biHeight        = bmpScreen.bmHeight;
+    bi.biPlanes        = 1;
+    bi.biBitCount      = 32;
+    bi.biCompression   = BI_RGB;
+    bi.biSizeImage     = 0;
+    bi.biXPelsPerMeter = 0;
+    bi.biYPelsPerMeter = 0;
+    bi.biClrUsed       = 0;
+    bi.biClrImportant  = 0;
 
-  DWORD dwBmpSize = ((bmpScreen.bmWidth * bi.biBitCount + 31) / 32) * 4 * bmpScreen.bmHeight;
+    DWORD dwBmpSize = ((bmpScreen.bmWidth * bi.biBitCount + 31) / 32) * 4 * bmpScreen.bmHeight;
 
-  // Starting with 32-bit Windows, GlobalAlloc and LocalAlloc are implemented as wrapper functions that
-  // call HeapAlloc using a handle to the process's default heap. Therefore, GlobalAlloc and LocalAlloc
-  // have greater overhead than HeapAlloc.
-  HANDLE hDIB     = GlobalAlloc(GHND, dwBmpSize);
-  char*  lpbitmap = (char*)GlobalLock(hDIB);
+    // Starting with 32-bit Windows, GlobalAlloc and LocalAlloc are implemented as wrapper functions that
+    // call HeapAlloc using a handle to the process's default heap. Therefore, GlobalAlloc and LocalAlloc
+    // have greater overhead than HeapAlloc.
+    HANDLE hDIB     = GlobalAlloc(GHND, dwBmpSize);
+    char*  lpbitmap = (char*)GlobalLock(hDIB);
 
-  // Gets the "bits" from the bitmap and copies them into a buffer
-  // which is pointed to by lpbitmap.
-  GetDIBits(hdcWindow, hbmScreen, 0, (UINT)bmpScreen.bmHeight, lpbitmap, (BITMAPINFO*)&bi, DIB_RGB_COLORS);
+    // Gets the "bits" from the bitmap and copies them into a buffer
+    // which is pointed to by lpbitmap.
+    GetDIBits(hdcWindow, hbmScreen, 0, (UINT)bmpScreen.bmHeight, lpbitmap, (BITMAPINFO*)&bi, DIB_RGB_COLORS);
 
-  // A file is created, this is where we will save the screen capture.
-  HANDLE hFile = CreateFileA(filename, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    // A file is created, this is where we will save the screen capture.
+    HANDLE hFile = CreateFileA(filename, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 
-  // Add the size of the headers to the size of the bitmap to get the total file size
-  DWORD dwSizeofDIB = dwBmpSize + sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER);
+    // Add the size of the headers to the size of the bitmap to get the total file size
+    DWORD dwSizeofDIB = dwBmpSize + sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER);
 
-  //Offset to where the actual bitmap bits start.
-  bmfHeader.bfOffBits = (DWORD)sizeof(BITMAPFILEHEADER) + (DWORD)sizeof(BITMAPINFOHEADER);
+    //Offset to where the actual bitmap bits start.
+    bmfHeader.bfOffBits = (DWORD)sizeof(BITMAPFILEHEADER) + (DWORD)sizeof(BITMAPINFOHEADER);
 
-  //Size of the file
-  bmfHeader.bfSize = dwSizeofDIB;
+    //Size of the file
+    bmfHeader.bfSize = dwSizeofDIB;
 
-  //bfType must always be BM for Bitmaps
-  bmfHeader.bfType = 0x4D42;  //BM
+    //bfType must always be BM for Bitmaps
+    bmfHeader.bfType = 0x4D42;  //BM
 
-  DWORD dwBytesWritten = 0;
-  WriteFile(hFile, (LPSTR)&bmfHeader, sizeof(BITMAPFILEHEADER), &dwBytesWritten, NULL);
-  WriteFile(hFile, (LPSTR)&bi, sizeof(BITMAPINFOHEADER), &dwBytesWritten, NULL);
-  WriteFile(hFile, (LPSTR)lpbitmap, dwBmpSize, &dwBytesWritten, NULL);
-#ifdef USESOCKETS
-  // TODO!!
-  unsigned char* data = NULL;
-  size_t         sz   = 0;
-  int            w = 0, h = 0;
-  ::postScreenshot(data, sz, w, h);
+    DWORD dwBytesWritten = 0;
+    WriteFile(hFile, (LPSTR)&bmfHeader, sizeof(BITMAPFILEHEADER), &dwBytesWritten, NULL);
+    WriteFile(hFile, (LPSTR)&bi, sizeof(BITMAPINFOHEADER), &dwBytesWritten, NULL);
+    WriteFile(hFile, (LPSTR)lpbitmap, dwBmpSize, &dwBytesWritten, NULL);
+#ifdef NVP_SUPPORTS_SOCKETS
+    // TODO!!
+    unsigned char* data = NULL;
+    size_t         sz   = 0;
+    int            w = 0, h = 0;
+    ::postScreenshot(data, sz, w, h);
 #endif
 
-  //Unlock and Free the DIB from the heap
-  GlobalUnlock(hDIB);
-  GlobalFree(hDIB);
+    //Unlock and Free the DIB from the heap
+    GlobalUnlock(hDIB);
+    GlobalFree(hDIB);
 
-  //Close the handle for the file that was created
-  CloseHandle(hFile);
+    //Close the handle for the file that was created
+    CloseHandle(hFile);
+  }
 
   //Clean up
 done:
@@ -165,12 +169,12 @@ done:
   return 0;
 }
 
-void NVPSystem::windowScreenshot(GLFWwindow* glfwin, const char* filename)
+void NVPSystem::windowScreenshot(struct GLFWwindow* glfwin, const char* filename)
 {
   CaptureAnImage(glfwGetWin32Window(glfwin), filename);
 }
 
-void NVPSystem::windowClear(GLFWwindow* glfwin, uint32_t r, uint32_t g, uint32_t b)
+void NVPSystem::windowClear(struct GLFWwindow* glfwin, uint32_t r, uint32_t g, uint32_t b)
 {
   HWND hwnd = glfwGetWin32Window(glfwin);
 
@@ -186,11 +190,10 @@ void NVPSystem::windowClear(GLFWwindow* glfwin, uint32_t r, uint32_t g, uint32_t
   DeleteBrush(hbr);
 }
 
-std::string NVPSystem::windowOpenFileDialog(GLFWwindow* glfwin, const char* title, const char* exts)
+static std::string fileDialog(struct GLFWwindow* glfwin, const char* title, const char* exts, bool openToLoad)
 {
   HWND hwnd = glfwGetWin32Window(glfwin);
 
-  std::string       filename;
   std::vector<char> extsfixed;
   for(size_t i = 0; i < strlen(exts); i++)
   {
@@ -223,16 +226,39 @@ std::string NVPSystem::windowOpenFileDialog(GLFWwindow* glfwin, const char* titl
   ofn.lpstrFileTitle  = NULL;
   ofn.nMaxFileTitle   = 0;
   ofn.lpstrInitialDir = NULL;
-  ofn.Flags           = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+  ofn.Flags           = OFN_PATHMUSTEXIST;
   ofn.lpstrTitle      = title;
 
   // Display the Open dialog box.
 
-  if(GetOpenFileNameA(&ofn) == TRUE)
+  if(openToLoad)
   {
-    return ofn.lpstrFile;
+    ofn.Flags |= OFN_FILEMUSTEXIST;
+    if(GetOpenFileNameA(&ofn) == TRUE)
+    {
+      return ofn.lpstrFile;
+    }
   }
-  return filename;
+  else
+  {
+    ofn.Flags |= OFN_OVERWRITEPROMPT;
+    if(GetSaveFileNameA(&ofn) == TRUE)
+    {
+      return ofn.lpstrFile;
+    }
+  }
+
+  return std::string();
+}
+
+std::string NVPSystem::windowOpenFileDialog(struct GLFWwindow* glfwin, const char* title, const char* exts)
+{
+  return fileDialog(glfwin, title, exts, true);
+}
+
+std::string NVPSystem::windowSaveFileDialog(struct GLFWwindow* glfwin, const char* title, const char* exts)
+{
+  return fileDialog(glfwin, title, exts, false);
 }
 
 void NVPSystem::sleep(double seconds)
@@ -253,4 +279,28 @@ void NVPSystem::platformDeinit()
 #ifdef MEMORY_LEAKS_CHECK
   _CrtDumpMemoryLeaks();
 #endif
+}
+
+static std::string s_exePath;
+static bool        s_exePathInit = false;
+
+std::string NVPSystem::exePath()
+{
+  if(!s_exePathInit)
+  {
+    char   modulePath[MAX_PATH];
+    size_t modulePathLength = GetModuleFileNameA(NULL, modulePath, MAX_PATH);
+    s_exePath               = std::string(modulePath, modulePathLength);
+
+    std::replace(s_exePath.begin(), s_exePath.end(), '\\', '/');
+    size_t last = s_exePath.rfind('/');
+    if(last != std::string::npos)
+    {
+      s_exePath = s_exePath.substr(0, last) + std::string("/");
+    }
+
+    s_exePathInit = true;
+  }
+
+  return s_exePath;
 }

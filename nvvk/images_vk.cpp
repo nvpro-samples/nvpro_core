@@ -26,7 +26,7 @@
  */
 
 #include "images_vk.hpp"
-#include <assert.h>
+#include <cassert>
 
 namespace nvvk {
 
@@ -86,9 +86,11 @@ VkPipelineStageFlags pipelineStageForLayout(VkImageLayout layout)
     case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
       return VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
-      return VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+      return VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;  // We do this to allow queue other than graphic
+                                                  // return VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
     case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-      return VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+      return VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;  // We do this to allow queue other than graphic
+                                                  // return VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
     case VK_IMAGE_LAYOUT_PREINITIALIZED:
       return VK_PIPELINE_STAGE_HOST_BIT;
     case VK_IMAGE_LAYOUT_UNDEFINED:
@@ -112,8 +114,13 @@ void cmdBarrierImageLayout(VkCommandBuffer                cmdbuffer,
   imageMemoryBarrier.subresourceRange = subresourceRange;
   imageMemoryBarrier.srcAccessMask    = accessFlagsForImageLayout(oldImageLayout);
   imageMemoryBarrier.dstAccessMask    = accessFlagsForImageLayout(newImageLayout);
-  VkPipelineStageFlags srcStageMask   = pipelineStageForLayout(oldImageLayout);
-  VkPipelineStageFlags destStageMask  = pipelineStageForLayout(newImageLayout);
+  // Fix for a validation issue - should be needed when VkImage sharing mode is VK_SHARING_MODE_EXCLUSIVE
+  // and the values of srcQueueFamilyIndex and dstQueueFamilyIndex are equal, no ownership transfer is performed,
+  // and the barrier operates as if they were both set to VK_QUEUE_FAMILY_IGNORED.
+  imageMemoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  imageMemoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  VkPipelineStageFlags srcStageMask      = pipelineStageForLayout(oldImageLayout);
+  VkPipelineStageFlags destStageMask     = pipelineStageForLayout(newImageLayout);
   vkCmdPipelineBarrier(cmdbuffer, srcStageMask, destStageMask, 0, 0, nullptr, 0, nullptr, 1, &imageMemoryBarrier);
 }
 
