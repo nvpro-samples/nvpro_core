@@ -1,4 +1,4 @@
-/* Copyright (c) 2014-2018, NVIDIA CORPORATION. All rights reserved.
+/* Copyright (c) 2014-2021, NVIDIA CORPORATION. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -250,8 +250,8 @@ int AppWindowProfiler::run(const std::string& title, int argc, const char** argv
   m_config.winsize[0] = m_config.winsize[0] ? m_config.winsize[0] : width;
   m_config.winsize[1] = m_config.winsize[1] ? m_config.winsize[1] : height;
 
-  //m_parameterList.applyTokens(argc, argv, "-", ".");
-  parseConfig(argc, argv, ".");
+  // skip first argument here (exe file)
+  parseConfig(argc - 1, argv + 1, ".");
   if(!validateConfig())
   {
     return EXIT_FAILURE;
