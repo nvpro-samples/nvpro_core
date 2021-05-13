@@ -1,0 +1,41 @@
+[submodule "third_party/glfw"]
+	path = third_party/glfw
+	url = https://github.com/glfw/glfw
+	shallow = true
+[submodule "third_party/imgui"]
+	path = third_party/imgui
+	url = https://github.com/ocornut/imgui
+	shallow = true
+[submodule "third_party/stb"]
+	path = third_party/stb
+	url = https://github.com/nothings/stb
+	shallow = true
+[submodule "third_party/tinygltf"]
+	path = third_party/tinygltf
+	url = https://github.com/syoyo/tinygltf
+	shallow = true
+[submodule "third_party/cgltf"]
+	path = third_party/cgltf
+	url = https://github.com/jkuhlmann/cgltf
+	shallow = true
+[submodule "third_party/zlib"]
+	path = third_party/zlib
+	url = https://github.com/madler/zlib
+	shallow = true
+[submodule "third_party/vma"]
+	path = third_party/vma
+	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator
+	shallow = true
+[submodule "third_party/tinyobjloader"]
+	path = third_party/tinyobjloader
+	url = https://github.com/tinyobjloader/tinyobjloader.git
+	shallow = true
+[submodule "third_party/binaries"]
+	path = third_party/binaries
+	url = https://github.com/nvpro-samples/third_party_binaries.git
+	shallow = true
+[submodule "third_party/NVTX"]
+	path = third_party/NVTX
+	url = https://github.com/NVIDIA/NVTX.git
+	branch = release-v3
+	shallow = true
