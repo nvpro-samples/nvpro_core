@@ -5,6 +5,7 @@
 [submodule "third_party/imgui"]
 	path = third_party/imgui
 	url = https://github.com/ocornut/imgui
+	branch = docking
 	shallow = true
 [submodule "third_party/stb"]
 	path = third_party/stb
