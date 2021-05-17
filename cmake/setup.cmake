@@ -2,6 +2,14 @@
 # Copyright 2020 NVIDIA Corporation. All rights reserved.
 #*****************************************************************************
 
+# Check for obsolete folders to remove
+if(EXISTS ${BASE_DIRECTORY}/shared_sources)
+  message(WARNING "shared_sources got renamed as nvpro_core. Please remove shared_sources folder and shared_external folder")
+endif()
+if(EXISTS ${BASE_DIRECTORY}/shared_external)
+  message(WARNING "Please remove shared_external folder : folder obsolete, now")
+endif()
+
 
 #The OLD behavior for this policy is to ignore <PackageName>_ROOT variables
 if(POLICY CMP0074)
