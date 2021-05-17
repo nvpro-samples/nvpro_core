@@ -112,7 +112,6 @@ It allow to simply do
 - Pan          (LMB + CTRL  | MMB)
 - Dolly        (LMB + SHIFT | RMB)
 - Look Around  (LMB + ALT   | LMB + CTRL + SHIFT)
-- Trackball
 
 In a various ways:
 - examiner(orbit around object)

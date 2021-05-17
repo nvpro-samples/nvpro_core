@@ -1,49 +1,40 @@
-/* Copyright (c) 2019, NVIDIA CORPORATION. All rights reserved.
+/*
+ * Copyright (c) 2019-2021, NVIDIA CORPORATION.  All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *  * Neither the name of NVIDIA CORPORATION nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
- * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
- * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
- * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
- * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * SPDX-FileCopyrightText: Copyright (c) 2019-2021 NVIDIA CORPORATION
+ * SPDX-License-Identifier: Apache-2.0
  */
+
 
 #pragma once
 
-#include <assert.h>
-#include <platform.h>
-#include <string>
+#include <cassert>
 #include <vector>
+#include <string>
 
+#include <nvvk/memallocator_vk.hpp>
 #include <nvh/trangeallocator.hpp>
+
 #include <vulkan/vulkan_beta.h>
 #include <vulkan/vulkan_core.h>
 
 namespace nvvk {
 
-// safe-ish value for most desktop hw http://vulkan.gpuinfo.org/displayextensionproperty.php?name=maxMemoryAllocationSize
-#define NVVK_DEFAULT_MAX_MEMORY_ALLOCATIONSIZE (VkDeviceSize(2 * 1024) * 1024 * 1024)
-
 #define NVVK_DEFAULT_MEMORY_BLOCKSIZE (VkDeviceSize(128) * 1024 * 1024)
 
-#define NVVK_DEFAULT_STAGING_BLOCKSIZE (VkDeviceSize(64) * 1024 * 1024)
+
 
 //////////////////////////////////////////////////////////////////////////
 /**
@@ -112,7 +103,8 @@ public:
 /**
   # class nvvk::DeviceMemoryAllocator
 
-  DeviceMemoryAllocator allocates and manages device memory in fixed-size memory blocks.
+  The DeviceMemoryAllocator allocates and manages device memory in fixed-size memory blocks.
+  It implements the [nvvk::MemAllocator](#class-nvvkmemallocator) interface.
 
   It sub-allocates from the blocks, and can re-use memory if it finds empty
   regions. Because of the fixed-block usage, you can directly create resources
@@ -122,20 +114,24 @@ public:
   usage flags. Therefore you can easily create mappable host allocations
   and delete them after usage, without inferring device-side allocations.
 
-  We return `AllocationID` rather than the allocation details directly, which
-  you can query separately.
+  An `AllocationID` is returned rather than the allocation details directly, which
+  one can query separately.
 
   Several utility functions are provided to handle the binding of memory
   directly with the resource creation of buffers, images and acceleration
-  structures. This utilities also make implicit use of Vulkan's dedicated
+  structures. These utilities also make implicit use of Vulkan's dedicated
   allocation mechanism.
+
+  We recommend the use of the [nvvk::ResourceAllocator](#class-nvvkresourceallocator) class, 
+  rather than the various create functions provided here, as we may deprecate them.
 
   > **WARNING** : The memory manager serves as proof of concept for some key concepts
   > however it is not meant for production use and it currently lacks de-fragmentation logic
   > as well. You may want to look at [VMA](https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator)
   > for a more production-focused solution.
 
-  You can derive from this calls and overload the 
+  You can derive from this class and overload a few functions to alter the
+  chunk allocation behavior.
 
   Example :
   ~~~ C++
@@ -165,7 +161,7 @@ public:
 
   ~~~
 */
-class DeviceMemoryAllocator
+class DeviceMemoryAllocator : public MemAllocator
 {
 
 public:
@@ -179,7 +175,7 @@ public:
   {
 #ifndef NDEBUG
     // If all memory was released properly, no blocks should be alive at this point
-    assert(m_blocks.empty());
+    assert(m_blocks.empty() || m_keepFirst);
 #endif
     deinit();
   }
@@ -191,7 +187,7 @@ public:
   DeviceMemoryAllocator(VkDevice         device,
                         VkPhysicalDevice physicalDevice,
                         VkDeviceSize     blockSize = NVVK_DEFAULT_MEMORY_BLOCKSIZE,
-                        VkDeviceSize     maxSize   = NVVK_DEFAULT_MAX_MEMORY_ALLOCATIONSIZE)
+                        VkDeviceSize     maxSize   = 0)
   {
     init(device, physicalDevice, blockSize, maxSize);
   }
@@ -199,7 +195,7 @@ public:
   void init(VkDevice         device,
             VkPhysicalDevice physicalDevice,
             VkDeviceSize     blockSize = NVVK_DEFAULT_MEMORY_BLOCKSIZE,
-            VkDeviceSize     maxSize   = NVVK_DEFAULT_MAX_MEMORY_ALLOCATIONSIZE);
+            VkDeviceSize     maxSize   = 0);
 
   void setDebugName(const std::string& name) { m_debugName = name; }
 
@@ -225,34 +221,53 @@ public:
                     VkDeviceSize used[VK_MAX_MEMORY_TYPES],
                     VkDeviceSize allocated[VK_MAX_MEMORY_TYPES]) const;
 
-  VkDevice                                getDevice() const;
-  VkPhysicalDevice                        getPhysicalDevice() const;
   const VkPhysicalDeviceMemoryProperties& getMemoryProperties() const;
   VkDeviceSize                            getMaxAllocationSize() const;
 
   //////////////////////////////////////////////////////////////////////////
+  
+  // Implement MemAllocator interface
+  virtual MemHandle allocMemory(const MemAllocateInfo& allocInfo, VkResult *pResult = nullptr) override;
+  virtual void      freeMemory(MemHandle memHandle) override;
+  virtual MemInfo   getMemoryInfo(MemHandle memHandle) const override;
+  virtual void*     map(MemHandle memHandle, VkDeviceSize offset = 0, VkDeviceSize size = VK_WHOLE_SIZE, VkResult *pResult = nullptr) override;
+  virtual void      unmap(MemHandle memHandle) override;
+
+  virtual VkDevice         getDevice() const override;
+  virtual VkPhysicalDevice getPhysicalDevice() const override;
+
+  AllocationID      getAllocationID(MemHandle memHandle) const;
+
+  //////////////////////////////////////////////////////////////////////////
+
+  struct State
+  {
+    float                 priority           = DEFAULT_PRIORITY;
+    VkMemoryAllocateFlags allocateFlags      = 0;
+    uint32_t              allocateDeviceMask = 0;
+  };
 
   // subsequent allocations (and creates) will use the provided priority
   // ignored if setPrioritySupported is not enabled
   float setPriority(float priority = DEFAULT_PRIORITY)
   {
-    float old  = m_priority;
-    m_priority = priority;
+    float old  = m_defaultState.priority;
+    m_defaultState.priority = priority;
     return old;
   }
 
-  float getPriority() const { return m_priority; }
+  float getPriority() const { return m_defaultState.priority; }
 
   // subsequent allocations (and creates) will use the provided flags
   void setAllocateFlags(VkMemoryAllocateFlags flags, bool enabled)
   {
     if(enabled)
     {
-      m_allocateFlags |= flags;
+      m_defaultState.allocateFlags |= flags;
     }
     else
     {
-      m_allocateFlags &= ~flags;
+      m_defaultState.allocateFlags &= ~flags;
     }
   }
 
@@ -260,16 +275,16 @@ public:
   {
     if(enabled)
     {
-      m_allocateDeviceMask |= allocateDeviceMask;
+      m_defaultState.allocateDeviceMask |= allocateDeviceMask;
     }
     else
     {
-      m_allocateDeviceMask &= ~allocateDeviceMask;
+      m_defaultState.allocateDeviceMask &= ~allocateDeviceMask;
     }
   }
 
-  VkMemoryAllocateFlags getAllocateFlags() const { return m_allocateFlags; }
-  uint32_t              getAllocateDeviceMask() const { return m_allocateDeviceMask; }
+  VkMemoryAllocateFlags getAllocateFlags()      const { return m_defaultState.allocateFlags; }
+  uint32_t              getAllocateDeviceMask() const { return m_defaultState.allocateDeviceMask; }
 
   // make individual raw allocations.
   // there is also utilities that combine creation of buffers/images etc. with binding
@@ -280,7 +295,20 @@ public:
                      const VkMemoryDedicatedAllocateInfo* dedicated,
                      VkResult&                            result)
   {
-    return allocInternal(memReqs, memProps, isLinear, dedicated, result, true);
+    return allocInternal(memReqs, memProps, isLinear, dedicated, result, true, m_defaultState);
+  }
+
+  // make individual raw allocations.
+  // there is also utilities that combine creation of buffers/images etc. with binding
+  // the memory below.
+  AllocationID alloc(const VkMemoryRequirements& memReqs,
+                     VkMemoryPropertyFlags       memProps,
+                     bool                        isLinear,  // buffers are linear, optimal tiling textures are not
+                     const VkMemoryDedicatedAllocateInfo* dedicated,
+                     State&                               state,
+                     VkResult&                            result)
+  {
+    return allocInternal(memReqs, memProps, isLinear, dedicated, result, true, state);
   }
 
   AllocationID alloc(const VkMemoryRequirements& memReqs,
@@ -289,7 +317,7 @@ public:
                      const VkMemoryDedicatedAllocateInfo* dedicated = nullptr)
   {
     VkResult result;
-    return allocInternal(memReqs, memProps, isLinear, dedicated, result, true);
+    return allocInternal(memReqs, memProps, isLinear, dedicated, result, true, m_defaultState);
   }
 
   // unless you use the freeAll mechanism, each allocation must be freed individually
@@ -300,13 +328,13 @@ public:
 
   // can have multiple map/unmaps at once, but must be paired
   // internally will keep the vk mapping active as long as one map is active
-  void* map(AllocationID allocationID);
+  void* map(AllocationID allocationID, VkResult *pResult = nullptr);
   void  unmap(AllocationID allocationID);
 
   template <class T>
-  T* mapT(AllocationID allocationID)
+  T* mapT(AllocationID allocationID, VkResult *pResult = nullptr)
   {
-    return (T*)map(allocationID);
+    return (T*)map(allocationID, pResult);
   }
 
   //////////////////////////////////////////////////////////////////////////
@@ -406,27 +434,27 @@ protected:
 
   struct Block
   {
-    BlockID                   id;  // index to self, or next free item
+    BlockID                   id{};  // index to self, or next free item
     VkDeviceMemory            mem = VK_NULL_HANDLE;
     nvh::TRangeAllocator<256> range;
 
-    VkDeviceSize allocationSize;
-    VkDeviceSize usedSize;
+    VkDeviceSize allocationSize = 0;
+    VkDeviceSize usedSize       = 0;
 
     // to avoid management of pages via limits::bufferImageGranularity,
     // a memory block is either fully linear, or non-linear
-    bool                  isLinear;
-    bool                  isDedicated;
-    bool                  isFirst;  // first memory block of a type
-    float                 priority;
-    VkMemoryAllocateFlags allocateFlags;
-    uint32_t              allocateDeviceMask;
+    bool                  isLinear    = false;
+    bool                  isDedicated = false;
+    bool                  isFirst     = false;  // first memory block of a type
+    float                 priority    = 0.0f;
+    VkMemoryAllocateFlags allocateFlags{};
+    uint32_t              allocateDeviceMask = 0;
 
-    uint32_t memoryTypeIndex;
-    uint32_t allocationCount;
-    uint32_t mapCount;
-    uint32_t mappable;
-    uint8_t* mapped;
+    uint32_t memoryTypeIndex = 0;
+    uint32_t allocationCount = 0;
+    uint32_t mapCount        = 0;
+    uint32_t mappable        = 0;
+    uint8_t* mapped          = nullptr;
 
     Block& operator=(Block&&) = default;
     Block(Block&&)            = default;
@@ -436,18 +464,18 @@ protected:
 
   struct AllocationInfo
   {
-    AllocationID id;  // index to self, or next free item
-    Allocation   allocation;
-    uint32_t     blockOffset;
-    uint32_t     blockSize;
-    BlockID      block;
+    AllocationID id{};  // index to self, or next free item
+    Allocation   allocation{};
+    uint32_t     blockOffset = 0;
+    uint32_t     blockSize   = 0;
+    BlockID      block{};
   };
 
   VkDevice     m_device            = VK_NULL_HANDLE;
   VkDeviceSize m_blockSize         = 0;
   VkDeviceSize m_allocatedSize     = 0;
   VkDeviceSize m_usedSize          = 0;
-  VkDeviceSize m_maxAllocationSize = NVVK_DEFAULT_MAX_MEMORY_ALLOCATIONSIZE;
+  VkDeviceSize m_maxAllocationSize = 0;
 
   std::vector<Block>          m_blocks;
   std::vector<AllocationInfo> m_allocations;
@@ -459,11 +487,9 @@ protected:
   uint32_t m_activeBlockCount = 0;
 
   VkPhysicalDeviceMemoryProperties m_memoryProperties;
-  VkPhysicalDevice                 m_physicalDevice = VK_NULL_HANDLE;
+  VkPhysicalDevice                 m_physicalDevice = NULL;
 
-  float                 m_priority           = DEFAULT_PRIORITY;
-  VkMemoryAllocateFlags m_allocateFlags      = 0;
-  uint32_t              m_allocateDeviceMask = 0;
+  State              m_defaultState;
 
   VkBufferUsageFlags m_defaultBufferUsageFlags  = 0;
   bool               m_forceDedicatedAllocation = false;
@@ -478,7 +504,8 @@ protected:
                              bool isLinear,  // buffers are linear, optimal tiling textures are not
                              const VkMemoryDedicatedAllocateInfo* dedicated,
                              VkResult&                            result,
-                             bool                                 preferDevice);
+                             bool                                 preferDevice,
+                             const State&                         state);
 
   AllocationID createID(Allocation& allocation, BlockID block, uint32_t blockOffset, uint32_t blockSize);
   void         destroyID(AllocationID id);
@@ -522,344 +549,6 @@ protected:
   {
     return vkCreateImage(device, info, nullptr, image);
   }
-};
-
-//////////////////////////////////////////////////////////////////
-/**
-  # class nvvk::StagingMemoryManager
-
-  StagingMemoryManager class is a utility that manages host visible
-  buffers and their allocations in an opaque fashion to assist
-  asynchronous transfers between device and host.
-
-  The collection of the transfer resources is represented by nvvk::StagingID.
-
-  The necessary buffer space is sub-allocated and recycled in blocks internally.
-  This way we avoid creating lots of small VkBuffers and avoid calling the Vulkan
-  API at all. While Vulkan is more efficient than previous APIs, creating lots
-  of objects for it, is still not good for overall performance. It will result 
-  into more cache misses and use more system memory over all.
-
-  The default implementation will create one dedicated memory allocation per block.
-  You can derive from this class and overload the virtual functions,
-  if you want to use a different allocation system.
-
-  - **allocBlockMemory**
-  - **freeBlockMemory**
-
-  > **WARNING:**
-  > - cannot manage a copy > 4 GB
-
-  Usage:
-  - Enqueue transfers into your VkCommandBuffer and then finalize the copy operations.
-  - Associate the copy operations with a VkFence or retrieve a SetID
-  - The release of the resources allows to safely recycle the buffer space for future transfers.
-  
-  > We use fences as a way to garbage collect here, however a more robust solution
-  > may be implementing some sort of ticketing/timeline system.
-  > If a fence is recycled, then this class may not be aware that the fence represents a different
-  > submission, likewise if the fence is deleted elsewhere problems can occur.
-  > You may want to use the manual "SetID" system in that case.
-
-  Example :
-
-  ~~~ C++
-  StagingMemoryManager  staging;
-  staging.init(device, physicalDevice);
-
-
-  // Enqueue copy operations of data to target buffer.
-  // This internally manages the required staging resources
-  staging.cmdToBuffer(cmd, targetBufer, 0, targetSize, targetData);
-
-  // you can also get access to a temporary mapped pointer and fill
-  // the staging buffer directly
-  vertices = staging.cmdToBufferT<Vertex>(cmd, targetBufer, 0, targetSize);
-
-  // OPTION A:
-  // associate all previous copy operations with a fence (or not)
-  staging.finalizeResources( fence );
-  ..
-  // every once in a while call
-  staging.releaseResources();
-  // this will release all those without fence, or those
-  // who had a fence that completed (but never manual SetIDs, see next).
-
-  // OPTION B
-  // alternatively manage the resource release yourself.
-  // The SetID represents the staging resources
-  // since any last finalize.
-  sid = staging.finalizeResourceSet();
-
-  ... 
-  // You need to ensure these transfers and their staging
-  // data access completed yourself prior releasing the set.
-  //
-  // This is particularly useful for managing downloads from
-  // device. The "from" functions return a pointer  where the 
-  // data will be copied to. You want to use this pointer
-  // after the device-side transfer completed, and then
-  // release its resources once you are done using it.
-
-  staging.releaseResourceSet(sid);
-
-  ~~~
-*/
-
-class StagingMemoryManager
-{
-public:
-  //////////////////////////////////////////////////////////////////////////
-  class SetID {
-  friend StagingMemoryManager;
-  private:
-    uint32_t index = INVALID_ID_INDEX;
-  };
-
-  StagingMemoryManager(StagingMemoryManager const&) = delete;
-  StagingMemoryManager& operator=(StagingMemoryManager const&) = delete;
-
-  StagingMemoryManager() { m_debugName = "nvvk::StagingMemoryManager:" + std::to_string((uint64_t)this); }
-  StagingMemoryManager(VkDevice device, VkPhysicalDevice physicalDevice, VkDeviceSize stagingBlockSize = NVVK_DEFAULT_STAGING_BLOCKSIZE)
-  {
-    init(device, physicalDevice, stagingBlockSize);
-  }
-
-  ~StagingMemoryManager() { deinit(); }
-
-  void init(VkDevice device, VkPhysicalDevice physicalDevice, VkDeviceSize stagingBlockSize = NVVK_DEFAULT_STAGING_BLOCKSIZE);
-  void deinit();
-  void setDebugName(const std::string& name) { m_debugName = name; }
-
-  // if true (default) we free the memory completely when released
-  // otherwise we would keep blocks for re-use around, unless freeUnused() is called
-  void setFreeUnusedOnRelease(bool state) { m_freeOnRelease = state; }
-
-  // test if there is enough space in current allocations
-  bool fitsInAllocated(VkDeviceSize size, bool toDevice = true) const;
-
-  // if data != nullptr memcpies to mapping and returns nullptr
-  // otherwise returns temporary mapping (valid until "complete" functions)
-  void* cmdToImage(VkCommandBuffer                 cmd,
-                   VkImage                         image,
-                   const VkOffset3D&               offset,
-                   const VkExtent3D&               extent,
-                   const VkImageSubresourceLayers& subresource,
-                   VkDeviceSize                    size,
-                   const void*                     data,
-                   VkImageLayout                   layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-
-  template <class T>
-  T* cmdToImageT(VkCommandBuffer                 cmd,
-                 VkImage                         image,
-                 const VkOffset3D&               offset,
-                 const VkExtent3D&               extent,
-                 const VkImageSubresourceLayers& subresource,
-                 VkDeviceSize                    size,
-                 const void*                     data,
-                 VkImageLayout                   layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
-  {
-    return (T*)cmdToImage(cmd, image, offset, extent, subresource, size, data, layout);
-  }
-
-  // pointer can be used after cmd execution but only valid until associated resources haven't been released
-  const void* cmdFromImage(VkCommandBuffer                 cmd,
-                           VkImage                         image,
-                           const VkOffset3D&               offset,
-                           const VkExtent3D&               extent,
-                           const VkImageSubresourceLayers& subresource,
-                           VkDeviceSize                    size,
-                           VkImageLayout                   layout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-
-  template <class T>
-  const T* cmdFromImageT(VkCommandBuffer                 cmd,
-                         VkImage                         image,
-                         const VkOffset3D&               offset,
-                         const VkExtent3D&               extent,
-                         const VkImageSubresourceLayers& subresource,
-                         VkDeviceSize                    size,
-                         VkImageLayout                   layout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
-  {
-    return (const T*)cmdFromImage(cmd, image, offset, extent, subresource, size, layout);
-  }
-
-  // if data != nullptr memcpies to mapping and returns nullptr
-  // otherwise returns temporary mapping (valid until appropriate release)
-  void* cmdToBuffer(VkCommandBuffer cmd, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size, const void* data);
-
-  template <class T>
-  T* cmdToBufferT(VkCommandBuffer cmd, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size)
-  {
-    return (T*)cmdToBuffer(cmd, buffer, offset, size, nullptr);
-  }
-
-  // pointer can be used after cmd execution but only valid until associated resources haven't been released
-  const void* cmdFromBuffer(VkCommandBuffer cmd, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size);
-
-  template <class T>
-  const T* cmdFromBufferT(VkCommandBuffer cmd, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size)
-  {
-    return (const T*)cmdFromBuffer(cmd, buffer, offset, size);
-  }
-
-  // closes the batch of staging resources since last finalize call
-  // and associates it with a fence for later release.
-  void  finalizeResources(VkFence fence = VK_NULL_HANDLE);
-
-  // releases the staging resources whose fences have completed
-  // and those who had no fence at all, skips resourceSets.
-  void releaseResources();
-
-  // closes the batch of staging resources since last finalize call
-  // and returns a resource set handle that can be used to release them
-  SetID finalizeResourceSet();
-
-  // releases the staging resources from this particular
-  // resource set.
-  void  releaseResourceSet(SetID setid) {
-    releaseResources(setid.index);
-  }
-
-  // frees staging memory no longer in use
-  void freeUnused() { free(true); }
-
-  float getUtilization(VkDeviceSize& allocatedSize, VkDeviceSize& usedSize) const;
-
-protected:
-  // The implementation uses two major arrays:
-  // - Block stores VkBuffers that we sub-allocate the staging space from
-  // - StagingSet stores all such sub-allocations that were used
-  //   in one batch of operations. Each batch is closed with
-  //   finalizeResources, and typically associated with a fence.
-  //   As such the resources are given by for recycling if the fence completed.
-
-  // To recycle Block and StagingSet structures within the arrays
-  // we use a linked list of array indices. The "index" element
-  // in the struct refers to the next free list item, or itself
-  // when in use.
-
-  struct Block
-  {
-    uint32_t                  index    = INVALID_ID_INDEX;
-    VkDeviceSize              size     = 0;
-    VkBuffer                  buffer   = VK_NULL_HANDLE;
-    VkDeviceMemory            memory   = VK_NULL_HANDLE;
-    bool                      toDevice = true;
-    nvh::TRangeAllocator<256> range;
-    uint8_t*                  mapping;
-  };
-
-  struct Entry
-  {
-    uint32_t block;
-    uint32_t offset;
-    uint32_t size;
-  };
-
-  struct StagingSet
-  {
-    uint32_t           index = INVALID_ID_INDEX;
-    VkFence            fence = VK_NULL_HANDLE;
-    bool               manualSet = false;
-    std::vector<Entry> entries;
-  };
-
-  VkDevice         m_device         = VK_NULL_HANDLE;
-  VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
-  uint32_t         m_memoryTypeIndex;
-  VkDeviceSize     m_stagingBlockSize;
-  bool             m_freeOnRelease;
-
-  std::vector<Block>      m_blocks;
-  std::vector<StagingSet> m_sets;
-
-  // active staging Index, must be valid at all items
-  uint32_t m_stagingIndex;
-  // linked-list to next free staging set
-  uint32_t m_freeStagingIndex;
-  // linked list to next free block
-  uint32_t m_freeBlockIndex;
-
-  VkDeviceSize m_allocatedSize;
-  VkDeviceSize m_usedSize;
-
-  std::string m_debugName;
-
-  uint32_t setIndexValue(uint32_t& index, uint32_t newValue)
-  {
-    uint32_t oldValue = index;
-    index             = newValue;
-    return oldValue;
-  }
-
-  void free(bool unusedOnly);
-  void freeBlock(Block& block);
-
-  uint32_t newStagingIndex();
-
-  void* getStagingSpace(VkDeviceSize size, VkBuffer& buffer, VkDeviceSize& offset, bool toDevice);
-
-  Block& getBlock(uint32_t index)
-  {
-    Block& block = m_blocks[index];
-    assert(block.index == index);
-    return block;
-  }
-
-  void releaseResources(uint32_t stagingID);
-
-  //////////////////////////////////////////////////////////////////////////
-  // You can specialize the staging buffer allocation mechanism used.
-  // The default is using one dedicated VkDeviceMemory per staging VkBuffer.
-
-  // must fill block.buffer, memory, mapping
-  virtual VkResult allocBlockMemory(uint32_t id, VkDeviceSize size, bool toDevice, Block& block);
-  virtual void     freeBlockMemory(uint32_t id, const Block& block);
-  virtual void     resizeBlocks(uint32_t num) {}
-};
-
-//////////////////////////////////////////////////////////////////
-/**
-  # class nvvk::StagingMemoryManagerDma
-
-  Derives from nvvk::StagingMemoryManager and uses the referenced nvvk::DeviceMemoryAllocator
-  for allocations.
-
-  ~~~ C++
-  DeviceMemoryAllocator    memAllocator;
-  memAllocator.init(device, physicalDevice);
-
-  StagingMemoryManagerDma  staging;
-  staging.init(memAllocator);
-
-  // rest as usual
-  staging.cmdToBuffer(cmd, targetBufer, 0, targetSize, targetData);
-  ~~~
-*/
-
-class StagingMemoryManagerDma : public StagingMemoryManager
-{
-public:
-  StagingMemoryManagerDma(DeviceMemoryAllocator* memAllocator, VkDeviceSize stagingBlockSize = NVVK_DEFAULT_STAGING_BLOCKSIZE)
-  {
-    init(memAllocator, stagingBlockSize);
-  }
-  StagingMemoryManagerDma() {}
-
-  void init(DeviceMemoryAllocator* memAllocator, VkDeviceSize stagingBlockSize = NVVK_DEFAULT_STAGING_BLOCKSIZE)
-  {
-    StagingMemoryManager::init(memAllocator->getDevice(), memAllocator->getPhysicalDevice(), stagingBlockSize);
-    m_memAllocator = memAllocator;
-  }
-
-protected:
-  DeviceMemoryAllocator*    m_memAllocator;
-  std::vector<AllocationID> m_blockAllocs;
-
-  VkResult allocBlockMemory(uint32_t index, VkDeviceSize size, bool toDevice, Block& block) override;
-  void     freeBlockMemory(uint32_t index, const Block& block) override;
-
-  void resizeBlocks(uint32_t num) override;
 };
 
 }  // namespace nvvk

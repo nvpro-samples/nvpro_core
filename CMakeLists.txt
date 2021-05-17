@@ -1,53 +1,47 @@
 cmake_minimum_required(VERSION 3.5)
 #####################################################################################
-# offer the choice of having shared_sources as a sub-folder... good for packaging a sample
+# offer the choice of having nvpro_core as a sub-folder... good for packaging a sample
 #
 # if BASE_DIRECTORY not defined, it means this cmake file was called as the first entry point and not included
 if(NOT BASE_DIRECTORY) # if not defined, it means this cmake file was called as the first entry point and not included
   message(FATAL_ERROR "cannot be directly invoked")
 else()
   Message(STATUS "-------------------------------")
-  Message(STATUS "Processing shared_sources files")
+  Message(STATUS "Processing nvpro_core files")
 endif()
 
 
 set(NVPWINDOW_SOURCE
-  ${BASE_DIRECTORY}/shared_sources/nvpwindow.cpp
-  ${BASE_DIRECTORY}/shared_sources/nvpwindow.hpp
-  ${BASE_DIRECTORY}/shared_sources/nvpsystem.cpp
-  ${BASE_DIRECTORY}/shared_sources/nvpsystem.hpp
+  ${BASE_DIRECTORY}/nvpro_core/nvpwindow.cpp
+  ${BASE_DIRECTORY}/nvpro_core/nvpwindow.hpp
+  ${BASE_DIRECTORY}/nvpro_core/nvpsystem.cpp
+  ${BASE_DIRECTORY}/nvpro_core/nvpsystem.hpp
 )
 
 if(UNIX) 
-  LIST(APPEND NVPWINDOW_SOURCE ${BASE_DIRECTORY}/shared_sources/nvpsystem_linux.cpp )
+  LIST(APPEND NVPWINDOW_SOURCE ${BASE_DIRECTORY}/nvpro_core/nvpsystem_linux.cpp )
 else()
-  LIST(APPEND NVPWINDOW_SOURCE ${BASE_DIRECTORY}/shared_sources/nvpsystem_win32.cpp )
+  LIST(APPEND NVPWINDOW_SOURCE ${BASE_DIRECTORY}/nvpro_core/nvpsystem_win32.cpp )
 endif()
 
 if(NOT (CMAKE_SIZEOF_VOID_P EQUAL 8))
   message( FATAL_ERROR "64-bit builds are mandatory for this framework" )
 endif()
 
-# CSF filefomat uses zlib
-_add_package_ZLIB()
-add_definitions(-DCSF_ZIP_SUPPORT=1)
+
+
+# Add third party libraries
+add_subdirectory(third_party)
 
 # add packages that may be needed by some of the samples
 _optional_package_VulkanSDK()
 _optional_package_ShaderC()
 _optional_package_OpenGL()
-_optional_package_DirectX11()
 _optional_package_DirectX12()
-_optional_package_AntTweakBar()
 _optional_package_Freeimage()
-_optional_package_OculusSDK()
-_optional_package_OpenVRSDK()
 _optional_package_Optix()
-_optional_package_Ftizb()
 _optional_package_Cuda()
-_optional_package_OpenCL()
-_optional_package_NSight()
-_optional_package_ZLIB()
+_optional_package_NVToolsExt()
 _optional_package_Sockets()
 
 # process the rest of some cmake code that needs to be done after the packages
@@ -56,10 +50,9 @@ _process_shared_cmake_code()
 file(GLOB FILEFORMATS_SOURCE fileformats/*.cpp fileformats/*.hpp fileformats/*.inl fileformats/*.h)
 file(GLOB NVMATH_SOURCE nvmath/*.cpp nvmath/*.hpp nvmath/*.inl nvmath/*.h)
 file(GLOB NVHELPERS_SOURCE nvh/*.cpp nvh/*.hpp nvh/*.inl nvh/*.h)
-file(GLOB NOISE_SOURCE noise/*.cpp noise/*.hpp noise/*.inl noise/*.h)
 
 
-set(library_name "shared_sources")
+set(library_name "nvpro_core")
 
 if(USING_OPENGL)
   file(GLOB NVHELPERSGL_SOURCE nvgl/*.cpp nvgl/*.hpp nvgl/*.inl nvgl/*.h)
@@ -77,10 +70,6 @@ if(USING_VULKANSDK)
 
   string(CONCAT library_name ${library_name} "_vk")
   
-  add_definitions(-DVULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1)
-  #GLFW needs to see the vulkan header, so it can provide glfwCreateWindowSurface
-  add_definitions(-DGLFW_INCLUDE_VULKAN)
-
   if(WIN32)
     add_definitions(-DVK_USE_PLATFORM_WIN32_KHR)
   endif(WIN32)
@@ -91,24 +80,36 @@ if(USING_VULKANSDK)
 endif()
 
 if(USING_IMGUI)
-  file(GLOB IMGUI_SOURCE imgui/imgui*.cpp imgui/imgui*.h imgui/extras/*.* imgui/backends/imgui_impl_glfw.* )
-  include_directories("imgui" "imgui/backends")
+  set(IMGUI_SOURCE 
+      imgui/imgui_camera_widget.cpp 
+      imgui/imgui_camera_widget.h 
+      imgui/imgui_helper.cpp
+      imgui/imgui_helper.h
+      imgui/imgui_orient.cpp  
+      imgui/imgui_orient.h
+      ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp
+      ${IMGUI_DIR}/backends/imgui_impl_glfw.h
+      )
+
+  include_directories(${IMGUI_DIR} ${IMGUI_DIR}/backends)
   
   if(USING_OPENGL)
-    list(APPEND IMGUI_SOURCE imgui/backends/imgui_impl_gl.cpp imgui/backends/imgui_impl_gl.h)
-  endif()
-
+    list(APPEND IMGUI_SOURCE 
+         imgui/backends/imgui_impl_gl.cpp
+         imgui/backends/imgui_impl_gl.h
+         # ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
+         # ${IMGUI_DIR}/backends/imgui_impl_opengl3.h
+         )
+  endif() 
+ 
   if(USING_VULKANSDK)
-  list(APPEND IMGUI_SOURCE imgui/backends/imgui_impl_vulkan.cpp imgui/backends/imgui_impl_vulkan.h)
+    list(APPEND IMGUI_SOURCE 
+         imgui/backends/imgui_vk_extra.cpp 
+         imgui/backends/imgui_vk_extra.h
+         ${IMGUI_DIR}/backends/imgui_impl_vulkan.cpp 
+         ${IMGUI_DIR}/backends/imgui_impl_vulkan.h)
   endif()
 
-endif()
-
-if (USING_DIRECTX11)
-  file(GLOB NVHELPERSDX11_SOURCE nvdx11/*.cpp nvdx11/*.hpp nvdx11/*.inl nvdx11/*.h)
-  source_group("nvdx11" FILES ${NVHELPERSDX11_SOURCE})
-
-  string(CONCAT library_name ${library_name} "_dx11")
 endif()
 
 if (USING_DIRECTX12)
@@ -127,8 +128,6 @@ if (USING_OPTIX)
   string(CONCAT library_name ${library_name} "_optix")
 endif()
 
-
-
 source_group("fileformats" FILES ${FILEFORMATS_SOURCE})
 source_group("noise" FILES ${NOISE_SOURCE})
 source_group("nvmath" FILES ${NVMATH_SOURCE})
@@ -140,16 +139,6 @@ if(MSVC)
   add_definitions(-D_CRT_SECURE_NO_WARNINGS)
 endif(MSVC)
 
-if(SUPPORT_NVTOOLSEXT)
-  include_directories(
-      ${BASE_DIRECTORY}/shared_external/NSight
-  )
-  LIST(APPEND PACKAGE_SOURCE_FILES 
-    ${BASE_DIRECTORY}/shared_sources/nvh/nsightevents.h
-    ${BASE_DIRECTORY}/shared_external/NSight/nvToolsExt.h
-  )
-  add_definitions(-DNVP_SUPPORTS_NVTOOLSEXT)
-endif()
 
 if(USING_OPENGL)
   set(OPENGL_FILES
@@ -157,10 +146,9 @@ if(USING_OPENGL)
   )
 endif()
 
-add_library(shared_sources STATIC 
+add_library(nvpro_core STATIC 
   ${NVHELPERS_SOURCE}
   ${NVMATH_SOURCE}
-  ${NOISE_SOURCE}
   ${IMGUI_SOURCE}
   ${FILEFORMATS_SOURCE}
   ${NVPWINDOW_SOURCE}
@@ -168,7 +156,6 @@ add_library(shared_sources STATIC
   ${NVHELPERSVK_SOURCE}
   ${NVHELPERSVKPP_SOURCE}
   ${NVHELPERSGL_SOURCE}
-  ${NVHELPERSDX11_SOURCE}
   ${NVHELPERSDX12_SOURCE}
   ${PACKAGE_SOURCE_FILES}
   ${NVHELPERSOPTIX_FILES}
@@ -176,32 +163,29 @@ add_library(shared_sources STATIC
 
 # Create precompiled header (added in CMake 3.16)
 if((${CMAKE_VERSION} VERSION_GREATER "3.16.0") OR (${CMAKE_VERSION} VERSION_EQUAL "3.16.0"))
-  target_precompile_headers(shared_sources PRIVATE
+  target_precompile_headers(nvpro_core PRIVATE
     "<algorithm>"
     ${VULKAN_HEADERS}
   )
 endif()
 
-if (MSVC)
-  if (MSVC_VERSION GREATER_EQUAL 1920)
-    set(glfw3 ${BASE_DIRECTORY}/shared_external/glfw3/lib-vc2019/glfw3.lib)
-  elseif (MSVC_VERSION GREATER_EQUAL 1910)
-    set(glfw3 ${BASE_DIRECTORY}/shared_external/glfw3/lib-vc2017/glfw3.lib)
-  elseif (MSVC_VERSION GREATER_EQUAL 1900)
-    set(glfw3 ${BASE_DIRECTORY}/shared_external/glfw3/lib-vc2015/glfw3.lib)
-  else()
-    message( FATAL_ERROR "incompatible MSVC version with glfw3 binaries" )
-  endif()
-  message( STATUS "using glfw3 " ${glfw3} )
-else()
-  set(glfw3 glfw)
-endif()
 
-target_link_libraries(shared_sources
-  ${PLATFORM_LIBRARIES} ${glfw3} 
+
+target_link_libraries(nvpro_core
+  ${PLATFORM_LIBRARIES} 
+  cgltf
+  glfw 
+  imgui
+  stb
+  tinygltf
+  tinyobjloader
+  vma
+  nvtx
  )
 
-set_target_properties(shared_sources PROPERTIES OUTPUT_NAME ${library_name})
-_set_target_output(shared_sources)
 
-message(STATUS "shared_sources library name: ${library_name}")
+set_target_properties(nvpro_core PROPERTIES OUTPUT_NAME ${library_name})
+_set_target_output(nvpro_core)
+
+message(STATUS "nvpro_core library name: ${library_name}")
+

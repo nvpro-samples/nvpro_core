@@ -1,29 +1,22 @@
-/* Copyright (c) 2014-2018, NVIDIA CORPORATION. All rights reserved.
+/*
+ * Copyright (c) 2014-2021, NVIDIA CORPORATION.  All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *  * Neither the name of NVIDIA CORPORATION nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
- * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
- * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
- * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
- * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * SPDX-FileCopyrightText: Copyright (c) 2014-2021 NVIDIA CORPORATION
+ * SPDX-License-Identifier: Apache-2.0
  */
+
 
 #include "pipeline_vk.hpp"
 #include <inttypes.h>
@@ -35,7 +28,8 @@ void nvprintPipelineStats(VkDevice device, VkPipeline pipeline, const char* name
 {
   VkPipelineInfoKHR pipeInfo = {VK_STRUCTURE_TYPE_PIPELINE_INFO_KHR};
   pipeInfo.pipeline          = pipeline;
-  if (!pipeline) return;
+  if(!pipeline)
+    return;
 
   std::vector<VkPipelineExecutablePropertiesKHR> props;
   uint32_t                                       executableCount = 0;
@@ -60,7 +54,7 @@ void nvprintPipelineStats(VkDevice device, VkPipeline pipeline, const char* name
     uint32_t                                      statsCount = 0;
     std::vector<VkPipelineExecutableStatisticKHR> stats;
     vkGetPipelineExecutableStatisticsKHR(device, &execInfo, &statsCount, nullptr);
-    stats.resize(statsCount,{VK_STRUCTURE_TYPE_PIPELINE_EXECUTABLE_STATISTIC_KHR});
+    stats.resize(statsCount, {VK_STRUCTURE_TYPE_PIPELINE_EXECUTABLE_STATISTIC_KHR});
     vkGetPipelineExecutableStatisticsKHR(device, &execInfo, &statsCount, stats.data());
 
     for(uint32_t s = 0; s < statsCount; s++)
@@ -92,10 +86,12 @@ void dumpPipelineStats(VkDevice device, VkPipeline pipeline, const char* fileNam
 {
   VkPipelineInfoKHR pipeInfo = {VK_STRUCTURE_TYPE_PIPELINE_INFO_KHR};
   pipeInfo.pipeline          = pipeline;
-  if (!pipeline) return;
+  if(!pipeline)
+    return;
 
   FILE* fdump = fopen(fileName, "wt");
-  if (!fdump) return;
+  if(!fdump)
+    return;
 
 
   std::vector<VkPipelineExecutablePropertiesKHR> props;
@@ -120,7 +116,7 @@ void dumpPipelineStats(VkDevice device, VkPipeline pipeline, const char* fileNam
     uint32_t                                      statsCount = 0;
     std::vector<VkPipelineExecutableStatisticKHR> stats;
     vkGetPipelineExecutableStatisticsKHR(device, &execInfo, &statsCount, nullptr);
-    stats.resize(statsCount,{VK_STRUCTURE_TYPE_PIPELINE_EXECUTABLE_STATISTIC_KHR});
+    stats.resize(statsCount, {VK_STRUCTURE_TYPE_PIPELINE_EXECUTABLE_STATISTIC_KHR});
     vkGetPipelineExecutableStatisticsKHR(device, &execInfo, &statsCount, stats.data());
 
     for(uint32_t s = 0; s < statsCount; s++)
@@ -128,20 +124,20 @@ void dumpPipelineStats(VkDevice device, VkPipeline pipeline, const char* fileNam
       const VkPipelineExecutableStatisticKHR& stat = stats[s];
       switch(stat.format)
       {
-      case VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_BOOL32_KHR:
-        fprintf(fdump, "  - %s: %d\n", stat.name, stat.value.b32);
-        break;
-      case VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_INT64_KHR:
-        fprintf(fdump, "  - %s: %" PRIi64 "\n", stat.name, stat.value.i64);
-        break;
-      case VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_UINT64_KHR:
-        fprintf(fdump, "  - %s: %" PRIu64 "\n", stat.name, stat.value.u64);
-        break;
-      case VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_FLOAT64_KHR:
-        fprintf(fdump, "  - %s: %f\n", stat.name, stat.value.f64);
-        break;
+        case VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_BOOL32_KHR:
+          fprintf(fdump, "  - %s: %d\n", stat.name, stat.value.b32);
+          break;
+        case VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_INT64_KHR:
+          fprintf(fdump, "  - %s: %" PRIi64 "\n", stat.name, stat.value.i64);
+          break;
+        case VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_UINT64_KHR:
+          fprintf(fdump, "  - %s: %" PRIu64 "\n", stat.name, stat.value.u64);
+          break;
+        case VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_FLOAT64_KHR:
+          fprintf(fdump, "  - %s: %f\n", stat.name, stat.value.f64);
+          break;
       }
-        fprintf(fdump, "    (%s)\n", stat.description);
+      fprintf(fdump, "    (%s)\n", stat.description);
     }
   }
   fprintf(fdump, "\n");
@@ -150,10 +146,10 @@ void dumpPipelineStats(VkDevice device, VkPipeline pipeline, const char* fileNam
 
 static inline std::string stringFormat(const char* msg, ...)
 {
-  char text[1024];
+  char    text[1024];
   va_list list;
 
-  if (msg == 0)
+  if(msg == 0)
     return std::string();
 
   va_start(list, msg);
@@ -167,7 +163,8 @@ void dumpPipelineInternals(VkDevice device, VkPipeline pipeline, const char* bas
 {
   VkPipelineInfoKHR pipeInfo = {VK_STRUCTURE_TYPE_PIPELINE_INFO_KHR};
   pipeInfo.pipeline          = pipeline;
-  if (!pipeline) return;
+  if(!pipeline)
+    return;
 
   std::vector<VkPipelineExecutablePropertiesKHR> props;
   uint32_t                                       executableCount = 0;
@@ -177,39 +174,45 @@ void dumpPipelineInternals(VkDevice device, VkPipeline pipeline, const char* bas
 
   for(uint32_t e = 0; e < executableCount; e++)
   {
-    const VkPipelineExecutablePropertiesKHR& prop = props[e];
-    VkPipelineExecutableInfoKHR execInfo = {VK_STRUCTURE_TYPE_PIPELINE_EXECUTABLE_INFO_KHR};
-    execInfo.pipeline                    = pipeline;
-    execInfo.executableIndex             = e;
+    const VkPipelineExecutablePropertiesKHR& prop     = props[e];
+    VkPipelineExecutableInfoKHR              execInfo = {VK_STRUCTURE_TYPE_PIPELINE_EXECUTABLE_INFO_KHR};
+    execInfo.pipeline                                 = pipeline;
+    execInfo.executableIndex                          = e;
 
     uint32_t internalCount = 0;
     vkGetPipelineExecutableInternalRepresentationsKHR(device, &execInfo, &internalCount, nullptr);
-    if (internalCount){
-      std::vector<VkPipelineExecutableInternalRepresentationKHR>  internals(internalCount,{VK_STRUCTURE_TYPE_PIPELINE_EXECUTABLE_INTERNAL_REPRESENTATION_KHR});
+    if(internalCount)
+    {
+      std::vector<VkPipelineExecutableInternalRepresentationKHR> internals(
+          internalCount, {VK_STRUCTURE_TYPE_PIPELINE_EXECUTABLE_INTERNAL_REPRESENTATION_KHR});
       vkGetPipelineExecutableInternalRepresentationsKHR(device, &execInfo, &internalCount, internals.data());
-      
+
       size_t offset = 0;
-      for (uint32_t i = 0; i < internalCount; i++) {
+      for(uint32_t i = 0; i < internalCount; i++)
+      {
         offset += internals[i].dataSize;
       }
 
       std::vector<uint8_t> rawBytes(offset);
 
       offset = 0;
-      for (uint32_t i = 0; i < internalCount; i++) {
+      for(uint32_t i = 0; i < internalCount; i++)
+      {
         internals[i].pData = &rawBytes[offset];
         offset += internals[i].dataSize;
       }
 
       vkGetPipelineExecutableInternalRepresentationsKHR(device, &execInfo, &internalCount, internals.data());
-      for (uint32_t i = 0; i < internalCount; i++)
+      for(uint32_t i = 0; i < internalCount; i++)
       {
-        std::string fileName = std::string(baseFileName) + "." + std::string(prop.name) + stringFormat(".%d.", e) + internals[i].name + stringFormat(".%d.bin", i);
+        std::string fileName = std::string(baseFileName) + "." + std::string(prop.name) + stringFormat(".%d.", e)
+                               + internals[i].name + stringFormat(".%d.bin", i);
         FILE* f = fopen(fileName.c_str(), "wb");
-        if (f) {
+        if(f)
+        {
           fwrite(internals[i].pData, internals[i].dataSize, 1, f);
+          fclose(f);
         }
-        fclose(f);
       }
     }
   }

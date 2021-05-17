@@ -1,54 +1,47 @@
-/* Copyright (c) 2014-2018, NVIDIA CORPORATION. All rights reserved.
+/*
+ * Copyright (c) 2014-2021, NVIDIA CORPORATION.  All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *  * Neither the name of NVIDIA CORPORATION nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
- * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
- * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
- * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
- * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * SPDX-FileCopyrightText: Copyright (c) 2014-2021 NVIDIA CORPORATION
+ * SPDX-License-Identifier: Apache-2.0
  */
+
 
 #ifndef NV_PROFILER_INCLUDED
 #define NV_PROFILER_INCLUDED
 
 
-#include <stdint.h>
-#include <memory>
-#include <stdio.h>
-#include <string>
-#include <vector>
-#include <functional>
 #include <algorithm>
 #include <chrono>
-#include <float.h> // DBL_MAX
-#include <string.h> //memset
+#include <float.h>  // DBL_MAX
+#include <functional>
+#include <memory>
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>  //memset
+#include <string>
+#include <vector>
 
 #ifdef NVP_SUPPORTS_NVTOOLSEXT
 #define NVTX_STDINT_TYPES_ALREADY_DEFINED
-#include "NSight/nvToolsExt.h"
+#include <nvtx3/nvToolsExt.h>
 #endif
 
 namespace nvh {
 
-  //////////////////////////////////////////////////////////////////////////
-  /**
+//////////////////////////////////////////////////////////////////////////
+/**
     # class nvh::Profiler
 
     The Profiler class is designed to measure timed sections.
@@ -68,16 +61,15 @@ class Profiler
 {
 public:
   // if we detect a change in timers (api/name change we trigger a reset after that amount of frames)
-  static const uint32_t CONFIG_DELAY   = 8;
+  static const uint32_t CONFIG_DELAY = 8;
   // gpu times are queried after that amount of frames
-  static const uint32_t FRAME_DELAY    = 4;
+  static const uint32_t FRAME_DELAY = 4;
   // by default we start with space for that many begin/end sections per-frame
   static const uint32_t START_SECTIONS = 64;
   // cyclic window for averaging
   static const uint32_t MAX_NUM_AVERAGE = 128;
 
 public:
-
   typedef uint32_t SectionID;
   typedef uint32_t OnceID;
 
@@ -136,19 +128,19 @@ public:
   //  singleShot = true, means the timer can exist outside begin/endFrame and is non-recurring
   //                     results of previous singleShot with same name will be overwritten.
   // singleShot = false, sections can be nested, but must be within begin/endFrame
-  // 
+  //
 
   SectionID beginSection(const char* name, const char* api = nullptr, gpuTimeProvider_fn gpuTimeProvider = nullptr, bool singleShot = false);
   void      endSection(SectionID slot);
 
   // When a section is used within a loop (same nesting level), and the the same arguments for name and api are
-  // passed, we normally average the results of those sections together when printing the stats or using the 
+  // passed, we normally average the results of those sections together when printing the stats or using the
   // getAveraged functions below.
   // Calling the splitter (outside of a section) means we insert a split point that the averaging will not
   // pass.
-  void      accumulationSplit();
+  void accumulationSplit();
 
-  
+
   inline double getMicroSeconds() const { return m_clock.getMicroSeconds(); }
 
   //////////////////////////////////////////////////////////////////////////
@@ -164,29 +156,31 @@ public:
   void reset(uint32_t delay = CONFIG_DELAY);
 
   // pretty print current averaged timers
-  void     print(std::string& stats);
+  void print(std::string& stats);
 
   // returns number of frames since reset
   uint32_t getTotalFrames() const;
-  
-  struct TimerStats {
+
+  struct TimerStats
+  {
     // time in microseconds
-    double    average = 0;
-    double    absMinValue = DBL_MAX;
-    double    absMaxValue = 0;
+    double average     = 0;
+    double absMinValue = DBL_MAX;
+    double absMaxValue = 0;
   };
 
-  struct TimerInfo {
+  struct TimerInfo
+  {
     // number of averaged values, <= MAX_NUM_AVERAGE
-    uint32_t    numAveraged = 0;
+    uint32_t numAveraged = 0;
 
     // accumulation happens for example in loops:
     //   for (..) { auto scopeTimer = timeSection("blah"); ... }
     // then the reported values are the accumulated sum of all those timers.
-    bool        accumulated = false;
+    bool accumulated = false;
 
-    TimerStats  cpu;
-    TimerStats  gpu;
+    TimerStats cpu;
+    TimerStats gpu;
   };
 
   // query functions for current gathered cyclic averages ( <= MAX_NUM_AVERAGE)
@@ -195,15 +189,18 @@ public:
   bool getTimerInfo(const char* name, TimerInfo& info);
 
   // simplified wrapper
-  bool getAveragedValues(const char* name, double& cpuTime, double& gpuTime) {
+  bool getAveragedValues(const char* name, double& cpuTime, double& gpuTime)
+  {
     TimerInfo info;
 
-    if (getTimerInfo(name, info)) {
+    if(getTimerInfo(name, info))
+    {
       cpuTime = info.cpu.average;
       gpuTime = info.gpu.average;
       return true;
     }
-    else {
+    else
+    {
       cpuTime = 0;
       gpuTime = 0;
       return false;
@@ -227,67 +224,69 @@ protected:
 
   inline uint32_t getSubFrame(SectionID slot) const { return m_data->entries[slot].subFrame; }
   inline uint32_t getRequiredTimers() const { return (uint32_t)(m_data->entries.size() * FRAME_DELAY * 2); }
-  
-  static inline uint32_t  getTimerIdx(SectionID slot, uint32_t subFrame, bool begin)
+
+  static inline uint32_t getTimerIdx(SectionID slot, uint32_t subFrame, bool begin)
   {
     // must not change order of begin/end
     return ((slot * FRAME_DELAY) + subFrame) * 2 + (begin ? 0 : 1);
   }
 
-  inline bool isSectionRecurring(SectionID slot) const {
-    return m_data->entries[slot].level != LEVEL_SINGLESHOT;
-  }
-  
-private:
+  inline bool isSectionRecurring(SectionID slot) const { return m_data->entries[slot].level != LEVEL_SINGLESHOT; }
 
+private:
   //////////////////////////////////////////////////////////////////////////
 
   static const uint32_t LEVEL_SINGLESHOT = ~0;
 
-  struct TimeValues {
-    double    times[MAX_NUM_AVERAGE] = {0};
-    double    valueTotal = 0;
-    double    absMinValue = DBL_MAX;
-    double    absMaxValue = 0;
+  struct TimeValues
+  {
+    double times[MAX_NUM_AVERAGE] = {0};
+    double valueTotal             = 0;
+    double absMinValue            = DBL_MAX;
+    double absMaxValue            = 0;
 
-    uint32_t  index = 0;
-    uint32_t  numCycle = MAX_NUM_AVERAGE;
-    uint32_t  numValid = 0;
+    uint32_t index    = 0;
+    uint32_t numCycle = MAX_NUM_AVERAGE;
+    uint32_t numValid = 0;
 
-    TimeValues(uint32_t cycleSize = MAX_NUM_AVERAGE) {
-      init(cycleSize);
-    }
+    TimeValues(uint32_t cycleSize = MAX_NUM_AVERAGE) { init(cycleSize); }
 
-    void init (uint32_t cycleSize) {
+    void init(uint32_t cycleSize)
+    {
       numCycle = std::min(cycleSize, MAX_NUM_AVERAGE);
       reset();
     }
 
-    void reset() {
-      valueTotal = 0;
+    void reset()
+    {
+      valueTotal  = 0;
       absMinValue = DBL_MAX;
       absMaxValue = 0;
-      index = 0;
-      numValid = 0;
+      index       = 0;
+      numValid    = 0;
       memset(times, 0, sizeof(times));
     }
 
-    void add(double time) {
+    void add(double time)
+    {
       valueTotal += time - times[index];
       times[index] = time;
 
-      index = (index + 1) % numCycle;
+      index    = (index + 1) % numCycle;
       numValid = std::min(numValid + 1, numCycle);
 
       absMinValue = std::min(time, absMinValue);
       absMaxValue = std::max(time, absMaxValue);
     }
 
-    double getAveraged() {
-      if (numValid) {
+    double getAveraged()
+    {
+      if(numValid)
+      {
         return valueTotal / double(numValid);
       }
-      else {
+      else
+      {
         return 0;
       }
     }
@@ -295,12 +294,12 @@ private:
 
   struct Entry
   {
-    const char* name = nullptr;
-    const char* api  = nullptr;
+    const char*        name            = nullptr;
+    const char*        api             = nullptr;
     gpuTimeProvider_fn gpuTimeProvider = nullptr;
 
     // level == ~0 used for "singleShot"
-    uint32_t level = 0;
+    uint32_t level    = 0;
     uint32_t subFrame = 0;
 
 #ifdef NVP_SUPPORTS_NVTOOLSEXT
@@ -312,17 +311,17 @@ private:
     // number of times summed since last reset
     uint32_t numTimes = 0;
 
-    TimeValues   gpuTime;
-    TimeValues   cpuTime;
+    TimeValues gpuTime;
+    TimeValues cpuTime;
 
     // splitter is used to prevent accumulated case below
     // when same depth level is used
-    // {section("BLAH"); ... } 
+    // {section("BLAH"); ... }
     // splitter
     // {section("BLAH"); ...}
     // now the result of "BLAH" is not accumulated
 
-    bool splitter    = false;
+    bool splitter = false;
 
     // if the same timer name is used within a loop (same
     // depth level), e.g.:
@@ -336,21 +335,21 @@ private:
 
   struct Data
   {
-    uint32_t           numAveraging = MAX_NUM_AVERAGE;
-    uint32_t           resetDelay   = 0;
-    uint32_t           numFrames    = 0;
+    uint32_t numAveraging = MAX_NUM_AVERAGE;
+    uint32_t resetDelay   = 0;
+    uint32_t numFrames    = 0;
 
-    uint32_t           level        = 0;
-    uint32_t           nextSection  = 0;
+    uint32_t level       = 0;
+    uint32_t nextSection = 0;
 
-    uint32_t           numLastSections = 0;
-    uint32_t           numLastEntries  = 0;
+    uint32_t numLastSections = 0;
+    uint32_t numLastEntries  = 0;
 
     std::vector<uint32_t> frameSections;
     std::vector<uint32_t> singleSections;
 
-    double             cpuCurrentTime = 0;
-    TimeValues         cpuTime;
+    double     cpuCurrentTime = 0;
+    TimeValues cpuTime;
 
     std::vector<Entry> entries;
   };
@@ -361,7 +360,7 @@ private:
 
   SectionID getSectionID(bool singleShot, const char* name);
 
-  bool getTimerInfo(uint32_t i, TimerInfo& info);  
+  bool getTimerInfo(uint32_t i, TimerInfo& info);
   void grow(uint32_t newsize);
 };
 }  // namespace nvh

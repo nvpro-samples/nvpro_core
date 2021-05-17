@@ -66,16 +66,16 @@ if(CUDA_FOUND)
   set(NVML_INCLUDE_DIRS ${CUDA_INCLUDE_DIRS})
   set(NVML_FOUND ON)
 else(CUDA_FOUND)
-  Message(STATUS "No CUDA Sdk detected. Looking for nvml locally to shared_external folder and NVML_LOCATION (${NVML_LOCATION})")
+  Message(STATUS "No CUDA Sdk detected. Looking for nvml locally and NVML_LOCATION (${NVML_LOCATION})")
   # if no CUDA, let's try to find nvml locally in our shared_extenal folder that contains useful external components
   find_path( NVML_INCLUDE_DIRS nvml.h
     ${NVML_LOCATION}
     $ENV{NVML_LOCATION}
-    ${PROJECT_SOURCE_DIR}/shared_external/nvml
-    ${PROJECT_SOURCE_DIR}/../shared_external/nvml
-    ${PROJECT_SOURCE_DIR}/../../shared_external/nvml
-    ${PROJECT_SOURCE_DIR}/../../../shared_external/nvml
-    ${PROJECT_SOURCE_DIR}/../../../../shared_external/nvml
+    ${PROJECT_SOURCE_DIR}/nvpro_core/third_party/binaries/nvml
+    ${PROJECT_SOURCE_DIR}/../nvpro_core/third_party/binaries/nvml
+    ${PROJECT_SOURCE_DIR}/../../nvpro_core/third_party/binaries/nvml
+    ${PROJECT_SOURCE_DIR}/../../../nvpro_core/third_party/binaries/nvml
+    ${PROJECT_SOURCE_DIR}/../../../../nvpro_core/third_party/binaries/nvml
   )
 
   if(NVML_INCLUDE_DIRS)

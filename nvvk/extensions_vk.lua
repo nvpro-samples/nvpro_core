@@ -1,30 +1,23 @@
 --[[
-/* Copyright (c) 2018, NVIDIA CORPORATION. All rights reserved.
+/*
+ * Copyright (c) 2018-2021, NVIDIA CORPORATION.  All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *  * Neither the name of NVIDIA CORPORATION nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
- * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
- * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
- * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
- * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * SPDX-FileCopyrightText: Copyright (c) 2018-2021 NVIDIA CORPORATION
+ * SPDX-License-Identifier: Apache-2.0
  */
+
 ]]
 
 -- HOW TO USE
@@ -98,6 +91,7 @@ local extensionSubset = [[
 	VK_KHR_acceleration_structure
     VK_KHR_ray_tracing_pipeline
 	VK_KHR_pipeline_library
+    VK_KHR_synchronization2
     ]]
 
 local function extractFeatureDefs(features, filename, enablelist)
@@ -355,136 +349,46 @@ local function generate(outfilename, header, enablelist)
       loaders_header = loaders_header.."extern int has_"..f.feature..";\n"
       loaders_header = loaders_header.."#endif\n\n"
       
-      loaders_source = loaders_source.."/* /////////////////////////////////// */\n"
-      loaders_source = loaders_source..preproc_condition
-      loaders_source = loaders_source..variable.."\n"
-      loaders_source = loaders_source..func.."\n"
-      loaders_source = loaders_source.."int has_"..f.feature.." = 0;\n"
-      loaders_source = loaders_source.."int load_"..f.feature.."(VkInstance instance, PFN_vkGetInstanceProcAddr getInstanceProcAddr, VkDevice device, PFN_vkGetDeviceProcAddr getDeviceProcAddr)\n{\n"
-      loaders_source = loaders_source..initfunc
-      loaders_source = loaders_source.."  int success = 1;\n"
-      loaders_source = loaders_source..success
-      loaders_source = loaders_source.."  has_"..f.feature.." = success;\n"
-      loaders_source = loaders_source.."  return success;\n}\n"
-      loaders_source = loaders_source.."#endif\n\n"
-      
-      loaders_all = loaders_all.."  "..preproc_condition
-      loaders_all = loaders_all.."  load_"..f.feature.."(instance, getInstanceProcAddr, device, getDeviceProcAddr);\n"
-      loaders_all = loaders_all.."  #endif\n"
-      
-      reset_all = reset_all.."  "..preproc_condition
-      reset_all = reset_all.."  has_"..f.feature.." = 0;\n"
-      reset_all = reset_all..reset
-      reset_all = reset_all.."  #endif\n\n"
-    else
-      error("nofuncs "..f.feature)
-    end
-  end
-  
-  for i,f in ipairs(vk_features) do
-    process(f, "VKAPI_ATTR ", "VKAPI_CALL ")
-  end
-
-  local fheader = io.open(outfilename..".hpp", "wt")
-  local fsource = io.open(outfilename..".cpp", "wt")
-  assert(fheader, "could not open "..outfilename..".hpp for writing")
-  assert(fsource, "could not open "..outfilename..".cpp for writing")
-    
-fheader:write("/* based on VK_HEADER_VERSION "..vk_version.." */\n"..header..[[
-
-/* Copyright (c) 2018, NVIDIA CORPORATION. All rights reserved.
+      loaders_source = loaders_source.."/*
+ * Copyright (c) 2018-2021, NVIDIA CORPORATION.  All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *  * Neither the name of NVIDIA CORPORATION nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
- * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
- * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
- * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
- * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * SPDX-FileCopyrightText: Copyright (c) 2018-2021 NVIDIA CORPORATION
+ * SPDX-License-Identifier: Apache-2.0
  */
+
 
 //////////////////////////////////////////////////////////////////////////
-/**
-  # Vulkan Extension Loader
-
-  The extensions_vk files takes care of loading and providing the symbols of
-  Vulkan C Api extensions.
-  It is generated by `extensions_vk.lua` which contains a enablelist of
-  extensions to be made available.
-
-  The framework triggers this implicitly in the `nvvk::Context` class.
-  
-  If you want to use it in your own code, see the instructions in the 
-  lua file how to generate it.
-
-  ~~~ c++
-    // loads all known extensions
-    load_VK_EXTENSION_SUBSET(instance, vkGetInstanceProcAddr, device, vkGetDeviceProcAddr);
-
-    // load individual extension
-    load_VK_KHR_push_descriptor(instance, vkGetInstanceProcAddr, device, vkGetDeviceProcAddr);
-  ~~~
-
-*/
-
-#pragma once
-
-#include <vulkan/vulkan.h>
-
-/* super load/reset */
-void load_VK_EXTENSION_SUBSET(VkInstance instance, PFN_vkGetInstanceProcAddr getInstanceProcAddr, VkDevice device, PFN_vkGetDeviceProcAddr getDeviceProcAddr);
-void reset_VK_EXTENSION_SUBSET();
-
-/* loaders */
-]]..loaders_header..[[
-
-]])
-
-fsource:write("/* based on VK_HEADER_VERSION "..vk_version.." */\n"..header..[[
-
-
-/* Copyright (c) 2018, NVIDIA CORPORATION. All rights reserved.
+/*
+ * Copyright (c) 2018-2021, NVIDIA CORPORATION.  All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *  * Neither the name of NVIDIA CORPORATION nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
- * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
- * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
- * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
- * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * SPDX-FileCopyrightText: Copyright (c) 2018-2021 NVIDIA CORPORATION
+ * SPDX-License-Identifier: Apache-2.0
  */
+
 
 #include <assert.h>
 #include "]]..outfilename..[[.hpp"

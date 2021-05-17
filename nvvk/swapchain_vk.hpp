@@ -1,29 +1,22 @@
-/* Copyright (c) 2014-2018, NVIDIA CORPORATION. All rights reserved.
+/*
+ * Copyright (c) 2014-2021, NVIDIA CORPORATION.  All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *  * Neither the name of NVIDIA CORPORATION nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
- * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
- * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
- * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
- * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * SPDX-FileCopyrightText: Copyright (c) 2014-2021 NVIDIA CORPORATION
+ * SPDX-License-Identifier: Apache-2.0
  */
+
 
 #ifndef NV_VK_SWAPCHAIN_INCLUDED
 #define NV_VK_SWAPCHAIN_INCLUDED
@@ -181,9 +174,9 @@ A typical renderloop would look as follows:
 struct SwapChainAcquireState
 {
   // The image and its view and index in the swap chain.
-  VkImage image;
+  VkImage     image;
   VkImageView view;
-  uint32_t index;
+  uint32_t    index;
   // MUST wait on this semaphore before writing to the image. ("The
   // system" signals this semaphore when it's done presenting the
   // image and can safely be reused).
@@ -210,7 +203,7 @@ private:
   VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
 
   VkQueue  m_queue{};
-  VkQueue  m_waitQueue{}; // See waitIdle and setWaitQueue.
+  VkQueue  m_waitQueue{};  // See waitIdle and setWaitQueue.
   uint32_t m_queueFamilyIndex{0};
 
   VkSurfaceKHR    m_surface{};
@@ -232,17 +225,21 @@ private:
   // incremented by `SwapChain::update`, use to update other resources or track changes
   uint32_t m_changeID{0};
   // surface
-  VkExtent2D m_extent{0,0};
+  VkExtent2D m_extent{0, 0};
   // requested on update
   uint32_t m_updateWidth{0};
   uint32_t m_updateHeight{0};
   // if the swap operation is sync'ed with monitor
   bool m_vsync = false;
 
+  VkImageUsageFlags m_imageUsage{};
+
   VkResult waitIdle()
   {
-    if (m_waitQueue) return vkQueueWaitIdle(m_waitQueue);
-    else return vkDeviceWaitIdle(m_device);
+    if(m_waitQueue)
+      return vkQueueWaitIdle(m_waitQueue);
+    else
+      return vkDeviceWaitIdle(m_device);
   }
 
   // triggers device/queue wait idle
@@ -253,13 +250,29 @@ public:
   SwapChain& operator=(SwapChain const&) = delete;
 
   SwapChain() {}
-  SwapChain(VkDevice device, VkPhysicalDevice physicalDevice, VkQueue queue, uint32_t queueFamilyIndex, VkSurfaceKHR surface, VkFormat format = VK_FORMAT_B8G8R8A8_UNORM)
+
+  static constexpr VkImageUsageFlags s_defaultImageUsage =
+      VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+
+  SwapChain(VkDevice          device,
+            VkPhysicalDevice  physicalDevice,
+            VkQueue           queue,
+            uint32_t          queueFamilyIndex,
+            VkSurfaceKHR      surface,
+            VkFormat          format     = VK_FORMAT_B8G8R8A8_UNORM,
+            VkImageUsageFlags imageUsage = s_defaultImageUsage)
   {
-    init(device, physicalDevice, queue, queueFamilyIndex, surface, format);
+    init(device, physicalDevice, queue, queueFamilyIndex, surface, format, imageUsage);
   }
   ~SwapChain() { deinit(); }
 
-  bool init(VkDevice device, VkPhysicalDevice physicalDevice, VkQueue queue, uint32_t queueFamilyIndex, VkSurfaceKHR surface, VkFormat format = VK_FORMAT_B8G8R8A8_UNORM);
+  bool init(VkDevice          device,
+            VkPhysicalDevice  physicalDevice,
+            VkQueue           queue,
+            uint32_t          queueFamilyIndex,
+            VkSurfaceKHR      surface,
+            VkFormat          format     = VK_FORMAT_B8G8R8A8_UNORM,
+            VkImageUsageFlags imageUsage = s_defaultImageUsage);
 
   // triggers queue/device wait idle
   void deinit();
@@ -293,12 +306,12 @@ public:
   //
   // WARNING the swap chain could be spontaneously recreated, even if
   // you are calling `update` whenever the window is resized.
-  bool acquire(bool* pRecreated=nullptr, SwapChainAcquireState* pOut = nullptr);
+  bool acquire(bool* pRecreated = nullptr, SwapChainAcquireState* pOut = nullptr);
   bool acquireAutoResize(int width, int height, bool* pRecreated, SwapChainAcquireState* pOut = nullptr);
 
   // Can be made public if this functionality is needed again.
 private:
-  bool acquireCustom(VkSemaphore semaphore, bool* pRecreated=nullptr, SwapChainAcquireState* pOut = nullptr);
+  bool acquireCustom(VkSemaphore semaphore, bool* pRecreated = nullptr, SwapChainAcquireState* pOut = nullptr);
   bool acquireCustom(VkSemaphore semaphore, int width, int height, bool* pRecreated, SwapChainAcquireState* pOut = nullptr);
 
 public:
@@ -321,19 +334,19 @@ public:
   VkImageView getActiveImageView() const;
   uint32_t    getActiveImageIndex() const { return m_currentImage; }
 
-  uint32_t       getImageCount() const { return m_imageCount; }
-  VkImage        getImage(uint32_t i) const;
-  VkImageView    getImageView(uint32_t i) const;
-  VkFormat       getFormat() const { return m_surfaceFormat; }
+  uint32_t    getImageCount() const { return m_imageCount; }
+  VkImage     getImage(uint32_t i) const;
+  VkImageView getImageView(uint32_t i) const;
+  VkFormat    getFormat() const { return m_surfaceFormat; }
 
   // Get the actual size of the swap chain images.
-  uint32_t       getWidth() const { return m_extent.width; }
-  uint32_t       getHeight() const { return m_extent.height; }
-  VkExtent2D     getExtent() const { return m_extent; }
+  uint32_t   getWidth() const { return m_extent.width; }
+  uint32_t   getHeight() const { return m_extent.height; }
+  VkExtent2D getExtent() const { return m_extent; }
 
   // Get the requested size of the swap chain images. THIS IS RARELY USEFUL.
-  uint32_t       getUpdateWidth() const { return m_updateWidth; }
-  uint32_t       getUpdateHeight() const { return m_updateHeight; }
+  uint32_t getUpdateWidth() const { return m_updateWidth; }
+  uint32_t getUpdateHeight() const { return m_updateHeight; }
 
   bool           getVsync() const { return m_vsync; }
   VkSwapchainKHR getSwapchain() const { return m_swapchain; }
@@ -349,10 +362,7 @@ public:
   // non-null queue, we only wait for that queue instead of the whole
   // device.  This may be needed if you are using queues in other CPU
   // threads that are not synchronized to the render loop.
-  void setWaitQueue(VkQueue waitQueue = VK_NULL_HANDLE)
-  {
-    m_waitQueue = waitQueue;
-  }
+  void setWaitQueue(VkQueue waitQueue = VK_NULL_HANDLE) { m_waitQueue = waitQueue; }
 };
 }  // namespace nvvk
 #endif

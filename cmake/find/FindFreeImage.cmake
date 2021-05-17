@@ -8,11 +8,11 @@ find_path( FREEIMAGE_INCLUDE_DIR FreeImage.h
   if(UNIX)
     /usr/include
   endif(UNIX)
-  ${PROJECT_SOURCE_DIR}/shared_external/Freeimage/include
-  ${PROJECT_SOURCE_DIR}/../shared_external/Freeimage/include
-  ${PROJECT_SOURCE_DIR}/../../shared_external/Freeimage/include
-  ${PROJECT_SOURCE_DIR}/../../../shared_external/Freeimage/include
-  ${PROJECT_SOURCE_DIR}/../../../../shared_external/Freeimage/include
+  ${PROJECT_SOURCE_DIR}/nvpro_core/third_party/binaries/Freeimage/include
+  ${PROJECT_SOURCE_DIR}/../nvpro_core/third_party/binaries/Freeimage/include
+  ${PROJECT_SOURCE_DIR}/../../nvpro_core/third_party/binaries/Freeimage/include
+  ${PROJECT_SOURCE_DIR}/../../../nvpro_core/third_party/binaries/Freeimage/include
+  ${PROJECT_SOURCE_DIR}/../../../../nvpro_core/third_party/binaries/Freeimage/include
   ${FREEIMAGE_LOCATION}/include
   $ENV{FREEIMAGE_LOCATION}/include
 )

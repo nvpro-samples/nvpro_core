@@ -29,7 +29,7 @@ set_property(GLOBAL PROPERTY PREDEFINED_TARGETS_FOLDER "_cmake")
 set(OpenGL_GL_PREFERENCE GLVND)
 
 set(SUPPORT_SOCKETS OFF CACHE BOOL "add a socket protocol so samples can be controled remotely")
-set(SUPPORT_NVTOOLSEXT OFF CACHE BOOL "Use NSight for custom markers")
+set(SUPPORT_NVTOOLSEXT OFF CACHE BOOL "enable NVToolsExt for custom NSIGHT markers")
 
 if(WIN32)
   set( MEMORY_LEAKS_CHECK OFF CACHE BOOL "Check for Memory leaks" )
@@ -41,46 +41,13 @@ if(MSVC)
   string(APPEND CMAKE_CXX_FLAGS " /MP")
 endif()
 
-set(RESOURCE_DIRECTORY "${BASE_DIRECTORY}/shared_sources/resources")
+set(RESOURCE_DIRECTORY "${BASE_DIRECTORY}/nvpro_core/resources")
 add_definitions(-DRESOURCE_DIRECTORY="${RESOURCE_DIRECTORY}/")
 
-include_directories(${BASE_DIRECTORY}/shared_sources)
-include_directories(${BASE_DIRECTORY}/shared_external)
-
-if (WIN32)
-  include_directories(${BASE_DIRECTORY}/shared_external/glfw3/include)
-else() 
-  find_package(glfw3 3.3 QUIET)
-
-  if (NOT glfw3_FOUND AND NOT GLFW3_DIR)
-    set(GLFW3_ZIP ${BASE_DIRECTORY}/downloaded_resources/glfw-3.3.1.zip)
-    set(GLFW3_DIR ${BASE_DIRECTORY}/downloaded_resources/glfw-3.3.1)
-
-    if(NOT EXISTS ${GLFW3_DIR}/CMakeLists.txt)
-      if(NOT EXISTS ${GLFW3_DIR})
-      if(NOT EXISTS ${GLFW3_ZIP})
-        file(DOWNLOAD https://github.com/glfw/glfw/releases/download/3.3.1/glfw-3.3.1.zip ${GLFW3_ZIP}
-           TIMEOUT 60  # seconds
-           TLS_VERIFY ON)
-      endif()
-      execute_process(COMMAND ${CMAKE_COMMAND} -E tar -xf ${GLFW3_ZIP}
-              WORKING_DIRECTORY ${BASE_DIRECTORY}/downloaded_resources)
-      endif()
-	endif()
-
-	# prevent glfw from building all kinds of stuff we don't need
-	set(GLFW_BUILD_EXAMPLES OFF)
-	set(GLFW_BUILD_TESTS OFF)
-	set(GLFW_BUILD_DOCS OFF)
-	set(GLFW_INSTALL OFF)
-
-	add_subdirectory(${GLFW3_DIR} ${BASE_DIRECTORY}/build/build_glfw3/src)
-    include_directories(${GLFW3_DIR}/include)
-  endif()  
-endif()
+include_directories(${BASE_DIRECTORY}/nvpro_core)
 
 # Specify the list of directories to search for cmake modules.
-set(CMAKE_MODULE_PATH ${BASE_DIRECTORY}/shared_sources/cmake ${BASE_DIRECTORY}/shared_sources/cmake/find)
+set(CMAKE_MODULE_PATH ${BASE_DIRECTORY}/nvpro_core/cmake ${BASE_DIRECTORY}/nvpro_core/cmake/find)
 set(CMAKE_FIND_ROOT_PATH "")
 
 message(STATUS "BASE_DIRECTORY = ${BASE_DIRECTORY}")
@@ -141,12 +108,6 @@ macro(_add_project_definitions name)
   add_definitions(-DPROJECT_NAME="${name}")
   add_definitions(-DPROJECT_RELDIRECTORY="${TO_CURRENT_SOURCE_DIR}/")
   add_definitions(-DPROJECT_DOWNLOAD_RELDIRECTORY="${TO_DOWNLOAD_TARGET_DIR}/")
-
-  if (SUPPORT_NVTOOLSEXT)
-    add_definitions(-DNVP_SUPPORTS_NVTOOLSEXT)
-    # add the package if we checked SUPPORT_NVTOOLSEXT in cmake
-    _add_package_NSight()
-  endif(SUPPORT_NVTOOLSEXT)
 endmacro(_add_project_definitions)
 
 #####################################################################################
@@ -191,39 +152,35 @@ endif(UNIX)
 
 # Macro for adding files close to the executable
 macro(_copy_files_to_target target thefiles)
-    if(WIN32)
-        foreach (FFF ${thefiles} )
-          if(EXISTS "${FFF}")
-            add_custom_command(
-              TARGET ${target} POST_BUILD
-              COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                ${FFF}
-                $<TARGET_FILE_DIR:${target}>
-                VERBATIM
-            )
-          endif()
-        endforeach()
+  foreach (FFF ${thefiles} )
+    if(EXISTS "${FFF}")
+      add_custom_command(
+        TARGET ${target} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+          ${FFF}
+          $<TARGET_FILE_DIR:${target}>
+          VERBATIM
+      )
     endif()
+  endforeach()
 endmacro()
 
 # Macro for adding files close to the executable
 macro(_copy_file_to_target target thefile folder)
-  if(WIN32)
-    if(EXISTS "${thefile}")
-      add_custom_command(
-        TARGET ${target} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory
-          "$<TARGET_FILE_DIR:${target}>/${folder}"
-          VERBATIM
-      )
-      add_custom_command(
-        TARGET ${target} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-          ${thefile}
-          "$<TARGET_FILE_DIR:${target}>/${folder}"
-          VERBATIM
-      )
-    endif()
+  if(EXISTS "${thefile}")
+    add_custom_command(
+      TARGET ${target} POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E make_directory
+        "$<TARGET_FILE_DIR:${target}>/${folder}"
+        VERBATIM
+    )
+    add_custom_command(
+      TARGET ${target} POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${thefile}
+        "$<TARGET_FILE_DIR:${target}>/${folder}"
+        VERBATIM
+    )
   endif()
 endmacro()
 
@@ -245,7 +202,7 @@ macro(_add_package_OpenGL)
  endif(OPENGL_FOUND)
 endmacro(_add_package_OpenGL)
 # this macro is needed for the samples to add this package, although not needed
-# this happens when the shared_sources library was built with these stuff in it
+# this happens when the nvpro_core library was built with these stuff in it
 # so many samples can share the same library for many purposes
 macro(_optional_package_OpenGL)
   if(USING_OPENGL)
@@ -257,38 +214,35 @@ endmacro(_optional_package_OpenGL)
 # Optional ZLIB
 #
 macro(_add_package_ZLIB)
-  if(EXISTS ${BASE_DIRECTORY}/shared_external/zlib)
-    set(ZLIB_ROOT ${BASE_DIRECTORY}/shared_external/zlib)
-  endif()
-  Message(STATUS "--> using package ZLIB")
-  find_package(ZLIB)
-  if(ZLIB_FOUND)
-      add_definitions(-DNVP_SUPPORTS_GZLIB)
-      include_directories(${ZLIB_INCLUDE_DIR})
-      LIST(APPEND PACKAGE_SOURCE_FILES
-        ${ZLIB_HEADERS}
-        )
-      LIST(APPEND LIBRARIES_OPTIMIZED ${ZLIB_LIBRARY})
-      LIST(APPEND LIBRARIES_DEBUG ${ZLIB_LIBRARY})
+  add_definitions(-DNVP_SUPPORTS_GZLIB=1)
+  get_directory_property(hasParent PARENT_DIRECTORY)
+  if(hasParent)
+    set(USING_ZLIB ON PARENT_SCOPE)
   else()
-      Message(WARNING "ZLIB not available.")
+    set(USING_ZLIB ON)
+  endif()
+  LIST(APPEND LIBRARIES_OPTIMIZED zlibstatic)
+  LIST(APPEND LIBRARIES_DEBUG zlibstatic)
+endmacro()
+
+#####################################################################################
+# Optional VMA
+#
+macro(_add_package_VMA)
+  get_directory_property(hasParent PARENT_DIRECTORY)
+  if(hasParent)
+    set(USING_VMA ON PARENT_SCOPE)
+  else()
+    set(USING_VMA ON)
   endif()
 endmacro()
-# this macro is needed for the samples to add this package, although not needed
-# this happens when the shared_sources library was built with these stuff in it
-# so many samples can share the same library for many purposes
-macro(_optional_package_ZLIB)
-  if(ZLIB_FOUND)
-    _add_package_ZLIB()
-  endif(ZLIB_FOUND)
-endmacro(_optional_package_ZLIB)
 
 #####################################################################################
 # ImGUI
 #
 macro(_add_package_ImGUI)
   Message(STATUS "--> using package ImGUI")
-  include_directories(${BASE_DIRECTORY}/shared_sources/imgui)
+  include_directories(${BASE_DIRECTORY}/nvpro_core/imgui)
 
   set(USING_IMGUI ON)
   get_directory_property(hasParent PARENT_DIRECTORY)
@@ -297,34 +251,6 @@ macro(_add_package_ImGUI)
   endif()
 
 endmacro()
-
-#####################################################################################
-# AntTweakBar UI
-#
-macro(_add_package_AntTweakBar)
-  Message(STATUS "--> using package AntTweakBar")
-  find_package(AntTweakBar)
-  if(ANTTWEAKBAR_FOUND)
-    add_definitions(-DNVP_SUPPORTS_ANTTWEAKBAR)
-    include_directories(${ANTTWEAKBAR_INCLUDE_DIR})
-    LIST(APPEND PACKAGE_SOURCE_FILES 
-      ${ANTTWEAKBAR_HEADERS}
-    )
-    LIST(APPEND LIBRARIES_OPTIMIZED ${ANTTWEAKBAR_LIB})
-    LIST(APPEND LIBRARIES_DEBUG ${ANTTWEAKBAR_LIB})
-    source_group(AntTweakBar FILES 
-      ${ANTTWEAKBAR_HEADERS}
-    )
-  endif()
-endmacro()
-# this macro is needed for the samples to add this package, although not needed
-# this happens when the shared_sources library was built with these stuff in it
-# so many samples can share the same library for many purposes
-macro(_optional_package_AntTweakBar)
-  if(ANTTWEAKBAR_FOUND)
-    _add_package_AntTweakBar()
-  endif(ANTTWEAKBAR_FOUND)
-endmacro(_optional_package_AntTweakBar)
 
 
 #####################################################################################
@@ -347,7 +273,7 @@ macro(_add_package_FreeImage)
   endif()
 endmacro()
 # this macro is needed for the samples to add this package, although not needed
-# this happens when the shared_sources library was built with these stuff in it
+# this happens when the nvpro_core library was built with these stuff in it
 # so many samples can share the same library for many purposes
 macro(_optional_package_FreeImage)
   if(FREEIMAGE_FOUND)
@@ -356,84 +282,12 @@ macro(_optional_package_FreeImage)
 endmacro(_optional_package_FreeImage)
 
 
-
-
-#####################################################################################
-# VMA (Vulkan Memory Allocator)
-#
-macro(_add_package_VMA)
-  Message(STATUS "--> using package VMA")
-  find_package(VMA)
-  if(VMA_FOUND)
-    add_definitions(-DNVP_SUPPORTS_VMA)
-    include_directories(${VMA_INCLUDE_DIR})
-    LIST(APPEND PACKAGE_SOURCE_FILES 
-      ${VMA_HEADERS}
-    )
-    source_group(VMA FILES 
-      ${VMA_HEADERS}
-    )
-  endif()
-endmacro()
-# this macro is needed for the samples to add this package, although not needed
-# this happens when the shared_sources library was built with these stuff in it
-# so many samples can share the same library for many purposes
-macro(_optional_package_VMA)
-  if(VMA_FOUND)
-    _add_package_VMA()
-  endif(VMA_FOUND)
-endmacro(_optional_package_VMA)
-
-#####################################################################################
-# OculusSDK package
-#
-macro(_add_package_OculusSDK)
-  Message(STATUS "--> using package OculusSDK")
-  find_package(OculusSDK)
-  if(OCULUSSDK_FOUND)
-    add_definitions(-DNVP_SUPPORTS_OCULUSSDK)
-    include_directories(${OCULUSSDK_INCLUDE_DIRS})
-    LIST(APPEND LIBRARIES_OPTIMIZED ${OCULUSSDK_LIBS})
-    LIST(APPEND LIBRARIES_DEBUG ${OCULUSSDK_LIBS_DEBUG})
-  endif()
-endmacro()
-# this macro is needed for the samples to add this package, although not needed
-# this happens when the shared_sources library was built with these stuff in it
-# so many samples can share the same library for many purposes
-macro(_optional_package_OculusSDK)
-  if(OCULUSSDK_FOUND)
-    _add_package_OculusSDK()
-  endif(OCULUSSDK_FOUND)
-endmacro(_optional_package_OculusSDK)
-
-#####################################################################################
-# OpenVRSDK package
-#
-macro(_add_package_OpenVRSDK)
-  Message(STATUS "--> using package OpenVRSDK")
-  find_package(OpenVRSDK)
-  if(OPENVRSDK_FOUND)
-    add_definitions(-DNVP_SUPPORTS_OPENVRSDK)
-    include_directories(${OPENVRSDK_INCLUDE_DIRS})
-    LIST(APPEND LIBRARIES_OPTIMIZED ${OPENVRSDK_LIBS})
-    LIST(APPEND LIBRARIES_DEBUG ${OPENVRSDK_LIBS})
-  endif()
-endmacro()
-# this macro is needed for the samples to add this package, although not needed
-# this happens when the shared_sources library was built with these stuff in it
-# so many samples can share the same library for many purposes
-macro(_optional_package_OpenVRSDK)
-  if(OPENVRSDK_FOUND)
-    _add_package_OpenVRSDK()
-  endif(OPENVRSDK_FOUND)
-endmacro(_optional_package_OpenVRSDK)
-
 #####################################################################################
 # package for Sockets: to allow UDP/TCP IP connections
 #
 macro(_add_package_Sockets)
   Message(STATUS "--> using package Sockets")
-  set(SOCKETS_PATH "${BASE_DIRECTORY}/shared_sources/nvsockets")
+  set(SOCKETS_PATH "${BASE_DIRECTORY}/nvpro_core/nvsockets")
   get_directory_property(hasParent PARENT_DIRECTORY)
   if(hasParent)
     set( USING_SOCKETS "YES" PARENT_SCOPE) # PARENT_SCOPE important to have this variable passed to parent. Here we want to notify that something used the Vulkan package
@@ -466,7 +320,7 @@ endif()
   include_directories(${SOCKETS_PATH})
 endmacro(_add_package_Sockets)
 
-# for the shared_sources library
+# for the nvpro_core library
 macro(_optional_package_Sockets)
   if(USING_SOCKETS)
     Message("NOTE: Package for remote control via Sockets is ON")
@@ -495,7 +349,7 @@ macro(_add_package_Optix)
  endif()
 endmacro()
 # this macro is needed for the samples to add this package, although not needed
-# this happens when the shared_sources library was built with these stuff in it
+# this happens when the nvpro_core library was built with these stuff in it
 # so many samples can share the same library for many purposes
 macro(_optional_package_Optix)
   if(OPTIX_FOUND)
@@ -516,8 +370,8 @@ macro(_add_package_VulkanSDK)
       endif()
       set( USING_VULKANSDK "YES")
       add_definitions(-DNVP_SUPPORTS_VULKANSDK)
-      add_definitions(-DGLFW_INCLUDE_VULKAN)
       add_definitions(-DVK_ENABLE_BETA_EXTENSIONS)
+      add_definitions(-DVULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1)
 
       set(VULKAN_HEADERS_OVERRIDE_INCLUDE_DIR CACHE PATH "Override for Vulkan headers, leave empty to use SDK")
 
@@ -529,20 +383,21 @@ macro(_add_package_VulkanSDK)
 
       Message(STATUS "--> using Vulkan Headers from: ${vulkanHeaderDir}")
       include_directories(${vulkanHeaderDir})
-      file(GLOB vulkanHeaderFiles "${vulkanHeaderDir}/vulkan/vulkan.h")
+      set( vulkanHeaderFiles 
+        "${vulkanHeaderDir}/vulkan/vulkan.h"
+        "${vulkanHeaderDir}/vulkan/vulkan_core.h"
+        "${vulkanHeaderDir}/vulkan/vulkan.hpp")
       LIST(APPEND PACKAGE_SOURCE_FILES ${vulkanHeaderFiles} )
       source_group(Vulkan FILES  ${vulkanHeaderFiles} )
 
       LIST(APPEND LIBRARIES_OPTIMIZED ${VULKAN_LIB} )
       LIST(APPEND LIBRARIES_DEBUG ${VULKAN_LIB} )
-      # for precompiled headers:
-      set(VULKAN_HEADERS "<vulkan/vulkan_core.h>")
  else()
      Message(STATUS "--> NOT using package VulkanSDK")
  endif()
 endmacro()
 # this macro is needed for the samples to add this package, although not needed
-# this happens when the shared_sources library was built with these stuff in it
+# this happens when the nvpro_core library was built with these stuff in it
 # so many samples can share the same library for many purposes
 macro(_optional_package_VulkanSDK)
   if(USING_VULKANSDK)
@@ -588,7 +443,7 @@ macro(_add_package_ShaderC)
   endif() 
 endmacro(_add_package_ShaderC)
 # this macro is needed for the samples to add this package, although not needed
-# this happens when the shared_sources library was built with these stuff in it
+# this happens when the nvpro_core library was built with these stuff in it
 # so many samples can share the same library for many purposes
 macro(_optional_package_ShaderC)
   if(USING_SHADERC)
@@ -618,7 +473,7 @@ macro(_add_package_DirectX11)
  endif()
 endmacro()
 # this macro is needed for the samples to add this package, although not needed
-# this happens when the shared_sources library was built with these stuff in it
+# this happens when the nvpro_core library was built with these stuff in it
 # so many samples can share the same library for many purposes
 macro(_optional_package_DirectX11)
   if(USING_DIRECTX11)
@@ -630,7 +485,7 @@ endmacro(_optional_package_DirectX11)
 # Optional DirectX12 package
 #
 macro(_add_package_DirectX12)
-  find_package(DirectX12)  
+  find_package(DX12SDK REQUIRED)
   if(DX12SDK_FOUND)
       Message(STATUS "--> using package DirectX 12")
       get_directory_property(hasParent PARENT_DIRECTORY)
@@ -641,7 +496,7 @@ macro(_add_package_DirectX12)
       endif()
       add_definitions(-DNVP_SUPPORTS_DIRECTX12)
       include_directories(${DX12SDK_INCLUDE_DIR})
-      include_directories(${BASE_DIRECTORY}/shared_external/d3d12/include)
+      include_directories(${BASE_DIRECTORY}/nvpro_core/third_party/dxc/Include)
       LIST(APPEND LIBRARIES_OPTIMIZED ${DX12SDK_D3D_LIBRARIES})
       LIST(APPEND LIBRARIES_DEBUG ${DX12SDK_D3D_LIBRARIES})
  else()
@@ -649,7 +504,7 @@ macro(_add_package_DirectX12)
  endif()
 endmacro()
 # this macro is needed for the samples to add this package, although not needed
-# this happens when the shared_sources library was built with these stuff in it
+# this happens when the nvpro_core library was built with these stuff in it
 # so many samples can share the same library for many purposes
 macro(_optional_package_DirectX12)
   if(USING_DIRECTX12)
@@ -657,31 +512,6 @@ macro(_optional_package_DirectX12)
   endif(USING_DIRECTX12)
 endmacro(_optional_package_DirectX12)
 
-#####################################################################################
-# Optional FT-IZB package
-#
-macro(_add_package_Ftizb)
-  find_package(FTIZB)  
-  if(FTIZB_FOUND)
-      Message(STATUS "--> using package FTIZB")
-      add_definitions(-DNVP_SUPPORTS_FTIZB)
-      include_directories(${FTIZB_INCLUDE_DIR})
-      LIST(APPEND LIBRARIES_OPTIMIZED ${FTIZB_LIB_RELEASE} )
-      LIST(APPEND LIBRARIES_DEBUG ${FTIZB_LIB_DEBUG} )
-      LIST(APPEND PACKAGE_SOURCE_FILES ${FTIZB_HEADERS} )    
-      source_group(FTIZB FILES ${FTIZB_HEADERS} )  
- else()
-     Message(STATUS "--> NOT using package OptiX") 
- endif()
-endmacro()
-# this macro is needed for the samples to add this package, although not needed
-# this happens when the shared_sources library was built with these stuff in it
-# so many samples can share the same library for many purposes
-macro(_optional_package_Ftizb)
-  if(USING_FTIZB)
-    _add_package_Ftizb()
-  endif(USING_FTIZB)
-endmacro(_optional_package_Ftizb)
 
 #####################################################################################
 # Optional CUDA package
@@ -726,7 +556,7 @@ macro(_add_package_Cuda)
  endif()
 endmacro()
 # this macro is needed for the samples to add this package, although not needed
-# this happens when the shared_sources library was built with these stuff in it
+# this happens when the nvpro_core library was built with these stuff in it
 # so many samples can share the same library for many purposes
 macro(_optional_package_Cuda)
   if(CUDA_FOUND)
@@ -735,76 +565,29 @@ macro(_optional_package_Cuda)
 endmacro(_optional_package_Cuda)
 
 #####################################################################################
-# Optional OpenCL package
+# NVToolsExt
 #
-macro(_add_package_OpenCL)
-  find_package(OpenCL QUIET)  
-  if(OpenCL_FOUND)
-      Message(STATUS "--> using package OpenCL : ${OpenCL_LIBRARIES}")
-      add_definitions(-DNVP_SUPPORTS_OPENCL)
-      include_directories(${OpenCL_INCLUDE_DIRS})
-      # just do the copy only if we pointed to the local OpenCL package
-      string(FIND ${OpenCL_INCLUDE_DIRS} "shared_external" OFFSET)
-      if((OFFSET GREATER -1) AND WIN32 )
-        if((ARCH STREQUAL "x86"))
-          #set(OPENCL_DLL ${BASE_DIRECTORY}/shared_external/OpenCL/lib/x86/OpenCL.dll)
-        else()
-          #set(OPENCL_DLL ${BASE_DIRECTORY}/shared_external/OpenCL/lib/x64/OpenCL.dll)
-        endif()
-      endif()
-      LIST(APPEND LIBRARIES_OPTIMIZED ${OpenCL_LIBRARIES} )
-      LIST(APPEND LIBRARIES_DEBUG ${OpenCL_LIBRARIES} )
- else()
-     Message(STATUS "--> NOT using package OpenCL") 
- endif()
-endmacro()
-# this macro is needed for the samples to add this package, although not needed
-# this happens when the shared_sources library was built with these stuff in it
-# so many samples can share the same library for many purposes
-macro(_optional_package_OpenCL)
-  if(OpenCL_FOUND)
-    _add_package_OpenCL()
-  endif(OpenCL_FOUND)
-endmacro(_optional_package_OpenCL)
-
-#####################################################################################
-# NSight
-#
-# still need the include directory when no use of NSIGHT: for empty #defines
-macro(_add_package_NSight)
-  Message(STATUS "--> using package NSight")
-  set(USING_NSIGHT)
-  include_directories(
-      ${BASE_DIRECTORY}/shared_external/NSight
-  )
+macro(_add_package_NVToolsExt)
   if(SUPPORT_NVTOOLSEXT)
-    link_directories(
-        ${BASE_DIRECTORY}/shared_external/NSight
-    )
-    LIST(APPEND PACKAGE_SOURCE_FILES 
-      ${BASE_DIRECTORY}/shared_sources/nvh/nsightevents.h
-      ${BASE_DIRECTORY}/shared_external/NSight/nvToolsExt.h
-    )
-    add_definitions(-DNVP_SUPPORTS_NVTOOLSEXT)
-    if(ARCH STREQUAL "x86")
-      set(NSIGHT_DLL ${BASE_DIRECTORY}/shared_external/NSight/nvToolsExt32_1.dll)
-      set(NSIGHT_LIB ${BASE_DIRECTORY}/shared_external/NSight/nvToolsExt32_1.lib)
+    Message(STATUS "--> using package NVToolsExt")
+    get_directory_property(hasParent PARENT_DIRECTORY)
+    if(hasParent)
+      set( USING_NVTOOLSEXT "YES" PARENT_SCOPE)
     else()
-      set(NSIGHT_DLL ${BASE_DIRECTORY}/shared_external/NSight/nvToolsExt64_1.dll)
-      set(NSIGHT_LIB ${BASE_DIRECTORY}/shared_external/NSight/nvToolsExt64_1.lib)
+      set( USING_NVTOOLSEXT "YES")
     endif()
-    LIST(APPEND LIBRARIES_OPTIMIZED ${NSIGHT_LIB})
-    LIST(APPEND LIBRARIES_DEBUG ${NSIGHT_LIB})
+
+    add_definitions(-DNVP_SUPPORTS_NVTOOLSEXT)
   endif()
 endmacro()
 # this macro is needed for the samples to add this package, although not needed
-# this happens when the shared_sources library was built with these stuff in it
+# this happens when the nvpro_core library was built with these stuff in it
 # so many samples can share the same library for many purposes
-macro(_optional_package_NSight)
-  if(USING_NSIGHT)
-    _add_package_NSight()
-  endif(USING_NSIGHT)
-endmacro(_optional_package_NSight)
+macro(_optional_package_NVToolsExt)
+  if(USING_NVTOOLSEXT)
+    _add_package_NVToolsExt()
+  endif()
+endmacro(_optional_package_NVToolsExt)
 
 
 #####################################################################################
@@ -920,12 +703,6 @@ endmacro()
 macro(_finalize_target _PROJNAME)
 
   _set_target_output(${_PROJNAME})
-  
-  if(SUPPORT_NVTOOLSEXT)
-    _copy_files_to_target( ${_PROJNAME} "${NSIGHT_DLL}")
-    install(FILES ${NSIGHT_DLL} CONFIGURATIONS Release DESTINATION bin_${ARCH})
-    install(FILES ${NSIGHT_DLL} CONFIGURATIONS Debug DESTINATION bin_${ARCH}_debug)
-  endif()
 
   if(NOT UNIX)
     if(USING_SHADERC AND VULKANSDK_SHADERC_DLL)
@@ -934,12 +711,7 @@ macro(_finalize_target _PROJNAME)
       install(FILES ${VULKANSDK_SHADERC_DLL} CONFIGURATIONS Debug DESTINATION bin_${ARCH}_debug)
     endif()
   endif()
-  if(ANTTWEAKBAR_FOUND)
-    _copy_files_to_target( ${_PROJNAME} "${ANTTWEAKBAR_DLL}")
-    install(FILES ${ANTTWEAKBAR_DLL} CONFIGURATIONS Release DESTINATION bin_${ARCH})
-    install(FILES ${ANTTWEAKBAR_DLL} CONFIGURATIONS Debug DESTINATION bin_${ARCH}_debug)
-  endif()
-   if(FREEIMAGE_FOUND)
+  if(FREEIMAGE_FOUND)
     _copy_files_to_target( ${_PROJNAME} "${FREEIMAGE_DLL}")
     install(FILES ${FREEIMAGE_DLL} CONFIGURATIONS Release DESTINATION bin_${ARCH})
     install(FILES ${FREEIMAGE_DLL} CONFIGURATIONS Debug DESTINATION bin_${ARCH}_debug)
@@ -949,12 +721,8 @@ macro(_finalize_target _PROJNAME)
     install(FILES ${OPTIX_DLL} CONFIGURATIONS Release DESTINATION bin_${ARCH})
     install(FILES ${OPTIX_DLL} CONFIGURATIONS Debug DESTINATION bin_${ARCH}_debug)
   endif()
-  if(OPENCL_DLL)
-    _copy_files_to_target( ${_PROJNAME} "${OPENCL_DLL}")
-    install(FILES ${OPENCL_DLL} CONFIGURATIONS Release DESTINATION bin_${ARCH})
-    install(FILES ${OPENCL_DLL} CONFIGURATIONS Debug DESTINATION bin_${ARCH}_debug)
-  endif()
   if(PERFWORKS_DLL)
+    _copy_files_to_target( ${_PROJNAME} "${PERFWORKS_DLL}")
     install(FILES ${PERFWORKS_DLL} CONFIGURATIONS Release DESTINATION bin_${ARCH})
     install(FILES ${PERFWORKS_DLL} CONFIGURATIONS Debug DESTINATION bin_${ARCH}_debug)
   endif()
@@ -1021,7 +789,7 @@ endmacro()
 
 #####################################################################################
 # This is the rest of the cmake code that the project needs to call
-# used by the samples via _add_shared_sources_lib and by shared_sources
+# used by the samples via _add_nvpro_core_lib and by nvpro_core
 #
 macro(_process_shared_cmake_code)
   
@@ -1045,8 +813,8 @@ macro(_process_shared_cmake_code)
   
   set(COMMON_SOURCE_FILES)
   LIST(APPEND COMMON_SOURCE_FILES
-      ${BASE_DIRECTORY}/shared_sources/resources.h
-      ${BASE_DIRECTORY}/shared_sources/resources.rc
+      ${BASE_DIRECTORY}/nvpro_core/resources.h
+      ${BASE_DIRECTORY}/nvpro_core/resources.rc
   )
    
   if(UNIX)
@@ -1067,26 +835,26 @@ endmacro(_process_shared_cmake_code)
 
 #####################################################################################
 # This is the rest of the cmake code that the samples needs to call in order
-# - to add the shared_sources library (needed by any sample)
+# - to add the nvpro_core library (needed by any sample)
 # - this part will also setup a directory where to find some downloaded resources
 # - add optional packages
 # - and will then call another shared cmake macro : _process_shared_cmake_code
 #
-macro(_add_shared_sources_lib)
+macro(_add_nvpro_core_lib)
   #-----------------------------------------------------------------------------------
   # now we have added some packages, we can guess more
   # on what is needed overall for the shared library
 
   # build_all adds individual samples, and then at the end 
-  # the shared_sources itself, otherwise we build a single 
-  # sample which does need shared_sources added here
+  # the nvpro_core itself, otherwise we build a single 
+  # sample which does need nvpro_core added here
 
-  if(NOT HAS_SHARED_SOURCES)
-    add_subdirectory(${BASE_DIRECTORY}/shared_sources ${CMAKE_BINARY_DIR}/shared_sources)
+  if(NOT HAS_NVPRO_CORE)
+    add_subdirectory(${BASE_DIRECTORY}/nvpro_core ${CMAKE_BINARY_DIR}/nvpro_core)
   endif()
   #-----------------------------------------------------------------------------------
   # optional packages we don't need, but might be needed by other samples
-  Message(STATUS " Packages needed for shared_sources lib compat:")
+  Message(STATUS " Packages needed for nvpro_core lib compat:")
   if(USING_OPENGL OR NOT OPENGL_FOUND)
     _optional_package_OpenGL()
   endif()
@@ -1098,7 +866,7 @@ macro(_add_shared_sources_lib)
     Message("NOTE: Package for remote control via Sockets is ON")
     _add_package_Sockets()
   endif()
-  # finish with another part (also used by cname for the shared_sources)
+  # finish with another part (also used by cname for the nvpro_core)
   _process_shared_cmake_code()
   # putting this into one of the other branches didn't work
   if(WIN32)

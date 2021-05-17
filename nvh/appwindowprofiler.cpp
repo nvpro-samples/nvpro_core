@@ -1,29 +1,22 @@
-/* Copyright (c) 2014-2021, NVIDIA CORPORATION. All rights reserved.
+/*
+ * Copyright (c) 2014-2021, NVIDIA CORPORATION.  All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *  * Neither the name of NVIDIA CORPORATION nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
- * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
- * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
- * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
- * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * SPDX-FileCopyrightText: Copyright (c) 2014-2021 NVIDIA CORPORATION
+ * SPDX-License-Identifier: Apache-2.0
  */
+
 
 #ifdef _WIN32
 #ifndef NOMINMAX
@@ -164,7 +157,7 @@ void AppWindowProfiler::onKeyboard(KeyCode key, ButtonAction action, int mods, i
   if(key_button(key, action, mods))
     return;
 
-  bool newState;
+  bool newState = false;
 
   switch(action)
   {
@@ -223,7 +216,7 @@ void AppWindowProfiler::onWindowResize(int width, int height)
 
   m_windowState.m_winSize[0] = width;
   m_windowState.m_winSize[1] = height;
-  if (m_activeContext)
+  if(m_activeContext)
   {
     swapResize(width, height);
   }
@@ -340,19 +333,13 @@ int AppWindowProfiler::run(const std::string& title, int argc, const char** argv
         }
         m_profiler.beginFrame();
 
-        if(m_doSwap)
-        {
-          swapPrepare();
-        }
+        swapPrepare();
         {
           //const nvh::Profiler::Section profile(m_profiler, "App");
           think(getTime() - timeStart);
         }
         memset(m_windowState.m_keyToggled, 0, sizeof(m_windowState.m_keyToggled));
-        if(m_doSwap)
-        {
-          swapBuffers();
-        }
+        swapBuffers();
 
         m_profiler.endFrame();
         if(printStats)
@@ -471,7 +458,7 @@ void AppWindowProfiler::parameterCallback(uint32_t param)
   }
   else if(param == m_paramWinsize)
   {
-    if (m_internal)
+    if(m_internal)
     {
       setWindowSize(m_config.winsize[0], m_config.winsize[1]);
     }

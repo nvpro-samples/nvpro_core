@@ -1,30 +1,22 @@
-/*-----------------------------------------------------------------------
- * Copyright (c) 2018, NVIDIA CORPORATION. All rights reserved.
+/*
+ * Copyright (c) 2018-2021, NVIDIA CORPORATION.  All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *  * Neither the name of NVIDIA CORPORATION nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
- * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
- * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
- * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
- * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*/ //--------------------------------------------------------------------
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * SPDX-FileCopyrightText: Copyright (c) 2018-2021 NVIDIA CORPORATION
+ * SPDX-License-Identifier: Apache-2.0
+ */
+//--------------------------------------------------------------------
 
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
@@ -184,70 +176,78 @@ static_assert(NVPWindow::KEY_LAST == GLFW_KEY_LAST, "glfw/nvpwindow mismatch");
 void NVPWindow::cb_windowrefreshfun(GLFWwindow* glfwwin)
 {
   NVPWindow* win = (NVPWindow*)glfwGetWindowUserPointer(glfwwin);
-  if (win->isClosing()) return;
+  if(win->isClosing())
+    return;
   win->onWindowRefresh();
 }
 
 void NVPWindow::cb_windowsizefun(GLFWwindow* glfwwin, int w, int h)
 {
   NVPWindow* win = (NVPWindow*)glfwGetWindowUserPointer(glfwwin);
-  if (win->isClosing()) return;
+  if(win->isClosing())
+    return;
   win->m_windowSize[0] = w;
   win->m_windowSize[1] = h;
   win->onWindowResize(w, h);
 }
 void NVPWindow::cb_windowclosefun(GLFWwindow* glfwwin)
 {
-  NVPWindow* win = (NVPWindow*)glfwGetWindowUserPointer(glfwwin);
+  NVPWindow* win   = (NVPWindow*)glfwGetWindowUserPointer(glfwwin);
   win->m_isClosing = true;
   win->onWindowClose();
 }
 
 void NVPWindow::cb_mousebuttonfun(GLFWwindow* glfwwin, int button, int action, int mods)
 {
-  double x,y;
+  double x, y;
   glfwGetCursorPos(glfwwin, &x, &y);
 
   NVPWindow* win = (NVPWindow*)glfwGetWindowUserPointer(glfwwin);
-  if (win->isClosing()) return;
+  if(win->isClosing())
+    return;
   win->m_keyModifiers = mods;
-  win->m_mouseX = int(x);
-  win->m_mouseY = int(y);
+  win->m_mouseX       = int(x);
+  win->m_mouseY       = int(y);
   win->onMouseButton((NVPWindow::MouseButton)button, (NVPWindow::ButtonAction)action, mods, win->m_mouseX, win->m_mouseY);
 }
-void NVPWindow::cb_cursorposfun(GLFWwindow* glfwwin,double x,double y)
+void NVPWindow::cb_cursorposfun(GLFWwindow* glfwwin, double x, double y)
 {
   NVPWindow* win = (NVPWindow*)glfwGetWindowUserPointer(glfwwin);
-  if (win->isClosing()) return;
+  if(win->isClosing())
+    return;
   win->m_mouseX = int(x);
   win->m_mouseY = int(y);
   win->onMouseMotion(win->m_mouseX, win->m_mouseY);
 }
-void NVPWindow::cb_scrollfun(GLFWwindow* glfwwin, double x,double y)
+void NVPWindow::cb_scrollfun(GLFWwindow* glfwwin, double x, double y)
 {
   NVPWindow* win = (NVPWindow*)glfwGetWindowUserPointer(glfwwin);
-  if (win->isClosing()) return;
+  if(win->isClosing())
+    return;
   win->m_mouseWheel += int(y);
   win->onMouseWheel(int(y));
 }
 void NVPWindow::cb_keyfun(GLFWwindow* glfwwin, int key, int scancode, int action, int mods)
 {
   NVPWindow* win = (NVPWindow*)glfwGetWindowUserPointer(glfwwin);
-  if (win->isClosing()) return;
+  if(win->isClosing())
+    return;
   win->m_keyModifiers = mods;
-  win->onKeyboard((NVPWindow::KeyCode) key, (NVPWindow::ButtonAction)action, mods, win->m_mouseX, win->m_mouseY);
+  win->onKeyboard((NVPWindow::KeyCode)key, (NVPWindow::ButtonAction)action, mods, win->m_mouseX, win->m_mouseY);
 }
 void NVPWindow::cb_charfun(GLFWwindow* glfwwin, unsigned int codepoint)
 {
   NVPWindow* win = (NVPWindow*)glfwGetWindowUserPointer(glfwwin);
-  if (win->isClosing()) return;
+  if(win->isClosing())
+    return;
   win->onKeyboardChar(codepoint, win->m_keyModifiers, win->m_mouseX, win->m_mouseY);
 }
 
 void NVPWindow::cb_dropfun(GLFWwindow* glfwwin, int count, const char** paths)
 {
   NVPWindow* win = (NVPWindow*)glfwGetWindowUserPointer(glfwwin);
-  if (win->isClosing()) return;
+  if(win->isClosing())
+    return;
   win->onDragDrop(count, paths);
 }
 
@@ -292,8 +292,9 @@ bool NVPWindow::open(int posX, int posY, int width, int height, const char* titl
   {
     return false;
   }
-  
-  if (posX != 0 || posY != 0){
+
+  if(posX != 0 || posY != 0)
+  {
     glfwSetWindowPos(m_internal, posX, posY);
   }
   glfwSetWindowUserPointer(m_internal, this);
@@ -313,7 +314,7 @@ bool NVPWindow::open(int posX, int posY, int width, int height, const char* titl
 void NVPWindow::deinit()
 {
   glfwDestroyWindow(m_internal);
-  m_internal        = nullptr;
+  m_internal      = nullptr;
   m_windowSize[0] = 0;
   m_windowSize[1] = 0;
   m_windowName    = std::string();
@@ -373,24 +374,27 @@ void NVPWindow::clear(uint32_t r, uint32_t g, uint32_t b)
 
 void NVPWindow::setFullScreen(bool bYes)
 {
-  if (bYes == m_isFullScreen) return;
+  if(bYes == m_isFullScreen)
+    return;
 
-  GLFWmonitor* monitor = glfwGetWindowMonitor(m_internal);
-  const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+  GLFWmonitor*       monitor = glfwGetWindowMonitor(m_internal);
+  const GLFWvidmode* mode    = glfwGetVideoMode(monitor);
 
-  if (bYes){
+  if(bYes)
+  {
     glfwGetWindowPos(m_internal, &m_preFullScreenPos[0], &m_preFullScreenPos[1]);
     glfwGetWindowSize(m_internal, &m_preFullScreenSize[0], &m_preFullScreenSize[1]);
     glfwSetWindowMonitor(m_internal, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
     glfwSetWindowAttrib(m_internal, GLFW_RESIZABLE, GLFW_FALSE);
     glfwSetWindowAttrib(m_internal, GLFW_DECORATED, GLFW_FALSE);
   }
-  else {
-    glfwSetWindowMonitor(m_internal, nullptr, m_preFullScreenPos[0], m_preFullScreenPos[1], m_preFullScreenSize[0], m_preFullScreenSize[1], 0);
+  else
+  {
+    glfwSetWindowMonitor(m_internal, nullptr, m_preFullScreenPos[0], m_preFullScreenPos[1], m_preFullScreenSize[0],
+                         m_preFullScreenSize[1], 0);
     glfwSetWindowAttrib(m_internal, GLFW_RESIZABLE, GLFW_TRUE);
     glfwSetWindowAttrib(m_internal, GLFW_DECORATED, GLFW_TRUE);
   }
 
   m_isFullScreen = bYes;
 }
-

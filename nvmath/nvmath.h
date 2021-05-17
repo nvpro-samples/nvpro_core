@@ -1,29 +1,22 @@
-/* Copyright (c) 2002-2018, NVIDIA CORPORATION. All rights reserved.
+/*
+ * Copyright (c) 2002-2021, NVIDIA CORPORATION.  All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *  * Neither the name of NVIDIA CORPORATION nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
- * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
- * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
- * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
- * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * SPDX-FileCopyrightText: Copyright (c) 2002-2021 NVIDIA CORPORATION
+ * SPDX-License-Identifier: Apache-2.0
  */
+
 
 #ifndef _nvmath_h_
 #define _nvmath_h_
@@ -142,26 +135,23 @@ static const matrix3<nv_scalar>      mat3f_id(array9_id);
 static const matrix4<nv_scalar>      mat4f_zero(array16_zero);
 static const matrix4<nv_scalar>      mat4f_scale_bias(array16_scale_bias);
 
-// normalizes a vector and return a reference of itself
+// normalizes a vector
 template<class T>  vector2<T> normalize(const vector2<T> & u);
 template<class T>  vector3<T> normalize(const vector3<T> & u);
 template<class T>  vector4<T> normalize(const vector4<T> & u);
 
 // Computes the squared magnitude
+template<class T>  T nv_sq_norm(const vector2<T> & n);
 template<class T>  T nv_sq_norm(const vector3<T> & n);
 template<class T>  T nv_sq_norm(const vector4<T> & n);
 
 // Computes the magnitude
+template<class T>  T nv_norm(const vector2<T> & n);
 template<class T>  T nv_norm(const vector3<T> & n);
 template<class T>  T nv_norm(const vector4<T> & n);
 template<class T>  T length(const vector2<T> & n);
 template<class T>  T length(const vector3<T> & n);
 template<class T>  T length(const vector4<T> & n);
-
-template<class T> vector2<T> nv_abs(const vector2<T> & u);
-template<class T> vector3<T> nv_abs(const vector3<T> & u);
-template<class T> vector4<T> nv_abs(const vector4<T> & u);
-
 
 // computes the cross product ( v cross w) and stores the result in u
 // i.e.     u = v cross w
@@ -296,16 +286,12 @@ template<class T>  matrix3<T> & tangent_basis(const vector3<T> & v0,const vector
 #pragma message("**WARNING** nvmath.h : Canceling the lerp() function here : already declared in OptiX")
 #else
 template<class T>  T lerp(const T t, const T a, const T b);
-
+template<class T>  vector2<T> lerp(const T & t, const vector2<T> & u, const vector2<T> & v);
 template<class T>  vector3<T> lerp(const T & t, const vector3<T> & u, const vector3<T> & v);
 template<class T>  vector4<T> lerp(const T & t, const vector4<T> & u, const vector4<T> & v);
 #endif
 
 // utilities
-template<class T>  T nv_min(const T & lambda, const T & n);
-template<class T>  T nv_max(const T & lambda, const T & n);
-template<class T>  T nv_clamp(typename std::remove_reference<typename std::remove_const<T>::type>::type u,
-                              const T min, const T max);
 template<class T>  T nv_random();
 
 template<class T>  quaternion<T> trackball(vector2<T> & pt1, vector2<T> & pt2, T trackballsize);
@@ -313,13 +299,18 @@ template<class T>  quaternion<T> trackball(vector2<T> & pt1, vector2<T> & pt2, T
 template<class T>  vector3<T> cube_map_normal(int i, int x, int y, int cubesize, const vector3<T> & v);
 
 // Componentwise
-template<class T>  vector2<T> nv_max(const vector2<T> & vFirst, const vector2<T> & vSecond);
+
+template<class T>  T nv_min(const T & lambda, const T & n);
 template<class T>  vector2<T> nv_min(const vector2<T> & vFirst, const vector2<T> & vSecond);
-template<class T>  vector3<T> nv_max(const vector3<T> & vFirst, const vector3<T> & vSecond);
 template<class T>  vector3<T> nv_min(const vector3<T> & vFirst, const vector3<T> & vSecond);
-template<class T>  vector4<T> nv_max(const vector4<T> & vFirst, const vector4<T> & vSecond);
 template<class T>  vector4<T> nv_min(const vector4<T> & vFirst, const vector4<T> & vSecond);
 
+template<class T>  T nv_max(const T & lambda, const T & n);
+template<class T>  vector3<T> nv_max(const vector3<T> & vFirst, const vector3<T> & vSecond);
+template<class T>  vector2<T> nv_max(const vector2<T> & vFirst, const vector2<T> & vSecond);
+template<class T>  vector4<T> nv_max(const vector4<T> & vFirst, const vector4<T> & vSecond);
+
+template<class T>  T nv_clamp(const T u, const T min, const T max);
 template<class T>  vector2<T> nv_clamp(const vector2<T>& u, const T min, const T max);
 template<class T>  vector3<T> nv_clamp(const vector3<T>& u, const T min, const T max);
 template<class T>  vector4<T> nv_clamp(const vector4<T>& u, const T min, const T max);
@@ -327,6 +318,15 @@ template<class T>  vector4<T> nv_clamp(const vector4<T>& u, const T min, const T
 template<class T>  vector2<T> nv_floor(const vector2<T>& u);
 template<class T>  vector3<T> nv_floor(const vector3<T>& u);
 template<class T>  vector4<T> nv_floor(const vector4<T>& u);
+
+
+template<class T> T          nv_abs(const T u);
+template<class T> vector2<T> nv_abs(const vector2<T> & u);
+template<class T> vector3<T> nv_abs(const vector3<T> & u);
+template<class T> vector4<T> nv_abs(const vector4<T> & u);
+
+template<class T> T smoothstep(T edge0, T edge1, T x);
+
 
 
 // geometry

@@ -39,4 +39,3 @@
 	path = third_party/NVTX
 	url = https://github.com/NVIDIA/NVTX.git
 	branch = release-v3
-	shallow = true

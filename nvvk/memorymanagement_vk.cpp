@@ -1,29 +1,22 @@
-/* Copyright (c) 2019, NVIDIA CORPORATION. All rights reserved.
+/*
+ * Copyright (c) 2019-2021, NVIDIA CORPORATION.  All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *  * Neither the name of NVIDIA CORPORATION nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
- * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
- * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
- * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
- * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * SPDX-FileCopyrightText: Copyright (c) 2019-2021 NVIDIA CORPORATION
+ * SPDX-License-Identifier: Apache-2.0
  */
+
 
 #include <algorithm>
 #include <string>
@@ -80,6 +73,133 @@ bool getMemoryInfo(const VkPhysicalDeviceMemoryProperties& memoryProperties,
 }
 
 //////////////////////////////////////////////////////////////////////////
+
+class DMAMemoryAllocator;
+
+class DMAMemoryHandle : public nvvk::MemHandleBase
+{
+public:
+  DMAMemoryHandle()                       = default;
+  DMAMemoryHandle(const DMAMemoryHandle&) = default;
+  DMAMemoryHandle(DMAMemoryHandle&&)      = default;
+
+  DMAMemoryHandle& operator=(const DMAMemoryHandle&) = default;
+  DMAMemoryHandle& operator=(DMAMemoryHandle&&) = default;
+
+  const AllocationID& getAllocationID() const { return m_allocation; };
+
+private:
+  friend class nvvk::DeviceMemoryAllocator;
+  DMAMemoryHandle(const AllocationID& allocation)
+      : m_allocation(allocation)
+  {
+  }
+
+  AllocationID m_allocation;
+};
+
+DMAMemoryHandle* castDMAMemoryHandle(MemHandle memHandle)
+{
+  if(!memHandle)
+    return nullptr;
+#ifndef NDEBUG
+  auto dmaMemHandle = static_cast<DMAMemoryHandle*>(memHandle);
+#else
+  auto dmaMemHandle = dynamic_cast<DMAMemoryHandle*>(memHandle);
+  assert(dmaMemHandle);
+#endif
+
+  return dmaMemHandle;
+}
+
+MemHandle DeviceMemoryAllocator::allocMemory(const MemAllocateInfo& allocInfo, VkResult *pResult)
+{
+  BakedAllocateInfo bakedInfo;
+  fillBakedAllocateInfo(getMemoryProperties(), allocInfo, bakedInfo);
+  State state = m_defaultState;
+  state.allocateDeviceMask |= bakedInfo.flagsInfo.deviceMask;
+  state.allocateFlags |= bakedInfo.flagsInfo.flags;
+  state.priority = allocInfo.getPriority();
+
+  VkResult result;
+  bool isDedicatedAllocation = allocInfo.getDedicatedBuffer() || allocInfo.getDedicatedImage();
+
+  auto dmaHandle = allocInternal(allocInfo.getMemoryRequirements(), allocInfo.getMemoryProperties(),
+                                !allocInfo.getTilingOptimal() /*isLinear*/,
+                                isDedicatedAllocation ? &bakedInfo.dedicatedInfo : nullptr, result, true, state);
+
+  if (pResult)
+  {
+    *pResult = result;
+  }
+
+  DMAMemoryHandle* dmaMemHandle = new DMAMemoryHandle(dmaHandle);
+
+  // Cannot do this, it would override the DeviceMemoryManager's chosen block buffer name
+  //   if(!allocInfo.getDebugName().empty())
+  //   {
+  //     const MemInfo& memInfo = getMemoryInfo(dmaMemHandle);
+  //     nvvk::DebugUtil(m_dma.getDevice()).setObjectName(memInfo.memory, allocInfo.getDebugName());
+  //   }
+
+  return dmaMemHandle;
+}
+
+void DeviceMemoryAllocator::freeMemory(MemHandle memHandle)
+{
+  if(!memHandle)
+    return;
+
+  auto dmaHandle = castDMAMemoryHandle(memHandle);
+  assert(dmaHandle);
+
+  free(dmaHandle->getAllocationID());
+
+  delete dmaHandle;
+
+  return;
+}
+
+MemAllocator::MemInfo DeviceMemoryAllocator::getMemoryInfo(MemHandle memHandle) const
+{
+  MemInfo info;
+
+  auto dmaHandle = castDMAMemoryHandle(memHandle);
+  assert(dmaHandle);
+
+  auto& allocInfo = getAllocation(dmaHandle->getAllocationID());
+  info.memory     = allocInfo.mem;
+  info.offset     = allocInfo.offset;
+  info.size       = allocInfo.size;
+
+  return info;
+};
+
+nvvk::AllocationID DeviceMemoryAllocator::getAllocationID(MemHandle memHandle) const
+{
+  auto dmaHandle = castDMAMemoryHandle(memHandle);
+  assert(dmaHandle);
+
+  return dmaHandle->getAllocationID();
+}
+
+
+void* DeviceMemoryAllocator::map(MemHandle memHandle, VkDeviceSize offset, VkDeviceSize size, VkResult *pResult)
+{
+  auto dmaHandle = castDMAMemoryHandle(memHandle);
+  assert(dmaHandle);
+
+  void* ptr = map(dmaHandle->getAllocationID(), pResult);
+  return ptr;
+}
+
+void DeviceMemoryAllocator::unmap(MemHandle memHandle)
+{
+  auto dmaHandle = castDMAMemoryHandle(memHandle);
+  assert(dmaHandle);
+
+  unmap(dmaHandle->getAllocationID());
+}
 
 const VkMemoryDedicatedAllocateInfo* DeviceMemoryAllocator::DEDICATED_PROXY =
     (const VkMemoryDedicatedAllocateInfo*)&DeviceMemoryAllocator::DEDICATED_PROXY;
@@ -156,12 +276,20 @@ const float DeviceMemoryAllocator::DEFAULT_PRIORITY = 0.5f;
 void DeviceMemoryAllocator::init(VkDevice device, VkPhysicalDevice physicalDevice, VkDeviceSize blockSize, VkDeviceSize maxSize)
 {
   assert(!m_device);
-  m_device            = device;
-  m_physicalDevice    = physicalDevice;
-  m_blockSize         = blockSize;
-  m_maxAllocationSize = maxSize;
+  m_device         = device;
+  m_physicalDevice = physicalDevice;
+  // always default to NVVK_DEFAULT_MEMORY_BLOCKSIZE
+  m_blockSize      = blockSize ? blockSize : NVVK_DEFAULT_MEMORY_BLOCKSIZE;
 
   vkGetPhysicalDeviceMemoryProperties(physicalDevice, &m_memoryProperties);
+
+  // Retrieving the max allocation size, can be lowered with maxSize
+  VkPhysicalDeviceProperties2            prop2{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
+  VkPhysicalDeviceMaintenance3Properties vkProp{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_3_PROPERTIES};
+  prop2.pNext = &vkProp;
+  vkGetPhysicalDeviceProperties2(physicalDevice, &prop2);
+  m_maxAllocationSize = maxSize > 0 ? std::min(maxSize, vkProp.maxMemoryAllocationSize) : vkProp.maxMemoryAllocationSize;
+
 
   assert(m_blocks.empty());
   assert(m_allocations.empty());
@@ -222,6 +350,8 @@ void DeviceMemoryAllocator::deinit()
     if(m_allocations[i].id.index == (uint32_t)i)
     {
       assert(0 && i && "AllocationID not freed");
+
+      // set DEBUG_ALLOCID define further up to trace this id
     }
   }
 
@@ -344,18 +474,19 @@ AllocationID DeviceMemoryAllocator::allocInternal(const VkMemoryRequirements&   
                                                   bool                                 isLinear,
                                                   const VkMemoryDedicatedAllocateInfo* dedicated,
                                                   VkResult&                            result,
-                                                  bool                                 preferDevice)
+                                                  bool                                 preferDevice,
+                                                  const State&                         state)
 {
   VkMemoryAllocateInfo memInfo;
 
   // Fill out allocation info structure
-  if(memReqs.size > m_maxAllocationSize || !getMemoryInfo(m_memoryProperties, memReqs, memProps, memInfo, preferDevice))
+  if(memReqs.size > m_maxAllocationSize || !nvvk::getMemoryInfo(m_memoryProperties, memReqs, memProps, memInfo, preferDevice))
   {
     result = VK_ERROR_OUT_OF_DEVICE_MEMORY;
     return AllocationID();
   }
 
-  float priority = m_supportsPriority ? m_priority : DEFAULT_PRIORITY;
+  float priority = m_supportsPriority ? state.priority : DEFAULT_PRIORITY;
   bool  isFirst  = !dedicated;
 
   if(!dedicated)
@@ -368,7 +499,7 @@ AllocationID DeviceMemoryAllocator::allocInternal(const VkMemoryRequirements&   
 
       // Ignore invalid or blocks with the wrong memory type
       if(!block.mem || block.memoryTypeIndex != memInfo.memoryTypeIndex || isLinear != block.isLinear || block.priority != priority
-         || block.allocateFlags != m_allocateFlags || block.allocateDeviceMask != m_allocateDeviceMask)
+         || block.allocateFlags != state.allocateFlags || block.allocateDeviceMask != state.allocateDeviceMask)
       {
         continue;
       }
@@ -444,11 +575,11 @@ AllocationID DeviceMemoryAllocator::allocInternal(const VkMemoryRequirements&   
   }
 
   VkMemoryAllocateFlagsInfo memFlags = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO};
-  if(m_allocateFlags)
+  if(state.allocateFlags)
   {
     memFlags.pNext      = memInfo.pNext;
-    memFlags.deviceMask = m_allocateDeviceMask;
-    memFlags.flags      = m_allocateFlags;
+    memFlags.deviceMask = state.allocateDeviceMask;
+    memFlags.flags      = state.allocateFlags;
     memInfo.pNext       = &memFlags;
   }
 
@@ -459,8 +590,8 @@ AllocationID DeviceMemoryAllocator::allocInternal(const VkMemoryRequirements&   
   block.isLinear           = isLinear;
   block.isFirst            = isFirst;
   block.isDedicated        = dedicated != nullptr;
-  block.allocateFlags      = m_allocateFlags;
-  block.allocateDeviceMask = m_allocateDeviceMask;
+  block.allocateFlags      = state.allocateFlags;
+  block.allocateDeviceMask = state.allocateDeviceMask;
 
   result = allocBlockMemory(id, memInfo, block.mem);
 
@@ -503,12 +634,11 @@ AllocationID DeviceMemoryAllocator::allocInternal(const VkMemoryRequirements&   
     {
       // downgrade memory property to zero and/or not preferDevice
       LOGW("downgrade memory\n");
-      return allocInternal(memReqs, 0, isLinear, dedicated, result, !preferDevice);
+      return allocInternal(memReqs, 0, isLinear, dedicated, result, !preferDevice, state);
     }
     else
     {
       LOGE("could not allocate memory: VkResult %d\n", result);
-      assert(0);
       return AllocationID();
     }
   }
@@ -542,7 +672,7 @@ void DeviceMemoryAllocator::free(AllocationID allocationID)
   }
 }
 
-void* DeviceMemoryAllocator::map(AllocationID allocationID)
+void* DeviceMemoryAllocator::map(AllocationID allocationID, VkResult *pResult)
 {
   const AllocationInfo& info  = getInfo(allocationID);
   Block&                block = getBlock(info.block);
@@ -553,7 +683,10 @@ void* DeviceMemoryAllocator::map(AllocationID allocationID)
   if(!block.mapped)
   {
     VkResult result = vkMapMemory(m_device, block.mem, 0, block.allocationSize, 0, (void**)&block.mapped);
-    assert(result == VK_SUCCESS);
+    if (pResult)
+    {
+      *pResult = result;
+    }
   }
   return block.mapped + info.allocation.offset;
 }
@@ -739,499 +872,5 @@ VkAccelerationStructureNV DeviceMemoryAllocator::createAccStructure(const VkAcce
 }
 #endif
 
-
-//////////////////////////////////////////////////////////////////////////
-
-void StagingMemoryManager::init(VkDevice device, VkPhysicalDevice physicalDevice, VkDeviceSize stagingBlockSize /*= 64 * 1024 * 1024*/)
-{
-  assert(!m_device);
-  m_device           = device;
-  m_physicalDevice   = physicalDevice;
-  m_stagingBlockSize = stagingBlockSize;
-  m_memoryTypeIndex  = ~0;
-  m_freeOnRelease    = true;
-
-  m_freeStagingIndex = INVALID_ID_INDEX;
-  m_freeBlockIndex   = INVALID_ID_INDEX;
-  m_usedSize         = 0;
-  m_allocatedSize    = 0;
-
-  m_stagingIndex = newStagingIndex();
-}
-
-void StagingMemoryManager::deinit()
-{
-  if(!m_device)
-    return;
-
-  free(false);
-
-  m_sets.clear();
-  m_blocks.clear();
-  m_device = VK_NULL_HANDLE;
-}
-
-bool StagingMemoryManager::fitsInAllocated(VkDeviceSize size, bool toDevice) const
-{
-  for(const auto& block : m_blocks)
-  {
-    if(block.buffer && block.toDevice == toDevice)
-    {
-      if(block.range.isAvailable((uint32_t)size, 16))
-      {
-        return true;
-      }
-    }
-  }
-
-  return false;
-}
-
-void* StagingMemoryManager::cmdToImage(VkCommandBuffer                 cmd,
-                                       VkImage                         image,
-                                       const VkOffset3D&               offset,
-                                       const VkExtent3D&               extent,
-                                       const VkImageSubresourceLayers& subresource,
-                                       VkDeviceSize                    size,
-                                       const void*                     data,
-                                       VkImageLayout                   layout)
-{
-  if(!image)
-    return nullptr;
-
-  VkBuffer     srcBuffer;
-  VkDeviceSize srcOffset;
-
-  void* mapping = getStagingSpace(size, srcBuffer, srcOffset, true);
-
-  assert(mapping);
-
-  if(data)
-  {
-    memcpy(mapping, data, size);
-  }
-
-  VkBufferImageCopy cpy;
-  cpy.bufferOffset      = srcOffset;
-  cpy.bufferRowLength   = 0;
-  cpy.bufferImageHeight = 0;
-  cpy.imageSubresource  = subresource;
-  cpy.imageOffset       = offset;
-  cpy.imageExtent       = extent;
-
-  vkCmdCopyBufferToImage(cmd, srcBuffer, image, layout, 1, &cpy);
-
-  return data ? nullptr : mapping;
-}
-
-void* StagingMemoryManager::cmdToBuffer(VkCommandBuffer cmd, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size, const void* data)
-{
-  if(!size || !buffer)
-  {
-    return nullptr;
-  }
-
-  VkBuffer     srcBuffer;
-  VkDeviceSize srcOffset;
-
-  void* mapping = getStagingSpace(size, srcBuffer, srcOffset, true);
-
-  assert(mapping);
-
-  if(data)
-  {
-    memcpy(mapping, data, size);
-  }
-
-  VkBufferCopy cpy;
-  cpy.size      = size;
-  cpy.srcOffset = srcOffset;
-  cpy.dstOffset = offset;
-
-  vkCmdCopyBuffer(cmd, srcBuffer, buffer, 1, &cpy);
-
-  return data ? nullptr : (void*)mapping;
-}
-
-const void* StagingMemoryManager::cmdFromBuffer(VkCommandBuffer cmd, VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size)
-{
-  VkBuffer     dstBuffer;
-  VkDeviceSize dstOffset;
-  void*        mapping = getStagingSpace(size, dstBuffer, dstOffset, false);
-
-  VkBufferCopy cpy;
-  cpy.size      = size;
-  cpy.srcOffset = offset;
-  cpy.dstOffset = dstOffset;
-
-  vkCmdCopyBuffer(cmd, buffer, dstBuffer, 1, &cpy);
-
-  return mapping;
-}
-
-const void* StagingMemoryManager::cmdFromImage(VkCommandBuffer                 cmd,
-                                               VkImage                         image,
-                                               const VkOffset3D&               offset,
-                                               const VkExtent3D&               extent,
-                                               const VkImageSubresourceLayers& subresource,
-                                               VkDeviceSize                    size,
-                                               VkImageLayout                   layout)
-{
-  VkBuffer     dstBuffer;
-  VkDeviceSize dstOffset;
-  void*        mapping = getStagingSpace(size, dstBuffer, dstOffset, false);
-
-  VkBufferImageCopy cpy;
-  cpy.bufferOffset      = dstOffset;
-  cpy.bufferRowLength   = 0;
-  cpy.bufferImageHeight = 0;
-  cpy.imageSubresource  = subresource;
-  cpy.imageOffset       = offset;
-  cpy.imageExtent       = extent;
-
-  vkCmdCopyImageToBuffer(cmd, image, layout, dstBuffer, 1, &cpy);
-
-  return mapping;
-}
-
-void StagingMemoryManager::finalizeResources(VkFence fence)
-{
-  if(m_sets[m_stagingIndex].entries.empty())
-    return;
-
-  m_sets[m_stagingIndex].fence     = fence;
-  m_sets[m_stagingIndex].manualSet = false;
-  m_stagingIndex                   = newStagingIndex();
-}
-
-StagingMemoryManager::SetID StagingMemoryManager::finalizeResourceSet()
-{
-  SetID setID;
-
-  if(m_sets[m_stagingIndex].entries.empty())
-    return setID;
-
-  setID.index = m_stagingIndex;
-
-  m_sets[m_stagingIndex].fence     = nullptr;
-  m_sets[m_stagingIndex].manualSet = true;
-  m_stagingIndex                   = newStagingIndex();
-
-  return setID;
-}
-
-void* StagingMemoryManager::getStagingSpace(VkDeviceSize size, VkBuffer& buffer, VkDeviceSize& offset, bool toDevice)
-{
-  assert(m_sets[m_stagingIndex].index == m_stagingIndex && "illegal index, did you forget finalizeResources");
-
-  uint32_t usedOffset;
-  uint32_t usedSize;
-  uint32_t usedAligned;
-
-  uint32_t blockIndex = INVALID_ID_INDEX;
-
-  for(uint32_t i = 0; i < (uint32_t)m_blocks.size(); i++)
-  {
-    Block& block = m_blocks[i];
-    if(block.toDevice == toDevice && block.buffer && block.range.subAllocate((uint32_t)size, 16, usedOffset, usedAligned, usedSize))
-    {
-      blockIndex = block.index;
-
-      offset = usedAligned;
-      buffer = block.buffer;
-    }
-  }
-
-  if(blockIndex == INVALID_ID_INDEX)
-  {
-    if(m_freeBlockIndex != INVALID_ID_INDEX)
-    {
-      Block& block     = m_blocks[m_freeBlockIndex];
-      m_freeBlockIndex = setIndexValue(block.index, m_freeBlockIndex);
-
-      blockIndex = block.index;
-    }
-    else
-    {
-      uint32_t newIndex = (uint32_t)m_blocks.size();
-      m_blocks.resize(m_blocks.size() + 1);
-      resizeBlocks((uint32_t)m_blocks.size());
-      Block& block = m_blocks[newIndex];
-      block.index  = newIndex;
-
-      blockIndex = newIndex;
-    }
-
-    Block& block   = m_blocks[blockIndex];
-    block.toDevice = toDevice;
-    block.size     = std::max(m_stagingBlockSize, size);
-    block.size     = block.range.alignedSize((uint32_t)block.size);
-
-    VkResult result = allocBlockMemory(blockIndex, block.size, toDevice, block);
-    NVVK_CHECK(result);
-
-    m_allocatedSize += block.size;
-
-    block.range.init((uint32_t)block.size);
-    block.range.subAllocate((uint32_t)size, 16, usedOffset, usedAligned, usedSize);
-
-    offset = usedAligned;
-    buffer = block.buffer;
-  }
-
-  // append used space to current staging set list
-  m_usedSize += usedSize;
-  m_sets[m_stagingIndex].entries.push_back({blockIndex, usedOffset, usedSize});
-
-  return m_blocks[blockIndex].mapping + offset;
-}
-
-void StagingMemoryManager::releaseResources(uint32_t stagingID)
-{
-  if (stagingID == INVALID_ID_INDEX) return;
-
-  StagingSet& set = m_sets[stagingID];
-  assert(set.index == stagingID);
-
-  // free used allocation ranges
-  for(auto& itentry : set.entries)
-  {
-    Block& block = getBlock(itentry.block);
-    block.range.subFree(itentry.offset, itentry.size);
-
-    m_usedSize -= itentry.size;
-
-    if(block.range.isEmpty() && m_freeOnRelease)
-    {
-      freeBlock(block);
-    }
-  }
-  set.entries.clear();
-
-  // update the set.index with the current head of the free list
-  // pop its old value
-  m_freeStagingIndex = setIndexValue(set.index, m_freeStagingIndex);
-}
-
-void StagingMemoryManager::releaseResources()
-{
-  for(auto& itset : m_sets)
-  {
-    if(!itset.entries.empty() && !itset.manualSet && (!itset.fence || vkGetFenceStatus(m_device, itset.fence) == VK_SUCCESS))
-    {
-      releaseResources(itset.index);
-      itset.fence = NULL;
-      itset.manualSet = false;
-    }
-  }
-  // special case for ease of use if there is only one
-  if(m_stagingIndex == 0 && m_freeStagingIndex == 0)
-  {
-    m_freeStagingIndex = setIndexValue(m_sets[0].index, 0);
-  }
-}
-
-
-float StagingMemoryManager::getUtilization(VkDeviceSize& allocatedSize, VkDeviceSize& usedSize) const
-{
-  allocatedSize = m_allocatedSize;
-  usedSize      = m_usedSize;
-
-  return float(double(usedSize) / double(allocatedSize));
-}
-
-void StagingMemoryManager::free(bool unusedOnly)
-{
-  for(uint32_t i = 0; i < (uint32_t)m_blocks.size(); i++)
-  {
-    Block& block = m_blocks[i];
-    if(block.buffer && (block.range.isEmpty() || !unusedOnly))
-    {
-      freeBlock(block);
-    }
-  }
-
-  if(!unusedOnly)
-  {
-    m_blocks.clear();
-    resizeBlocks(0);
-    m_freeBlockIndex = INVALID_ID_INDEX;
-  }
-}
-
-void StagingMemoryManager::freeBlock(Block& block)
-{
-  m_allocatedSize -= block.size;
-  freeBlockMemory(block.index, block);
-  block.memory  = VK_NULL_HANDLE;
-  block.buffer  = VK_NULL_HANDLE;
-  block.mapping = nullptr;
-  block.range.deinit();
-  // update the block.index with the current head of the free list
-  // pop its old value
-  m_freeBlockIndex = setIndexValue(block.index, m_freeBlockIndex);
-}
-
-uint32_t StagingMemoryManager::newStagingIndex()
-{
-  // find free slot
-  if(m_freeStagingIndex != INVALID_ID_INDEX)
-  {
-    uint32_t newIndex = m_freeStagingIndex;
-    // this updates the free link-list
-    m_freeStagingIndex = setIndexValue(m_sets[newIndex].index, newIndex);
-    assert(m_sets[newIndex].index == newIndex);
-    return m_sets[newIndex].index;
-  }
-
-  // otherwise push to end
-  uint32_t newIndex = (uint32_t)m_sets.size();
-
-  StagingSet info;
-  info.index = newIndex;
-  m_sets.push_back(info);
-
-  assert(m_sets[newIndex].index == newIndex);
-  return newIndex;
-}
-
-VkResult StagingMemoryManager::allocBlockMemory(uint32_t index, VkDeviceSize size, bool toDevice, Block& block)
-{
-  VkResult           result;
-  VkBufferCreateInfo createInfo = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
-  createInfo.size               = size;
-  createInfo.usage              = toDevice ? VK_BUFFER_USAGE_TRANSFER_SRC_BIT : VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-
-  VkBuffer buffer = VK_NULL_HANDLE;
-  result          = vkCreateBuffer(m_device, &createInfo, nullptr, &buffer);
-  if(result != VK_SUCCESS)
-  {
-    NVVK_CHECK(result);
-    return result;
-  }
-
-  nvvk::DebugUtil(m_device).setObjectName(buffer, m_debugName);
-
-  VkMemoryRequirements2           memReqs       = {VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2};
-  VkMemoryDedicatedRequirements   dedicatedRegs = {VK_STRUCTURE_TYPE_MEMORY_DEDICATED_REQUIREMENTS};
-  VkBufferMemoryRequirementsInfo2 bufferReqs    = {VK_STRUCTURE_TYPE_BUFFER_MEMORY_REQUIREMENTS_INFO_2};
-
-  bufferReqs.buffer = buffer;
-  memReqs.pNext     = &dedicatedRegs;
-  vkGetBufferMemoryRequirements2(m_device, &bufferReqs, &memReqs);
-
-  VkMemoryDedicatedAllocateInfo dedicatedInfo = {VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO};
-  dedicatedInfo.buffer                        = buffer;
-
-  if(m_memoryTypeIndex == ~0)
-  {
-    VkPhysicalDeviceMemoryProperties memoryProperties;
-    vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &memoryProperties);
-
-    VkMemoryPropertyFlags memProps = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-                                     | (toDevice ? 0 : VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
-
-    // Find an available memory type that satisfies the requested properties.
-    for(uint32_t memoryTypeIndex = 0; memoryTypeIndex < memoryProperties.memoryTypeCount; ++memoryTypeIndex)
-    {
-      if((memReqs.memoryRequirements.memoryTypeBits & (1 << memoryTypeIndex))
-         && (memoryProperties.memoryTypes[memoryTypeIndex].propertyFlags & memProps) == memProps)
-      {
-        m_memoryTypeIndex = memoryTypeIndex;
-        break;
-      }
-    }
-  }
-
-  if(m_memoryTypeIndex == ~0)
-  {
-    LOGE("could not find memoryTypeIndex\n");
-    vkDestroyBuffer(m_device, buffer, nullptr);
-    return VK_ERROR_INCOMPATIBLE_DRIVER;
-  }
-
-  VkMemoryAllocateInfo memInfo = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
-  memInfo.allocationSize       = size;
-  memInfo.memoryTypeIndex      = m_memoryTypeIndex;
-  memInfo.pNext                = &dedicatedInfo;
-
-  VkDeviceMemory mem = VK_NULL_HANDLE;
-  result             = vkAllocateMemory(m_device, &memInfo, nullptr, &mem);
-  if(result != VK_SUCCESS)
-  {
-    NVVK_CHECK(result);
-    vkDestroyBuffer(m_device, buffer, nullptr);
-    return result;
-  }
-
-  nvvk::DebugUtil(m_device).setObjectName(mem, m_debugName);
-
-  VkBindBufferMemoryInfo bindInfos = {VK_STRUCTURE_TYPE_BIND_BUFFER_MEMORY_INFO};
-  bindInfos.buffer                 = buffer;
-  bindInfos.memory                 = mem;
-
-  result = vkBindBufferMemory2(m_device, 1, &bindInfos);
-
-  if(result == VK_SUCCESS)
-  {
-    result = vkMapMemory(m_device, mem, 0, size, 0, (void**)&block.mapping);
-    if(result == VK_SUCCESS)
-    {
-      block.memory = mem;
-      block.buffer = buffer;
-      return result;
-    }
-  }
-  // error case
-  NVVK_CHECK(result);
-  vkDestroyBuffer(m_device, buffer, nullptr);
-  vkFreeMemory(m_device, mem, nullptr);
-  return result;
-}
-
-void StagingMemoryManager::freeBlockMemory(uint32_t index, const Block& block)
-{
-  vkDestroyBuffer(m_device, block.buffer, nullptr);
-  vkUnmapMemory(m_device, block.memory);
-  vkFreeMemory(m_device, block.memory, nullptr);
-}
-
-
-VkResult StagingMemoryManagerDma::allocBlockMemory(uint32_t index, VkDeviceSize size, bool toDevice, Block& block)
-{
-  VkResult result;
-  float    priority = m_memAllocator->setPriority();
-  block.buffer      = m_memAllocator->createBuffer(
-      size, toDevice ? VK_BUFFER_USAGE_TRANSFER_SRC_BIT : VK_BUFFER_USAGE_TRANSFER_DST_BIT, m_blockAllocs[index],
-      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | (toDevice ? 0 : VK_MEMORY_PROPERTY_HOST_CACHED_BIT),
-      result);
-  m_memAllocator->setPriority(priority);
-  if(result == VK_SUCCESS)
-  {
-    nvvk::DebugUtil(m_device).setObjectName(block.buffer, m_debugName);
-    block.mapping = m_memAllocator->mapT<uint8_t>(m_blockAllocs[index]);
-  }
-  
-  return result;
-}
-
-void StagingMemoryManagerDma::freeBlockMemory(uint32_t index, const Block& block)
-{
-  vkDestroyBuffer(m_device, block.buffer, nullptr);
-  m_memAllocator->unmap(m_blockAllocs[index]);
-  m_memAllocator->free(m_blockAllocs[index]);
-}
-
-void StagingMemoryManagerDma::resizeBlocks(uint32_t num)
-{
-  if(num)
-  {
-    m_blockAllocs.resize(num);
-  }
-  else
-  {
-    m_blockAllocs.clear();
-  }
-}
 
 }  // namespace nvvk

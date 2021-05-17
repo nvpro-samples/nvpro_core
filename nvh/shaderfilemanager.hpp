@@ -1,29 +1,22 @@
-/* Copyright (c) 2014-2018, NVIDIA CORPORATION. All rights reserved.
+/*
+ * Copyright (c) 2014-2021, NVIDIA CORPORATION.  All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *  * Neither the name of NVIDIA CORPORATION nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
- * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
- * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
- * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
- * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * SPDX-FileCopyrightText: Copyright (c) 2014-2021 NVIDIA CORPORATION
+ * SPDX-License-Identifier: Apache-2.0
  */
+
 
 #ifndef NV_SHADERFILEMANAGER_INCLUDED
 #define NV_SHADERFILEMANAGER_INCLUDED
@@ -101,14 +94,12 @@ public:
     operator bool() const { return isValid(); }
     operator size_t() const { return m_value; }
 
-    friend bool operator==(const IncludeID& lhs, const IncludeID& rhs){ return rhs.m_value == lhs.m_value; }
+    friend bool operator==(const IncludeID& lhs, const IncludeID& rhs) { return rhs.m_value == lhs.m_value; }
   };
 
   struct Definition
   {
-    Definition()
-    {
-    }
+    Definition() {}
     Definition(uint32_t type, std::string const& prepend, std::string const& filename)
         : type(type)
         , prepend(prepend)
@@ -124,7 +115,7 @@ public:
     uint32_t    type = 0;
     std::string filename;
     std::string prepend;
-    std::string entry = "main";
+    std::string entry    = "main";
     FileType    filetype = FILETYPE_DEFAULT;
     std::string filenameFound;
     std::string content;
@@ -137,7 +128,9 @@ public:
   // diskname = filename on disk (defaults to name if not set)
   // content = provide content as string rather than loading from disk
 
-  IncludeID registerInclude(std::string const& name, std::string const& diskname = std::string(), std::string const& content = std::string());
+  IncludeID registerInclude(std::string const& name,
+                            std::string const& diskname = std::string(),
+                            std::string const& content  = std::string());
 
   // Use m_prepend to pass global #defines
   // Derived api classes will use this as global prepend to the per-definition prepends in combination
@@ -146,13 +139,10 @@ public:
   std::string m_prepend;
 
   // per file state, used when FILETYPE_DEFAULT is provided in the Definition
-  FileType    m_filetype;
+  FileType m_filetype;
 
   // add search directories
-  void addDirectory(const std::string& dir)
-  {
-    m_directories.push_back(dir);
-  }
+  void addDirectory(const std::string& dir) { m_directories.push_back(dir); }
 
   ShaderFileManager()
       : m_forceLineFilenames(false)
@@ -171,8 +161,8 @@ public:
   IncludeID           findInclude(std::string const& name) const;
   bool                loadIncludeContent(IncludeID);
   const IncludeEntry& getIncludeEntry(IncludeID idx) const;
-  
-  std::string         getProcessedContent(std::string const& filename, std::string& filenameFound);
+
+  std::string getProcessedContent(std::string const& filename, std::string& filenameFound);
 
 protected:
   std::string markerString(int line, std::string const& filename, int fileid);
@@ -180,14 +170,14 @@ protected:
   std::string getContent(std::string const& filename, std::string& filenameFound);
   std::string manualInclude(std::string const& filename, std::string& filenameFound, std::string const& prepend, bool foundVersion);
 
-  
+
   bool m_lineMarkers;
   bool m_forceLineFilenames;
   bool m_forceIncludeContent;
   bool m_supportsExtendedInclude;
 
-  std::vector<std::string>  m_directories;
-  IncludeRegistry           m_includes;
+  std::vector<std::string> m_directories;
+  IncludeRegistry          m_includes;
 };
 
 }  // namespace nvh

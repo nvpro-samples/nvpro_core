@@ -1,29 +1,22 @@
-/* Copyright (c) 2014-2019, NVIDIA CORPORATION. All rights reserved.
+/*
+ * Copyright (c) 2014-2021, NVIDIA CORPORATION.  All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *  * Neither the name of NVIDIA CORPORATION nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
- * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
- * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
- * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
- * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * SPDX-FileCopyrightText: Copyright (c) 2014-2021 NVIDIA CORPORATION
+ * SPDX-License-Identifier: Apache-2.0
  */
+
 
 /**
   # namespace nvh::gltf
@@ -55,9 +48,9 @@
 
 #pragma once
 #pragma once
-#include "fileformats/tiny_gltf.h"
 #include "nvmath/nvmath.h"
 #include "nvmath/nvmath_glsltypes.h"
+#include "tiny_gltf.h"
 #include <algorithm>
 #include <map>
 #include <string>
@@ -311,14 +304,16 @@ struct GltfScene
 
 
 private:
-  void          processNode(const tinygltf::Model& tmodel, int& nodeIdx, const nvmath::mat4f& parentMatrix);
-  void          processMesh(const tinygltf::Model& tmodel, const tinygltf::Primitive& tmesh, GltfAttributes attributes, const std::string& name);
-  
+  void processNode(const tinygltf::Model& tmodel, int& nodeIdx, const nvmath::mat4f& parentMatrix);
+  void processMesh(const tinygltf::Model& tmodel, const tinygltf::Primitive& tmesh, GltfAttributes attributes, const std::string& name);
+
   // Temporary data
   std::unordered_map<int, std::vector<uint32_t>> m_meshToPrimMeshes;
   std::vector<uint32_t>                          primitiveIndices32u;
   std::vector<uint16_t>                          primitiveIndices16u;
   std::vector<uint8_t>                           primitiveIndices8u;
+
+  std::unordered_map<std::string, GltfPrimMesh> m_cachePrimMesh;
 
   void computeCamera();
   void checkRequiredExtensions(const tinygltf::Model& tmodel);
@@ -326,7 +321,7 @@ private:
 
 nvmath::mat4f getLocalMatrix(const tinygltf::Node& tnode);
 
-  // Return a vector of data for a tinygltf::Value
+// Return a vector of data for a tinygltf::Value
 template <typename T>
 static inline std::vector<T> getVector(const tinygltf::Value& value)
 {
@@ -435,9 +430,9 @@ static bool getAttribute(const tinygltf::Model& tmodel, const tinygltf::Primitiv
     // VEC3 or VEC4
     int nbComponents = accessor.type == TINYGLTF_TYPE_VEC2 ? 2 : (accessor.type == TINYGLTF_TYPE_VEC3) ? 3 : 4;
     // UNSIGNED_BYTE or UNSIGNED_SHORT
-    int strideComponent = accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE ? 1 : 2;
+    size_t strideComponent = accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE ? 1 : 2;
 
-    size_t byteStride = bufView.byteStride > 0 ? bufView.byteStride : nbComponents * strideComponent;
+    size_t byteStride = bufView.byteStride > 0 ? bufView.byteStride : size_t(nbComponents) * strideComponent;
     auto   bufferByte = reinterpret_cast<const uint8_t*>(bufData);
     for(size_t i = 0; i < nbElems; i++)
     {
@@ -480,6 +475,6 @@ inline bool hasExtension(const tinygltf::ExtensionMap& extensions, const std::st
 {
   return extensions.find(name) != extensions.end();
 }
- 
+
 
 }  // namespace nvh

@@ -5,11 +5,11 @@
 //-----------------------------------------------------------------------------
 #ifdef NVP_SUPPORTS_NVTOOLSEXT
 // NSight perf markers - take the whole stuff from "C:\Program Files (x86)\NVIDIA GPU Computing Toolkit\nvToolsExt"
-#include "NSight/nvToolsExt.h"
+#include <nvtx3/nvToolsExt.h>
 
-typedef int(__stdcall* nvtxRangePushEx_Pfn)(const nvtxEventAttributes_t* eventAttrib);
-typedef int(__stdcall* nvtxRangePush_Pfn)(const char* message);
-typedef int(__stdcall* nvtxRangePop_Pfn)();
+typedef int(NVTX_API* nvtxRangePushEx_Pfn)(const nvtxEventAttributes_t* eventAttrib);
+typedef int(NVTX_API* nvtxRangePush_Pfn)(const char* message);
+typedef int(NVTX_API* nvtxRangePop_Pfn)();
 extern nvtxRangePushEx_Pfn   nvtxRangePushEx_dyn;
 extern nvtxRangePush_Pfn     nvtxRangePush_dyn;
 extern nvtxRangePop_Pfn      nvtxRangePop_dyn;

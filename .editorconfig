@@ -1,0 +1,7 @@
+# This is the top-most editor config file
+root = true
+
+# Default to 2 space indentation for C/C++ files
+[*.{c,cpp,h,hpp,inl}]
+indent_size = 2
+indent_style = space
