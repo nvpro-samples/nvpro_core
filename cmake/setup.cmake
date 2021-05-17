@@ -4,7 +4,7 @@
 
 # Check for obsolete folders to remove
 if(EXISTS ${BASE_DIRECTORY}/shared_sources)
-  message(WARNING "shared_sources got renamed as nvpro_core. Please remove shared_sources folder and shared_external folder")
+  message(WARNING "shared_sources got renamed as nvpro_core. Please remove shared_sources folder")
 endif()
 if(EXISTS ${BASE_DIRECTORY}/shared_external)
   message(WARNING "Please remove shared_external folder : folder obsolete, now")
