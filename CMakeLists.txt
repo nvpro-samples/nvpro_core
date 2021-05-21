@@ -65,9 +65,6 @@ if(USING_VULKANSDK)
   file(GLOB NVHELPERSVK_SOURCE nvvk/*.cpp nvvk/*.hpp nvvk/*.inl nvvk/*.h)
   source_group("nvvk" FILES ${NVHELPERSVK_SOURCE})
 
-  file(GLOB NVHELPERSVKPP_SOURCE nvvkpp/*.cpp nvvkpp/*.hpp nvvkpp/*.inl nvvkpp/*.h)
-  source_group("nvvkpp" FILES ${NVHELPERSVKPP_SOURCE})
-
   string(CONCAT library_name ${library_name} "_vk")
   
   if(WIN32)
@@ -154,7 +151,6 @@ add_library(nvpro_core STATIC
   ${NVPWINDOW_SOURCE}
   ${OPENGL_FILES}
   ${NVHELPERSVK_SOURCE}
-  ${NVHELPERSVKPP_SOURCE}
   ${NVHELPERSGL_SOURCE}
   ${NVHELPERSDX12_SOURCE}
   ${PACKAGE_SOURCE_FILES}

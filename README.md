@@ -1,3 +1,6 @@
+## License
+See [license.md](license.md) and licenses within source code for details.
+
 ## Repository
 This folder is a repository of *shared source code* : most other samples use it as library or directly reference code from it.
 

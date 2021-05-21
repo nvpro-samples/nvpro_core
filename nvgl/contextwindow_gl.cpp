@@ -79,8 +79,8 @@ static void APIENTRY myOpenGLCallback(GLenum source, GLenum type, GLuint id, GLe
     //static std::map<GLuint, bool> ignoreMap;
     //if(ignoreMap[id] == true)
     //    return;
-    char* strSource = "0";
-    char* strType   = strSource;
+    const char* strSource = "0";
+    const char* strType   = strSource;
     switch(source)
     {
       case GL_DEBUG_SOURCE_API_ARB:
@@ -484,6 +484,21 @@ struct ContextWindowInternalGL
   {
     m_glfwwindow = sourcewindow;
     glfwMakeContextCurrent(m_glfwwindow);
+
+#ifdef _DEBUG
+    PFNGLDEBUGMESSAGECALLBACKARBPROC fn_glDebugMessageCallbackARB =
+        (PFNGLDEBUGMESSAGECALLBACKARBPROC)glfwGetProcAddress("glDebugMessageCallbackARB");
+    PFNGLDEBUGMESSAGECONTROLARBPROC fn_glDebugMessageControlARB =
+        (PFNGLDEBUGMESSAGECONTROLARBPROC)glfwGetProcAddress("glDebugMessageControlARB");
+
+    if(fn_glDebugMessageCallbackARB)
+    {
+      glEnable(GL_DEBUG_OUTPUT);
+      glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS_ARB);
+      fn_glDebugMessageControlARB(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, NULL, GL_TRUE);
+      fn_glDebugMessageCallbackARB(myOpenGLCallback, ctxwindow);
+    }
+#endif
 
     return true;
   }

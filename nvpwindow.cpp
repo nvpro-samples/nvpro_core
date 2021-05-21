@@ -284,6 +284,11 @@ bool NVPWindow::open(int posX, int posY, int width, int height, const char* titl
     glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
+    // Some samples make use of compatibility profile features
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_COMPAT_PROFILE);
+#ifdef _DEBUG
+    glfwWindowHint(GLFW_CONTEXT_DEBUG, 1);
+#endif
   }
 #endif
 

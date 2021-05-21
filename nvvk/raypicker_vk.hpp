@@ -87,7 +87,7 @@ public:
     nvmath::vec3f baryCoord{0, 0, 0};
   };
 
-  void setup(const vk::Device& device, const vk::PhysicalDevice& physicalDevice, uint32_t queueIndex, nvvk::ResourceAllocator* allocator)
+  void setup(const VkDevice& device, const VkPhysicalDevice& physicalDevice, uint32_t queueIndex, nvvk::ResourceAllocator* allocator)
   {
     m_physicalDevice = physicalDevice;
     m_device         = device;
@@ -97,7 +97,7 @@ public:
   }
 
   // tlas : top acceleration structure
-  void setTlas(const vk::AccelerationStructureKHR& tlas)
+  void setTlas(const VkAccelerationStructureKHR& tlas)
   {
     m_tlas = tlas;
     createOutputResult();
@@ -105,24 +105,26 @@ public:
     createPipeline();
   }
 
-  void run(const vk::CommandBuffer& cmdBuf, const PickInfo& pickInfo)
+  void run(const VkCommandBuffer& cmdBuf, const PickInfo& pickInfo)
   {
     m_pickInfo = pickInfo;
 
-    cmdBuf.bindPipeline(vk::PipelineBindPoint::eCompute, m_pipeline);
-    cmdBuf.bindDescriptorSets(vk::PipelineBindPoint::eCompute, m_pipelineLayout, 0, {m_descSet}, {});
-    cmdBuf.pushConstants<PickInfo>(m_pipelineLayout, vk::ShaderStageFlagBits::eCompute, 0, m_pickInfo);
-    cmdBuf.dispatch(1, 1, 1);  // one pixel
+    vkCmdBindPipeline(cmdBuf, VK_PIPELINE_BIND_POINT_COMPUTE, m_pipeline);
+    vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_COMPUTE, m_pipelineLayout, 0, 1, &m_descSet, 0, nullptr);
+    vkCmdPushConstants(cmdBuf, m_pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(PickInfo), &m_pickInfo);
+    vkCmdDispatch(cmdBuf, 1, 1, 1);  // one pixel
+
+
     // Wait for result
-    vk::BufferMemoryBarrier bmb{vk::AccessFlagBits::eMemoryWrite,
-                                vk::AccessFlagBits::eMemoryRead,
-                                VK_QUEUE_FAMILY_IGNORED,
-                                VK_QUEUE_FAMILY_IGNORED,
-                                m_pickResult.buffer,
-                                0,
-                                VK_WHOLE_SIZE};
-    cmdBuf.pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eTopOfPipe,
-                           vk::DependencyFlagBits::eDeviceGroup, 0, nullptr, 1, &bmb, 0, nullptr);
+    VkBufferMemoryBarrier bmb{VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER};
+    bmb.srcAccessMask       = VK_ACCESS_MEMORY_WRITE_BIT;
+    bmb.dstAccessMask       = VK_ACCESS_MEMORY_READ_BIT;
+    bmb.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    bmb.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    bmb.buffer              = m_pickResult.buffer;
+    bmb.size                = VK_WHOLE_SIZE;
+    vkCmdPipelineBarrier(cmdBuf, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                         VK_DEPENDENCY_DEVICE_GROUP_BIT, 0, nullptr, 1, &bmb, 0, nullptr);
   }
 
   PickResult getResult()
@@ -138,15 +140,16 @@ public:
   {
     m_alloc->destroy(m_pickResult);
     m_alloc->destroy(m_sbtBuffer);
-    m_device.destroy(m_descSetLayout);
-    m_device.destroy(m_descPool);
-    m_device.destroy(m_pipelineLayout);
-    m_device.destroy(m_pipeline);
+    vkDestroyDescriptorSetLayout(m_device, m_descSetLayout, nullptr);
+    vkDestroyDescriptorPool(m_device, m_descPool, nullptr);
+    vkDestroyPipeline(m_device, m_pipeline, nullptr);
+    vkDestroyPipelineLayout(m_device, m_pipelineLayout, nullptr);
+
     m_pickResult     = nvvk::Buffer();
-    m_descSetLayout  = vk::DescriptorSetLayout();
-    m_descSet        = vk::DescriptorSet();
-    m_pipelineLayout = vk::PipelineLayout();
-    m_pipeline       = vk::Pipeline();
+    m_descSetLayout  = VkDescriptorSetLayout();
+    m_descSet        = VkDescriptorSet();
+    m_pipelineLayout = VkPipelineLayout();
+    m_pipeline       = VkPipeline();
   }
 
 
@@ -154,29 +157,29 @@ private:
   nvvk::Buffer m_pickResult;
   nvvk::Buffer m_sbtBuffer;
 
-  nvvk::DescriptorSetBindings  m_binding;
-  vk::DescriptorPool           m_descPool;
-  vk::DescriptorSetLayout      m_descSetLayout;
-  vk::DescriptorSet            m_descSet;
-  vk::PipelineLayout           m_pipelineLayout;
-  vk::Pipeline                 m_pipeline;
-  vk::AccelerationStructureKHR m_tlas;
-  vk::PhysicalDevice           m_physicalDevice;
-  vk::Device                   m_device;
-  uint32_t                     m_queueIndex{0};
-  nvvk::ResourceAllocator*     m_alloc{nullptr};
-  nvvk::DebugUtil              m_debug;
+  nvvk::DescriptorSetBindings m_binding;
+  VkDescriptorPool            m_descPool{VK_NULL_HANDLE};
+  VkDescriptorSetLayout       m_descSetLayout{VK_NULL_HANDLE};
+  VkDescriptorSet             m_descSet{VK_NULL_HANDLE};
+  VkPipelineLayout            m_pipelineLayout{VK_NULL_HANDLE};
+  VkPipeline                  m_pipeline{VK_NULL_HANDLE};
+  VkAccelerationStructureKHR  m_tlas;
+  VkPhysicalDevice            m_physicalDevice;
+  VkDevice                    m_device;
+  uint32_t                    m_queueIndex{0};
+  nvvk::ResourceAllocator*    m_alloc{nullptr};
+  nvvk::DebugUtil             m_debug;
 
 
   void createOutputResult()
   {
     m_alloc->destroy(m_pickResult);
     nvvk::CommandPool sCmd(m_device, m_queueIndex);
-    vk::CommandBuffer cmdBuf = sCmd.createCommandBuffer();
+    VkCommandBuffer   cmdBuf = sCmd.createCommandBuffer();
     PickResult        presult{};
     m_pickResult = m_alloc->createBuffer(cmdBuf, sizeof(PickResult), &presult,
-                                         vk::BufferUsageFlagBits::eTransferSrc | vk::BufferUsageFlagBits::eStorageBuffer,
-                                         vk::MemoryPropertyFlagBits::eHostCoherent | vk::MemoryPropertyFlagBits::eHostVisible);
+                                         VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                         VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
     sCmd.submitAndWait(cmdBuf);
     m_alloc->finalizeAndReleaseStaging();
     NAME_VK(m_pickResult.buffer);
@@ -184,43 +187,57 @@ private:
 
   void createDescriptorSet()
   {
-    m_device.destroy(m_descSetLayout);
-    m_device.destroy(m_descPool);
+    vkDestroyDescriptorSetLayout(m_device, m_descSetLayout, nullptr);
+    vkDestroyDescriptorPool(m_device, m_descPool, nullptr);
 
     m_binding.clear();
-    m_binding.addBinding(0, vk::DescriptorType::eAccelerationStructureKHR, 1, vk::ShaderStageFlagBits::eCompute);
-    m_binding.addBinding(1, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eCompute);
+    m_binding.addBinding(0, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1, VK_SHADER_STAGE_COMPUTE_BIT);
+    m_binding.addBinding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT);
 
     m_descPool      = m_binding.createPool(m_device);
     m_descSetLayout = m_binding.createLayout(m_device);
-    m_descSet       = m_device.allocateDescriptorSets({m_descPool, 1, &m_descSetLayout})[0];
 
-    vk::WriteDescriptorSetAccelerationStructureKHR descAsInfo{1, &m_tlas};
 
-    vk::DescriptorBufferInfo            pickDesc{m_pickResult.buffer, 0, VK_WHOLE_SIZE};
-    std::vector<vk::WriteDescriptorSet> writes;
+    VkDescriptorSetAllocateInfo allocateInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
+    allocateInfo.descriptorPool     = m_descPool;
+    allocateInfo.descriptorSetCount = 1;
+    allocateInfo.pSetLayouts        = &m_descSetLayout;
+
+    vkAllocateDescriptorSets(m_device, &allocateInfo, &m_descSet);
+
+
+    VkWriteDescriptorSetAccelerationStructureKHR descAsInfo{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR};
+    descAsInfo.accelerationStructureCount = 1;
+    descAsInfo.pAccelerationStructures = &m_tlas;
+
+    VkDescriptorBufferInfo            pickDesc{m_pickResult.buffer, 0, VK_WHOLE_SIZE};
+    std::vector<VkWriteDescriptorSet> writes;
     writes.emplace_back(m_binding.makeWrite(m_descSet, 0, &descAsInfo));
     writes.emplace_back(m_binding.makeWrite(m_descSet, 1, &pickDesc));
-    m_device.updateDescriptorSets(static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
+    vkUpdateDescriptorSets(m_device, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
   }
 
   void createPipeline()
   {
-    m_device.destroy(m_pipelineLayout);
-    m_device.destroy(m_pipeline);
+    vkDestroyPipeline(m_device, m_pipeline, nullptr);
+    vkDestroyPipelineLayout(m_device, m_pipelineLayout, nullptr);
 
-    vk::PushConstantRange        pushConstant{vk::ShaderStageFlagBits::eCompute, 0, sizeof(PickInfo)};
-    vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo;
-    pipelineLayoutCreateInfo.setSetLayoutCount(1);
-    pipelineLayoutCreateInfo.setPSetLayouts(&m_descSetLayout);
-    pipelineLayoutCreateInfo.setPushConstantRangeCount(1);
-    pipelineLayoutCreateInfo.setPPushConstantRanges(&pushConstant);
-    CREATE_NAMED_VK(m_pipelineLayout, m_device.createPipelineLayout(pipelineLayoutCreateInfo));
+    VkPushConstantRange        pushConstant{VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(PickInfo)};
+    VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
+    pipelineLayoutCreateInfo.setLayoutCount         = 1;
+    pipelineLayoutCreateInfo.pSetLayouts            = &m_descSetLayout;
+    pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
+    pipelineLayoutCreateInfo.pPushConstantRanges    = &pushConstant;
+    vkCreatePipelineLayout(m_device, &pipelineLayoutCreateInfo, nullptr, &m_pipelineLayout);
+    NAME_VK(m_pipelineLayout);
 
-    vk::ComputePipelineCreateInfo computePipelineCreateInfo{{}, {}, m_pipelineLayout};
+    VkComputePipelineCreateInfo computePipelineCreateInfo{VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO};
+    computePipelineCreateInfo.layout = m_pipelineLayout;
     computePipelineCreateInfo.stage = nvvk::createShaderStageInfo(m_device, getSpirV(), VK_SHADER_STAGE_COMPUTE_BIT);
-    CREATE_NAMED_VK(m_pipeline, m_device.createComputePipeline({}, computePipelineCreateInfo).value);
-    m_device.destroy(computePipelineCreateInfo.stage.module);
+    vkCreateComputePipelines(m_device, {}, 1, &computePipelineCreateInfo, nullptr, &m_pipeline);
+    NAME_VK(m_pipeline);
+
+    vkDestroyShaderModule(m_device, computePipelineCreateInfo.stage.module, nullptr);
   }
 
 

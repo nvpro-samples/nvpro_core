@@ -4,7 +4,7 @@
 
 # Check for obsolete folders to remove
 if(EXISTS ${BASE_DIRECTORY}/shared_sources)
-  message(WARNING "shared_sources got renamed as nvpro_core. Please remove shared_sources folder")
+  message(WARNING "shared_sources got renamed as nvpro_core. Please remove shared_sources")
 endif()
 if(EXISTS ${BASE_DIRECTORY}/shared_external)
   message(WARNING "Please remove shared_external folder : folder obsolete, now")
@@ -392,9 +392,7 @@ macro(_add_package_VulkanSDK)
       Message(STATUS "--> using Vulkan Headers from: ${vulkanHeaderDir}")
       include_directories(${vulkanHeaderDir})
       set( vulkanHeaderFiles 
-        "${vulkanHeaderDir}/vulkan/vulkan.h"
-        "${vulkanHeaderDir}/vulkan/vulkan_core.h"
-        "${vulkanHeaderDir}/vulkan/vulkan.hpp")
+        "${vulkanHeaderDir}/vulkan/vulkan_core.h")
       LIST(APPEND PACKAGE_SOURCE_FILES ${vulkanHeaderFiles} )
       source_group(Vulkan FILES  ${vulkanHeaderFiles} )
 
