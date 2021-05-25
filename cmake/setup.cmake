@@ -1,6 +1,7 @@
 #*****************************************************************************
 # Copyright 2020 NVIDIA Corporation. All rights reserved.
 #*****************************************************************************
+include_guard(GLOBAL)
 
 # Check for obsolete folders to remove
 if(EXISTS ${BASE_DIRECTORY}/shared_sources)
@@ -20,7 +21,7 @@ endif()
 # Set the C/C++ specified in the projects as requirements
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_C_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 # Find includes in corresponding build directories
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
