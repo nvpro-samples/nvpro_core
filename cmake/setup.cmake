@@ -416,7 +416,7 @@ endmacro(_optional_package_VulkanSDK)
 # Optional ShaderC package
 #
 macro(_add_package_ShaderC)
-  find_package(VulkanSDK)  
+  _add_package_VulkanSDK()  
   if(VULKANSDK_FOUND AND (VULKANSDK_SHADERC_LIB OR NVSHADERC_LIB))
       Message(STATUS "--> using package ShaderC")
       
