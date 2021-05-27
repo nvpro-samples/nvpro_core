@@ -45,9 +45,8 @@ m_sbtWrapper.setup(m_device, m_graphicsQueueIndex, &m_alloc, m_rtProperties);
 // ...
 m_sbtWrapper.create(m_rtPipeline, rayPipelineInfo);
 // ...
-auto regions = m_sbtWrapper.getRegions();
-cmdBuf.traceRaysKHR(regions[0], regions[1], regions[2], regions[3],  //
-                    m_size.width, m_size.height, 1);                 //
+auto& regions = m_stbWrapper.getRegions();
+vkCmdTraceRaysKHR(cmdBuf, &regions[0], &regions[1], &regions[2], &regions[3], size.width, size.height, 1);
 ~~~~~
 
 
