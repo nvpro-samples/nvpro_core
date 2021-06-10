@@ -24,14 +24,17 @@ using namespace nvvk;
 //--------------------------------------------------------------------------------------------------
 // Default setup
 //
-void SBTWrapper::setup(VkDevice device, uint32_t familyIndex, nvvk::ResourceAllocator* allocator, const VkPhysicalDeviceRayTracingPipelinePropertiesKHR& rt_properties)
+void SBTWrapper::setup(VkDevice                                               device,
+                       uint32_t                                               familyIndex,
+                       nvvk::ResourceAllocator*                               allocator,
+                       const VkPhysicalDeviceRayTracingPipelinePropertiesKHR& rt_properties)
 {
   m_device     = device;
   m_queueIndex = familyIndex;
   m_pAlloc     = allocator;
   m_debug.setup(device);
 
-  m_handleSize     = rt_properties.shaderGroupHandleSize;  // Size of a program identifier
+  m_handleSize    = rt_properties.shaderGroupHandleSize;  // Size of a program identifier
   m_baseAlignment = rt_properties.shaderGroupBaseAlignment;
 }
 
@@ -52,43 +55,55 @@ void SBTWrapper::destroy()
 // If the pipeline was created like: raygen, miss, hit, miss, hit, hit
 // The result will be: raygen[0], miss[1, 3], hit[2, 4, 5], callable[]
 //
-void SBTWrapper::addIndices(VkRayTracingPipelineCreateInfoKHR rayPipelineInfo)
+void SBTWrapper::addIndices(VkRayTracingPipelineCreateInfoKHR                     rayPipelineInfo,
+                            const std::vector<VkRayTracingPipelineCreateInfoKHR>& libraries)
 {
   for(auto& i : m_index)
     i = {};
 
   uint32_t stageIdx = 0;
 
-  // Finding the handle position of each group, splitting by raygen, miss and hit group
-  for(uint32_t g = 0; g < rayPipelineInfo.groupCount; g++)
+
+  for(size_t i = 0; i < libraries.size() + 1; i++)
   {
-    if(rayPipelineInfo.pGroups[g].type == VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR)
+    // When using libraries, their groups and stages are appended after the groups and
+    // stages defined in the main VkRayTracingPipelineCreateInfoKHR
+    const auto& info = (i == 0) ? rayPipelineInfo : libraries[i - 1];
+    // Libraries contain stages referencing their internal groups. When those groups
+    // are used in the final pipeline we need to offset them to ensure each group has
+    // a unique index
+    uint32_t groupOffset = stageIdx;
+    // Finding the handle position of each group, splitting by raygen, miss and hit group
+    for(uint32_t g = 0; g < info.groupCount; g++)
     {
-      if(rayPipelineInfo.pStages[stageIdx].stage == VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+      if(info.pGroups[g].type == VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR)
       {
-        m_index[eRaygen].push_back(g);
-        stageIdx++;
+        if(info.pStages[stageIdx].stage == VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+        {
+          m_index[eRaygen].push_back(g + groupOffset);
+          stageIdx++;
+        }
+        else if(info.pStages[stageIdx].stage == VK_SHADER_STAGE_MISS_BIT_KHR)
+        {
+          m_index[eMiss].push_back(g + groupOffset);
+          stageIdx++;
+        }
+        else if(info.pStages[stageIdx].stage == VK_SHADER_STAGE_CALLABLE_BIT_KHR)
+        {
+          m_index[eCallable].push_back(g + groupOffset);
+          stageIdx++;
+        }
       }
-      else if(rayPipelineInfo.pStages[stageIdx].stage == VK_SHADER_STAGE_MISS_BIT_KHR)
+      else
       {
-        m_index[eMiss].push_back(g);
-        stageIdx++;
+        m_index[eHit].push_back(g + groupOffset);
+        if(info.pGroups[g].closestHitShader != VK_SHADER_UNUSED_KHR)
+          stageIdx++;
+        if(info.pGroups[g].anyHitShader != VK_SHADER_UNUSED_KHR)
+          stageIdx++;
+        if(info.pGroups[g].intersectionShader != VK_SHADER_UNUSED_KHR)
+          stageIdx++;
       }
-      else if(rayPipelineInfo.pStages[stageIdx].stage == VK_SHADER_STAGE_CALLABLE_BIT_KHR)
-      {
-        m_index[eCallable].push_back(g);
-        stageIdx++;
-      }
-    }
-    else
-    {
-      m_index[eHit].push_back(g);
-      if(rayPipelineInfo.pGroups[g].closestHitShader != VK_SHADER_UNUSED_KHR)
-        stageIdx++;
-      if(rayPipelineInfo.pGroups[g].anyHitShader != VK_SHADER_UNUSED_KHR)
-        stageIdx++;
-      if(rayPipelineInfo.pGroups[g].intersectionShader != VK_SHADER_UNUSED_KHR)
-        stageIdx++;
     }
   }
 }
@@ -97,17 +112,28 @@ void SBTWrapper::addIndices(VkRayTracingPipelineCreateInfoKHR rayPipelineInfo)
 // This function creates 4 buffers, for raygen, miss, hit and callable shader.
 // Each buffer will have the handle + 'data (if any)', .. n-times they have entries in the pipeline.
 //
-void SBTWrapper::create(VkPipeline rtPipeline, VkRayTracingPipelineCreateInfoKHR rayPipelineInfo /*= {}*/)
+void SBTWrapper::create(VkPipeline                                            rtPipeline,
+                        VkRayTracingPipelineCreateInfoKHR                     rayPipelineInfo /*= {}*/,
+                        const std::vector<VkRayTracingPipelineCreateInfoKHR>& librariesInfo /*= {}*/)
 {
   for(auto& b : m_buffer)
     m_pAlloc->destroy(b);
 
   // Get the total number of groups and handle index position
-  uint32_t groupCount{0};
+  uint32_t              totalGroupCount{0};
+  std::vector<uint32_t> groupCountPerInput;
+  // A pipeline is defined by at least its main VkRayTracingPipelineCreateInfoKHR, plus a number of external libraries
+  groupCountPerInput.reserve(1 + librariesInfo.size());
   if(rayPipelineInfo.sType == VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR)
   {
-    addIndices(rayPipelineInfo);
-    groupCount = rayPipelineInfo.groupCount;
+    addIndices(rayPipelineInfo, librariesInfo);
+    groupCountPerInput.push_back(rayPipelineInfo.groupCount);
+    totalGroupCount += rayPipelineInfo.groupCount;
+    for(const auto& lib : librariesInfo)
+    {
+      groupCountPerInput.push_back(lib.groupCount);
+      totalGroupCount += lib.groupCount;
+    }
   }
   else
   {
@@ -116,16 +142,18 @@ void SBTWrapper::create(VkPipeline rtPipeline, VkRayTracingPipelineCreateInfoKHR
     for(auto& i : m_index)
     {
       if(!i.empty())
-        groupCount = std::max(groupCount, *std::max_element(std::begin(i), std::end(i)));
+        totalGroupCount = std::max(totalGroupCount, *std::max_element(std::begin(i), std::end(i)));
     }
-    groupCount++;
+    totalGroupCount++;
+    groupCountPerInput.push_back(totalGroupCount);
   }
 
   // Fetch all the shader handles used in the pipeline, so that they can be written in the SBT
-  uint32_t             sbtSize = groupCount * m_handleSize;
+  uint32_t             sbtSize = totalGroupCount * m_handleSize;
   std::vector<uint8_t> shaderHandleStorage(sbtSize);
-  auto result = vkGetRayTracingShaderGroupHandlesKHR(m_device, rtPipeline, 0, groupCount, sbtSize, shaderHandleStorage.data());
 
+  auto result =
+      vkGetRayTracingShaderGroupHandlesKHR(m_device, rtPipeline, 0, totalGroupCount, sbtSize, shaderHandleStorage.data());
   // Find the max stride, minimum is the handle size + size of 'data (if any)' aligned to shaderGroupBaseAlignment
   auto findStride = [&](auto entry, auto& stride) {
     stride = nvh::align_up(m_handleSize, m_baseAlignment);  // minimum stride
@@ -193,7 +221,7 @@ void SBTWrapper::create(VkPipeline rtPipeline, VkRayTracingPipelineCreateInfoKHR
 
 VkDeviceAddress SBTWrapper::getAddress(GroupType t)
 {
-  if (m_buffer[t].buffer == VK_NULL_HANDLE)
+  if(m_buffer[t].buffer == VK_NULL_HANDLE)
     return 0;
   VkBufferDeviceAddressInfo i{VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, nullptr, m_buffer[t].buffer};
   return vkGetBufferDeviceAddress(m_device, &i);

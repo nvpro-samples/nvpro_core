@@ -116,10 +116,17 @@ public:
   void destroy();
 
   // To call after the ray tracer pipeline creation
-  void create(VkPipeline rtPipeline, VkRayTracingPipelineCreateInfoKHR rayPipelineInfo = {});
+  // The rayPipelineInfo parameter is the structure used to define the pipeline,
+  // while librariesInfo describe the potential input pipeline libraries
+  void create(VkPipeline                                            rtPipeline,
+              VkRayTracingPipelineCreateInfoKHR                     rayPipelineInfo = {},
+              const std::vector<VkRayTracingPipelineCreateInfoKHR>& librariesInfo   = {});
 
-  // Optional, to be use in combination with addIndex. Leave create() `rayPipelineInfo` empty.
-  void addIndices(VkRayTracingPipelineCreateInfoKHR rayPipelineInfo);
+  // Optional, to be used in combination with addIndex. Leave create() `rayPipelineInfo` 
+  // and 'librariesInfo' empty.  The rayPipelineInfo parameter is the structure used to 
+  // define the pipeline, while librariesInfo describe the potential input pipeline libraries
+  void addIndices(VkRayTracingPipelineCreateInfoKHR                     rayPipelineInfo,
+                  const std::vector<VkRayTracingPipelineCreateInfoKHR>& libraries = {});
 
   // Pushing back a GroupType and the handle pipeline index to use
   // i.e addIndex(eHit, 3) is pushing a Hit shader group using the 3rd entry in the pipeline
