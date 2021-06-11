@@ -122,8 +122,8 @@ public:
               VkRayTracingPipelineCreateInfoKHR                     rayPipelineInfo = {},
               const std::vector<VkRayTracingPipelineCreateInfoKHR>& librariesInfo   = {});
 
-  // Optional, to be used in combination with addIndex. Leave create() `rayPipelineInfo` 
-  // and 'librariesInfo' empty.  The rayPipelineInfo parameter is the structure used to 
+  // Optional, to be used in combination with addIndex. Leave create() `rayPipelineInfo`
+  // and 'librariesInfo' empty.  The rayPipelineInfo parameter is the structure used to
   // define the pipeline, while librariesInfo describe the potential input pipeline libraries
   void addIndices(VkRayTracingPipelineCreateInfoKHR                     rayPipelineInfo,
                   const std::vector<VkRayTracingPipelineCreateInfoKHR>& libraries = {});
@@ -147,12 +147,12 @@ public:
   }
 
   // Getters
-  uint32_t                        indexCount(GroupType t) { return static_cast<uint32_t>(m_index[t].size()); }
-  uint32_t                        getStride(GroupType t) { return m_stride[t]; }
-  uint32_t                        getSize(GroupType t) { return getStride(t) * indexCount(t); }
-  VkDeviceAddress                 getAddress(GroupType t);
-  VkStridedDeviceAddressRegionKHR getRegion(GroupType t);
-  std::array<VkStridedDeviceAddressRegionKHR, 4> getRegions();
+  uint32_t                              indexCount(GroupType t) { return static_cast<uint32_t>(m_index[t].size()); }
+  uint32_t                              getStride(GroupType t) { return m_stride[t]; }
+  uint32_t                              getSize(GroupType t) { return getStride(t) * indexCount(t); }
+  VkDeviceAddress                       getAddress(GroupType t);
+  const VkStridedDeviceAddressRegionKHR getRegion(GroupType t);
+  const std::array<VkStridedDeviceAddressRegionKHR, 4> getRegions();
 
 
 private:

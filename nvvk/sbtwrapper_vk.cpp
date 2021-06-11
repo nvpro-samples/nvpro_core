@@ -227,12 +227,12 @@ VkDeviceAddress SBTWrapper::getAddress(GroupType t)
   return vkGetBufferDeviceAddress(m_device, &i);
 }
 
-VkStridedDeviceAddressRegionKHR SBTWrapper::getRegion(GroupType t)
+const VkStridedDeviceAddressRegionKHR SBTWrapper::getRegion(GroupType t)
 {
   return VkStridedDeviceAddressRegionKHR{getAddress(t), getStride(t), getSize(t)};
 }
 
-std::array<VkStridedDeviceAddressRegionKHR, 4> SBTWrapper::getRegions()
+const std::array<VkStridedDeviceAddressRegionKHR, 4> SBTWrapper::getRegions()
 {
   std::array<VkStridedDeviceAddressRegionKHR, 4> regions{getRegion(eRaygen), getRegion(eMiss), getRegion(eHit), getRegion(eCallable)};
   return regions;
