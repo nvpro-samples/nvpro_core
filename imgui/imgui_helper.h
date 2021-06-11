@@ -1095,7 +1095,7 @@ struct PropertyEditor
   {
     ImGui::AlignTextToFramePadding();
     ImGui::SetNextItemWidth(-1);
-    ImGui::Text(property_name.c_str());
+    ImGui::Text("%s", property_name.c_str());
     ImGui::NextColumn();
     ImGui::AlignTextToFramePadding();
     ImGui::SetNextItemWidth(-1);
@@ -1108,7 +1108,7 @@ struct PropertyEditor
   static void Entry(const std::string& property_name, const std::string& value)
   {
     Entry(property_name, [&] {
-      ImGui::Text(value.c_str());
+      ImGui::Text("%s", value.c_str());
       return false;  // dummy, no change
     });
   }

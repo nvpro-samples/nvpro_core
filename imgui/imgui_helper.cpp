@@ -127,6 +127,8 @@ bool Combo(const char* label, size_t numEnums, const Enum* enums, void* valuePtr
           found = true;
         }
         break;
+      default:
+        break;
     }
   }
 
@@ -144,6 +146,8 @@ bool Combo(const char* label, size_t numEnums, const Enum* enums, void* valuePtr
             break;
           case TYPE_FLOAT:
             *fvalue = enums[i].fvalue;
+            break;
+          default:
             break;
         }
 
@@ -347,7 +351,7 @@ void setFonts(FontMode fontmode)
     }
     if(font == nullptr)
     {
-      const std::string p = "/usr/share/fonts/truetype/ubuntu/Ubuntu-B.ttf";
+      const std::string p = "/usr/share/fonts/truetype/ubuntu/Ubuntu-R.ttf";
       if(fileExists(p.c_str()))
         font = io.Fonts->AddFontFromFileTTF(p.c_str(), 16.0f * high_dpi_scale);
     }
@@ -641,7 +645,7 @@ void ImGui::PlotMultiEx(const char* label, int num_datas, ImPlotMulti* datas, co
     {
       auto& cur_data = datas[data_idx];
 
-      bool type_line = (cur_data.plot_type == ImGuiPlotType_Lines) || (cur_data.plot_type == ImGuiPlotType_Area);
+      bool type_line = (cur_data.plot_type == ImGuiPlotType_Lines) || (cur_data.plot_type == (ImGuiPlotType)ImGuiPlotType_Area);
 
       int res_w      = ImMin((int)frame_size.x, cur_data.values_count) + (type_line ? -1 : 0);
       int item_count = cur_data.values_count + (type_line ? -1 : 0);
@@ -665,7 +669,7 @@ void ImGui::PlotMultiEx(const char* label, int num_datas, ImPlotMulti* datas, co
   for(int data_idx = 0; data_idx < num_datas; data_idx++)
   {
     auto& cur_data  = datas[data_idx];
-    bool  type_line = (cur_data.plot_type == ImGuiPlotType_Lines) || (cur_data.plot_type == ImGuiPlotType_Area);
+    bool  type_line = (cur_data.plot_type == ImGuiPlotType_Lines) || (cur_data.plot_type == (ImGuiPlotType)ImGuiPlotType_Area);
 
     int res_w      = ImMin((int)frame_size.x, cur_data.values_count) + (type_line ? -1 : 0);
     int item_count = cur_data.values_count + (type_line ? -1 : 0);
@@ -700,7 +704,7 @@ void ImGui::PlotMultiEx(const char* label, int num_datas, ImPlotMulti* datas, co
       {
         window->DrawList->AddLine(pos0, pos1, col_base, cur_data.thickness);
       }
-      else if(cur_data.plot_type == ImGuiPlotType_Area)
+      else if(cur_data.plot_type == (ImGuiPlotType)ImGuiPlotType_Area)
       {
         ImDrawListFlags backup_flags = window->DrawList->Flags;
         window->DrawList->Flags &= ~ImDrawListFlags_AntiAliasedFill;  // Disable AA on Quad to look nice when next to each other.
