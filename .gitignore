@@ -132,6 +132,17 @@ Thumbs.db
 Desktop.ini
 
 
+############
+## Linux
+############
+
+# Backup Files
+*~
+
+# Lock Files
+\#*\#
+
+
 #############
 ## Python
 #############
