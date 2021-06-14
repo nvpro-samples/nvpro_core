@@ -47,6 +47,7 @@ NV_ALIGN(8, typedef vec2ui uvec2);
 #else
 // Matrices, must align to 4 vector (16 bytes)
 typedef mat4f mat4;
+typedef mat3f mat3;
 
 // vectors, 4-tuples and 3-tuples must align to 16 bytes
 //  2-vectors must align to 8 bytes
