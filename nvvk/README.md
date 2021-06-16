@@ -5,6 +5,8 @@ Non-exhaustive list of utilities provided in the `nvvk` directory
 If you intend to use the Vulkan C++ api, include <vulkan/vulkan.hpp> before including the helper files.
 
 Table of Contents:
+- [appbase_vk.hpp:](#appbase_vkhpp)
+  - class [nvvk::AppBaseVk](#class-nvvkappbasevk)
 - [appbase_vkpp.hpp:](#appbase_vkpphpp)
   - class [nvvk::AppBase](#class-nvvkappbase)
 - [appwindowprofiler_vk.hpp:](#appwindowprofiler_vkhpp)
@@ -77,15 +79,15 @@ Table of Contents:
 
 _____
 
-## appbase_vkpp.hpp
+## appbase_vk.hpp
 
-### class **nvvk::AppBase**
+### class **nvvk::AppBaseVk**
 
-The framework comes with a few `App???` classes, these can serve as base classes for various samples.
+This simple framework is used in a few samples, can serve as base class for various needs.
 They might differ a bit in setup and functionality, but in principle aid the setup of context and window,
 as well as some common event processing.
 
-The **nvvk::AppBase** serves as the base class for many ray tracing examples and makes use of the Vulkan C++ API (`vulkan.hpp`).
+The **nvvk::AppBaseVk** serves as the base class for many ray tracing examples and makes use of the Vulkan C API.
 It does the basics for Vulkan, by holding a reference to the instance and device, but also comes with optional default setups 
 for the render passes and the swapchain.
 
@@ -94,7 +96,7 @@ for the render passes and the swapchain.
 An example will derive from this class:
 
 ~~~~ C++
-class MyExample : public AppBase 
+class VkSample : public AppBaseVk 
 {
 };
 ~~~~
@@ -104,9 +106,7 @@ class MyExample : public AppBase
 In the `main()` of an application,  call `setup()` which is taking a Vulkan instance, device, physical device, 
 and a queue family index.  Setup copies the given Vulkan handles into **AppBase**, and query the 0th `VkQueue` of the 
 specified family, which must support graphics operations and drawing to the surface passed to createSurface.
-Furthermore, it is creating a `VkCommandPool` plus it
-will initialize all Vulkan extensions for the C++ API (vulkan.hpp). 
-See: [VULKAN_HPP_DEFAULT_DISPATCHER](https://github.com/KhronosGroup/Vulkan-Hpp#vulkan_hpp_default_dispatcher)
+Furthermore, it is creating a `VkCommandPool`.
 
 Prior to calling setup, if you are using the `nvvk::Context` class to create and initialize Vulkan instances,
 you may want to create a `VkSurfaceKHR` from the window (glfw for example) and call `setGCTQueueWithPresent()`.
@@ -115,7 +115,6 @@ will meet the requirements of setup().
 
 Creating the swapchain for displaying. Arguments are
 width and height, color and depth format, and vsync on/off. Defaults will create the best format for the surface.
-
 
 Creating framebuffers has a dependency on the renderPass and depth buffer. All those are virtual and can be overridden
 in a sample, but default implementation exist.
@@ -126,9 +125,9 @@ in a sample, but default implementation exist.
 Here is the dependency order:
 
 ~~~~C++
-example.createDepthBuffer();
-example.createRenderPass();
-example.createFrameBuffers();
+vkSample.createDepthBuffer();
+vkSample.createRenderPass();
+vkSample.createFrameBuffers();
 ~~~~
 
 
@@ -179,18 +178,20 @@ will handle the default ImGui callback .
 **Note**: All the methods are virtual and can be overloaded if they are not doing the typical setup. 
 
 ~~~~ C++
-MyExample example;
+// Create example
+VulkanSample vkSample;
 
-const vk::SurfaceKHR surface = example.getVkSurface(vkctx.m_instance, window);
+// Window need to be opened to get the surface on which to draw
+const VkSurfaceKHR surface = vkSample.getVkSurface(vkctx.m_instance, window);
 vkctx.setGCTQueueWithPresent(surface);
 
-example.setup(vkctx.m_instance, vkctx.m_device, vkctx.m_physicalDevice, vkctx.m_queueGCT.familyIndex);
-example.createSurface(surface, SAMPLE_SIZE_WIDTH, SAMPLE_SIZE_HEIGHT);
-example.createDepthBuffer();
-example.createFrameBuffers();
-example.createRenderPass();
-example.initGUI(0);
-example.setupGlfwCallbacks(window);
+vkSample.setup(vkctx.m_instance, vkctx.m_device, vkctx.m_physicalDevice, vkctx.m_queueGCT.familyIndex);
+vkSample.createSwapchain(surface, SAMPLE_WIDTH, SAMPLE_HEIGHT);
+vkSample.createDepthBuffer();
+vkSample.createRenderPass();
+vkSample.createFrameBuffers();
+vkSample.initGUI(0);
+vkSample.setupGlfwCallbacks(window);
 
 ImGui_ImplGlfw_InitForVulkan(window, true);
 ~~~~
@@ -207,10 +208,10 @@ work and contain a sleep(), so the CPU is not going crazy.
 while(!glfwWindowShouldClose(window))
 {
   glfwPollEvents();
-  if(example.isMinimized())
+  if(vkSample.isMinimized())
     continue;
 
-  example.display();  // infinitely drawing
+  vkSample.display();  // infinitely drawing
 }
 ~~~~
 
@@ -227,23 +228,33 @@ A typical display() function will need the following:
 * Submitting frame to display
 
 ~~~~ C++
-void MyExample::display()
+void VkSample::display()
 {
   // Acquire 
   prepareFrame();
 
   // Command buffer for current frame
-  const vk::CommandBuffer& cmdBuff = m_commandBuffers[getCurFrame()];
-  cmdBuff.begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
+  auto                   curFrame = getCurFrame();
+  const VkCommandBuffer& cmdBuf   = getCommandBuffers()[curFrame];
+
+  VkCommandBufferBeginInfo beginInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+  beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+  vkBeginCommandBuffer(cmdBuf, &beginInfo);
 
   // Clearing values
-  vk::ClearValue clearValues[2];
-  clearValues[0].setColor(std::array<float, 4>({0.1f, 0.1f, 0.4f, 0.f}));
-  clearValues[1].setDepthStencil({1.0f, 0});
+  std::array<VkClearValue, 2> clearValues{};
+  clearValues[0].color        = {{1.f, 1.f, 1.f, 1.f}};
+  clearValues[1].depthStencil = {1.0f, 0};
 
   // Begin rendering
-  vk::RenderPassBeginInfo renderPassBeginInfo{m_renderPass, m_framebuffers[getCurFrame()], {{}, m_size}, 2, clearValues};
-  cmdBuff.beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
+  VkRenderPassBeginInfo renderPassBeginInfo{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
+  renderPassBeginInfo.clearValueCount = 2;
+  renderPassBeginInfo.pClearValues    = clearValues.data();
+  renderPassBeginInfo.renderPass      = m_renderPass;
+  renderPassBeginInfo.framebuffer     = m_framebuffers[curFram];
+  renderPassBeginInfo.renderArea      = {{0, 0}, m_size};
+  vkCmdBeginRenderPass(cmdBuf, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
+
   
   // .. draw scene ...
 
@@ -251,10 +262,10 @@ void MyExample::display()
   ImGui_ImplVulkan_RenderDrawData( ImGui::GetDrawData(),cmdBuff)
 
   // End rendering
-  cmdBuff.endRenderPass();
+  vkCmdEndRenderPass(cmdBuf);
 
   // End of the frame and present the one which is ready
-  cmdBuff.end();
+  vkEndCommandBuffer(cmdBuf);
   submitFrame();
 }
 ~~~~~
@@ -264,8 +275,14 @@ void MyExample::display()
 Finally, all resources can be destroyed by calling `destroy()` at the end of main().
 
 ~~~~ C++
-example.destroy();
+vkSample.destroy();
 ~~~~
+
+## appbase_vkpp.hpp
+
+### class **nvvk::AppBase**
+
+This class is the same as the [`nvvk::AppBaseVk`](#appbase_vkhpp) but use of the Vulkan C++ API (`vulkan.hpp`).
 
 ## appwindowprofiler_vk.hpp
 
@@ -750,22 +767,15 @@ Use `NVVK_CHECK(result)` to automatically log filename/linenumber.
 
 ### Vulkan Extension Loader
 
-The extensions_vk files takes care of loading and providing the symbols of
-Vulkan C Api extensions.
-It is generated by `extensions_vk.lua` which contains a enablelist of
-extensions to be made available.
+The extensions_vk files takes care of loading and providing the symbols of Vulkan C Api extensions.
+It is generated by `extensions_vk.py` and generates all extensions found in vk.xml. See script for details.
+.
 
-The framework triggers this implicitly in the `nvvk::Context` class.
+The framework triggers this implicitly in the `nvvk::Context` class, immediately after creating the device.
 
-If you want to use it in your own code, see the instructions in the 
-lua file how to generate it.
-
-~~~ c++
+~~~c++
 // loads all known extensions
-load_VK_EXTENSION_SUBSET(instance, vkGetInstanceProcAddr, device, vkGetDeviceProcAddr);
-
-// load individual extension
-load_VK_KHR_push_descriptor(instance, vkGetInstanceProcAddr, device, vkGetDeviceProcAddr);
+load_VK_EXTENSIONS(instance, vkGetInstanceProcAddr, device, vkGetDeviceProcAddr);
 ~~~
 
 ## gizmos_vk.hpp
@@ -1355,9 +1365,8 @@ m_sbtWrapper.setup(m_device, m_graphicsQueueIndex, &m_alloc, m_rtProperties);
 // ...
 m_sbtWrapper.create(m_rtPipeline, rayPipelineInfo);
 // ...
-auto regions = m_sbtWrapper.getRegions();
-cmdBuf.traceRaysKHR(regions[0], regions[1], regions[2], regions[3],  //
-                    m_size.width, m_size.height, 1);                 //
+auto& regions = m_stbWrapper.getRegions();
+vkCmdTraceRaysKHR(cmdBuf, &regions[0], &regions[1], &regions[2], &regions[3], size.width, size.height, 1);
 ~~~~~
 
 

@@ -388,9 +388,8 @@ void nvvk::AppBaseVk::prepareFrame()
   // Use a fence to wait until the command buffer has finished execution before using it again
   uint32_t imageIndex = m_swapChain.getActiveImageIndex();
 
-  while(vkWaitForFences(m_device, 1, &m_waitFences[imageIndex], VK_TRUE, 10000) == VK_TIMEOUT)
-  {
-  }
+  VkResult result = vkWaitForFences(m_device, 1, &m_waitFences[imageIndex], VK_TRUE, ~0);
+  assert(result == VK_SUCCESS);
 }
 
 //--------------------------------------------------------------------------------------------------
