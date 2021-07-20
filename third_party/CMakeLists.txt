@@ -2,36 +2,22 @@ cmake_minimum_required(VERSION 3.10)
 
 project(third_party LANGUAGES C CXX)
 
-# glm
-# add_library(glm INTERFACE)
-# set(GLM_DIR ${CMAKE_CURRENT_SOURCE_DIR}/glm)
-# target_sources(glm INTERFACE ${GLM_DIR}/glm/glm.hpp)
-# target_include_directories(glm INTERFACE ${GLM_DIR})
-# 
-# target_compile_definitions(glm INTERFACE
-#     GLM_FORCE_SWIZZLE
-#     GLM_FORCE_RADIANS
-#     GLM_FORCE_CTOR_INIT
-#     GLM_ENABLE_EXPERIMENTAL
-# )
-# if(NOT CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-#     target_compile_definitions(glm INTERFACE GLM_FORCE_CXX14)
-# endif()
+# List of found and added third party libraries
+set(THIRDPARTY_LIBRARIES)
 
-# tinygltf
-if (NOT TARGET tinygltf)
-  add_library(tinygltf INTERFACE)
-  set(TINYGLTF_DIR ${CMAKE_CURRENT_SOURCE_DIR}/tinygltf)
-  target_sources(tinygltf INTERFACE ${TINYGLTF_DIR}/tiny_gltf.h ${TINYGLTF_DIR}/json.hpp)
-  target_include_directories(tinygltf INTERFACE ${TINYGLTF_DIR})
-endif()
-
-# tinyobjloader
-if (NOT TARGET tinyobjloader)
-  add_library(tinyobjloader INTERFACE)
-  set(TINYOBJLOADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/tinyobjloader)
-  target_sources(tinyobjloader INTERFACE ${TINYOBJLOADER_DIR}/tiny_obj_loader.h)
-  target_include_directories(tinyobjloader INTERFACE ${TINYOBJLOADER_DIR})
+### mandatory dependencies
+# GLFW
+if (NOT TARGET glfw)
+  set(GLFW_USE_HYBRID_HPG OFF)
+  set(GLFW_VULKAN_STATIC OFF)
+  set(GLFW_BUILD_DOCS OFF)
+  set(GLFW_BUILD_TESTS OFF)
+  set(GLFW_BUILD_EXAMPLES OFF)
+  set(GLFW_BUILD_TESTS OFF)
+  set(GLFW_INSTALL OFF)
+  set(BUILD_SHARED_LIBS OFF)
+  add_subdirectory(glfw)
+  set_property(TARGET glfw PROPERTY FOLDER "ThirdParty")
 endif()
 
 # imgui
@@ -58,51 +44,91 @@ endif()
 set(IMGUI_DIR "${CMAKE_CURRENT_SOURCE_DIR}/imgui" PARENT_SCOPE)
 
 
+### optional dependencies
+
+# glm
+# add_library(glm INTERFACE)
+# set(GLM_DIR ${CMAKE_CURRENT_SOURCE_DIR}/glm)
+# target_sources(glm INTERFACE ${GLM_DIR}/glm/glm.hpp)
+# target_include_directories(glm INTERFACE ${GLM_DIR})
+# 
+# target_compile_definitions(glm INTERFACE
+#     GLM_FORCE_SWIZZLE
+#     GLM_FORCE_RADIANS
+#     GLM_FORCE_CTOR_INIT
+#     GLM_ENABLE_EXPERIMENTAL
+# )
+# if(NOT CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+#     target_compile_definitions(glm INTERFACE GLM_FORCE_CXX14)
+# endif()
+
+# tinygltf
+if (NOT TARGET tinygltf AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/tinygltf)
+  add_library(tinygltf INTERFACE)
+  set(TINYGLTF_DIR ${CMAKE_CURRENT_SOURCE_DIR}/tinygltf)
+  target_sources(tinygltf INTERFACE ${TINYGLTF_DIR}/tiny_gltf.h ${TINYGLTF_DIR}/json.hpp)
+  target_include_directories(tinygltf INTERFACE ${TINYGLTF_DIR})
+endif()
+if (TARGET tinygltf)
+  LIST(APPEND THIRDPARTY_LIBRARIES tinygltf)
+endif()
+
+# tinyobjloader
+if (NOT TARGET tinyobjloader AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/tinyobjloader)
+  add_library(tinyobjloader INTERFACE)
+  set(TINYOBJLOADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/tinyobjloader)
+  target_sources(tinyobjloader INTERFACE ${TINYOBJLOADER_DIR}/tiny_obj_loader.h)
+  target_include_directories(tinyobjloader INTERFACE ${TINYOBJLOADER_DIR})
+endif()
+if (TARGET tinyobjloader)
+  LIST(APPEND THIRDPARTY_LIBRARIES tinyobjloader)
+endif()
+
 # stb
-if (NOT TARGET stb)
+if (NOT TARGET stb AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/stb)
   add_library(stb INTERFACE)
   target_include_directories(stb INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/stb")
 endif()
-
-# GLFW
-if (NOT TARGET glfw)
-  set(GLFW_USE_HYBRID_HPG OFF)
-  set(GLFW_VULKAN_STATIC OFF)
-  set(GLFW_BUILD_DOCS OFF)
-  set(GLFW_BUILD_TESTS OFF)
-  set(GLFW_BUILD_EXAMPLES OFF)
-  set(GLFW_BUILD_TESTS OFF)
-  set(GLFW_INSTALL OFF)
-  set(BUILD_SHARED_LIBS OFF)
-  add_subdirectory(glfw)
-  set_property(TARGET glfw PROPERTY FOLDER "ThirdParty")
+if (TARGET stb)
+  LIST(APPEND THIRDPARTY_LIBRARIES stb)
 endif()
 
 # cgltf
-if (NOT TARGET cgltf)
+if (NOT TARGET cgltf AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/cgltf)
   add_library(cgltf INTERFACE)
   target_include_directories(cgltf INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/cgltf")
+endif()
+if (TARGET cgltf)
+  LIST(APPEND THIRDPARTY_LIBRARIES cgltf)
 endif()
 
 #zlib
 if (USING_ZLIB)
-  if (NOT TARGET zlibstatic)
+  if (NOT TARGET zlibstatic AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/zlib)
     include(zlibstatic.cmake)
   endif()
 endif()
 
 # vma
-if (NOT TARGET vma)
+if (NOT TARGET vma AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/vma)
   add_library(vma INTERFACE)
   set(VMA_DIR ${CMAKE_CURRENT_SOURCE_DIR}/vma/include)
   target_sources(vma INTERFACE ${VMA_DIR}/vk_mem_alloc.h)
   target_include_directories(vma INTERFACE ${VMA_DIR})
 endif()
+if (TARGET vma)
+  LIST(APPEND THIRDPARTY_LIBRARIES vma)
+endif()
 
 # NvToolsExt
-if (NOT TARGET nvtx)
+if (NOT TARGET nvtx AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/NVTX)
   add_library(nvtx INTERFACE)
   set(NVTX_DIR ${CMAKE_CURRENT_SOURCE_DIR}/NVTX/c/include)
   target_sources(nvtx INTERFACE ${NVTX_DIR}/nvtx3/nvToolsExt.h)
   target_include_directories(nvtx INTERFACE ${NVTX_DIR})
 endif()
+if (TARGET nvtx)
+  LIST(APPEND THIRDPARTY_LIBRARIES nvtx)
+endif()
+
+set(THIRDPARTY_LIBRARIES "${THIRDPARTY_LIBRARIES}" PARENT_SCOPE)
