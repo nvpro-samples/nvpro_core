@@ -1,40 +1,49 @@
-# Generic Helpers
+# Helpers nvh
 
-Non-exhaustive list of utilities provided in the `nvh` directory
+Table of Contents
 
-Table of Contents:
-- [appwindowprofiler.hpp:](#appwindowprofilerhpp)
-  - class [nvh::AppWindowProfiler](#class-nvhappwindowprofiler)
-- [bitarray.hpp:](#bitarrayhpp)
-  - class [nvh::BitArray](#class-nvhbitarray)
-- [cameracontrol.hpp:](#cameracontrolhpp)
-  - class [nvh::CameraControl](#class-nvhcameracontrol)
-- [cameramanipulator.hpp:](#cameramanipulatorhpp)
-  - class [nvh::CameraManipulator](#class-nvhcameramanipulator)
-- [fileoperations.hpp:](#fileoperationshpp)
-- [geometry.hpp:](#geometryhpp)
-- [gltfscene.hpp:](#gltfscenehpp)
-- [inputparser.h:](#inputparserh)
-  - class [nvh::InputParser](#class-nvhinputparser)
-- [misc.hpp:](#mischpp)
-- [nvprint.hpp:](#nvprinthpp)
-- [parametertools.hpp:](#parametertoolshpp)
-  - class [nvh::ParameterList](#class-nvhparameterlist)
-  - class [nvh::ParameterSequence](#class-nvhparametersequence)
-- [profiler.hpp:](#profilerhpp)
-  - class [nvh::Profiler](#class-nvhprofiler)
-- [radixsort.hpp:](#radixsorthpp)
-- [shaderfilemanager.hpp:](#shaderfilemanagerhpp)
-  - class [nvh::ShaderFileManager](#class-nvhshaderfilemanager)
-- [trangeallocator.hpp:](#trangeallocatorhpp)
-  - class [nvh::TRangeAllocator](#class-nvhtrangeallocator)
+- [alignment.hpp](#alignmenthpp)
+- [appwindowcamerainertia.hpp](#appwindowcamerainertiahpp)
+- [appwindowprofiler.hpp](#appwindowprofilerhpp)
+- [bitarray.hpp](#bitarrayhpp)
+- [cameracontrol.hpp](#cameracontrolhpp)
+- [camerainertia.hpp](#camerainertiahpp)
+- [cameramanipulator.hpp](#cameramanipulatorhpp)
+- [container_utils.hpp](#container_utilshpp)
+- [filemapping.hpp](#filemappinghpp)
+- [fileoperations.hpp](#fileoperationshpp)
+- [geometry.hpp](#geometryhpp)
+- [gltfscene.hpp](#gltfscenehpp)
+- [inputparser.h](#inputparserh)
+- [linux_file_dialog.h](#linux_file_dialogh)
+- [misc.hpp](#mischpp)
+- [nsightevents.h](#nsighteventsh)
+- [nvprint.hpp](#nvprinthpp)
+- [parametertools.hpp](#parametertoolshpp)
+- [profiler.hpp](#profilerhpp)
+- [radixsort.hpp](#radixsorthpp)
+- [shaderfilemanager.hpp](#shaderfilemanagerhpp)
+- [timesampler.hpp](#timesamplerhpp)
+- [trangeallocator.hpp](#trangeallocatorhpp)
+_____
+
+# appwindowcamerainertia.hpp
+
+<a name="appwindowcamerainertiahpp"></a>
+## class AppWindowCameraInertia
+> AppWindowCameraInertia is a Window base for samples, adding a camera with inertia
+
+It derives the Window for this sample
+
+
 
 _____
 
-## appwindowprofiler.hpp
+# appwindowprofiler.hpp
 
-### class **nvh::AppWindowProfiler**
-**AppWindowProfiler** provides an alternative utility wrapper class around NVPWindow.
+<a name="appwindowprofilerhpp"></a>
+## class nvh::AppWindowProfiler
+    nvh::AppWindowProfiler provides an alternative utility wrapper class around NVPWindow.
 It is useful to derive single-window applications from and is used by some
 but not all nvpro-samples.
 
@@ -47,14 +56,19 @@ Further functionality is provided :
 - logfile based on devicename (depends on context)
 - optional context/swapchain interface
   the derived classes nvvk/appwindowprofiler_vk and nvgl/appwindowprofiler_gl make use of this
+  
 
-## bitarray.hpp
 
-### class **nvh::BitArray**
+_____
 
-The **BitArray** class implements a tightly packed boolean array using single bits stored in uint64_t values.
+# bitarray.hpp
+
+<a name="bitarrayhpp"></a>
+## class nvh::BitArray
+
+> The nvh::BitArray class implements a tightly packed boolean array using single bits stored in uint64_t values.
 Whenever you want large boolean arrays this representation is preferred for cache-efficiency.
-The Visitor and **OffsetVisitor** traversal mechanisms make use of cpu intrinsics to speed up iteration over bits.
+The Visitor and OffsetVisitor traversal mechanisms make use of cpu intrinsics to speed up iteration over bits.
   
 Example:
 ``` c++
@@ -76,13 +90,17 @@ void operator()( size_t index ){
 MyVisitor visitor;
 modifiedObjects.traverseBits(visitor);
 ```
+  
 
-## cameracontrol.hpp
 
-### class **nvh::CameraControl**
+_____
 
-**CameraControl** is a utility class to create a viewmatrix
-based on mouse inputs.
+# cameracontrol.hpp
+
+<a name="cameracontrolhpp"></a>
+## class nvh::CameraControl
+
+> nvh::CameraControl is a utility class to create a viewmatrix based on mouse inputs.
   
 It can operate in perspective or orthographic mode (`m_sceneOrtho==true`).
   
@@ -101,12 +119,32 @@ otherwise provide "first person/fly through"-like controls.
   
 Speed of movement/rotation etc. is influenced by `m_sceneDimension` as well as the 
 sensitivity values.
+  
 
-## cameramanipulator.hpp
 
-### class **nvh::CameraManipulator**
+_____
 
-This is a camera manipulator help class
+# camerainertia.hpp
+
+<a name="camerainertiahpp"></a>
+## struct InertiaCamera
+> Struct that offers a camera moving with some inertia effect around a target point
+
+InertiaCamera exposes a mix of pseudo polar rotation around a target point and
+some other movements to translate the target point, zoom in and out.
+
+Either the keyboard or mouse can be used for all of the moves.
+
+
+
+_____
+
+# cameramanipulator.hpp
+
+<a name="cameramanipulatorhpp"></a>
+## class nvh::CameraManipulator
+
+nvh::CameraManipulator is a camera manipulator help class
 It allow to simply do
 - Orbit        (LMB)
 - Pan          (LMB + CTRL  | MMB)
@@ -130,7 +168,7 @@ See: appbase_vkpp.hpp
 
 Note: There is a singleton `CameraManip` which can be use across the entire application
 
-~~~ C++
+``` c++
 // Retrieve/set camera information
 CameraManip.getLookat(eye, center, up);
 CameraManip.setLookat(eye, center, nvmath::vec3f(m_upVector == 0, m_upVector == 1, m_upVector == 2));
@@ -148,26 +186,37 @@ CameraManip.mouseMove(x, y, m_inputs);
 CameraManip.wheel(delta > 0 ? 1 : -1, m_inputs);
 // Retrieve the matrix to push to the shader
 m_ubo.view = CameraManip.getMatrix();	
-~~~
+```
 
-## fileoperations.hpp
 
-### functions in nvh
 
-- **fileExists** : check if file exists
-- **findFile** : finds filename in provided search directories
-- **loadFile** : (multiple overloads) loads file as std::string, binary or text, can also search in provided directories
-- **getFileName** : splits filename from filename with path
-- **getFilePath** : splits filepath from filename with path
 
-## geometry.hpp
+_____
 
-### namespace nvh::geometry
-The geometry namespace provides a few procedural mesh primitives
+# fileoperations.hpp
+
+<a name="fileoperationshpp"></a>
+## functions in nvh
+
+- nvh::fileExists : check if file exists
+- nvh::findFile : finds filename in provided search directories
+- nvh::loadFile : (multiple overloads) loads file as std::string, binary or text, can also search in provided directories
+- nvh::getFileName : splits filename from filename with path
+- nvh::getFilePath : splits filepath from filename with path
+
+
+
+_____
+
+# geometry.hpp
+
+<a name="geometryhpp"></a>
+## namespace nvh::geometry
+    The geometry namespace provides a few procedural mesh primitives
 that are subdivided.
 
-**nvh::geometry::Mesh** template uses the provided TVertex which must have a 
-constructor from **nvh::geometry::Vertex**. You can also use **nvh::geometry::Vertex**
+nvh::geometry::Mesh template uses the provided TVertex which must have a 
+constructor from nvh::geometry::Vertex. You can also use nvh::geometry::Vertex
 directly.
 
 It provides triangle indices, as well as outline line indices. The outline indices
@@ -175,11 +224,11 @@ are typical feature lines (rectangle for plane, some circles for sphere/torus).
 
 All basic primitives are within -1,1 ranges along the axis they use
 
-- **nvh::geometry::Plane** (x,y subdivision)
-- **nvh::geometry::Box** (x,y,z subdivision, made of 6 planes)
-- **nvh::geometry::Sphere** (lat,long subdivision)
-- **nvh::geometry::Torus** (inner, outer circle subdivision)
-- **nvh::geometry::RandomMengerSponge** (subdivision, tree depth, probability)
+- nvh::geometry::Plane (x,y subdivision)
+- nvh::geometry::Box (x,y,z subdivision, made of 6 planes)
+- nvh::geometry::Sphere (lat,long subdivision)
+- nvh::geometry::Torus (inner, outer circle subdivision)
+- nvh::geometry::RandomMengerSponge (subdivision, tree depth, probability)
 
 Example:
 
@@ -190,17 +239,22 @@ nvh::geometry::Box<nvh::geometry::Vertex> box(4,4,4);
 // construct from primitives
 
 ```
+  
 
-## gltfscene.hpp
 
-### namespace nvh::gltf
+_____
+
+# gltfscene.hpp
+
+<a name="gltfscenehpp"></a>
+## namespace nvh::gltf
 
 These utilities are for loading glTF models in a
 canonical scene representation. From this representation
 you would create the appropriate 3D API resources (buffers
 and textures).
  
-~~~ C++
+``` c++
 // Typical Usage
 // Load the GLTF Scene using TinyGLTF
  
@@ -216,12 +270,18 @@ gltfScene.getDrawableNodes(tmodel, GltfAttributes::Normal | GltfAttributes::Texc
 //   create buffers for vertices and indices, from gltfScene.m_position, gltfScene.m_index
 //   create textures from images: using tinygltf directly
 //   create descriptorSet for material using directly gltfScene.m_materials
-~~~
+```
 
-## inputparser.h
 
-### class **nvh::InputParser**
-Simple command line parser
+
+
+_____
+
+# inputparser.h
+
+<a name="inputparserh"></a>
+## class InputParser
+  > InputParser is a Simple command line parser
 
 Example of usage for: test.exe -f name.txt -size 200 100
 
@@ -235,45 +295,57 @@ if(parser.exist("-size") {
       auto values = parser.getInt2("-size");
 ```
 
-## misc.hpp
 
-### functions in nvh
 
-- **mipMapLevels** : compute number of mip maps
-- **stringFormat** : sprintf for std::string
-- **frand** : random float using rand()
-- **permutation** : fills uint vector with random permutation of values [0... vec.size-1]
+_____
 
-## nvprint.hpp
+# misc.hpp
 
-### global nvprintf functions
+<a name="mischpp"></a>
+## functions in nvh
+ 
+- mipMapLevels : compute number of mip maps
+- stringFormat : sprintf for std::string
+- frand : random float using rand()
+- permutation : fills uint vector with random permutation of values [0... vec.size-1]
 
-Multiple functions and macros that should be used for logging purposes,
-rather than printf
 
-- **nvprintf** : print at default loglevel
-- **nvprintfLevel** : print at a certain loglevel
-- **nvprintSetLevel** : sets default loglevel
-- **nvprintGetLevel** : gets default loglevel
-- **nvprintSetLogFileName** : sets log filename
-- **nvprintSetLogging** : sets file logging state
-- **nvprintSetCallback** : sets custom callback
-- **LOGI** : macro that does nvprintfLevel(LOGLEVEL_INFO)
-- **LOGW** : macro that does nvprintfLevel(LOGLEVEL_WARNING)
-- **LOGE** : macro that does nvprintfLevel(LOGLEVEL_ERROR)
-- **LOGE_FILELINE** : macro that does nvprintfLevel(LOGLEVEL_ERROR) combined with filename/line
-- **LOGD** : macro that does nvprintfLevel(LOGLEVEL_DEBUG) (only in debug builds)
-- **LOGOK** : macro that does nvprintfLevel(LOGLEVEL_OK)
-- **LOGSTATS** : macro that does nvprintfLevel(LOGLEVEL_STATS)
 
-## parametertools.hpp
+_____
 
-### class **nvh::ParameterList**
+# nvprint.hpp
 
-The **ParameterList** helps parsing commandline arguments
+<a name="nvprinthpp"></a>
+## function nvprintf etc
+  
+- nvprintf : prints at default loglevel
+- nvprintfLevel : nvprintfLevel print at a certain loglevel
+- nvprintSetLevel : sets default loglevel
+- nvprintGetLevel : gets default loglevel
+- nvprintSetLogFileName : sets log filename
+- nvprintSetLogging : sets file logging state
+- nvprintSetCallback : sets custom callback
+- LOGI : macro that does nvprintfLevel(LOGLEVEL_INFO)
+- LOGW : macro that does nvprintfLevel(LOGLEVEL_WARNING)
+- LOGE : macro that does nvprintfLevel(LOGLEVEL_ERROR)
+- LOGE_FILELINE : macro that does nvprintfLevel(LOGLEVEL_ERROR) combined with filename/line
+- LOGD : macro that does nvprintfLevel(LOGLEVEL_DEBUG) (only in debug builds)
+- LOGOK : macro that does nvprintfLevel(LOGLEVEL_OK)
+- LOGSTATS : macro that does nvprintfLevel(LOGLEVEL_STATS)
+
+
+
+_____
+
+# parametertools.hpp
+
+<a name="parametertoolshpp"></a>
+## class nvh::ParameterList
+
+The nvh::ParameterList helps parsing commandline arguments
 or commandline arguments stored within ascii config files.
 
-**Parameters** always update the values they point to, and optionally
+Parameters always update the values they point to, and optionally
 can trigger a callback that can be provided per-parameter.
 
 ``` c++
@@ -287,16 +359,17 @@ list.add("scale|model scale", &modelScale);
 list.applyTokens(3, {"blah.gltf","-scale","4"}, "-", "/assets/");
 ``` 
 
-Use in combination with the **ParameterSequence** class to iterate
+Use in combination with the ParameterSequence class to iterate
 sequences of parameter changes for benchmarking/automation.
+  
 
 
-### class **nvh::ParameterSequence**
+## class nvh::ParameterSequence
 
-The **ParameterSequence** processes provided tokens in sequences.
+The nvh::ParameterSequence processes provided tokens in sequences.
 The sequences are terminated by a special "separator" token.
 All tokens between the last iteration and the separator are applied
-to the provided **ParameterList**.
+to the provided ParameterList.
 Useful to process commands in sequences (automation, benchmarking etc.).
   
 Example:
@@ -322,12 +395,18 @@ while(!sequence.advanceIteration("benchmark", 1, "-")) {
 //   0 simple mode 10
 //   1 complex mode 20
 ```
+  
 
-## profiler.hpp
 
-### class **nvh::Profiler**
+_____
 
-The **Profiler** class is designed to measure timed sections.
+# profiler.hpp
+
+<a name="profilerhpp"></a>
+## class nvh::Profiler
+
+> The nvh::Profiler class is designed to measure timed sections.
+
 Each section has a cpu and gpu time. Gpu times are typically provided
 by derived classes for each individual api (e.g. OpenGL, Vulkan etc.).
 
@@ -337,11 +416,16 @@ can serve as master that they others contribute to. Typically the
 base class measuring only CPU time could be the master, and the api
 derived classes reference it to share the same database.
 
-**Profiler::Clock** can be used standalone for time measuring.
+Profiler::Clock can be used standalone for time measuring.
+  
 
-## radixsort.hpp
 
-### function nvh::radixsort
+_____
+
+# radixsort.hpp
+
+<a name="radixsorthpp"></a>
+## function nvh::radixsort
 
 The radixsort function sorts the provided keys based on
 BYTES many bytes stored inside TKey starting at BYTEOFFSET.
@@ -368,15 +452,20 @@ keys[result[i]].objectSortKey < keys[result[i + 1]].objectSortKey
 // result can point either to indicesIn or indicesTemp (we swap the arrays
 // after each byte iteration)
 ```
+    
 
-## shaderfilemanager.hpp
 
-### class **nvh::ShaderFileManager**
+_____
 
-The **ShaderFileManager** class is meant to be derived from to create the actual api-specific
+# shaderfilemanager.hpp
+
+<a name="shaderfilemanagerhpp"></a>
+## class nvh::ShaderFileManager
+
+The nvh::ShaderFileManager class is meant to be derived from to create the actual api-specific
 shader/program managers.
 
-The **ShaderFileManager** provides a system to find/load shader files.
+The ShaderFileManager provides a system to find/load shader files.
 It also allows resolving #include instructions in HLSL/GLSL source files.
 Such includes can be registered before pointing to strings in memory.
 
@@ -389,19 +478,50 @@ Furthermore it handles injecting prepended strings (typically used
 for #defines) after the #version statement of GLSL files,
 regardless of m_handleIncludePasting's value.
 
-## trangeallocator.hpp
+  
 
-### class **nvh::TRangeAllocator**
 
-The **TRangeAllocator**<GRANULARITY> template allows to sub-allocate ranges from a fixed
-maximum size. **Ranges** are allocated at GRANULARITY and are merged back on freeing.
+_____
+
+# timesampler.hpp
+
+<a name="timesamplerhpp"></a>
+## struct TimeSampler
+TimeSampler does time sampling work
+
+
+
+## struct nvh::Stopwatch
+> Timer in milliseconds. 
+
+Starts the timer at creation and the elapsed time is retrieved by calling `elapsed()`. 
+The timer can be reset if it needs to start timing later in the code execution.
+
+Usage:
+````cpp
+nvh::Stopwatch sw;
+...
+LOGI("Elapsed: %f ms\n", sw.elapsed()); // --> Elapsed: 128.157 ms
+````
+
+
+
+_____
+
+# trangeallocator.hpp
+
+<a name="trangeallocatorhpp"></a>
+## class nvh::TRangeAllocator
+
+The nvh::TRangeAllocator<GRANULARITY> template allows to sub-allocate ranges from a fixed
+maximum size. Ranges are allocated at GRANULARITY and are merged back on freeing.
 Its primary use is within allocators that sub-allocate from fixed-size blocks.
 
 The implementation is based on [MakeID by Emil Persson](http://www.humus.name/3D/MakeID.h).
 
 Example :
 
-~~~ C++
+``` c++
 TRangeAllocator<256> range;
 
 // initialize to a certain range
@@ -430,10 +550,7 @@ range.subFree(allocOffset, allocSize);
 
 // at the end cleanup
 range.deinit();
-~~~
+```
 
 
 
-
-_____
-auto-generated by `docgen.lua`

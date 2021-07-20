@@ -1,116 +1,75 @@
-# Vulkan Api Helpers
+# Helpers nvvk
 
-Non-exhaustive list of utilities provided in the `nvvk` directory
+Table of Contents
 
-If you intend to use the Vulkan C++ api, include <vulkan/vulkan.hpp> before including the helper files.
-
-Table of Contents:
-- [appbase_vk.hpp:](#appbase_vkhpp)
-  - class [nvvk::AppBaseVk](#class-nvvkappbasevk)
-- [appbase_vkpp.hpp:](#appbase_vkpphpp)
-  - class [nvvk::AppBase](#class-nvvkappbase)
-- [appwindowprofiler_vk.hpp:](#appwindowprofiler_vkhpp)
-  - class [nvvk::AppWindowProfilerVK](#class-nvvkappwindowprofilervk)
-- [buffersuballocator_vk.hpp:](#buffersuballocator_vkhpp)
-  - class [nvvk::BufferSubAllocator](#class-nvvkbuffersuballocator)
-- [buffers_vk.hpp:](#buffers_vkhpp)
-- [commands_vk.hpp:](#commands_vkhpp)
-  - class [nvvk::CommandPool](#class-nvvkcommandpool)
-  - class [nvvk::ScopeCommandBuffer](#class-nvvkscopecommandbuffer)
-  - class [nvvk::RingFences](#class-nvvkringfences)
-  - class [nvvk::RingCommandPool](#class-nvvkringcommandpool)
-  - class [nvvk::BatchSubmission](#class-nvvkbatchsubmission)
-  - class [nvvk::FencedCommandPools](#class-nvvkfencedcommandpools)
-- [context_vk.hpp:](#context_vkhpp)
-  - class [nvvk::Context](#class-nvvkcontext)
-- [descriptorsets_vk.hpp:](#descriptorsets_vkhpp)
-  - class [nvvk::DescriptorSetBindings](#class-nvvkdescriptorsetbindings)
-  - class [nvvk::DescriptorSetContainer](#class-nvvkdescriptorsetcontainer)
-  - class [nvvk::TDescriptorSetContainer<SETS,PIPES=1>](#class-nvvktdescriptorsetcontainersetspipes1)
-- [error_vk.hpp:](#error_vkhpp)
-- [extensions_vk.hpp:](#extensions_vkhpp)
-- [gizmos_vk.hpp:](#gizmos_vkhpp)
-  - class [nvvk::Axis](#class-nvvkaxis)
-- [images_vk.hpp:](#images_vkhpp)
-- [memallocator_dedicated_vk.hpp:](#memallocator_dedicated_vkhpp)
-  - class [nvvk::DedicatedMemoryAllocator](#class-nvvkdedicatedmemoryallocator)
-- [memallocator_dma_vk.hpp:](#memallocator_dma_vkhpp)
-  - class [nvvk::DMAMemoryAllocator](#class-nvvkdmamemoryallocator)
-- [memallocator_vk.hpp:](#memallocator_vkhpp)
-  - class [nvvk::MemHandle](#class-nvvkmemhandle)
-  - class [nvvk::MemAllocator](#class-nvvkmemallocator)
-- [memallocator_vma_vk.hpp:](#memallocator_vma_vkhpp)
-  - class [nvvk::VMAMemoryAllocator](#class-nvvkvmamemoryallocator)
-  - class [nvvk::ResourceAllocatorVMA](#class-nvvkresourceallocatorvma)
-- [memorymanagement_vk.hpp:](#memorymanagement_vkhpp)
-  - class [nvvk::DeviceMemoryAllocator](#class-nvvkdevicememoryallocator)
-- [memorymanagement_vkgl.hpp:](#memorymanagement_vkglhpp)
-  - class [nvvk::DeviceMemoryAllocatorGL](#class-nvvkdevicememoryallocatorgl)
-- [pipeline_vk.hpp:](#pipeline_vkhpp)
-  - class [nvvk::GraphicsPipelineState](#class-nvvkgraphicspipelinestate)
-  - class [nvvk::GraphicsPipelineGenerator](#class-nvvkgraphicspipelinegenerator)
-  - class [nvvk::GraphicsPipelineGeneratorCombined](#class-nvvkgraphicspipelinegeneratorcombined)
-- [profiler_vk.hpp:](#profiler_vkhpp)
-  - class [nvvk::ProfilerVK](#class-nvvkprofilervk)
-- [raypicker_vk.hpp:](#raypicker_vkhpp)
-  - class [nvvk::RayPickerKHR](#class-nvvkraypickerkhr)
-- [raytraceKHR_vk.hpp:](#raytracekhr_vkhpp)
-  - class [nvvk::RaytracingBuilderKHR](#class-nvvkraytracingbuilderkhr)
-- [raytraceNV_vk.hpp:](#raytracenv_vkhpp)
-  - class [nvvk::RaytracingBuilderNV](#class-nvvkraytracingbuildernv)
-- [renderpasses_vk.hpp:](#renderpasses_vkhpp)
-- [resourceallocator_vk.hpp:](#resourceallocator_vkhpp)
-  - class [nvvk::ResourceAllocator](#class-nvvkresourceallocator)
-  - class [nvvk::ResourceAllocatorDma](#class-nvvkresourceallocatordma)
-  - class [nvvk::ResourceAllocatorDedicated](#class-nvvkresourceallocatordedicated)
-  - class [nvvk::ExportResourceAllocatorDedicated](#class-nvvkexportresourceallocatordedicated)
-  - class [nvvk::ExplicitDeviceMaskResourceAllocator](#class-nvvkexplicitdevicemaskresourceallocator)
-- [samplers_vk.hpp:](#samplers_vkhpp)
-- [sbtwrapper_vk.hpp:](#sbtwrapper_vkhpp)
-  - class [nvvk::SBTWrapper](#class-nvvksbtwrapper)
-- [shadermodulemanager_vk.hpp:](#shadermodulemanager_vkhpp)
-  - class [nvvk::ShaderModuleManager](#class-nvvkshadermodulemanager)
-- [shaders_vk.hpp:](#shaders_vkhpp)
-- [stagingmemorymanager_vk.hpp:](#stagingmemorymanager_vkhpp)
-  - class [nvvk::StagingMemoryManager](#class-nvvkstagingmemorymanager)
-- [structs_vk.hpp:](#structs_vkhpp)
-- [swapchain_vk.hpp:](#swapchain_vkhpp)
-  - class [nvvk::SwapChain](#class-nvvkswapchain)
-
+- [appbase_vk.hpp](#appbase_vkhpp)
+- [appbase_vkpp.hpp](#appbase_vkpphpp)
+- [appwindowprofiler_vk.hpp](#appwindowprofiler_vkhpp)
+- [buffersuballocator_vk.hpp](#buffersuballocator_vkhpp)
+- [buffers_vk.hpp](#buffers_vkhpp)
+- [commands_vk.hpp](#commands_vkhpp)
+- [context_vk.hpp](#context_vkhpp)
+- [debug_util_vk.hpp](#debug_util_vkhpp)
+- [descriptorsets_vk.hpp](#descriptorsets_vkhpp)
+- [error_vk.hpp](#error_vkhpp)
+- [extensions_vk.hpp](#extensions_vkhpp)
+- [gizmos_vk.hpp](#gizmos_vkhpp)
+- [images_vk.hpp](#images_vkhpp)
+- [memallocator_dedicated_vk.hpp](#memallocator_dedicated_vkhpp)
+- [memallocator_dma_vk.hpp](#memallocator_dma_vkhpp)
+- [memallocator_vk.hpp](#memallocator_vkhpp)
+- [memallocator_vma_vk.hpp](#memallocator_vma_vkhpp)
+- [memorymanagement_vk.hpp](#memorymanagement_vkhpp)
+- [memorymanagement_vkgl.hpp](#memorymanagement_vkglhpp)
+- [pipeline_vk.hpp](#pipeline_vkhpp)
+- [profiler_vk.hpp](#profiler_vkhpp)
+- [raypicker_vk.hpp](#raypicker_vkhpp)
+- [raytraceKHR_vk.hpp](#raytraceKHR_vkhpp)
+- [raytraceNV_vk.hpp](#raytraceNV_vkhpp)
+- [renderpasses_vk.hpp](#renderpasses_vkhpp)
+- [resourceallocator_vk.hpp](#resourceallocator_vkhpp)
+- [samplers_vk.hpp](#samplers_vkhpp)
+- [sbtwrapper_vk.hpp](#sbtwrapper_vkhpp)
+- [shadermodulemanager_vk.hpp](#shadermodulemanager_vkhpp)
+- [shaders_vk.hpp](#shaders_vkhpp)
+- [stagingmemorymanager_vk.hpp](#stagingmemorymanager_vkhpp)
+- [structs_vk.hpp](#structs_vkhpp)
+- [swapchain_vk.hpp](#swapchain_vkhpp)
 _____
 
-## appbase_vk.hpp
+# appbase_vk.hpp
 
-### class **nvvk::AppBaseVk**
+<a name="appbase_vkhpp"></a>
+## class nvvk::AppBaseVk
 
-This simple framework is used in a few samples, can serve as base class for various needs.
+nvvk::AppBaseVk is used in a few samples, can serve as base class for various needs.
 They might differ a bit in setup and functionality, but in principle aid the setup of context and window,
 as well as some common event processing.
 
-The **nvvk::AppBaseVk** serves as the base class for many ray tracing examples and makes use of the Vulkan C API.
+The nvvk::AppBaseVk serves as the base class for many ray tracing examples and makes use of the Vulkan C API.
 It does the basics for Vulkan, by holding a reference to the instance and device, but also comes with optional default setups 
 for the render passes and the swapchain.
 
-#### Usage
+### Usage
 
 An example will derive from this class:
 
-~~~~ C++
+``` c++
 class VkSample : public AppBaseVk 
 {
 };
-~~~~
+```
 
-#### Setup
+### Setup
 
 In the `main()` of an application,  call `setup()` which is taking a Vulkan instance, device, physical device, 
-and a queue family index.  Setup copies the given Vulkan handles into **AppBase**, and query the 0th `VkQueue` of the 
+and a queue family index.  Setup copies the given Vulkan handles into AppBase, and query the 0th VkQueue of the 
 specified family, which must support graphics operations and drawing to the surface passed to createSurface.
-Furthermore, it is creating a `VkCommandPool`.
+Furthermore, it is creating a VkCommandPool.
 
 Prior to calling setup, if you are using the `nvvk::Context` class to create and initialize Vulkan instances,
-you may want to create a `VkSurfaceKHR` from the window (glfw for example) and call `setGCTQueueWithPresent()`.
-This will make sure the m_queueGCT queue of **nvvk::Context** can draw to the surface, and m_queueGCT.familyIndex 
+you may want to create a VkSurfaceKHR from the window (glfw for example) and call `setGCTQueueWithPresent()`.
+This will make sure the m_queueGCT queue of nvvk::Context can draw to the surface, and m_queueGCT.familyIndex 
 will meet the requirements of setup().
 
 Creating the swapchain for displaying. Arguments are
@@ -120,23 +79,23 @@ Creating framebuffers has a dependency on the renderPass and depth buffer. All t
 in a sample, but default implementation exist.
 
 - createDepthBuffer: creates a 2D depth/stencil image
-- **createRenderPass** : creates a color/depth pass and clear both buffers.
+- createRenderPass : creates a color/depth pass and clear both buffers.
 
 Here is the dependency order:
 
-~~~~C++
-vkSample.createDepthBuffer();
-vkSample.createRenderPass();
-vkSample.createFrameBuffers();
-~~~~
+``` c++
+  vkSample.createDepthBuffer();
+  vkSample.createRenderPass();
+  vkSample.createFrameBuffers();
+```
 
 
-The nvvk::Swapchain will create n images, typically 3. With this information, **AppBase** is also creating 3 `VkFence`, 
-3 `VkCommandBuffer` and 3 `VkFrameBuffer`.
+The nvvk::Swapchain will create n images, typically 3. With this information, AppBase is also creating 3 VkFence, 
+3 VkCommandBuffer and 3 VkFrameBuffer.
 
-##### Frame **Buffers**
+#### Frame Buffers
 
-The created frame buffers are “display” frame buffers,  made to be presented on screen. The frame buffers will be created 
+The created frame buffers are *display* frame buffers,  made to be presented on screen. The frame buffers will be created 
 using one of the images from swapchain, and a depth buffer. There is only one depth buffer because that resource is not 
 used simultaneously. For example, when we clear the depth buffer, it is not done immediately, but done through a command 
 buffer, which will be executed later. 
@@ -144,32 +103,32 @@ buffer, which will be executed later.
 
 **Note**: the imageView(s) are part of the swapchain. 
 
-##### Command **Buffers**
+#### Command Buffers
 
-**AppBase** works with 3 “frame command buffers”. Each frame is filling a command buffer and gets submitted, one after the 
+AppBase works with 3 *frame command buffers*. Each frame is filling a command buffer and gets submitted, one after the 
 other. This is a design choice that can be debated, but makes it simple. I think it is still possible to submit other 
-command buffers in a frame, but those command buffers will have to be submitted before the “frame” one. The “frame” 
+command buffers in a frame, but those command buffers will have to be submitted before the *frame* one. The *frame* 
 command buffer when submitted with submitFrame, will use the current fence.
 
-##### Fences
+#### Fences
 
 There are as many fences as there are images in the swapchain. At the beginning of a frame, we call prepareFrame(). 
-This is calling the acquire() from **nvvk::SwapChain** and wait until the image is available. The very first time, the 
+This is calling the acquire() from nvvk::SwapChain and wait until the image is available. The very first time, the 
 fence will not stop, but later it will wait until the submit is completed on the GPU. 
 
 
 
-#### ImGui
+### ImGui
 
 If the application is using Dear ImGui, there are convenient functions for initializing it and
 setting the callbacks (glfw). The first one to call is `initGUI(0)`, where the argument is the subpass
 it will be using. Default is 0, but if the application creates a renderpass with multi-sampling and
 resolves in the second subpass, this makes it possible.
 
-#### Glfw Callbacks
+### Glfw Callbacks
 
 Call `setupGlfwCallbacks(window)` to have all the window callback: key, mouse, window resizing.
-By default **AppBase** will handle resizing of the window and will recreate the images and framebuffers. 
+By default AppBase will handle resizing of the window and will recreate the images and framebuffers. 
 If a sample needs to be aware of the resize, it can implement `onResize(width, height)`.
 
 To handle the callbacks in Imgui, call `ImGui_ImplGlfw_InitForVulkan(window, true)`, where true 
@@ -177,33 +136,33 @@ will handle the default ImGui callback .
 
 **Note**: All the methods are virtual and can be overloaded if they are not doing the typical setup. 
 
-~~~~ C++
-// Create example
-VulkanSample vkSample;
+``` c++
+  // Create example
+  VulkanSample vkSample;
 
-// Window need to be opened to get the surface on which to draw
-const VkSurfaceKHR surface = vkSample.getVkSurface(vkctx.m_instance, window);
-vkctx.setGCTQueueWithPresent(surface);
+  // Window need to be opened to get the surface on which to draw
+  const VkSurfaceKHR surface = vkSample.getVkSurface(vkctx.m_instance, window);
+  vkctx.setGCTQueueWithPresent(surface);
 
-vkSample.setup(vkctx.m_instance, vkctx.m_device, vkctx.m_physicalDevice, vkctx.m_queueGCT.familyIndex);
-vkSample.createSwapchain(surface, SAMPLE_WIDTH, SAMPLE_HEIGHT);
-vkSample.createDepthBuffer();
-vkSample.createRenderPass();
-vkSample.createFrameBuffers();
-vkSample.initGUI(0);
-vkSample.setupGlfwCallbacks(window);
+  vkSample.setup(vkctx.m_instance, vkctx.m_device, vkctx.m_physicalDevice, vkctx.m_queueGCT.familyIndex);
+  vkSample.createSwapchain(surface, SAMPLE_WIDTH, SAMPLE_HEIGHT);
+  vkSample.createDepthBuffer();
+  vkSample.createRenderPass();
+  vkSample.createFrameBuffers();
+  vkSample.initGUI(0);
+  vkSample.setupGlfwCallbacks(window);
+  
+  ImGui_ImplGlfw_InitForVulkan(window, true);
+```
 
-ImGui_ImplGlfw_InitForVulkan(window, true);
-~~~~
-
-#### Drawing loop
+### Drawing loop
 
 The drawing loop in the main() is the typicall loop you will find in glfw examples. Note that
-**AppBase** has a convenient function to tell if the window is minimize, therefore not doing any 
+AppBase has a convenient function to tell if the window is minimize, therefore not doing any 
 work and contain a sleep(), so the CPU is not going crazy. 
 
 
-~~~~ C++
+``` c++
 // Window system loop
 while(!glfwWindowShouldClose(window))
 {
@@ -213,9 +172,9 @@ while(!glfwWindowShouldClose(window))
 
   vkSample.display();  // infinitely drawing
 }
-~~~~
+```
 
-#### Display
+### Display
 
 A typical display() function will need the following: 
 
@@ -227,7 +186,7 @@ A typical display() function will need the following:
 * End rendering
 * Submitting frame to display
 
-~~~~ C++
+``` c++
 void VkSample::display()
 {
   // Acquire 
@@ -268,27 +227,39 @@ void VkSample::display()
   vkEndCommandBuffer(cmdBuf);
   submitFrame();
 }
-~~~~~
+```
 
-#### Closing
+### Closing
 
 Finally, all resources can be destroyed by calling `destroy()` at the end of main().
 
-~~~~ C++
-vkSample.destroy();
-~~~~
+``` c++
+  vkSample.destroy();
+```
 
-## appbase_vkpp.hpp
 
-### class **nvvk::AppBase**
 
-This class is the same as the [`nvvk::AppBaseVk`](#appbase_vkhpp) but use of the Vulkan C++ API (`vulkan.hpp`).
 
-## appwindowprofiler_vk.hpp
+_____
 
-### class **nvvk::AppWindowProfilerVK**
+# appbase_vkpp.hpp
 
-**AppWindowProfilerVK** derives from **nvh::AppWindowProfiler**
+<a name="appbase_vkpphpp"></a>
+## class nvvk::AppBase
+
+nvvk::AppBaseVk is the same as nvvk::AppBaseVk but makes use of the Vulkan C++ API (`vulkan.hpp`).
+
+
+
+
+_____
+
+# appwindowprofiler_vk.hpp
+
+<a name="appwindowprofiler_vkhpp"></a>
+## class nvvk::AppWindowProfilerVK
+
+nvvk::AppWindowProfilerVK derives from nvh::AppWindowProfiler
 and overrides the context and swapbuffer functions.
 The nvh class itself provides several utilities and 
 command line options to run automated benchmarks etc.
@@ -297,19 +268,24 @@ To influence the vulkan instance/device creation modify
 `m_contextInfo` prior running AppWindowProfiler::run,
 which triggers instance, device, window, swapchain creation etc.
 
-The class comes with a **nvvk::ProfilerVK** instance that references the 
+The class comes with a nvvk::ProfilerVK instance that references the 
 AppWindowProfiler::m_profiler's data.
 
-## buffersuballocator_vk.hpp
 
-### class **nvvk::BufferSubAllocator**
 
-This class provides buffer sub allocation using larger buffer blocks.
-The blocks are one `VkBuffer` each and are allocated via the 
+_____
+
+# buffersuballocator_vk.hpp
+
+<a name="buffersuballocator_vkhpp"></a>
+## class nvvk::BufferSubAllocator
+
+nvvk::BufferSubAllocator provides buffer sub allocation using larger buffer blocks.
+The blocks are one VkBuffer each and are allocated via the 
 provided [nvvk::MemAllocator](#class-nvvkmemallocator).
 
 The requested buffer space is sub-allocated and recycled in blocks internally.
-This way we avoid creating lots of small `VkBuffers` and can avoid calling the Vulkan
+This way we avoid creating lots of small VkBuffers and can avoid calling the Vulkan
 API at all, when there are blocks with sufficient empty space. 
 While Vulkan is more efficient than previous APIs, creating lots
 of objects for it, is still not good for overall performance. It will result 
@@ -327,7 +303,7 @@ caused by manual alignment.
 It is therefore necessary to pass the alignment that was used at allocation time
 to the query functions as well.
 
-``` cpp
+``` c++
 // alignment <= BASE_ALIGNMENT
     handle  = subAllocator.subAllocate(size);
     binding = subAllocator.getSubBinding(handle);
@@ -337,42 +313,50 @@ to the query functions as well.
     binding = subAllocator.getSubBinding(handle, alignment);
 ```
 
-## buffers_vk.hpp
 
-The utilities in this file provide a more direct approach, we encourage to use
-higher-level mechanisms also provided in the allocator / memorymanagement classes.
 
-### functions in nvvk
+_____
 
-- **makeBufferCreateInfo** : wraps setup of `VkBufferCreateInfo` (implicitly sets VK_BUFFER_USAGE_TRANSFER_DST_BIT)
-- **makeBufferViewCreateInfo** : wraps setup of `VkBufferViewCreateInfo`
-- **createBuffer** : wraps `vkCreateBuffer`
-- **createBufferView** : wraps `vkCreateBufferView`
-- **getBufferDeviceAddressKHR** : wraps `vkGetBufferDeviceAddressKHR`
-- **getBufferDeviceAddress** : wraps `vkGetBufferDeviceAddress`
+# buffers_vk.hpp
 
-~~~ C++
+<a name="buffers_vkhpp"></a>
+## functions in nvvk
+
+- makeBufferCreateInfo : wraps setup of VkBufferCreateInfo (implicitly sets VK_BUFFER_USAGE_TRANSFER_DST_BIT)
+- makeBufferViewCreateInfo : wraps setup of VkBufferViewCreateInfo
+- createBuffer : wraps vkCreateBuffer
+- createBufferView : wraps vkCreateBufferView
+- getBufferDeviceAddressKHR : wraps vkGetBufferDeviceAddressKHR
+- getBufferDeviceAddress : wraps vkGetBufferDeviceAddress
+
+``` c++
 VkBufferCreateInfo bufferCreate = makeBufferCreateInfo (size, VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT);
 VkBuffer buffer                 = createBuffer(device, bufferCreate);
 VkBufferView bufferView         = createBufferView(device, makeBufferViewCreateInfo(buffer, VK_FORMAT_R8G8B8A8_UNORM, size));
-~~~
-
-## commands_vk.hpp
-
-### functions in nvvk
-
-- **makeAccessMaskPipelineStageFlags** : depending on accessMask returns appropriate `VkPipelineStageFlagBits`
-- **cmdBegin** : wraps `vkBeginCommandBuffer` with `VkCommandBufferUsageFlags` and implicitly handles `VkCommandBufferBeginInfo` setup
-- **makeSubmitInfo** : `VkSubmitInfo` struct setup using provided arrays of signals and commandbuffers, leaving rest zeroed
+```
 
 
-### class **nvvk::CommandPool**
 
-**CommandPool** stores a single `VkCommandPool` and provides utility functions
-to create `VkCommandBuffers` from it.
+_____
+
+# commands_vk.hpp
+
+<a name="commands_vkhpp"></a>
+## functions in nvvk
+
+- makeAccessMaskPipelineStageFlags : depending on accessMask returns appropriate VkPipelineStageFlagBits
+- cmdBegin : wraps vkBeginCommandBuffer with VkCommandBufferUsageFlags and implicitly handles VkCommandBufferBeginInfo setup
+- makeSubmitInfo : VkSubmitInfo struct setup using provided arrays of signals and commandbuffers, leaving rest zeroed
+
+
+
+## class nvvk::CommandPool
+
+nvvk::CommandPool stores a single VkCommandPool and provides utility functions
+to create VkCommandBuffers from it.
 
 Example:
-``` C++
+``` c++
 {
   nvvk::CommandPool cmdPool;
   cmdPool.init(...);
@@ -409,15 +393,16 @@ Example:
 ```
 
 
-### class **nvvk::ScopeCommandBuffer**
 
-Provides a single `VkCommandBuffer` that lives within the scope
+## class nvvk::ScopeCommandBuffer
+
+nvvk::ScopeCommandBuffer provides a single VkCommandBuffer that lives within the scope
 and is directly submitted and deleted when the scope is left.
 Not recommended for efficiency, since it results in a blocking
 operation, but aids sample writing.
 
 Example:
-``` C++
+``` c++
 {
   ScopeCommandBuffer cmd(device, queueFamilyIndex, queue);
   ... do stuff
@@ -426,72 +411,58 @@ Example:
 ```
 
 
-### classes **nvvk::Ring...**
 
-In real-time processing, the CPU typically generates commands 
-in advance to the GPU and send them in batches for execution.
+## class nvvk::RingFences
 
-To avoid having the CPU to wait for the GPU'S completion and let it "race ahead"
-we make use of double, or tripple-buffering techniques, where we cycle through
-a pool of resources every frame. We know that those resources are currently 
-not in use by the GPU and can therefore manipulate them directly.
+  nvvk::RingFences recycles a fixed number of fences, provides information in which cycle
+  we are currently at, and prevents accidental access to a cycle in-flight.
 
-Especially in Vulkan it is the developer's responsibility to avoid such
-access of resources that are in-flight.
-
-The "Ring" classes cycle through a pool of resources. The default value
-is set to allow two frames in-flight, assuming one fence is used per-frame.
+  A typical frame would start by "setCycleAndWait", which waits for the
+  requested cycle to be available.
 
 
-#### class **nvvk::RingFences**
 
-Recycles a fixed number of fences, provides information in which cycle
-we are currently at, and prevents accidental access to a cycle in-flight.
+## class nvvk::RingCommandPool
 
-A typical frame would start by "setCycleAndWait", which waits for the
-requested cycle to be available.
+  nvvk::RingCommandPool manages a fixed cycle set of VkCommandBufferPools and
+  one-shot command buffers allocated from them.
 
+  The usage of multiple command buffer pools also means we get nice allocation
+  behavior (linear allocation from frame start to frame end) without fragmentation.
+  If we were using a single command pool over multiple frames, it could fragment easily.
 
-#### class **nvvk::RingCommandPool**
+  You must ensure cycle is available manually, typically by keeping in sync
+  with ring fences.
 
-Manages a fixed cycle set of `VkCommandBufferPools` and
-one-shot command buffers allocated from them.
+  Example:
 
-The usage of multiple command buffer pools also means we get nice allocation
-behavior (linear allocation from frame start to frame end) without fragmentation.
-If we were using a single command pool over multiple frames, it could fragment easily.
+  ``` c++
+  {
+    frame++;
 
-You must ensure cycle is available manually, typically by keeping in sync
-with ring fences.
+    // wait until we can use the new cycle 
+    // (very rare if we use the fence at then end once per-frame)
+    ringFences.setCycleAndWait( frame );
 
-Example:
+    // update cycle state, allows recycling of old resources
+    ringPool.setCycle( frame );
 
-~~~ C++
-{
-  frame++;
+    VkCommandBuffer cmd = ringPool.createCommandBuffer(...);
+    ... do stuff / submit etc...
 
-  // wait until we can use the new cycle 
-  // (very rare if we use the fence at then end once per-frame)
-  ringFences.setCycleAndWait( frame );
-
-  // update cycle state, allows recycling of old resources
-  ringPool.setCycle( frame );
-
-  VkCommandBuffer cmd = ringPool.createCommandBuffer(...);
-  ... do stuff / submit etc...
-
-  VkFence fence = ringFences.getFence();
-  // use this fence in the submit
-  vkQueueSubmit(...fence..);
-}
-~~~
+    VkFence fence = ringFences.getFence();
+    // use this fence in the submit
+    vkQueueSubmit(...fence..);
+  }
+  ```
 
 
-### class **nvvk::BatchSubmission**
 
-Batches the submission arguments of `VkSubmitInfo` for `VkQueueSubmit`.
+## class nvvk::BatchSubmission
 
-`vkQueueSubmit` is a rather costly operation (depending on OS)
+nvvk::BatchSubmission batches the submission arguments of VkSubmitInfo for VkQueueSubmit.
+
+vkQueueSubmit is a rather costly operation (depending on OS)
 and should be avoided to be done too often (e.g. < 10 per frame). Therefore 
 this utility class allows adding commandbuffers, semaphores etc. and
 submit them later in a batch.
@@ -501,92 +472,65 @@ from different threads and then later kick it off.
 
 Example
 
-~~~ C++
-// within upload logic
-{
-  semTransfer = handleUpload(...);
-  // for example trigger async upload on transfer queue here
-  vkQueueSubmit(... semTransfer ...);
+``` c++
+  // within upload logic
+  {
+    semTransfer = handleUpload(...);
+    // for example trigger async upload on transfer queue here
+    vkQueueSubmit(... semTransfer ...);
 
-  // tell next frame's batch submission 
-  // that its commandbuffers should wait for transfer
-  // to be completed
-  graphicsSubmission.enqueWait(semTransfer)
-}
+    // tell next frame's batch submission 
+    // that its commandbuffers should wait for transfer
+    // to be completed
+    graphicsSubmission.enqueWait(semTransfer)
+  }
 
-// within present logic
-{
-  // for example ensure the next frame waits until proper present semaphore was triggered
-  graphicsSubmission.enqueueWait(presentSemaphore);
-}
+  // within present logic
+  {
+    // for example ensure the next frame waits until proper present semaphore was triggered
+    graphicsSubmission.enqueueWait(presentSemaphore);
+  }
 
-// within drawing logic
-{
-  // enqueue some graphics work for submission
-  graphicsSubmission.enqueue(getSceneCmdBuffer());
-  graphicsSubmission.enqueue(getUiCmdBuffer());
+  // within drawing logic
+  {
+    // enqueue some graphics work for submission
+    graphicsSubmission.enqueue(getSceneCmdBuffer());
+    graphicsSubmission.enqueue(getUiCmdBuffer());
 
-  graphicsSubmission.execute(frameFence);
-}
-~~~
+    graphicsSubmission.execute(frameFence);
+  }
+```
 
 
-### class **nvvk::FencedCommandPools**
 
-This container class contains the typical utilities to handle
-command submission. It contains **RingFences**, **RingCommandPool** and **BatchSubmission**
+## class nvvk::FencedCommandPools
+
+nvvk::FencedCommandPools container class contains the typical utilities to handle
+command submission. It contains RingFences, RingCommandPool and BatchSubmission
 with a convenient interface.
 
-## context_vk.hpp
-
-To run a Vulkan application, you need to create the Vulkan instance and device.
-This is done using the `nvvk::Context`, which wraps the creation of `VkInstance`
-and `VkDevice`.
-
-First, any application needs to specify how instance and device should be created:
-Version, layers, instance and device extensions influence the features available.
-This is done through a temporary and intermediate class that will allow you to gather
-all the required conditions for the device creation.
 
 
-### struct **ContextCreateInfo**
 
-This structure allows the application to specify a set of features
-that are expected for the creation of
-- `VkInstance`
-- `VkDevice`
+_____
 
-It is consumed by the `nvvk::Context::init` function.
+# context_vk.hpp
 
-Example on how to populate information in it : 
+<a name="context_vkhpp"></a>
+## class nvvk::Context
 
-~~~~ C++
-nvvk::ContextCreateInfo ctxInfo;
-ctxInfo.setVersion(1, 1);
-ctxInfo.addInstanceExtension(VK_KHR_SURFACE_EXTENSION_NAME, false);
-ctxInfo.addInstanceExtension(VK_KHR_WIN32_SURFACE_EXTENSION_NAME, false);
-ctxInfo.addDeviceExtension(VK_KHR_SWAPCHAIN_EXTENSION_NAME, false);
-~~~~
+nvvk::Context class helps creating the Vulkan instance and to choose the logical device for the mandatory extensions. First is to fill the `ContextCreateInfo` structure, then call:
 
-then you are ready to create initialize `nvvk::Context`
+``` c++
+  // Creating the Vulkan instance and device
+  nvvk::ContextCreateInfo ctxInfo;
+  ... see above ...
 
-> Note: In debug builds, the extension `VK_EXT_DEBUG_UTILS_EXTENSION_NAME` and the layer `VK_LAYER_KHRONOS_validation` are added to help finding issues early.
+  nvvk::Context vkctx;
+  vkctx.init(ctxInfo);
 
-
-### class **nvvk::Context**
-
-**Context** class helps creating the Vulkan instance and to choose the logical device for the mandatory extensions. First is to fill the `ContextCreateInfo` structure, then call:
-
-~~~ C++
-// Creating the Vulkan instance and device
-nvvk::ContextCreateInfo ctxInfo;
-... see above ...
-
-nvvk::Context vkctx;
-vkctx.init(ctxInfo);
-
-// after init the ctxInfo is no longer needed
-~~~ 
+  // after init the ctxInfo is no longer needed
+``` 
 
 At this point, the class will have created the `VkInstance` and `VkDevice` according to the information passed. It will also keeps track or have query the information of:
  
@@ -595,55 +539,78 @@ At this point, the class will have created the `VkInstance` and `VkDevice` accor
 * `VkPhysicalDevice` : physical device(s) used for the logical device creation. In case of more than one physical device, we have a std::vector for this purpose...
 * `VkDevice` : the logical device instanciated
 * `VkQueue` : we will enumerate all the available queues and make them available in `nvvk::Context`. Some queues are specialized, while other are for general purpose (most of the time, only one can handle everything, while other queues are more specialized). We decided to make them all available in some explicit way :
- * `Queue m_queueGCT` : Graphics/Compute/Transfer **Queue** + family index
- * `Queue m_queueT` : async Transfer **Queue** + family index
- * `Queue m_queueC` : Compute **Queue** + family index
+ * `Queue m_queueGCT` : Graphics/Compute/Transfer Queue + family index
+ * `Queue m_queueT` : async Transfer Queue + family index
+ * `Queue m_queueC` : Compute Queue + family index
 * maintains what extensions are finally available
 * implicitly hooks up the debug callback
 
-#### Choosing the device
+### Choosing the device
 When there are multiple devices, the `init` method is choosing the first compatible device available, but it is also possible the choose another one.
-~~~ C++
-vkctx.initInstance(deviceInfo); 
-// Find all compatible devices
-auto compatibleDevices = vkctx.getCompatibleDevices(deviceInfo);
-assert(!compatibleDevices.empty());
+``` c++
+  vkctx.initInstance(deviceInfo); 
+  // Find all compatible devices
+  auto compatibleDevices = vkctx.getCompatibleDevices(deviceInfo);
+  assert(!compatibleDevices.empty());
 
-// Use first compatible device
-vkctx.initDevice(compatibleDevices[0], deviceInfo);
-~~~
+  // Use first compatible device
+  vkctx.initDevice(compatibleDevices[0], deviceInfo);
+```
 
-#### Multi-GPU
+### Multi-GPU
 
 When multiple graphic cards should be used as a single device, the `ContextCreateInfo::useDeviceGroups` need to be set to `true`.
 The above methods will transparently create the `VkDevice` using `VkDeviceGroupDeviceCreateInfo`.
 Especially in the context of NVLink connected cards this is useful.
 
-## descriptorsets_vk.hpp
-
-### functions in nvvk
-
-- **createDescriptorPool** : wrappers for `vkCreateDescriptorPool`
-- **allocateDescriptorSet** : allocates a single `VkDescriptorSet`
-- **allocateDescriptorSets** : allocates multiple VkDescriptorSets
 
 
-### class **nvvk::DescriptorSetBindings**
 
-Helper class that keeps a vector of `VkDescriptorSetLayoutBinding` for a single
+
+_____
+
+# debug_util_vk.hpp
+
+<a name="debug_util_vkhpp"></a>
+## class DebugUtil
+This is a companion utility to add debug information to an application
+See https://vulkan.lunarg.com/doc/sdk/1.1.114.0/windows/chunked_spec/chap39.html
+- User defined name to objects
+- Logically annotate region of command buffers
+- Scoped command buffer label to make thing simpler
+
+
+
+_____
+
+# descriptorsets_vk.hpp
+
+<a name="descriptorsets_vkhpp"></a>
+## functions in nvvk
+
+- createDescriptorPool : wrappers for vkCreateDescriptorPool
+- allocateDescriptorSet : allocates a single VkDescriptorSet
+- allocateDescriptorSets : allocates multiple VkDescriptorSets
+
+
+
+
+## class nvvk::DescriptorSetBindings
+
+nvvk::DescriptorSetBindings is a helper class that keeps a vector of `VkDescriptorSetLayoutBinding` for a single
 `VkDescriptorSetLayout`. Provides helper functions to create `VkDescriptorSetLayout`
 as well as `VkDescriptorPool` based on this information, as well as utilities
 to fill the `VkWriteDescriptorSet` structure with binding information stored
 within the class.
 
 The class comes with the convenience functionality that when you make a
-`VkWriteDescriptorSet` you provide the binding slot, rather than the
+VkWriteDescriptorSet you provide the binding slot, rather than the
 index of the binding's storage within this class. This results in a small
 linear search, but makes it easy to change the content/order of bindings
 at creation time.
 
 Example :
-~~~C++
+``` c++
 DescriptorSetBindings binds;
 
 binds.addBinding( VIEW_BINDING, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT);
@@ -672,55 +639,58 @@ updates.push_back(binds.makeWrite(0, XFORM_BINDING, &xform0BufferInfo));
 updates.push_back(binds.makeWrite(1, XFORM_BINDING, &xform1BufferInfo));
 
 vkUpdateDescriptorSets(device, updates.size(), updates.data(), 0, nullptr);
-~~~
+```
 
 
-### class **nvvk::DescriptorSetContainer**
 
-Container class that stores allocated DescriptorSets
+## class nvvk::DescriptorSetContainer
+
+nvvk::DescriptorSetContainer is a container class that stores allocated DescriptorSets
 as well as reflection, layout and pool for a single
-`VkDescripterSetLayout`.
+VkDescripterSetLayout.
 
 Example:
-~~~ C++
-container.init(device, allocator);
+``` c++
+    container.init(device, allocator);
 
-// setup dset layouts
-container.addBinding(0, UBO...)
-container.addBinding(1, SSBO...)
-container.initLayout();
+    // setup dset layouts
+    container.addBinding(0, UBO...)
+    container.addBinding(1, SSBO...)
+    container.initLayout();
 
-// allocate descriptorsets
-container.initPool(17);
+    // allocate descriptorsets
+    container.initPool(17);
 
-// update descriptorsets
-writeUpdates.push_back( container.makeWrite(0, 0, &..) );
-writeUpdates.push_back( container.makeWrite(0, 1, &..) );
-writeUpdates.push_back( container.makeWrite(1, 0, &..) );
-writeUpdates.push_back( container.makeWrite(1, 1, &..) );
-writeUpdates.push_back( container.makeWrite(2, 0, &..) );
-writeUpdates.push_back( container.makeWrite(2, 1, &..) );
-...
+    // update descriptorsets
+    writeUpdates.push_back( container.makeWrite(0, 0, &..) );
+    writeUpdates.push_back( container.makeWrite(0, 1, &..) );
+    writeUpdates.push_back( container.makeWrite(1, 0, &..) );
+    writeUpdates.push_back( container.makeWrite(1, 1, &..) );
+    writeUpdates.push_back( container.makeWrite(2, 0, &..) );
+    writeUpdates.push_back( container.makeWrite(2, 1, &..) );
+    ...
 
-// at render time
+    // at render time
 
-vkCmdBindDescriptorSets(cmd, GRAPHICS, pipeLayout, 1, 1, container.at(7).getSets());
-~~~
+    vkCmdBindDescriptorSets(cmd, GRAPHICS, pipeLayout, 1, 1, container.at(7).getSets());
+```
 
 
-### class **nvvk::TDescriptorSetContainer**<SETS,PIPES=1>
 
-Templated version of **DescriptorSetContainer** :
 
-- SETS  - many **DescriptorSetContainers**
-- PIPES - many `VkPipelineLayouts`
+## class nvvk::TDescriptorSetContainer<SETS,PIPES=1>
+
+nvvk::TDescriptorSetContainer is a templated version of DescriptorSetContainer :
+
+- SETS  - many DescriptorSetContainers
+- PIPES - many VkPipelineLayouts
 
 The pipeline layouts are stored separately, the class does
-not use the pipeline layouts of the embedded **DescriptorSetContainers**.
+not use the pipeline layouts of the embedded DescriptorSetContainers.
 
 Example :
 
-~~~ C++
+``` c++
 Usage, e.g.SETS = 2, PIPES = 2
 
 container.init(device, allocator);
@@ -755,17 +725,29 @@ writeUpdates.push_back(container.at(1).makeWrite(2, 0, &..));
 vkCmdBindDescriptorSets(cmd, GRAPHICS, container.getPipeLayout(0), 0, 1, container.at(0).getSets());
 ..
 vkCmdBindDescriptorSets(cmd, GRAPHICS, container.getPipeLayout(1), 1, 1, container.at(1).getSets(7));
-~~~
+```
 
-## error_vk.hpp
 
-### function nvvk::checkResult
-Returns true on critical error result, logs errors.
+
+_____
+
+# error_vk.hpp
+
+<a name="error_vkhpp"></a>
+## function nvvk::checkResult
+> Returns true on critical error result, logs errors.
+
 Use `NVVK_CHECK(result)` to automatically log filename/linenumber.
 
-## extensions_vk.hpp
 
-### Vulkan Extension Loader
+
+_____
+
+# extensions_vk.hpp
+
+<a name="extensions_vkhpp"></a>
+## function load_VK_EXTENSIONS
+> load_VK_EXTENSIONS : Vulkan Extension Loader
 
 The extensions_vk files takes care of loading and providing the symbols of Vulkan C Api extensions.
 It is generated by `extensions_vk.py` and generates all extensions found in vk.xml. See script for details.
@@ -773,122 +755,151 @@ It is generated by `extensions_vk.py` and generates all extensions found in vk.x
 
 The framework triggers this implicitly in the `nvvk::Context` class, immediately after creating the device.
 
-~~~c++
+``` c++
 // loads all known extensions
 load_VK_EXTENSIONS(instance, vkGetInstanceProcAddr, device, vkGetDeviceProcAddr);
-~~~
+```
 
-## gizmos_vk.hpp
 
-### class nvvk::Axis
 
-Display an Axis representing the orientation of the camera in the bottom left corner of the window.
+
+_____
+
+# gizmos_vk.hpp
+
+<a name="gizmos_vkhpp"></a>
+## class nvvk::Axis
+
+nvvk::Axis displays an Axis representing the orientation of the camera in the bottom left corner of the window.
 - Initialize the Axis using `init()`
 - Add `display()` in a inline rendering pass, one of the lass command
 
 Example:  
-~~~~~~ C++
+``` c++
 m_axis.display(cmdBuf, CameraManip.getMatrix(), windowSize);
-~~~~~~
+``` 
 
-## images_vk.hpp
 
-### functions in nvvk
 
-- **makeImageMemoryBarrier** : returns `VkImageMemoryBarrier` for an image based on provided layouts and access flags.
-- **mipLevels** : return number of mips for 2d/3d extent
+_____
 
-- **accessFlagsForImageLayout** : helps resource transtions
-- **pipelineStageForLayout** : helps resource transitions
-- **cmdBarrierImageLayout** : inserts barrier for image transition
+# images_vk.hpp
 
-- **cmdGenerateMipmaps** : basic mipmap creation for images (meant for one-shot operations)
+<a name="images_vkhpp"></a>
+## functions in nvvk
 
-- **makeImage2DCreateInfo** : aids 2d image creation
-- **makeImage3DCreateInfo** : aids 3d descriptor set updating
-- **makeImageCubeCreateInfo** : aids cube descriptor set updating
-- **makeImageViewCreateInfo** : aids common image view creation, derives info from `VkImageCreateInfo`
-- **makeImage2DViewCreateInfo** : aids 2d image view creation
+- makeImageMemoryBarrier : returns VkImageMemoryBarrier for an image based on provided layouts and access flags.
+- mipLevels : return number of mips for 2d/3d extent
 
-## memallocator_dedicated_vk.hpp
+- accessFlagsForImageLayout : helps resource transtions
+- pipelineStageForLayout : helps resource transitions
+- cmdBarrierImageLayout : inserts barrier for image transition
 
-### class **nvvk::DedicatedMemoryAllocator**
-**DedicatedMemoryAllocator** is a simple implementation of the **MemAllocator** interface, using
-one `vkDeviceMemory` allocation per allocMemory() call. The simplicity of the implementation is
+- cmdGenerateMipmaps : basic mipmap creation for images (meant for one-shot operations)
+
+- makeImage2DCreateInfo : aids 2d image creation
+- makeImage3DCreateInfo : aids 3d descriptor set updating
+- makeImageCubeCreateInfo : aids cube descriptor set updating
+- makeImageViewCreateInfo : aids common image view creation, derives info from VkImageCreateInfo
+- makeImage2DViewCreateInfo : aids 2d image view creation
+  
+
+
+_____
+
+# memallocator_dedicated_vk.hpp
+
+<a name="memallocator_dedicated_vkhpp"></a>
+## class nvvk::DedicatedMemoryAllocator
+ nvvk::DedicatedMemoryAllocator is a simple implementation of the MemAllocator interface, using
+one vkDeviceMemory allocation per allocMemory() call. The simplicity of the implementation is
 bought with potential slowness (vkAllocateMemory tends to be very slow) and running
 out of operating system resources quickly (as some OSs limit the number of physical
 memory allocations per process).
 
-## memallocator_dma_vk.hpp
 
-### class **nvvk::DMAMemoryAllocator**
-**DMAMemoryAllocator** is  using **nvvk::DeviceMemoryAllocator** internally.
-**DeviceMemoryAllocator** derives from **MemAllocator** as well, so this class here is for those prefering a reduced wrapper;
 
-## memallocator_vk.hpp
+_____
 
-### class nvvk::MemHandle
+# memallocator_dma_vk.hpp
 
-MemHandle represents a memory allocation or sub-allocation from the
-generic **nvvk::MemAllocator** interface. Ideally use `nvvk::NullMemHandle` for
+<a name="memallocator_dma_vkhpp"></a>
+## class nvvk::DMAMemoryAllocator
+ nvvk::DMAMemoryAllocator is  using nvvk::DeviceMemoryAllocator internally.
+nvvk::DeviceMemoryAllocator derives from nvvk::MemAllocator as well, so this class here is for those prefering a reduced wrapper;
+
+
+
+_____
+
+# memallocator_vk.hpp
+
+<a name="memallocator_vkhpp"></a>
+## class nvvk::MemHandle
+
+nvvk::MemHandle represents a memory allocation or sub-allocation from the
+generic nvvk::MemAllocator interface. Ideally use `nvvk::NullMemHandle` for
 setting to 'NULL'. MemHandle may change to a non-pointer type in future.
 
-### class **nvvk::MemAllocateInfo**
+\class nvvk::MemAllocateInfo
 
-**MemAllocateInfo** is collecting almost all parameters a Vulkan allocation could potentially need.
-This keeps **MemAllocator**'s interface simple and extensible.
+nvvk::MemAllocateInfo is collecting almost all parameters a Vulkan allocation could potentially need.
+This keeps MemAllocator's interface simple and extensible.
 
 
-### class **nvvk::MemAllocator**
 
- **MemAllocator** is a Vulkan memory allocator interface extensively used by **ResourceAllocator**.
+## class nvvk::MemAllocator
+
+ nvvk::MemAllocator is a Vulkan memory allocator interface extensively used by ResourceAllocator.
  It provides means to allocate, free, map and unmap pieces of Vulkan device memory.
- Concrete implementations derive from MemoryAllocator.
+ Concrete implementations derive from nvvk::MemoryAllocator.
  They can implement the allocator dunctionality themselves or act as an adapter to another
  memory allocator implementation.
 
- A **MemAllocator** hands out opaque 'MemHandles'. The implementation of the **MemAllocator** interface
+ A nvvk::MemAllocator hands out opaque 'MemHandles'. The implementation of the MemAllocator interface
  may chose any type of payload to store in a MemHandle. A MemHandle's relevant information can be 
  retrieved via getMemoryInfo().
 
-## memallocator_vma_vk.hpp
 
-### class **nvvk::VMAMemoryAllocator**
-**VMAMemoryAllocator** using the GPUOpen [Vulkan Memory Allocator](https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator) underneath.
+
+_____
+
+# memallocator_vma_vk.hpp
+
+<a name="memallocator_vma_vkhpp"></a>
+## class nvvk::VMAMemoryAllocator
+ nvvk::VMAMemoryAllocator using the GPUOpen [Vulkan Memory Allocator](https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator) underneath.
 As VMA comes as a header-only library, when using it you'll have to:
  1) provide _add_package_VMA() in your CMakeLists.txt
  2) put these lines into one of your compilation units:
- ~~~ C++
-#define VMA_IMPLEMENTATION
-#include "vk_mem_alloc.h"
- ~~~
+ ``` c++
+      #define VMA_IMPLEMENTATION
+      #include "vk_mem_alloc.h"
+ ```
 
 
-### class nvvk::ResourceAllocatorVMA
-ResourceAllocatorVMA is a convencience class creating, initializing and owning a VmaAllocator
-and associated **MemAllocator** object.
 
-## memorymanagement_vk.hpp
-
-This framework assumes that memory heaps exists that support:
-
-- VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-  for uploading data to the device
-- VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT & VK_MEMORY_PROPERTY_HOST_CACHED_BIT
-  for downloading data from the device
-
-This is typical on all major desktop platforms and vendors.
-See http://vulkan.gpuinfo.org for information of various devices and platforms.
-
-### functions in nvvk
-
-* getMemoryInfo : fills the `VkMemoryAllocateInfo` based on device's memory properties and memory requirements and property flags. Returns `true` on success.
+## class nvvk::ResourceAllocatorVMA
+ nvvk::ResourceAllocatorVMA is a convencience class creating, initializing and owning a nvvk::VmaAllocator
+and associated nvvk::MemAllocator object. 
 
 
-### class **nvvk::DeviceMemoryAllocator**
 
-The **DeviceMemoryAllocator** allocates and manages device memory in fixed-size memory blocks.
-It implements the [nvvk::MemAllocator](#class-nvvkmemallocator) interface.
+_____
+
+# memorymanagement_vk.hpp
+
+<a name="memorymanagement_vkhpp"></a>
+## functions in nvvk
+
+* getMemoryInfo : fills the VkMemoryAllocateInfo based on device's memory properties and memory requirements and property flags. Returns `true` on success.
+
+
+
+## class nvvk::DeviceMemoryAllocator
+
+The nvvk::DeviceMemoryAllocator allocates and manages device memory in fixed-size memory blocks.
+It implements the nvvk::MemAllocator interface.
 
 It sub-allocates from the blocks, and can re-use memory if it finds empty
 regions. Because of the fixed-block usage, you can directly create resources
@@ -906,7 +917,7 @@ directly with the resource creation of buffers, images and acceleration
 structures. These utilities also make implicit use of Vulkan's dedicated
 allocation mechanism.
 
-We recommend the use of the [nvvk::ResourceAllocator](#class-nvvkresourceallocator) class, 
+We recommend the use of the nvvk::ResourceAllocator class, 
 rather than the various create functions provided here, as we may deprecate them.
 
 > **WARNING** : The memory manager serves as proof of concept for some key concepts
@@ -918,7 +929,7 @@ You can derive from this class and overload a few functions to alter the
 chunk allocation behavior.
 
 Example :
-~~~ C++
+``` c++
 nvvk::DeviceMemoryAllocator memAllocator;
 
 memAllocator.init(device, physicalDevice);
@@ -943,17 +954,18 @@ bufferB = memAllocator.createBuffer(sizeB, usageB);
 ...
 memAllocator.freeAll();
 
-~~~
-
-## memorymanagement_vkgl.hpp
-
-This file contains helpers for resource interoperability between OpenGL and Vulkan.
-they only exist if the nvpro_core project is compiled with Vulkan AND OpenGL support.
+```
 
 
-### class **nvvk::DeviceMemoryAllocatorGL**
 
-Derived from **nvvk::DeviceMemoryAllocator** it uses vulkan memory that is exported
+_____
+
+# memorymanagement_vkgl.hpp
+
+<a name="memorymanagement_vkglhpp"></a>
+## class nvvk::DeviceMemoryAllocatorGL
+
+nvvk::DeviceMemoryAllocatorGL is derived from nvvk::DeviceMemoryAllocator it uses vulkan memory that is exported
 and directly imported into OpenGL. Requires GL_EXT_memory_object.
 
 Used just like the original class however a new function to get the 
@@ -961,26 +973,32 @@ GL memory object exists: `getAllocationGL`.
 
 Look at source of nvvk::AllocatorDmaGL for usage.
 
-## pipeline_vk.hpp
 
-### functions in nvvk
 
-- **nvprintPipelineStats** : prints stats of the pipeline using VK_KHR_pipeline_executable_properties (don't forget to enable extension and set VK_PIPELINE_CREATE_CAPTURE_STATISTICS_BIT_KHR)
+_____
+
+# pipeline_vk.hpp
+
+<a name="pipeline_vkhpp"></a>
+## functions in nvvk
+
+- nvprintPipelineStats : prints stats of the pipeline using VK_KHR_pipeline_executable_properties (don't forget to enable extension and set VK_PIPELINE_CREATE_CAPTURE_STATISTICS_BIT_KHR)
 - dumpPipelineStats    : dumps stats of the pipeline using VK_KHR_pipeline_executable_properties to a text file (don't forget to enable extension and set VK_PIPELINE_CREATE_CAPTURE_STATISTICS_BIT_KHR)
-- **dumpPipelineBinCodes** : dumps shader binaries using VK_KHR_pipeline_executable_properties to multiple binary files (don't forget to enable extension and set VK_PIPELINE_CREATE_CAPTURE_INTERNAL_REPRESENTATIONS_BIT_KHR)
+- dumpPipelineBinCodes : dumps shader binaries using VK_KHR_pipeline_executable_properties to multiple binary files (don't forget to enable extension and set VK_PIPELINE_CREATE_CAPTURE_INTERNAL_REPRESENTATIONS_BIT_KHR)
 
 
-### class **nvvk::GraphicsPipelineState**
+
+## struct nvvk::GraphicsPipelineState
 
 Most graphic pipelines have similar states, therefore the helper `GraphicsPipelineStage` holds all the elements and 
 initialize the structures with the proper default values, such as the primitive type, `PipelineColorBlendAttachmentState` 
 with their mask, `DynamicState` for viewport and scissor, adjust depth test if enabled, line width to 1 pixel, for 
 example. 
 
-This structure is instantiated using C++ Vulkan objects if VULKAN_HPP is defined, and C otherwise.
+nvvk::GraphicsPipelineState structure is instantiated using C++ Vulkan objects if VULKAN_HPP is defined, and C otherwise.
 
 Example of usage :
-~~~~ c++
+``` c++
 nvvk::GraphicsPipelineState pipelineState();
 pipelineState.depthStencilState.setDepthTestEnable(true);
 pipelineState.rasterizationState.setCullMode(vk::CullModeFlagBits::eNone);
@@ -989,18 +1007,19 @@ pipelineState.addAttributeDescriptions ({
     {0, 0, vk::Format::eR32G32B32Sfloat, static_cast<uint32_t>(offsetof(Vertex, pos))},
     {1, 0, vk::Format::eR32G32B32Sfloat, static_cast<uint32_t>(offsetof(Vertex, nrm))},
     {2, 0, vk::Format::eR32G32B32Sfloat, static_cast<uint32_t>(offsetof(Vertex, col))}});
-~~~~
+```
 
 
-### class **nvvk::GraphicsPipelineGenerator**
 
-The graphics pipeline generator takes a **GraphicsPipelineState** object and pipeline-specific information such as 
+## struct nvvk::GraphicsPipelineGenerator
+
+The graphics pipeline generator takes a GraphicsPipelineState object and pipeline-specific information such as 
 the render pass and pipeline layout to generate the final pipeline. 
 
-This structure is instantiated using C++ Vulkan objects if VULKAN_HPP is defined, and C otherwise.
+nvvk::GraphicsPipelineGenerator structure is instantiated using C++ Vulkan objects if VULKAN_HPP is defined, and C otherwise.
 
 Example of usage :
-~~~~ c++
+``` c++
 nvvk::GraphicsPipelineState pipelineState();
 ...
 nvvk::GraphicsPipelineGenerator pipelineGenerator(m_device, m_pipelineLayout, m_renderPass, pipelineState);
@@ -1008,16 +1027,17 @@ pipelineGenerator.addShader(readFile("spv/vert_shader.vert.spv"), VkShaderStageF
 pipelineGenerator.addShader(readFile("spv/frag_shader.frag.spv"), VkShaderStageFlagBits::eFragment);
 
 m_pipeline = pipelineGenerator.createPipeline();
-~~~~
+```
 
 
-### class **nvvk::GraphicsPipelineGeneratorCombined**
+
+## class nvvk::GraphicsPipelineGeneratorCombined
 
 In some cases the application may have each state associated to a single pipeline. For convenience, 
-**GraphicsPipelineGeneratorCombined** combines both the state and generator into a single object.
+nvvk::GraphicsPipelineGeneratorCombined combines both the state and generator into a single object.
 
 Example of usage :
-~~~~ c++
+``` c++
 nvvk::GraphicsPipelineGeneratorCombined pipelineGenerator(m_device, m_pipelineLayout, m_renderPass);
 pipelineGenerator.depthStencilState.setDepthTestEnable(true);
 pipelineGenerator.rasterizationState.setCullMode(vk::CullModeFlagBits::eNone);
@@ -1031,20 +1051,25 @@ pipelineGenerator.addShader(readFile("spv/vert_shader.vert.spv"), VkShaderStageF
 pipelineGenerator.addShader(readFile("spv/frag_shader.frag.spv"), VkShaderStageFlagBits::eFragment);
 
 m_pipeline = pipelineGenerator.createPipeline();
-~~~~
+```
 
-## profiler_vk.hpp
 
-### class **nvvk::ProfilerVK**
 
-**ProfilerVK** derives from **nvh::Profiler** and uses `vkCmdWriteTimestamp`
+_____
+
+# profiler_vk.hpp
+
+<a name="profiler_vkhpp"></a>
+## class nvvk::ProfilerVK
+
+nvvk::ProfilerVK derives from nvh::Profiler and uses vkCmdWriteTimestamp
 to measure the gpu time within a section.
 
 If profiler.setLabelUsage(true) was used then it will make use
-of `vkCmdDebugMarkerBeginEXT` and `vkCmdDebugMarkerEndEXT` for each
+of vkCmdDebugMarkerBeginEXT and vkCmdDebugMarkerEndEXT for each
 section so that it shows up in tools like NsightGraphics and renderdoc.
 
-Currently the commandbuffers must support `vkCmdResetQueryPool` as well.
+Currently the commandbuffers must support vkCmdResetQueryPool as well.
 
 When multiple queues are used there could be problems with the "nesting"
 of sections. In that case multiple profilers, one per queue, are most
@@ -1091,11 +1116,16 @@ while(true)
 
 ```
 
-## raypicker_vk.hpp
 
-### class **nvvk::RayPickerKHR**
 
-This is a utility to get hit information under a screen coordinate. 
+_____
+
+# raypicker_vk.hpp
+
+<a name="raypicker_vkhpp"></a>
+## class nvvk::RayPickerKHR
+
+nvvk::RayPickerKHR is a utility to get hit information under a screen coordinate. 
 
 The information returned is: 
   - origin and direction in world space
@@ -1108,33 +1138,38 @@ Setting up:
   - call setTlas with the TLAS previously build
 
 Getting results, for example, on mouse down:
-- fill the **PickInfo** structure
+- fill the PickInfo structure
 - call run()
 - call getResult() to get all the information above
 
 
 Example to set the camera interest point 
-  ~~~~~~ C
-RayPickerKHR::PickResult pr = m_picker.getResult();
-if(pr.instanceID != ~0) // Hit something
-{
-  nvmath::vec3 worldPos = pr.worldRayOrigin + pr.worldRayDirection * pr.hitT;
-  nvmath::vec3f eye, center, up;
-  CameraManip.getLookat(eye, center, up);
-  CameraManip.setLookat(eye, worldPos, up, false); // Nice with CameraManip.updateAnim();
-}
-  ~~~~~~
+  ``` c++
+  RayPickerKHR::PickResult pr = m_picker.getResult();
+  if(pr.instanceID != ~0) // Hit something
+  {
+    nvmath::vec3 worldPos = pr.worldRayOrigin + pr.worldRayDirection * pr.hitT;
+    nvmath::vec3f eye, center, up;
+    CameraManip.getLookat(eye, center, up);
+    CameraManip.setLookat(eye, worldPos, up, false); // Nice with CameraManip.updateAnim();
+  }
+  ```
 
-## raytraceKHR_vk.hpp
 
-### class **nvvk::RaytracingBuilderKHR**
 
-Base functionality of raytracing
+_____
+
+# raytraceKHR_vk.hpp
+
+<a name="raytraceKHR_vkhpp"></a>
+## class nvvk::RaytracingBuilderKHR
+
+> nvvk::RaytracingBuilderKHR is a base functionality of raytracing
 
 This class acts as an owning container for a single top-level acceleration
 structure referencing any number of bottom-level acceleration structures.
 We provide functions for building (on the device) an array of BLASs and a
-single TLAS from vectors of **BlasInput** and **Instance**, respectively, and
+single TLAS from vectors of BlasInput and Instance, respectively, and
 a destroy function for cleaning up the created acceleration structures.
 
 Generally, we reference BLASs by their index in the stored BLAS array,
@@ -1144,10 +1179,10 @@ structure API uses.
 This class does not support replacing acceleration structures once
 built, but you can update the acceleration structures. For educational
 purposes, this class prioritizes (relative) understandability over
-performance, so `vkQueueWaitIdle` is implicitly used everywhere.
+performance, so vkQueueWaitIdle is implicitly used everywhere.
 
-### Setup and Usage
-~~~~ C++
+## Setup and Usage
+``` c++
 // Borrow a VkDevice and memory allocator pointer (must remain
 // valid throughout our use of the ray trace builder), and
 // instantiate an unspecified queue of the given family for use.
@@ -1166,20 +1201,25 @@ m_rtBuilder.buildTlas(instances);
 
 // Retrieve the handle to the acceleration structure.
 const VkAccelerationStructureKHR tlas = m.rtBuilder.getAccelerationStructure()
-~~~~
+```
 
-## raytraceNV_vk.hpp
 
-### class **nvvk::RaytracingBuilderNV**
 
-Base functionality of raytracing
+_____
+
+# raytraceNV_vk.hpp
+
+<a name="raytraceNV_vkhpp"></a>
+## class nvvk::RaytracingBuilderNV
+
+> nvvk::RaytracingBuilderNV is a base functionality of raytracing
 
 This class does not implement all what you need to do raytracing, but
 helps creating the BLAS and TLAS, which then can be used by different
 raytracing usage.
 
-### Setup and Usage
-~~~~ C++
+## Setup and Usage
+``` c++
 m_rtBuilder.setup(device, memoryAllocator, queueIndex);
 // Create array of VkGeometryNV
 m_rtBuilder.buildBlas(allBlas);
@@ -1187,53 +1227,80 @@ m_rtBuilder.buildBlas(allBlas);
 m_rtBuilder.buildTlas(instances);
 // Retrieve the acceleration structure
 const VkAccelerationStructureNV& tlas = m.rtBuilder.getAccelerationStructure()
-~~~~
+```
 
-## renderpasses_vk.hpp
 
-### functions in nvvk
 
-- **findSupportedFormat** : returns supported `VkFormat` from a list of candidates (returns first match)
-- **findDepthFormat** : returns supported depth format (24, 32, 16-bit)
-- **findDepthStencilFormat** : returns supported depth-stencil format (24/8, 32/8, 16/8-bit)
-- **createRenderPass** : wrapper for vkCreateRenderPass
+_____
 
-## resourceallocator_vk.hpp
+# renderpasses_vk.hpp
 
-### class **nvvk::ResourceAllocator**
+<a name="renderpasses_vkhpp"></a>
+## functions in nvvk
 
-The goal of this class is to aid creation of typical Vulkan
-resources (VkBuffer, `VkImage` and VkAccelerationStructure).
+- findSupportedFormat : returns supported VkFormat from a list of candidates (returns first match)
+- findDepthFormat : returns supported depth format (24, 32, 16-bit)
+- findDepthStencilFormat : returns supported depth-stencil format (24/8, 32/8, 16/8-bit)
+- createRenderPass : wrapper for vkCreateRenderPass
+
+
+
+
+_____
+
+# resourceallocator_vk.hpp
+
+<a name="resourceallocator_vkhpp"></a>
+## class nvvk::ResourceAllocatorDedicated)
+ * [ResourceAllocatorDma](#class nvvk::ResourceAllocatorDma)
+ * [ResourceAllocatorVma](#cass nvvk::ResourceAllocatorVma)
+ 
+ In these cases, only one object needs to be created and initialized. 
+ 
+ ResourceAllocator can also be subclassed to specialize some of its functionality.
+ Examples are [ExportResourceAllocator](#class ExportResourceAllocator) and [ExplicitDeviceMaskResourceAllocator](#class ExplicitDeviceMaskResourceAllocator).
+ ExportResourceAllocator injects itself into the object allocation process such that 
+ the resulting allocations can be exported or created objects may be bound to exported
+ memory
+ ExplicitDeviceMaskResourceAllocator overrides the devicemask of allocations such that
+ objects can be created on a specific device in a device group.
+ 
+
+
+## class nvvk::ResourceAllocator
+
+The goal of nvvk::ResourceAllocator is to aid creation of typical Vulkan
+resources (VkBuffer, VkImage and VkAccelerationStructure).
 All memory is allocated using the provided [nvvk::MemAllocator](#class-nvvkmemallocator)
 and bound to the appropriate resources. The allocator contains a 
 [nvvk::StagingMemoryManager](#class-nvvkstagingmemorymanager) and 
 [nvvk::SamplerPool](#class-nvvksamplerpool) to aid this process.
 
-**ResourceAllocator** separates object creation and memory allocation by delegating allocation 
+ResourceAllocator separates object creation and memory allocation by delegating allocation 
 of memory to an object of interface type 'nvvk::MemAllocator'.
-This way the **ResourceAllocator** can be used with different memory allocation strategies, depending on needs.
+This way the ResourceAllocator can be used with different memory allocation strategies, depending on needs.
 nvvk provides three implementations of MemAllocator:
-* **nvvk::DedicatedMemoryAllocator** is using a very simple allocation scheme, one `VkDeviceMemory` object per allocation.
-  This strategy is only useful for very simple applications due to the overhead of `vkAllocateMemory` and 
-  an implementation dependent bounded number of `vkDeviceMemory` allocations possible.
-* **nvvk::DMAMemoryAllocator** delegates memory requests to a 'nvvk:DeviceMemoryAllocator',
+* nvvk::DedicatedMemoryAllocator is using a very simple allocation scheme, one VkDeviceMemory object per allocation.
+  This strategy is only useful for very simple applications due to the overhead of vkAllocateMemory and 
+  an implementation dependent bounded number of vkDeviceMemory allocations possible.
+* nvvk::DMAMemoryAllocator delegates memory requests to a 'nvvk:DeviceMemoryAllocator',
   as an example implemention of a suballocator
-* **nvvk::VMAMemoryAllocator** delegates memory requests to a [Vulkan Memory Allocator](https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator)
+* nvvk::VMAMemoryAllocator delegates memory requests to a [Vulkan Memory Allocator](https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator)
 
 Utility wrapper structs contain the appropriate Vulkan resource and the
 appropriate nvvk::MemHandle :
 
-- **nvvk::Buffer**
-- **nvvk::Image**
-- **nvvk::Texture**  contains `VkImage` and `VkImageView` as well as an 
-  optional `VkSampler` stored witin `VkDescriptorImageInfo`
-- **nvvk::AccelNV**
-- **nvvk::AccelKHR**
+- nvvk::Buffer
+- nvvk::Image
+- nvvk::Texture  contains VkImage and VkImageView as well as an 
+  optional VkSampler stored witin VkDescriptorImageInfo
+- nvvk::AccelNV
+- nvvk::AccelKHR
 
-**nvvk::Buffer**, **nvvk::Image**, **nvvk::Texture** and **nvvk::AccelKHR** **nvvk::AccelNV** objects can be copied
+nvvk::Buffer, nvvk::Image, nvvk::Texture and nvvk::AccelKHR nvvk::AccelNV objects can be copied
 by value. They do not track lifetime of the underlying Vulkan objects and memory allocations. 
-The corresponding destroy() functions of **nvvk::ResourceAllocator** destroy created objects and
-free up their memory. **ResourceAllocator** does not track usage of objects either. Thus, one has to
+The corresponding destroy() functions of nvvk::ResourceAllocator destroy created objects and
+free up their memory. ResourceAllocator does not track usage of objects either. Thus, one has to
 make sure that objects are no longer in use by the GPU when they get destroyed.
 
 > Note: These classes are foremost to showcase principle components that
@@ -1241,7 +1308,7 @@ make sure that objects are no longer in use by the GPU when they get destroyed.
 > They are geared towards ease of use in this sample framework, and 
 > not optimized nor meant for production code.
 
-~~~ C++
+``` c++
 nvvk::DeviceMemoryAllocator memAllocator;
 nvvk::ResourceAllocator     resAllocator;
 
@@ -1270,59 +1337,69 @@ vkQueueSubmit(... cmd ... fence ...)
 // trigger garbage collection somewhere per frame
 resAllocator.releaseStaging();
 
-~~~
+```
 
 Separation of memory allocation and resource creation is very flexible, but it
-can be tedious to set up for simple usecases. nvvk offers three helper **ResourceAllocator**
-derived classes which internally contain the **MemAllocator** object and manage its lifetime:
-* [ResourceAllocatorDedicated](#class **nvvk::ResourceAllocatorDedicated**)
-* [ResourceAllocatorDma](#class **nvvk::ResourceAllocatorDma**)
-* [ResourceAllocatorVma](#cass **nvvk::ResourceAllocatorVma**)
+can be tedious to set up for simple usecases. nvvk offers three helper ResourceAllocator
+derived classes which internally contain the MemAllocator object and manage its lifetime:
+* [ResourceAllocatorDedicated](#class nvvk::ResourceAllocatorDedicated)
+* [ResourceAllocatorDma](#class nvvk::ResourceAllocatorDma)
+* [ResourceAllocatorVma](#cass nvvk::ResourceAllocatorVma)
 
 In these cases, only one object needs to be created and initialized. 
 
-**ResourceAllocator** can also be subclassed to specialize some of its functionality.
-Examples are [ExportResourceAllocator](#class **ExportResourceAllocator**) and [ExplicitDeviceMaskResourceAllocator](#class **ExplicitDeviceMaskResourceAllocator**).
-**ExportResourceAllocator** injects itself into the object allocation process such that 
+ResourceAllocator can also be subclassed to specialize some of its functionality.
+Examples are [ExportResourceAllocator](#class ExportResourceAllocator) and [ExplicitDeviceMaskResourceAllocator](#class ExplicitDeviceMaskResourceAllocator).
+ExportResourceAllocator injects itself into the object allocation process such that 
 the resulting allocations can be exported or created objects may be bound to exported
 memory
-**ExplicitDeviceMaskResourceAllocator** overrides the devicemask of allocations such that
+ExplicitDeviceMaskResourceAllocator overrides the devicemask of allocations such that
 objects can be created on a specific device in a device group.
 
 
-### class **nvvk::ResourceAllocatorDma**
-ResourceAllocatorDMA is a convencience class owning a **DMAMemoryAllocator** and **DeviceMemoryAllocator** object
+
+## class nvvk::ResourceAllocatorDma
+ nvvk::ResourceAllocatorDMA is a convencience class owning a nvvk::DMAMemoryAllocator and nvvk::DeviceMemoryAllocator object
 
 
-### class **nvvk::ResourceAllocatorDedicated**
-**ResourceAllocatorDedicated** is a convencience class automatically creating and owning a **DedicatedMemoryAllocator** object
+
+## class nvvk::ResourceAllocatorDedicated
+ > nvvk::ResourceAllocatorDedicated is a convencience class automatically creating and owning a DedicatedMemoryAllocator object
 
 
-###class **nvvk::ExportResourceAllocator**
 
-**ExportResourceAllocator** specializes the object allocation process such that resulting memory allocations are
+## class nvvk::ExportResourceAllocator
+
+ExportResourceAllocator specializes the object allocation process such that resulting memory allocations are
 exportable and buffers and images can be bound to external memory.
 
 
-### class **nvvk::ExportResourceAllocatorDedicated**
-**ExportResourceAllocatorDedicated** is a resource allocator that is using **DedicatedMemoryAllocator** to allocate memory
+
+## class nvvk::ExportResourceAllocatorDedicated
+ nvvk::ExportResourceAllocatorDedicated is a resource allocator that is using DedicatedMemoryAllocator to allocate memory
 and at the same time it'll make all allocations exportable.
 
 
-### class **nvvk::ExplicitDeviceMaskResourceAllocator**
-**ExplicitDeviceMaskResourceAllocator** is a resource allocator that will inject a specific devicemask into each
+
+## class nvvk::ExplicitDeviceMaskResourceAllocator
+ nvvk::ExplicitDeviceMaskResourceAllocator is a resource allocator that will inject a specific devicemask into each
 allocation, making the created allocations and objects available to only the devices in the mask.
 
-## samplers_vk.hpp
 
-### **nvvk::SamplerPool**
 
-This class manages unique `VkSampler` objects. To minimize the total
+_____
+
+# samplers_vk.hpp
+
+<a name="samplers_vkhpp"></a>
+## class nvvk::SamplerPool
+
+This nvvk::SamplerPool class manages unique VkSampler objects. To minimize the total
 number of sampler objects, this class ensures that identical configurations
 return the same sampler
 
 Example :
-~~~C++
+``` c++
 nvvk::SamplerPool pool(device);
 
 for (auto it : textures) {
@@ -1336,15 +1413,21 @@ for (auto it : textures) {
 for (auto it : textures) {
   pool.releaseSampler(it.sampler);
 }
-~~~
+```
 
-- **makeSamplerCreateInfo** : aids for sampler creation
+- makeSamplerCreateInfo : aids for sampler creation
 
-## sbtwrapper_vk.hpp
 
-### class **nvvk::SBTWrapper**
 
-Generic SBT builder from the ray tracing pipeline
+
+_____
+
+# sbtwrapper_vk.hpp
+
+<a name="sbtwrapper_vkhpp"></a>
+## class nvvk::SBTWrapper
+
+nvvk::SBTWrapper is a generic SBT builder from the ray tracing pipeline
 
 The builder will iterate through the pipeline create info `VkRayTracingPipelineCreateInfoKHR`
 to find the number of raygen, miss, hit and callable shader groups were created. 
@@ -1353,24 +1436,24 @@ separated buffer.
 
 Convenient functions exist to retrieve all information to be used in TraceRayKHR.
 
-#### Usage
+### Usage
 - Setup the builder (`setup()`)
 - After the pipeline creation, call `create()` with the same info used for the creation of the pipeline.
-- Use `getRegions()` to get all the `vk::StridedDeviceAddressRegionKHR` needed by TraceRayKHR()
+- Use `getRegions()` to get all the vk::StridedDeviceAddressRegionKHR needed by TraceRayKHR()
 
 
-##### Example
-~~~~~ C
+#### Example
+``` c++
 m_sbtWrapper.setup(m_device, m_graphicsQueueIndex, &m_alloc, m_rtProperties);
 // ...
 m_sbtWrapper.create(m_rtPipeline, rayPipelineInfo);
 // ...
 auto& regions = m_stbWrapper.getRegions();
 vkCmdTraceRaysKHR(cmdBuf, &regions[0], &regions[1], &regions[2], &regions[3], size.width, size.height, 1);
-~~~~~
+```
 
 
-#### Extra
+### Extra
 
 If data are attached to a shader group (see shaderRecord), it need to be provided independently.
 In this case, the user must know the group index for the group type. 
@@ -1378,13 +1461,13 @@ In this case, the user must know the group index for the group type.
 Here the Hit group 1 and 2 has data, but not the group 0. 
 Those functions must be called before create.
 
-~~~~ C
+``` c++
 m_sbtWrapper.addData(SBTWrapper::eHit, 1, m_hitShaderRecord[0]);
 m_sbtWrapper.addData(SBTWrapper::eHit, 2, m_hitShaderRecord[1]);
-~~~~
+```
 
 
-#### Special case
+### Special case
 
 It is also possible to create a pipeline with only a few groups but having a SBT representing many more groups. 
 
@@ -1399,25 +1482,31 @@ All extra group must be explicitly added.
 The following show how to get handle indices provided in the pipeline, and we are adding another hit group, re-using the 4th pipeline entry.
 Note: we are not providing the pipelineCreateInfo, because we are manually defining it.
 
-~~~~ C
+``` c++
 // Manually defining group indices
 m_sbtWrapper.addIndices(rayPipelineInfo); // Add raygen(0), miss(1), miss(2), hit(3), hit(4) from the pipeline info
 m_sbtWrapper.addIndex(SBTWrapper::eHit, 4);  // Adding a 3rd hit, duplicate from the hit:1, which make hit:2 available.
 m_sbtWrapper.addHitData(SBTWrapper::eHit, 2, m_hitShaderRecord[1]); // Adding data to this hit shader
 m_sbtWrapper.create(m_rtPipeline);
-~~~~
+```
 
-## shadermodulemanager_vk.hpp
 
-### class **nvvk::ShaderModuleManager**
 
-The **ShaderModuleManager** manages `VkShaderModules` stored in files (SPIR-V or GLSL)
 
-Using **ShaderFileManager** it will find the files and resolve #include for GLSL.
+_____
+
+# shadermodulemanager_vk.hpp
+
+<a name="shadermodulemanager_vkhpp"></a>
+## class nvvk::ShaderModuleManager
+
+The nvvk::ShaderModuleManager manages VkShaderModules stored in files (SPIR-V or GLSL)
+
+Using ShaderFileManager it will find the files and resolve #include for GLSL.
 You must add include directories to the base-class for this.
 
 It also comes with some convenience functions to reload shaders etc.
-That is why we pass out the **ShaderModuleID** rather than a `VkShaderModule` directly.
+That is why we pass out the ShaderModuleID rather than a VkShaderModule directly.
 
 To change the compilation behavior manipulate the public member variables
 prior createShaderModule.
@@ -1444,18 +1533,28 @@ fid = mgr.createShaderModule(VK_SHADER_STAGE_FRAGMENT_BIT, "object.frag.glsl");
 info.module = mgr.get(vid);
 ```
 
-## shaders_vk.hpp
 
-### function in nvvk
 
-- **createShaderModule** : create the shader module from various binary code inputs
+_____
+
+# shaders_vk.hpp
+
+<a name="shaders_vkhpp"></a>
+## functions in nvvk
+
+- createShaderModule : create the shader module from various binary code inputs
 - createShaderStageInfo: create the shader module and setup the stage from the incoming binary code
 
-## stagingmemorymanager_vk.hpp
 
-### class **nvvk::StagingMemoryManager**
 
-**StagingMemoryManager** class is a utility that manages host visible
+_____
+
+# stagingmemorymanager_vk.hpp
+
+<a name="stagingmemorymanager_vkhpp"></a>
+## class nvvk::StagingMemoryManager
+
+nvvk::StagingMemoryManager class is a utility that manages host visible
 buffers and their allocations in an opaque fashion to assist
 asynchronous transfers between device and host.
 The memory for this is allocated using the provided 
@@ -1470,8 +1569,8 @@ The necessary buffer space is sub-allocated and recycled by using one
 > - cannot manage a copy > 4 GB
 
 Usage:
-- Enqueue transfers into your `VkCommandBuffer` and then finalize the copy operations.
-- Associate the copy operations with a `VkFence` or retrieve a **SetID**
+- Enqueue transfers into your VkCommandBuffer and then finalize the copy operations.
+- Associate the copy operations with a VkFence or retrieve a SetID
 - The release of the resources allows to safely recycle the buffer space for future transfers.
 
 > We use fences as a way to garbage collect here, however a more robust solution
@@ -1482,7 +1581,7 @@ Usage:
 
 Example :
 
-~~~ C++
+``` c++
 StagingMemoryManager  staging;
 staging.init(memAllocator);
 
@@ -1522,13 +1621,19 @@ sid = staging.finalizeResourceSet();
 
 staging.releaseResourceSet(sid);
 
-~~~
+```
 
-## structs_vk.hpp
 
-### function nvvk::make, nvvk::clear
-Contains templated `nvvk::make<T>` and `nvvk::clear<T>` functions that are 
-auto-generated by `structs.lua`. The functions provide default 
+
+_____
+
+# structs_vk.hpp
+
+<a name="structs_vkhpp"></a>
+## function nvvk::make
+  
+Contains templated `nvvk::make<T>` function that is 
+auto-generated by `structs.lua`. The function provide default 
 structs for the Vulkan C api by initializing the `VkStructureType sType`
 field (also for nested structs) and clearing the rest to zero.
 
@@ -1536,9 +1641,23 @@ field (also for nested structs) and clearing the rest to zero.
 auto compCreateInfo = nvvk::make<VkComputePipelineCreateInfo>;
 ```
 
-## swapchain_vk.hpp
 
-### class **nvvk::SwapChain**
+
+## function nvvk::clear
+
+Contains templated `nvvk::clear<T>` function 
+auto-generated by `structs.lua`.
+
+
+
+_____
+
+# swapchain_vk.hpp
+
+<a name="swapchain_vkhpp"></a>
+## class nvvk::SwapChain
+
+> nvvk::SwapChain is a helper to handle swapchain setup and use
 
 In Vulkan, we have to use `VkSwapchainKHR` to request a swap chain
 (front and back buffers) from the operating system and manually
@@ -1565,14 +1684,14 @@ Finally, there is a utility function to setup the image transitions
 from VK_IMAGE_LAYOUT_UNDEFINED to VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
 which is the format an image must be in before it is presented.
 
-Example in combination with **nvvk::Context** :
+Example in combination with nvvk::Context :
 
 * get the window handle
 * create its related surface
-* make sure the **Queue** is the one we need to render in this surface
+* make sure the Queue is the one we need to render in this surface
 
-~~~ C++
-// could be arguments of a function/method :
+``` c++
+// could {.cpp}be arguments of a function/method :
 nvvk::Context ctx;
 NVPWindow     win;
 ...
@@ -1586,22 +1705,22 @@ result = vkCreateWin32SurfaceKHR(ctx.m_instance, &createInfo, nullptr, &m_surfac
 ...
 // make sure we assign the proper Queue to m_queueGCT, from what the surface tells us
 ctx.setGCTQueueWithPresent(m_surface);
-~~~
+```
 
 The initialization can happen now :
 
-~~~ C+
+``` c++
 m_swapChain.init(ctx.m_device, ctx.m_physicalDevice, ctx.m_queueGCT, ctx.m_queueGCT.familyIndex,
                  m_surface, VK_FORMAT_B8G8R8A8_UNORM);
 ...
 // after init or update you also have to setup the image layouts at some point
 VkCommandBuffer cmd = ...
 m_swapChain.cmdUpdateBarriers(cmd);
-~~~
+```
 
 During a resizing of a window, you can update the swapchain as well :
 
-~~~ C++
+``` c++
 bool WindowSurface::resize(int w, int h)
 {
 ...
@@ -1609,74 +1728,72 @@ bool WindowSurface::resize(int w, int h)
   // be cautious to also transition the image layouts
 ...
 }
-~~~
+```
 
 
 A typical renderloop would look as follows:
 
-~~~ C++
-// handles vkAcquireNextImageKHR and setting the active image
-// w,h only needed if update(w,h) not called reliably.
-int w, h;
-bool recreated;
-glfwGetFramebufferSize(window, &w, &h);
-if(!m_swapChain.acquire(w, h, &recreated, [, optional SwapChainAcquireState ptr]))
-{
-  ... handle acquire error (shouldn't happen)
-}
+``` c++
+  // handles vkAcquireNextImageKHR and setting the active image
+  // w,h only needed if update(w,h) not called reliably.
+  int w, h;
+  bool recreated;
+  glfwGetFramebufferSize(window, &w, &h);
+  if(!m_swapChain.acquire(w, h, &recreated, [, optional SwapChainAcquireState ptr]))
+  {
+    ... handle acquire error (shouldn't happen)
+  }
 
-VkCommandBuffer cmd = ...
+  VkCommandBuffer cmd = ...
 
-// acquire might have recreated the swap chain: respond if needed here.
-// NOTE: you can also check the recreated variable above, but this
-// only works if the swap chain was recreated this frame.
-if (m_swapChain.getChangeID() != lastChangeID){
-  // after init or resize you have to setup the image layouts
-  m_swapChain.cmdUpdateBarriers(cmd);
+  // acquire might have recreated the swap chain: respond if needed here.
+  // NOTE: you can also check the recreated variable above, but this
+  // only works if the swap chain was recreated this frame.
+  if (m_swapChain.getChangeID() != lastChangeID){
+    // after init or resize you have to setup the image layouts
+    m_swapChain.cmdUpdateBarriers(cmd);
 
-  lastChangeID = m_swapChain.getChangeID();
-}
+    lastChangeID = m_swapChain.getChangeID();
+  }
 
-// do render operations either directly using the imageview
-VkImageView swapImageView = m_swapChain.getActiveImageView();
+  // do render operations either directly using the imageview
+  VkImageView swapImageView = m_swapChain.getActiveImageView();
 
-// or you may always render offline int your own framebuffer
-// and then simply blit into the backbuffer. NOTE: use
-// m_swapChain.getWidth() / getHeight() to get blit dimensions,
-// actual swap chain image size may differ from requested width/height.
-VkImage swapImage = m_swapChain.getActiveImage();
-vkCmdBlitImage(cmd, ... swapImage ...);
+  // or you may always render offline int your own framebuffer
+  // and then simply blit into the backbuffer. NOTE: use
+  // m_swapChain.getWidth() / getHeight() to get blit dimensions,
+  // actual swap chain image size may differ from requested width/height.
+  VkImage swapImage = m_swapChain.getActiveImage();
+  vkCmdBlitImage(cmd, ... swapImage ...);
 
-// setup submit
-VkSubmitInfo submitInfo = {VK_STRUCTURE_TYPE_SUBMIT_INFO};
-submitInfo.commandBufferCount = 1;
-submitInfo.pCommandBuffers    = &cmd;
+  // setup submit
+  VkSubmitInfo submitInfo = {VK_STRUCTURE_TYPE_SUBMIT_INFO};
+  submitInfo.commandBufferCount = 1;
+  submitInfo.pCommandBuffers    = &cmd;
 
-// we need to ensure to wait for the swapchain image to have been read already
-// so we can safely blit into it
+  // we need to ensure to wait for the swapchain image to have been read already
+  // so we can safely blit into it
 
-VkSemaphore swapchainReadSemaphore      = m_swapChain->getActiveReadSemaphore();
-VkPipelineStageFlags swapchainReadFlags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-submitInfo.waitSemaphoreCount = 1;
-submitInfo.pWaitSemaphores    = &swapchainReadSemaphore;
-submitInfo.pWaitDstStageMask  = &swapchainReadFlags);
+  VkSemaphore swapchainReadSemaphore      = m_swapChain->getActiveReadSemaphore();
+  VkPipelineStageFlags swapchainReadFlags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+  submitInfo.waitSemaphoreCount = 1;
+  submitInfo.pWaitSemaphores    = &swapchainReadSemaphore;
+  submitInfo.pWaitDstStageMask  = &swapchainReadFlags);
 
-// once this submit completed, it means we have written the swapchain image
-VkSemaphore swapchainWrittenSemaphore = m_swapChain->getActiveWrittenSemaphore();
-submitInfo.signalSemaphoreCount = 1;
-submitInfo.pSignalSemaphores    = &swapchainWrittenSemaphore;
+  // once this submit completed, it means we have written the swapchain image
+  VkSemaphore swapchainWrittenSemaphore = m_swapChain->getActiveWrittenSemaphore();
+  submitInfo.signalSemaphoreCount = 1;
+  submitInfo.pSignalSemaphores    = &swapchainWrittenSemaphore;
 
-// submit it
-vkQueueSubmit(m_queue, 1, &submitInfo, fence);
+  // submit it
+  vkQueueSubmit(m_queue, 1, &submitInfo, fence);
 
-// present via a queue that supports it
-// this will also setup the dependency for the appropriate written semaphore
-// and bump the semaphore cycle
-m_swapChain.present(m_queue);
-~~~
-
-
+  // present via a queue that supports it
+  // this will also setup the dependency for the appropriate written semaphore
+  // and bump the semaphore cycle
+  m_swapChain.present(m_queue);
+```
 
 
-_____
-auto-generated by `docgen.lua`
+
+
