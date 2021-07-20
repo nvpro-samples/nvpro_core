@@ -32,9 +32,9 @@
 namespace nvgl {
 //////////////////////////////////////////////////////////////////////////
 /**
-    # class nvgl::ProgramManager
+    \class nvgl::ProgramManager
 
-    The ProgramManager manages OpenGL programs generated from shader files (GLSL)
+    The nvgl::ProgramManager manages OpenGL programs generated from shader files (GLSL)
 
     Using ShaderFileManager it will find the files and resolve #include for GLSL.
     You must add include directories to the base-class for this.
@@ -44,7 +44,7 @@ namespace nvgl {
 
     Example:
 
-    ``` c++
+    \code{.cpp}
     ProgramManager mgr;
 
     // derived from ShaderFileManager
@@ -56,7 +56,7 @@ namespace nvgl {
     id = mgr.createProgram({{GL_VERTEX_SHADER, "object.vert.glsl"},{GL_FRAGMENT_SHADER, "object.frag.glsl"}}):
 
     glUseProgram(mgr.get(id));
-    ```
+    \endcode
   */
 
 

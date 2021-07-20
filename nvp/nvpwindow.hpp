@@ -23,20 +23,16 @@
 
 #include "nvpsystem.hpp"
 
+/// \class NVPWindow
+/// \brief base class for a window, to catch events
+///
+/// Using and deriving of NVPWindow base-class is optional.
+/// However one must always make use of the NVPSystem
+/// That takes care of glfwInit/terminate as well.
 class NVPWindow
 {
 public:
-  // IMPORTANT
-  //
-  // Using and deriving of NVPWindow base-class is optional.
-  // However one must always make use of the NVPSystem
-  // That takes care of glfwInit/terminate as well.
-
-  ////////////////////////////////////////////////////////////////////////
-  // base class
-
   // these are taken from GLFW3 and must be kept in a matching state
-
   enum ButtonAction
   {
     BUTTON_RELEASE = 0,
@@ -202,7 +198,7 @@ public:
 
   //////////////////////////////////////////////////////////////////////////
 
-  struct GLFWwindow* m_internal = nullptr;
+  struct GLFWwindow* m_internal = nullptr; ///< internal delegate to GLFWwindow
   std::string        m_windowName;
 
 
@@ -238,10 +234,10 @@ public:
   bool        isClosing() const;
   bool        isOpen() const;
 
-  virtual bool open(int posX, int posY, int width, int height, const char* title, bool requireGLContext);  // creates internal window and opens it
-  void         deinit();  // destroys internal window
+  virtual bool open(int posX, int posY, int width, int height, const char* title, bool requireGLContext);  ///< creates internal window and opens it
+  void         deinit();  ///< destroys internal window
 
-  void close();  //  triggers closing event, still needs deinit for final cleanup
+  void close();  ///<  triggers closing event, still needs deinit for final cleanup
   void maximize();
   void restore();
   void minimize();
@@ -250,13 +246,17 @@ public:
   void screenshot(const char* filename);
   void clear(uint32_t r, uint32_t g, uint32_t b);
 
-  // simple modal file dialog, uses OS basic api
-  // the exts string must be a | separated list that has two items per possible extension
-  // "extension descripton|*.ext"
+  /// \defgroup dialog
+  /// simple modal file dialog, uses OS basic api
+  /// the exts string must be a | separated list that has two items per possible extension
+  /// "extension descripton|*.ext"
+  /// @{
   std::string openFileDialog(const char* title, const char* exts);
   std::string saveFileDialog(const char* title, const char* exts);
+  /// @}
 
-  // derived windows/apps should override to handle events
+  /// \name derived windows/apps should override to handle events
+  /// @{
   virtual void onWindowClose() {}
   virtual void onWindowResize(int w, int h) {}
   virtual void onWindowRefresh() {}
@@ -266,17 +266,18 @@ public:
   virtual void onKeyboard(KeyCode key, ButtonAction action, int mods, int x, int y) {}
   virtual void onKeyboardChar(unsigned char key, int mods, int x, int y) {}
   virtual void onDragDrop(int num, const char** paths) {}
+  /// @}
 
-  // derived windows/apps should override these. Essentially used for remote-control (via sockets)
-  // the decoded remote paquets would invoke these methods. See nvpro_core\nvsockets\socketSampleMessages.cpp
+  /// derived windows/apps should override these. Essentially used for remote-control (via sockets)
+  /// the decoded remote paquets would invoke these methods. See nvpro_core\nvsockets\socketSampleMessages.cpp
   virtual void requestTiming() {
-  }  // the app can override it to return requested timing information over sockets : use sysPostTiming() below
-  virtual void requestPaint() {}                       // the app needs to refresh once the window
-  virtual void requestContinuousRefresh(bool bYes) {}  // the app might swith on/off the continuous rendering
+  }  ///< the app can override it to return requested timing information over sockets : use sysPostTiming() below
+  virtual void requestPaint() {}                       ///< the app needs to refresh once the window
+  virtual void requestContinuousRefresh(bool bYes) {}  ///< the app might swith on/off the continuous rendering
   virtual void requestSetArg(char token, int arg0, int arg1, int arg2, int arg3) {
-  }  // the app receives arbitrary params from remote, free of interpretation
+  }  ///< the app receives arbitrary params from remote, free of interpretation
   virtual void requestSetArg(char token, float arg0, float arg1, float arg2, float arg3) {
-  }  // the app receives arbitrary params from remote, free of interpretation
+  }  ///< the app receives arbitrary params from remote, free of interpretation
 
 private:
   int  m_mouseX               = 0;
@@ -289,6 +290,8 @@ private:
   int  m_preFullScreenPos[2]  = {0, 0};
   int  m_preFullScreenSize[2] = {0, 0};
 
+  /// \name Callbacks
+  /// @{
   static void cb_windowrefreshfun(GLFWwindow* glfwwin);
   static void cb_windowsizefun(GLFWwindow* glfwwin, int w, int h);
   static void cb_windowclosefun(GLFWwindow* glfwwin);
@@ -298,7 +301,7 @@ private:
   static void cb_keyfun(GLFWwindow* glfwwin, int key, int scancode, int action, int mods);
   static void cb_charfun(GLFWwindow* glfwwin, unsigned int codepoint);
   static void cb_dropfun(GLFWwindow* glfwwin, int count, const char** paths);
+  /// @}
 };
-
 
 #endif

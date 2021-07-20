@@ -53,13 +53,13 @@ It is consumed by the `nvvk::Context::init` function.
 
 Example on how to populate information in it : 
 
-~~~~ C++
+\code{.cpp}
     nvvk::ContextCreateInfo ctxInfo;
     ctxInfo.setVersion(1, 1);
     ctxInfo.addInstanceExtension(VK_KHR_SURFACE_EXTENSION_NAME, false);
     ctxInfo.addInstanceExtension(VK_KHR_WIN32_SURFACE_EXTENSION_NAME, false);
     ctxInfo.addDeviceExtension(VK_KHR_SWAPCHAIN_EXTENSION_NAME, false);
-~~~~
+\endcode
 
 then you are ready to create initialize `nvvk::Context`
 
@@ -138,11 +138,11 @@ struct ContextCreateInfo
 
 //////////////////////////////////////////////////////////////////////////
 /**
-# class nvvk::Context
+\class nvvk::Context
 
-Context class helps creating the Vulkan instance and to choose the logical device for the mandatory extensions. First is to fill the `ContextCreateInfo` structure, then call:
+nvvk::Context class helps creating the Vulkan instance and to choose the logical device for the mandatory extensions. First is to fill the `ContextCreateInfo` structure, then call:
 
-~~~ C++
+\code{.cpp}
   // Creating the Vulkan instance and device
   nvvk::ContextCreateInfo ctxInfo;
   ... see above ...
@@ -151,7 +151,7 @@ Context class helps creating the Vulkan instance and to choose the logical devic
   vkctx.init(ctxInfo);
 
   // after init the ctxInfo is no longer needed
-~~~ 
+\endcode 
 
 At this point, the class will have created the `VkInstance` and `VkDevice` according to the information passed. It will also keeps track or have query the information of:
  
@@ -168,7 +168,7 @@ At this point, the class will have created the `VkInstance` and `VkDevice` accor
 
 ## Choosing the device
 When there are multiple devices, the `init` method is choosing the first compatible device available, but it is also possible the choose another one.
-~~~ C++
+\code{.cpp}
   vkctx.initInstance(deviceInfo); 
   // Find all compatible devices
   auto compatibleDevices = vkctx.getCompatibleDevices(deviceInfo);
@@ -176,7 +176,7 @@ When there are multiple devices, the `init` method is choosing the first compati
 
   // Use first compatible device
   vkctx.initDevice(compatibleDevices[0], deviceInfo);
-~~~
+\endcode
 
 ## Multi-GPU
 
@@ -374,6 +374,7 @@ private:
   std::unordered_set<int32_t> m_dbgIgnoreMessages;
 
   void initDebugUtils();
+  bool hasDebugUtils() const { return m_createDebugUtilsMessengerEXT != nullptr; }
 
   VkResult    fillFilteredNameArray(std::vector<std::string>&             used,
                                     const std::vector<VkLayerProperties>& properties,

@@ -121,24 +121,77 @@ std::string ShaderFileManager::getContent(std::string const& filename, std::stri
   return loadFile(filename, false, m_directories, filenameFound, true);
 }
 
+std::string ShaderFileManager::getContentWithRequestingSourceDirectory(std::string const& filename,
+                                                                       std::string&       filenameFound,
+                                                                       std::string const& requestingSource)
+{
+  if(filename.empty())
+  {
+    return std::string();
+  }
+
+  IncludeID idx = findInclude(filename);
+
+  if(idx.isValid())
+  {
+    return getIncludeContent(idx, filenameFound);
+  }
+
+  // fall back; check requestingSource's directory first.
+  filenameFound = filename;
+  m_extendedDirectories.resize(m_directories.size() + 1);
+  m_extendedDirectories[0] = getDirectoryComponent(requestingSource);
+  for(size_t i = 0; i < m_directories.size(); ++i)
+  {
+    m_extendedDirectories[i + 1] = m_directories[i];
+  }
+  return loadFile(filename, false, m_extendedDirectories, filenameFound, true);
+}
+
+std::string ShaderFileManager::getDirectoryComponent(std::string filename)
+{
+  while(!filename.empty())
+  {
+    auto popped = filename.back();
+    filename.pop_back();
+    switch(popped)
+    {
+      case '/':
+        goto exitLoop;
+#if defined(_WIN32)
+      case '\\':
+        goto exitLoop;
+#endif
+    }
+  }
+exitLoop:
+  if(filename.empty())
+    filename.push_back('.');
+  return filename;
+}
+
 std::string ShaderFileManager::manualInclude(std::string const& filename, std::string& filenameFound, std::string const& prepend, bool foundVersion)
 {
   std::string source = getContent(filename, filenameFound);
+  return manualIncludeText(source, filenameFound, prepend, foundVersion);
+}
 
-  if(source.empty())
+std::string ShaderFileManager::manualIncludeText(std::string const& sourceText, std::string const& textFilename, std::string const& prepend, bool foundVersion)
+{
+  if(sourceText.empty())
   {
     return std::string();
   }
 
   std::stringstream stream;
-  stream << source;
+  stream << sourceText;
   std::string line, text;
 
   // Handle command line defines
   text += prepend;
   if(m_lineMarkers)
   {
-    text += markerString(1, filenameFound, 0);
+    text += markerString(1, textFilename, 0);
   }
 
   int lineCount = 0;
@@ -169,32 +222,35 @@ std::string ShaderFileManager::manualInclude(std::string const& filename, std::s
       continue;
     }
 
-    // Include
-    offset = line.find("#include");
-    if(offset != std::string::npos)
+    // Handle replacing #include with text if configured to do so.
+    // Otherwise just insert the #include command verbatim, for shaderc to handle.
+    if(m_handleIncludePasting)
     {
-      std::size_t commentOffset = line.find("//");
-      if(commentOffset != std::string::npos && commentOffset < offset)
-        continue;
-
-      size_t firstQuote  = line.find("\"", offset);
-      size_t secondQuote = line.find("\"", firstQuote + 1);
-
-      std::string include = line.substr(firstQuote + 1, secondQuote - firstQuote - 1);
-
-      std::string includeFound;
-      std::string includeContent = manualInclude(include, includeFound, std::string(), foundVersion);
-
-      if(!includeContent.empty())
+      offset = line.find("#include");
+      if(offset != std::string::npos)
       {
-        text += includeContent;
-        if(m_lineMarkers)
-        {
-          text += std::string("\n") + markerString(lineCount + 1, filenameFound, 0);
-        }
-      }
+        std::size_t commentOffset = line.find("//");
+        if(commentOffset != std::string::npos && commentOffset < offset)
+          continue;
 
-      continue;
+        size_t firstQuote  = line.find("\"", offset);
+        size_t secondQuote = line.find("\"", firstQuote + 1);
+
+        std::string include = line.substr(firstQuote + 1, secondQuote - firstQuote - 1);
+
+        std::string includeFound;
+        std::string includeContent = manualInclude(include, includeFound, std::string(), foundVersion);
+
+        if(!includeContent.empty())
+        {
+          text += includeContent;
+          if(m_lineMarkers)
+          {
+            text += std::string("\n") + markerString(lineCount + 1, textFilename, 0);
+          }
+        }
+        continue; // Skip adding the original #include line.
+      }
     }
 
     text += line + "\n";

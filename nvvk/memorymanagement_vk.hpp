@@ -101,10 +101,10 @@ public:
 
 //////////////////////////////////////////////////////////////////////////
 /**
-  # class nvvk::DeviceMemoryAllocator
+  \class nvvk::DeviceMemoryAllocator
 
-  The DeviceMemoryAllocator allocates and manages device memory in fixed-size memory blocks.
-  It implements the [nvvk::MemAllocator](#class-nvvkmemallocator) interface.
+  The nvvk::DeviceMemoryAllocator allocates and manages device memory in fixed-size memory blocks.
+  It implements the nvvk::MemAllocator interface.
 
   It sub-allocates from the blocks, and can re-use memory if it finds empty
   regions. Because of the fixed-block usage, you can directly create resources
@@ -122,7 +122,7 @@ public:
   structures. These utilities also make implicit use of Vulkan's dedicated
   allocation mechanism.
 
-  We recommend the use of the [nvvk::ResourceAllocator](#class-nvvkresourceallocator) class, 
+  We recommend the use of the nvvk::ResourceAllocator class, 
   rather than the various create functions provided here, as we may deprecate them.
 
   > **WARNING** : The memory manager serves as proof of concept for some key concepts
@@ -134,7 +134,7 @@ public:
   chunk allocation behavior.
 
   Example :
-  ~~~ C++
+  \code{.cpp}
   nvvk::DeviceMemoryAllocator memAllocator;
 
   memAllocator.init(device, physicalDevice);
@@ -159,7 +159,7 @@ public:
   ...
   memAllocator.freeAll();
 
-  ~~~
+  \endcode
 */
 class DeviceMemoryAllocator : public MemAllocator
 {

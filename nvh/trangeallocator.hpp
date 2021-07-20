@@ -34,9 +34,9 @@
 namespace nvh {
 
 /**
-  # class nvh::TRangeAllocator
+  \class nvh::TRangeAllocator
 
-  The TRangeAllocator<GRANULARITY> template allows to sub-allocate ranges from a fixed
+  The nvh::TRangeAllocator<GRANULARITY> template allows to sub-allocate ranges from a fixed
   maximum size. Ranges are allocated at GRANULARITY and are merged back on freeing.
   Its primary use is within allocators that sub-allocate from fixed-size blocks.
 
@@ -44,7 +44,7 @@ namespace nvh {
 
   Example :
 
-  ~~~ C++
+  \code{.cpp}
   TRangeAllocator<256> range;
 
   // initialize to a certain range
@@ -73,7 +73,7 @@ namespace nvh {
 
   // at the end cleanup
   range.deinit();
-  ~~~
+  \endcode
 */
 
 // GRANULARITY must be power of two

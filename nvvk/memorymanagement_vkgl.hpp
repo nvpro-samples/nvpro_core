@@ -45,9 +45,9 @@ struct AllocationGL
 //////////////////////////////////////////////////////////////////////////
 
 /** 
-  # class nvvk::DeviceMemoryAllocatorGL
+  \class nvvk::DeviceMemoryAllocatorGL
 
-  Derived from nvvk::DeviceMemoryAllocator it uses vulkan memory that is exported
+  nvvk::DeviceMemoryAllocatorGL is derived from nvvk::DeviceMemoryAllocator it uses vulkan memory that is exported
   and directly imported into OpenGL. Requires GL_EXT_memory_object.
 
   Used just like the original class however a new function to get the 

@@ -526,7 +526,7 @@ bool Context::initDevice(uint32_t deviceIndex, const ContextCreateInfo& info)
   load_VK_EXTENSIONS(m_instance, vkGetInstanceProcAddr, m_device, vkGetDeviceProcAddr);
 
 #ifdef VK_EXT_debug_utils
-  nvvk::DebugUtil::setEnabled(true);
+  nvvk::DebugUtil::setEnabled(hasDebugUtils());
 #endif
 
   // Now we have the device and instance, we can initialize the debug tool

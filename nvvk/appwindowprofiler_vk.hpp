@@ -32,9 +32,9 @@ namespace nvvk {
 
 //////////////////////////////////////////////////////////////////////////
 /**
-  # class nvvk::AppWindowProfilerVK
+  \class nvvk::AppWindowProfilerVK
 
-  AppWindowProfilerVK derives from nvh::AppWindowProfiler
+  nvvk::AppWindowProfilerVK derives from nvh::AppWindowProfiler
   and overrides the context and swapbuffer functions.
   The nvh class itself provides several utilities and 
   command line options to run automated benchmarks etc.

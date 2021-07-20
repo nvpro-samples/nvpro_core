@@ -21,7 +21,7 @@
 #ifndef NV_SHADERMODULEMANAGER_INCLUDED
 #define NV_SHADERMODULEMANAGER_INCLUDED
 
-
+#include <mutex>
 #include <stdio.h>
 #include <string>
 #include <vector>
@@ -40,9 +40,9 @@ namespace nvvk {
 
 //////////////////////////////////////////////////////////////////////////
 /**
-  # class nvvk::ShaderModuleManager
+  \class nvvk::ShaderModuleManager
 
-  The ShaderModuleManager manages VkShaderModules stored in files (SPIR-V or GLSL)
+  The nvvk::ShaderModuleManager manages VkShaderModules stored in files (SPIR-V or GLSL)
 
   Using ShaderFileManager it will find the files and resolve #include for GLSL.
   You must add include directories to the base-class for this.
@@ -59,7 +59,7 @@ namespace nvvk {
 
   Example:
 
-  ``` c++
+  \code{.cpp}
   ShaderModuleManager mgr(myDevice);
 
   // derived from ShaderFileManager
@@ -73,7 +73,7 @@ namespace nvvk {
 
   // ... later use module
   info.module = mgr.get(vid);
-  ```
+  \endcode
 */
 
 class ShaderModuleID
@@ -178,11 +178,23 @@ public:
   ShaderModuleManager(ShaderModuleManager const&) = delete;
   ShaderModuleManager& operator=(ShaderModuleManager const&) = delete;
 
-  ShaderModuleManager()
+  // Constructors reference-count the shared shaderc compiler, and
+  // disable ShaderFileManager's homemade #include mechanism iff we're
+  // using shaderc.
+#if NVP_SUPPORTS_SHADERC
+  static constexpr bool s_handleIncludePasting = false;
+#else
+  static constexpr bool s_handleIncludePasting = true;
+#endif
+
+  ShaderModuleManager(VkDevice device = nullptr)
+      : ShaderFileManager(s_handleIncludePasting)
   {
     m_usedSetupIF             = &m_defaultSetupIF;
     m_supportsExtendedInclude = true;
 #if NVP_SUPPORTS_SHADERC
+    // First user initializes compiler.
+    std::lock_guard<std::mutex> lock(s_shadercCompilerMutex);
     s_shadercCompilerUsers++;
     if(!s_shadercCompiler)
     {
@@ -190,26 +202,17 @@ public:
     }
     m_shadercOptions = shaderc_compile_options_initialize();
 #endif
-  }
-  ShaderModuleManager(VkDevice device)
-  {
-    m_usedSetupIF             = &m_defaultSetupIF;
-    m_supportsExtendedInclude = true;
-#if NVP_SUPPORTS_SHADERC
-    s_shadercCompilerUsers++;
-    if(!s_shadercCompiler)
-    {
-      s_shadercCompiler = shaderc_compiler_initialize();
-    }
-    m_shadercOptions = shaderc_compile_options_initialize();
-#endif
-    init(device);
+
+    if(device)
+      init(device);
   }
 
   ~ShaderModuleManager()
   {
     deinit();
 #if NVP_SUPPORTS_SHADERC
+    // Last user de-inits compiler.
+    std::lock_guard<std::mutex> lock(s_shadercCompilerMutex);
     s_shadercCompilerUsers--;
     if(s_shadercCompiler && s_shadercCompilerUsers == 0)
     {
@@ -222,6 +225,11 @@ public:
     }
 #endif
   }
+
+  // Shaderc has its own interface for handling include files that I
+  // have to subclass; this needs access to protected
+  // ShaderFileManager functions.
+  friend class ShadercIncludeBridge;
 
 private:
   ShaderModuleID createShaderModule(const Definition& def);
@@ -237,7 +245,7 @@ private:
 
   static const VkShaderModule PREPROCESS_ONLY_MODULE;
 
-  VkDevice         m_device = VK_NULL_HANDLE;
+  VkDevice         m_device = nullptr;
   DefaultInterface m_defaultSetupIF;
   SetupInterface*  m_usedSetupIF = nullptr;
 
@@ -245,8 +253,9 @@ private:
   int m_apiMinor = 1;
 
 #if NVP_SUPPORTS_SHADERC
-  static shaderc_compiler_t  s_shadercCompiler;
   static uint32_t            s_shadercCompilerUsers;
+  static shaderc_compiler_t  s_shadercCompiler;  // Lock mutex below while using.
+  static std::mutex          s_shadercCompilerMutex;
   shaderc_compile_options_t  m_shadercOptions           = nullptr;
   shaderc_optimization_level m_shadercOptimizationLevel = shaderc_optimization_level_performance;
 #endif

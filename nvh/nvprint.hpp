@@ -30,13 +30,12 @@
 
 
 /**
-  # global nvprintf functions
-
   Multiple functions and macros that should be used for logging purposes,
   rather than printf
-
-  - nvprintf : print at default loglevel
-  - nvprintfLevel : print at a certain loglevel
+  \fn nvprintf etc
+  
+  - nvprintf : prints at default loglevel
+  - nvprintfLevel : nvprintfLevel print at a certain loglevel
   - nvprintSetLevel : sets default loglevel
   - nvprintGetLevel : gets default loglevel
   - nvprintSetLogFileName : sets log filename

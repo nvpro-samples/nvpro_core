@@ -31,9 +31,9 @@ namespace nvvk {
 
 //////////////////////////////////////////////////////////////////
 /**
-  # class nvvk::StagingMemoryManager
+  \class nvvk::StagingMemoryManager
 
-  StagingMemoryManager class is a utility that manages host visible
+  nvvk::StagingMemoryManager class is a utility that manages host visible
   buffers and their allocations in an opaque fashion to assist
   asynchronous transfers between device and host.
   The memory for this is allocated using the provided 
@@ -60,7 +60,7 @@ namespace nvvk {
 
   Example :
 
-  ~~~ C++
+  \code{.cpp}
   StagingMemoryManager  staging;
   staging.init(memAllocator);
 
@@ -100,7 +100,7 @@ namespace nvvk {
 
   staging.releaseResourceSet(sid);
 
-  ~~~
+  \endcode
 */
 
 class StagingMemoryManager

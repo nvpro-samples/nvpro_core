@@ -27,7 +27,7 @@
 
 namespace nvvk {
 /**
-# function in nvvk
+# functions in nvvk
 
 - createShaderModule : create the shader module from various binary code inputs
 - createShaderStageInfo: create the shader module and setup the stage from the incoming binary code

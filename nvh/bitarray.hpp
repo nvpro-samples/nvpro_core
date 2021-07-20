@@ -31,14 +31,14 @@ namespace nvh {
 
 //////////////////////////////////////////////////////////////////////////
 /**
-    # class nvh::BitArray
+    \class nvh::BitArray
 
-    The BitArray class implements a tightly packed boolean array using single bits stored in uint64_t values.
+    \brief The nvh::BitArray class implements a tightly packed boolean array using single bits stored in uint64_t values.
     Whenever you want large boolean arrays this representation is preferred for cache-efficiency.
     The Visitor and OffsetVisitor traversal mechanisms make use of cpu intrinsics to speed up iteration over bits.
   
     Example:
-    ``` c++
+    \code{.cpp}
     BitArray modifiedObjects(1024);
   
     // set some bits
@@ -56,7 +56,7 @@ namespace nvh {
   
     MyVisitor visitor;
     modifiedObjects.traverseBits(visitor);
-    ```
+    \endcode
   */
 
 /** \brief Visitor which forwards the visitor operator with a fixed offset **/

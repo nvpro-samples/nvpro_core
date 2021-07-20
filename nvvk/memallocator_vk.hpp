@@ -30,15 +30,15 @@ static const MemHandle NullMemHandle = nullptr;
 
 
 /**
-  # class nvvk::MemHandle
+  \class nvvk::MemHandle
 
-  MemHandle represents a memory allocation or sub-allocation from the
+  nvvk::MemHandle represents a memory allocation or sub-allocation from the
   generic nvvk::MemAllocator interface. Ideally use `nvvk::NullMemHandle` for
   setting to 'NULL'. MemHandle may change to a non-pointer type in future.
 
-  # class nvvk::MemAllocateInfo
+  \class nvvk::MemAllocateInfo
 
-  MemAllocateInfo is collecting almost all parameters a Vulkan allocation could potentially need.
+  nvvk::MemAllocateInfo is collecting almost all parameters a Vulkan allocation could potentially need.
   This keeps MemAllocator's interface simple and extensible.
 */
 
@@ -130,15 +130,15 @@ uint32_t getMemoryType(const VkPhysicalDeviceMemoryProperties& memoryProperties,
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
-  # class nvvk::MemAllocator
+  \class nvvk::MemAllocator
 
- MemAllocator is a Vulkan memory allocator interface extensively used by ResourceAllocator.
+ nvvk::MemAllocator is a Vulkan memory allocator interface extensively used by ResourceAllocator.
  It provides means to allocate, free, map and unmap pieces of Vulkan device memory.
- Concrete implementations derive from MemoryAllocator.
+ Concrete implementations derive from nvvk::MemoryAllocator.
  They can implement the allocator dunctionality themselves or act as an adapter to another
  memory allocator implementation.
 
- A MemAllocator hands out opaque 'MemHandles'. The implementation of the MemAllocator interface
+ A nvvk::MemAllocator hands out opaque 'MemHandles'. The implementation of the MemAllocator interface
  may chose any type of payload to store in a MemHandle. A MemHandle's relevant information can be 
  retrieved via getMemoryInfo().
 */

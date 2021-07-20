@@ -8,6 +8,8 @@
 * license agreement from NVIDIA CORPORATION is strictly prohibited.
 */
 
+/// \nodoc (keyword to exclude this file from automatic README.md generation)
+
 #include "FreeImage.h"
 #include "nvh/nvprint.hpp"
 #include <filesystem>

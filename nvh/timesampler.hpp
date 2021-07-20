@@ -20,7 +20,8 @@
 #pragma once
 #include <chrono>
 //-----------------------------------------------------------------------------
-// TimeSampler work
+/// \struct TimeSampler
+/// TimeSampler does time sampling work
 //-----------------------------------------------------------------------------
 struct TimeSampler
 {
@@ -93,3 +94,28 @@ struct TimeSampler
     return true;
   }
 };
+
+
+/** 
+\struct nvh::Stopwatch
+\brief Timer in milliseconds. 
+
+Starts the timer at creation and the elapsed time is retrieved by calling `elapsed()`. 
+The timer can be reset if it needs to start timing later in the code execution.
+
+Usage:
+````cpp
+nvh::Stopwatch sw;
+...
+LOGI("Elapsed: %f ms\n", sw.elapsed()); // --> Elapsed: 128.157 ms
+````
+*/
+namespace nvh {
+struct Stopwatch
+{
+  Stopwatch() { reset(); }
+  void reset() { startTime = std::chrono::steady_clock::now(); }
+  auto elapsed() { return std::chrono::duration<double>(std::chrono::steady_clock::now() - startTime) * 1000.; }
+  std::chrono::time_point<std::chrono::steady_clock> startTime;
+};
+}  // namespace nvh

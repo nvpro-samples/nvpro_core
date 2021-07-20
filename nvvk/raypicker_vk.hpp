@@ -22,9 +22,9 @@
 
 
 /**
-  # class nvvk::RayPickerKHR
+  \class nvvk::RayPickerKHR
 
-  This is a utility to get hit information under a screen coordinate. 
+  nvvk::RayPickerKHR is a utility to get hit information under a screen coordinate. 
 
   The information returned is: 
     - origin and direction in world space
@@ -43,7 +43,7 @@
 
 
   Example to set the camera interest point 
-    ~~~~~~ C
+    \code{.cpp}
     RayPickerKHR::PickResult pr = m_picker.getResult();
     if(pr.instanceID != ~0) // Hit something
     {
@@ -52,7 +52,7 @@
       CameraManip.getLookat(eye, center, up);
       CameraManip.setLookat(eye, worldPos, up, false); // Nice with CameraManip.updateAnim();
     }
-    ~~~~~~
+    \endcode
 */
 
 #include "nvmath/nvmath.h"
@@ -61,7 +61,6 @@
 #include "nvvk/descriptorsets_vk.hpp"
 #include "nvvk/resourceallocator_vk.hpp"
 #include "nvvk/shaders_vk.hpp"
-#include "vulkan/vulkan.hpp"
 
 namespace nvvk {
 
@@ -163,9 +162,9 @@ private:
   VkDescriptorSet             m_descSet{VK_NULL_HANDLE};
   VkPipelineLayout            m_pipelineLayout{VK_NULL_HANDLE};
   VkPipeline                  m_pipeline{VK_NULL_HANDLE};
-  VkAccelerationStructureKHR  m_tlas;
-  VkPhysicalDevice            m_physicalDevice;
-  VkDevice                    m_device;
+  VkAccelerationStructureKHR  m_tlas{VK_NULL_HANDLE};
+  VkPhysicalDevice            m_physicalDevice{VK_NULL_HANDLE};
+  VkDevice                    m_device{VK_NULL_HANDLE};
   uint32_t                    m_queueIndex{0};
   nvvk::ResourceAllocator*    m_alloc{nullptr};
   nvvk::DebugUtil             m_debug;

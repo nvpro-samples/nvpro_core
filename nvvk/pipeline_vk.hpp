@@ -45,17 +45,17 @@ void dumpPipelineInternals(VkDevice device, VkPipeline pipeline, const char* bas
 
 //--------------------------------------------------------------------------------------------------
 /** 
-# class nvvk::GraphicsPipelineState
+\struct nvvk::GraphicsPipelineState
 
 Most graphic pipelines have similar states, therefore the helper `GraphicsPipelineStage` holds all the elements and 
 initialize the structures with the proper default values, such as the primitive type, `PipelineColorBlendAttachmentState` 
 with their mask, `DynamicState` for viewport and scissor, adjust depth test if enabled, line width to 1 pixel, for 
 example. 
 
-This structure is instantiated using C++ Vulkan objects if VULKAN_HPP is defined, and C otherwise.
+nvvk::GraphicsPipelineState structure is instantiated using C++ Vulkan objects if VULKAN_HPP is defined, and C otherwise.
 
 Example of usage :
-~~~~ c++
+\code{.cpp}
 nvvk::GraphicsPipelineState pipelineState();
 pipelineState.depthStencilState.setDepthTestEnable(true);
 pipelineState.rasterizationState.setCullMode(vk::CullModeFlagBits::eNone);
@@ -64,7 +64,7 @@ pipelineState.addAttributeDescriptions ({
     {0, 0, vk::Format::eR32G32B32Sfloat, static_cast<uint32_t>(offsetof(Vertex, pos))},
     {1, 0, vk::Format::eR32G32B32Sfloat, static_cast<uint32_t>(offsetof(Vertex, nrm))},
     {2, 0, vk::Format::eR32G32B32Sfloat, static_cast<uint32_t>(offsetof(Vertex, col))}});
-~~~~
+\endcode
 */
 
 
@@ -420,15 +420,15 @@ private:
 
 //--------------------------------------------------------------------------------------------------
 /** 
-# class nvvk::GraphicsPipelineGenerator
+\struct nvvk::GraphicsPipelineGenerator
 
 The graphics pipeline generator takes a GraphicsPipelineState object and pipeline-specific information such as 
 the render pass and pipeline layout to generate the final pipeline. 
 
-This structure is instantiated using C++ Vulkan objects if VULKAN_HPP is defined, and C otherwise.
+nvvk::GraphicsPipelineGenerator structure is instantiated using C++ Vulkan objects if VULKAN_HPP is defined, and C otherwise.
 
 Example of usage :
-~~~~ c++
+\code{.cpp}
 nvvk::GraphicsPipelineState pipelineState();
 ...
 nvvk::GraphicsPipelineGenerator pipelineGenerator(m_device, m_pipelineLayout, m_renderPass, pipelineState);
@@ -436,7 +436,7 @@ pipelineGenerator.addShader(readFile("spv/vert_shader.vert.spv"), VkShaderStageF
 pipelineGenerator.addShader(readFile("spv/frag_shader.frag.spv"), VkShaderStageFlagBits::eFragment);
 
 m_pipeline = pipelineGenerator.createPipeline();
-~~~~
+\endcode
 */
 
 struct GraphicsPipelineGenerator
@@ -628,13 +628,13 @@ private:
 
 //--------------------------------------------------------------------------------------------------
 /** 
-# class nvvk::GraphicsPipelineGeneratorCombined
+\class nvvk::GraphicsPipelineGeneratorCombined
 
 In some cases the application may have each state associated to a single pipeline. For convenience, 
-GraphicsPipelineGeneratorCombined combines both the state and generator into a single object.
+nvvk::GraphicsPipelineGeneratorCombined combines both the state and generator into a single object.
 
 Example of usage :
-~~~~ c++
+\code{.cpp}
 nvvk::GraphicsPipelineGeneratorCombined pipelineGenerator(m_device, m_pipelineLayout, m_renderPass);
 pipelineGenerator.depthStencilState.setDepthTestEnable(true);
 pipelineGenerator.rasterizationState.setCullMode(vk::CullModeFlagBits::eNone);
@@ -648,7 +648,7 @@ pipelineGenerator.addShader(readFile("spv/vert_shader.vert.spv"), VkShaderStageF
 pipelineGenerator.addShader(readFile("spv/frag_shader.frag.spv"), VkShaderStageFlagBits::eFragment);
 
 m_pipeline = pipelineGenerator.createPipeline();
-~~~~
+\endcode
 */
 
 

@@ -26,19 +26,25 @@
 
 using namespace nvmath;
 
-//-----------------------------------------------------------------------------
-// Camera
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------------------
+/// \struct InertiaCamera
+/// \brief Struct that offers a camera moving with some inertia effect around a target point
+///
+/// InertiaCamera exposes a mix of pseudo polar rotation around a target point and
+/// some other movements to translate the target point, zoom in and out.
+/// 
+/// Either the keyboard or mouse can be used for all of the moves.
+//------------------------------------------------------------------------------------------
 struct InertiaCamera
 {
-  vec3f curEyePos, curFocusPos, curObjectPos;
-  vec3f eyePos, focusPos, objectPos;
-  float tau;
+  vec3f curEyePos, curFocusPos, curObjectPos; ///< Current position of the motion
+  vec3f eyePos, focusPos, objectPos;          ///< expected posiions to reach
+  float tau;                                  ///< acceleration factor in the motion function
   float epsilon;
   float eyeD;
   float focusD;
   float objectD;
-  mat4f m4_view;
+  mat4f m4_view;                              ///< transformation matrix resulting from the computation
   //------------------------------------------------------------------------------
   //
   //------------------------------------------------------------------------------
@@ -121,9 +127,9 @@ struct InertiaCamera
       focusPos -= po;
     eyePos = p;
   }
-  //------------------------------------------------------------------------------
-  //
-  //------------------------------------------------------------------------------
+  //------------------------------------------------------------------------------------
+  /// \brief simulation step to call with a proper time interval to update the animation
+  //------------------------------------------------------------------------------------
   bool update(float dt)
   {
     if(dt > (1.0f / 60.0f))
@@ -192,7 +198,9 @@ struct InertiaCamera
     return bContinue;
   }
   //------------------------------------------------------------------------------
-  //
+  /// \brief Call this function to update the camera position and targets position
+  /// \arg *reset* set to true will directly update the actual positions without
+  /// performing the animation for transitioning.
   //------------------------------------------------------------------------------
   void look_at(const vec3f& eye, const vec3f& center /*, const vec3f& up*/, bool reset = false)
   {
@@ -209,7 +217,9 @@ struct InertiaCamera
     }
   }
   //------------------------------------------------------------------------------
-  //
+  /// \brief debug information of camera position and target position
+  /// Particularily useful to record a bunch of positions that can later be 
+  /// reuses as "recorded" presets
   //------------------------------------------------------------------------------
   void print_look_at(bool cppLike = false)
   {

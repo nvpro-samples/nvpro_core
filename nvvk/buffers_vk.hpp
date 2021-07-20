@@ -41,11 +41,11 @@ namespace nvvk {
   - getBufferDeviceAddressKHR : wraps vkGetBufferDeviceAddressKHR
   - getBufferDeviceAddress : wraps vkGetBufferDeviceAddress
 
-  ~~~ C++
+  \code{.cpp}
   VkBufferCreateInfo bufferCreate = makeBufferCreateInfo (size, VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT);
   VkBuffer buffer                 = createBuffer(device, bufferCreate);
   VkBufferView bufferView         = createBufferView(device, makeBufferViewCreateInfo(buffer, VK_FORMAT_R8G8B8A8_UNORM, size));
-  ~~~
+  \endcode
 */
 
 // implicitly sets VK_BUFFER_USAGE_TRANSFER_DST_BIT

@@ -1,5 +1,8 @@
 #ifndef __NSIGHTEVENTS__
 #define __NSIGHTEVENTS__
+
+/// \nodoc (keyword to exclude this file from automatic README.md generation)
+
 //-----------------------------------------------------------------------------
 // NSIGHT
 //-----------------------------------------------------------------------------

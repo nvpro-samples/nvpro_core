@@ -78,9 +78,9 @@ struct ContextWindowCreateInfo
 };
 
 /**
-  # class nvgl::ContextWindow
+  \class nvgl::ContextWindow
   
-  Sets up an OpenGL context from a provided `GLFWwindow`.
+  nvgl::ContextWindow sets up an OpenGL context from a provided `GLFWwindow`.
   Makes use of `glDebugMessageCallback` to hook up an error callback
   and loads all extensions provided by `extensions_gl.hpp`
 */

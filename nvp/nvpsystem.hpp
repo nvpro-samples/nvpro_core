@@ -55,46 +55,43 @@ inline void __cdecl operator delete(void* ptr, const char* file, int line)
 
 #include <nvh/nvprint.hpp>
 
+////////////////////////////////////////////////////////////////////////
+/// \class NVPSystem
+/// \brief NVPSystem is a utility class to handle some basic system
+/// functionality that all projects likely make use of.
+///
+/// It does not require any window to be opened.
+/// Typical usage is calling init right after main and deinit
+/// in the end, or use the NVPSystem object for that.
+/// init
+/// - calls glfwInit and registers the error callback for it
+/// - sets up and log filename based on projectName via nvprintSetLogFileName
+/// - if NVP_SUPPORTS_SOCKETS is set, starts socket server as well
 class NVPSystem
 {
 public:
-  ////////////////////////////////////////////////////////////////////////
-  //
-  // NVPSystem is a utility class to handle some basic system
-  // functionality that all projects likely make use of.
-  // It does not require any window to be opened.
-  // Typical usage is calling init right after main and deinit
-  // in the end, or use the NVPSystem object for that.
-
-  // init
-  // - calls glfwInit and registers the error callback for it
-  // - sets up and log filename based on projectName via nvprintSetLogFileName
-  // - if NVP_SUPPORTS_SOCKETS is set, starts socket server as well
   static void init(const char* projectName);
   static void deinit();
 
-  static void pollEvents();
-  static void waitEvents();
+  static void pollEvents(); ///< polls events. Non blicking
+  static void waitEvents(); ///< wait for events. Will return when at least 1 event happened
   static void postTiming(float ms, int fps, const char* details = NULL);
 
-  static double getTime();  // in seconds
+  static double getTime();  ///< returns time in seconds
   static void   sleep(double seconds);
 
-  // exePath() can be called without init called before
-  static std::string exePath();
+  static std::string exePath(); ///< exePath() can be called without init called before
 
   static bool isInited();
 
-  // uses operating system specific code
-
-  // for sake of debugging/automated testing
+  /// for sake of debugging/automated testing
   static void windowScreenshot(struct GLFWwindow* glfwin, const char* filename);
   static void windowClear(struct GLFWwindow* glfwin, uint32_t r, uint32_t g, uint32_t b);
-  // simple modal dialog
+  /// \namesimple modal dialog
+  /// @{
   static std::string windowOpenFileDialog(struct GLFWwindow* glfwin, const char* title, const char* exts);
   static std::string windowSaveFileDialog(struct GLFWwindow* glfwin, const char* title, const char* exts);
-
-  // simple helper class, put it into your main function
+  /// @}
   NVPSystem(const char* projectName) { init(projectName); }
   ~NVPSystem() { deinit(); }
 

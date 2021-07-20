@@ -17,5 +17,5 @@
  * SPDX-License-Identifier: Apache-2.0
  */
  //--------------------------------------------------------------------
-
+/// \nodoc
 #include <nvgl/extensions_gl.hpp>

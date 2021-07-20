@@ -28,9 +28,9 @@
 
 namespace nvh {
 /**
-  # class nvh::CameraManipulator
+  \class nvh::CameraManipulator
 
-  This is a camera manipulator help class
+  nvh::CameraManipulator is a camera manipulator help class
   It allow to simply do
   - Orbit        (LMB)
   - Pan          (LMB + CTRL  | MMB)
@@ -54,7 +54,7 @@ namespace nvh {
 
   Note: There is a singleton `CameraManip` which can be use across the entire application
 
-  ~~~ C++
+  \code{.cpp}
   // Retrieve/set camera information
   CameraManip.getLookat(eye, center, up);
   CameraManip.setLookat(eye, center, nvmath::vec3f(m_upVector == 0, m_upVector == 1, m_upVector == 2));
@@ -72,7 +72,7 @@ namespace nvh {
   CameraManip.wheel(delta > 0 ? 1 : -1, m_inputs);
   // Retrieve the matrix to push to the shader
   m_ubo.view = CameraManip.getMatrix();	
-  ~~~
+  \endcode
 
 */
 

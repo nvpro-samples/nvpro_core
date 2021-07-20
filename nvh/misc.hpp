@@ -30,16 +30,14 @@
 
 #include "nvprint.hpp"
 
-
-/** 
-  # functions in nvh
-
-  - mipMapLevels : compute number of mip maps
-  - stringFormat : sprintf for std::string
-  - frand : random float using rand()
-  - permutation : fills uint vector with random permutation of values [0... vec.size-1]
-
-*/
+/**
+ # functions in nvh
+ 
+ - mipMapLevels : compute number of mip maps
+ - stringFormat : sprintf for std::string
+ - frand : random float using rand()
+ - permutation : fills uint vector with random permutation of values [0... vec.size-1]
+ */
 
 namespace nvh {
 

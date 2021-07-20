@@ -32,16 +32,16 @@ namespace nvvk {
 
 //--------------------------------------------------------------------------------------------------
 /**
- # class nvvk::Axis
+ \class nvvk::Axis
 
- Display an Axis representing the orientation of the camera in the bottom left corner of the window.
+ nvvk::Axis displays an Axis representing the orientation of the camera in the bottom left corner of the window.
  - Initialize the Axis using `init()`
  - Add `display()` in a inline rendering pass, one of the lass command
  
  Example:  
- ~~~~~~ C++
+ \code{.cpp}
  m_axis.display(cmdBuf, CameraManip.getMatrix(), windowSize);
- ~~~~~~ 
+ \endcode 
 */
 
 class AxisVK

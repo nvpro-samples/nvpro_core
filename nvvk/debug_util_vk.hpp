@@ -18,11 +18,12 @@
  */
 
 
-// This is a companion utility to add debug information to an application
-// See https://vulkan.lunarg.com/doc/sdk/1.1.114.0/windows/chunked_spec/chap39.html
-// - User defined name to objects
-// - Logically annotate region of command buffers
-// - Scoped command buffer label to make thing simpler
+/// \class DebugUtil
+/// This is a companion utility to add debug information to an application
+/// See https://vulkan.lunarg.com/doc/sdk/1.1.114.0/windows/chunked_spec/chap39.html
+/// - User defined name to objects
+/// - Logically annotate region of command buffers
+/// - Scoped command buffer label to make thing simpler
 
 #pragma once
 

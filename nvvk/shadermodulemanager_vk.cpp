@@ -30,16 +30,101 @@
 #include <nvh/fileoperations.hpp>
 #include <nvh/nvprint.hpp>
 
+#if NVP_SUPPORTS_SHADERC
+#include <shaderc/shaderc.hpp>
+#endif
+
 #define NV_LINE_MARKERS 1
 
 
 namespace nvvk {
 
 const VkShaderModule ShaderModuleManager::PREPROCESS_ONLY_MODULE = (VkShaderModule)~0;
+
 #if NVP_SUPPORTS_SHADERC
-shaderc_compiler_t ShaderModuleManager::s_shadercCompiler      = nullptr;
-uint32_t           ShaderModuleManager::s_shadercCompilerUsers = 0;
-#endif
+// Shared shaderc compiler, and reference count + mutex protecting it.
+shaderc_compiler_t ShaderModuleManager::s_shadercCompiler = nullptr;
+uint32_t           ShaderModuleManager::s_shadercCompilerUsers{0};
+std::mutex         ShaderModuleManager::s_shadercCompilerMutex;
+
+// Adapts the include file loader of nvh::ShaderFileManager to what shaderc expects.
+class ShadercIncludeBridge : public shaderc::CompileOptions::IncluderInterface
+{
+  // Borrowed pointer to our include file loader.
+  nvvk::ShaderModuleManager* m_pShaderFileManager;
+
+  // Inputs/outputs reused for manualInclude.
+  std::string       m_filenameFound;
+  const std::string m_emptyString;
+
+  // Subtype of shaderc_include_result that holds the include data
+  // we found; MUST be static_cast to this type before delete-ing as
+  // shaderc_include_result lacks virtual destructor.
+  class Result : public shaderc_include_result
+  {
+    // Containers for actual data; shaderc_include_result pointers
+    // point to data held within.
+    const std::string m_content;
+    const std::string m_filenameFound;
+
+  public:
+    Result(std::string content, std::string filenameFound)
+        : m_content(std::move(content))
+        , m_filenameFound(std::move(filenameFound))
+    {
+      this->source_name        = m_filenameFound.data();
+      this->source_name_length = m_filenameFound.size();
+      this->content            = m_content.data();
+      this->content_length     = m_content.size();
+      this->user_data          = nullptr;
+    }
+  };
+
+public:
+  ShadercIncludeBridge(nvvk::ShaderModuleManager* pShaderFileManager) { m_pShaderFileManager = pShaderFileManager; }
+
+  // Handles shaderc_include_resolver_fn callbacks.
+  virtual shaderc_include_result* GetInclude(const char*          requested_source,
+                                             shaderc_include_type type,
+                                             const char*          requesting_source,
+                                             size_t /*include_depth*/) override
+  {
+    std::string filename = requested_source;
+    std::string includeFileText;
+    bool versionFound = false;  // Trying to match glslc behavior: it doesn't allow #version directives in include files.
+    if(type == shaderc_include_type_relative)  // "header.h"
+    {
+      includeFileText = m_pShaderFileManager->getContentWithRequestingSourceDirectory(filename, m_filenameFound, requesting_source);
+    }
+    else  // shaderc_include_type_standard <header.h>
+    {
+      includeFileText = m_pShaderFileManager->getContent(filename, m_filenameFound);
+    }
+    std::string content = m_pShaderFileManager->manualIncludeText(includeFileText, m_filenameFound, m_emptyString, versionFound);
+    return new Result(std::move(content), std::move(m_filenameFound));
+  }
+
+  // Handles shaderc_include_result_release_fn callbacks.
+  virtual void ReleaseInclude(shaderc_include_result* data) override { delete static_cast<Result*>(data); }
+
+  // Set as the includer for the given shaderc_compile_options_t.
+  // This ShadercIncludeBridge MUST not be destroyed while in-use by a
+  // shaderc compiler using these options.
+  void setAsIncluder(shaderc_compile_options_t options)
+  {
+    shaderc_compile_options_set_include_callbacks(
+        options,
+        [](void* pvShadercIncludeBridge, const char* requestedSource, int type, const char* requestingSource, size_t includeDepth) {
+          return static_cast<ShadercIncludeBridge*>(pvShadercIncludeBridge)
+              ->GetInclude(requestedSource, (shaderc_include_type)type, requestingSource, includeDepth);
+        },
+        [](void* pvShadercIncludeBridge, shaderc_include_result* includeResult) {
+          return static_cast<ShadercIncludeBridge*>(pvShadercIncludeBridge)->ReleaseInclude(includeResult);
+        },
+        this);
+  }
+};
+#endif /* NVP_SUPPORTS_SHADERC */
 
 std::string ShaderModuleManager::DefaultInterface::getTypeDefine(uint32_t type) const
 {
@@ -175,6 +260,7 @@ bool ShaderModuleManager::setupShaderModule(ShaderModule& module)
     shaderc_compilation_result_t result = nullptr;
     if(definition.filetype == FILETYPE_GLSL)
     {
+      std::lock_guard<std::mutex> guard(s_shadercCompilerMutex);
       shaderc_shader_kind shaderkind = (shaderc_shader_kind)m_usedSetupIF->getTypeShadercKind(definition.type);
       shaderc_compile_options_t options = (shaderc_compile_options_t)m_usedSetupIF->getShadercCompileOption(s_shadercCompiler);
       if(!options)
@@ -202,8 +288,13 @@ bool ShaderModuleManager::setupShaderModule(ShaderModule& module)
         options = m_shadercOptions;
       }
 
+      // Tell shaderc to use this class (really our base class, nvh::ShaderFileManager) to load include files.
+      ShadercIncludeBridge shadercIncludeBridge(this);
+      shadercIncludeBridge.setAsIncluder(options);
+
+      // Note: need filenameFound, not filename, so that relative includes work.
       result = shaderc_compile_into_spv(s_shadercCompiler, definition.content.c_str(), definition.content.size(),
-                                        shaderkind, definition.filename.c_str(), "main", options);
+                                        shaderkind, definition.filenameFound.c_str(), "main", options);
 
       if(!result)
       {
@@ -286,7 +377,7 @@ void ShaderModuleManager::init(VkDevice device, int apiMajor, int apiMinor)
 void ShaderModuleManager::deinit()
 {
   deleteShaderModules();
-  m_device = VK_NULL_HANDLE;
+  m_device = nullptr;
 }
 
 ShaderModuleID ShaderModuleManager::createShaderModule(const Definition& definition)

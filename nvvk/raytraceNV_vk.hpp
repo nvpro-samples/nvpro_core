@@ -21,16 +21,16 @@
 
 /**
 
-# class nvvk::RaytracingBuilderNV
+\class nvvk::RaytracingBuilderNV
 
-Base functionality of raytracing
+\brief nvvk::RaytracingBuilderNV is a base functionality of raytracing
 
 This class does not implement all what you need to do raytracing, but
 helps creating the BLAS and TLAS, which then can be used by different
 raytracing usage.
 
 # Setup and Usage
-~~~~ C++
+\code{.cpp}
 m_rtBuilder.setup(device, memoryAllocator, queueIndex);
 // Create array of VkGeometryNV
 m_rtBuilder.buildBlas(allBlas);
@@ -38,7 +38,7 @@ m_rtBuilder.buildBlas(allBlas);
 m_rtBuilder.buildTlas(instances);
 // Retrieve the acceleration structure
 const VkAccelerationStructureNV& tlas = m.rtBuilder.getAccelerationStructure()
-~~~~
+\endcode
 */
 
 

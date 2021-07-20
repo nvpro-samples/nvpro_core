@@ -21,9 +21,9 @@
 
 /**
 
-# class nvvk::RaytracingBuilderKHR
+\class nvvk::RaytracingBuilderKHR
 
-Base functionality of raytracing
+\brief nvvk::RaytracingBuilderKHR is a base functionality of raytracing
 
 This class acts as an owning container for a single top-level acceleration
 structure referencing any number of bottom-level acceleration structures.
@@ -41,7 +41,7 @@ purposes, this class prioritizes (relative) understandability over
 performance, so vkQueueWaitIdle is implicitly used everywhere.
 
 # Setup and Usage
-~~~~ C++
+\code{.cpp}
 // Borrow a VkDevice and memory allocator pointer (must remain
 // valid throughout our use of the ray trace builder), and
 // instantiate an unspecified queue of the given family for use.
@@ -60,7 +60,7 @@ m_rtBuilder.buildTlas(instances);
 
 // Retrieve the handle to the acceleration structure.
 const VkAccelerationStructureKHR tlas = m.rtBuilder.getAccelerationStructure()
-~~~~
+\endcode
 */
 
 #include <mutex>

@@ -42,9 +42,10 @@ namespace nvh {
 
 //////////////////////////////////////////////////////////////////////////
 /**
-    # class nvh::Profiler
+    \class nvh::Profiler
 
-    The Profiler class is designed to measure timed sections.
+    \brief The nvh::Profiler class is designed to measure timed sections.
+
     Each section has a cpu and gpu time. Gpu times are typically provided
     by derived classes for each individual api (e.g. OpenGL, Vulkan etc.).
     
@@ -60,13 +61,13 @@ namespace nvh {
 class Profiler
 {
 public:
-  // if we detect a change in timers (api/name change we trigger a reset after that amount of frames)
+  /// if we detect a change in timers (api/name change we trigger a reset after that amount of frames)
   static const uint32_t CONFIG_DELAY = 8;
-  // gpu times are queried after that amount of frames
+  /// gpu times are queried after that amount of frames
   static const uint32_t FRAME_DELAY = 4;
-  // by default we start with space for that many begin/end sections per-frame
+  /// by default we start with space for that many begin/end sections per-frame
   static const uint32_t START_SECTIONS = 64;
-  // cyclic window for averaging
+  /// cyclic window for averaging
   static const uint32_t MAX_NUM_AVERAGE = 128;
 
 public:

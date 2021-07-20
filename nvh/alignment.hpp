@@ -17,11 +17,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+/// \nodoc (keyword to exclude this file from automatic README.md generation)
 
 #pragma once
 
 #ifndef NVH_ALIGNEMENT_HPP
 #define NVH_ALIGNEMENT_HPP 1
+
+#include <stddef.h> // for size_t
 
 namespace nvh {
 template <class integral>

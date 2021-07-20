@@ -30,7 +30,9 @@
 namespace nvvk {
 
 /**
-# class nvvk::SwapChain
+\class nvvk::SwapChain
+
+\brief nvvk::SwapChain is a helper to handle swapchain setup and use
 
 In Vulkan, we have to use `VkSwapchainKHR` to request a swap chain
 (front and back buffers) from the operating system and manually
@@ -63,8 +65,8 @@ Example in combination with nvvk::Context :
 * create its related surface
 * make sure the Queue is the one we need to render in this surface
 
-~~~ C++
-// could be arguments of a function/method :
+\code{.cpp}
+// could {.cpp}be arguments of a function/method :
 nvvk::Context ctx;
 NVPWindow     win;
 ...
@@ -78,22 +80,22 @@ result = vkCreateWin32SurfaceKHR(ctx.m_instance, &createInfo, nullptr, &m_surfac
 ...
 // make sure we assign the proper Queue to m_queueGCT, from what the surface tells us
 ctx.setGCTQueueWithPresent(m_surface);
-~~~
+\endcode
 
 The initialization can happen now :
 
-~~~ C+
+\code{.cpp}
 m_swapChain.init(ctx.m_device, ctx.m_physicalDevice, ctx.m_queueGCT, ctx.m_queueGCT.familyIndex,
                  m_surface, VK_FORMAT_B8G8R8A8_UNORM);
 ...
 // after init or update you also have to setup the image layouts at some point
 VkCommandBuffer cmd = ...
 m_swapChain.cmdUpdateBarriers(cmd);
-~~~
+\endcode
 
 During a resizing of a window, you can update the swapchain as well :
 
-~~~ C++
+\code{.cpp}
 bool WindowSurface::resize(int w, int h)
 {
 ...
@@ -101,12 +103,12 @@ bool WindowSurface::resize(int w, int h)
   // be cautious to also transition the image layouts
 ...
 }
-~~~
+\endcode
 
 
 A typical renderloop would look as follows:
 
-~~~ C++
+\code{.cpp}
   // handles vkAcquireNextImageKHR and setting the active image
   // w,h only needed if update(w,h) not called reliably.
   int w, h;
@@ -165,7 +167,7 @@ A typical renderloop would look as follows:
   // this will also setup the dependency for the appropriate written semaphore
   // and bump the semaphore cycle
   m_swapChain.present(m_queue);
-~~~
+\endcode
 
 */
 

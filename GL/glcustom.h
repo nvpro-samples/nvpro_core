@@ -2,6 +2,8 @@
    extensions and add OpenGL 1.1 compatibility
 */
 
+/// \nodoc (keyword to exclude this file from automatic README.md generation)
+
 #if defined(__gl_h_) || defined(__gl_glext_h_)
 #error "must not include GL.h or glext.h prior this"
 #endif

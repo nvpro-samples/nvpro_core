@@ -27,9 +27,9 @@ namespace nvvk {
 class DeviceMemoryAllocator;
 
 /**
- # class nvvk::DMAMemoryAllocator
- DMAMemoryAllocator is  using nvvk::DeviceMemoryAllocator internally.
- DeviceMemoryAllocator derives from MemAllocator as well, so this class here is for those prefering a reduced wrapper;
+ \class nvvk::DMAMemoryAllocator
+ nvvk::DMAMemoryAllocator is  using nvvk::DeviceMemoryAllocator internally.
+ nvvk::DeviceMemoryAllocator derives from nvvk::MemAllocator as well, so this class here is for those prefering a reduced wrapper;
 */
 class DMAMemoryAllocator : public MemAllocator
 {

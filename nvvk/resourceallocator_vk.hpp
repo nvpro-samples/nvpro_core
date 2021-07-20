@@ -30,9 +30,9 @@
 
 
  /**
- # class nvvk::ResourceAllocator
+ \class nvvk::ResourceAllocator
 
- The goal of this class is to aid creation of typical Vulkan
+ The goal of nvvk::ResourceAllocator is to aid creation of typical Vulkan
  resources (VkBuffer, VkImage and VkAccelerationStructure).
  All memory is allocated using the provided [nvvk::MemAllocator](#class-nvvkmemallocator)
  and bound to the appropriate resources. The allocator contains a 
@@ -71,7 +71,7 @@
  > They are geared towards ease of use in this sample framework, and 
  > not optimized nor meant for production code.
 
- ~~~ C++
+ \code{.cpp}
  nvvk::DeviceMemoryAllocator memAllocator;
  nvvk::ResourceAllocator     resAllocator;
 
@@ -100,7 +100,7 @@
  // trigger garbage collection somewhere per frame
  resAllocator.releaseStaging();
 
- ~~~
+ \endcode
 
  Separation of memory allocation and resource creation is very flexible, but it
  can be tedious to set up for simple usecases. nvvk offers three helper ResourceAllocator
@@ -398,8 +398,8 @@ public:
 class DeviceMemoryAllocator;
 
 /**
- # class nvvk::ResourceAllocatorDma
- ResourceAllocatorDMA is a convencience class owning a DMAMemoryAllocator and DeviceMemoryAllocator object
+ \class nvvk::ResourceAllocatorDma
+ nvvk::ResourceAllocatorDMA is a convencience class owning a nvvk::DMAMemoryAllocator and nvvk::DeviceMemoryAllocator object
 */
 class ResourceAllocatorDma : public ResourceAllocator
 {
@@ -426,8 +426,8 @@ protected:
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- # class nvvk::ResourceAllocatorDedicated
- ResourceAllocatorDedicated is a convencience class automatically creating and owning a DedicatedMemoryAllocator object
+ \class nvvk::ResourceAllocatorDedicated
+ \brief nvvk::ResourceAllocatorDedicated is a convencience class automatically creating and owning a DedicatedMemoryAllocator object
  */
 class ResourceAllocatorDedicated : public ResourceAllocator
 {
@@ -476,8 +476,8 @@ protected:
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- # class nvvk::ExportResourceAllocatorDedicated
- ExportResourceAllocatorDedicated is a resource allocator that is using DedicatedMemoryAllocator to allocate memory
+ \class nvvk::ExportResourceAllocatorDedicated
+ nvvk::ExportResourceAllocatorDedicated is a resource allocator that is using DedicatedMemoryAllocator to allocate memory
  and at the same time it'll make all allocations exportable.
 */
 class ExportResourceAllocatorDedicated : public ExportResourceAllocator
@@ -499,8 +499,8 @@ protected:
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- # class nvvk::ExplicitDeviceMaskResourceAllocator
- ExplicitDeviceMaskResourceAllocator is a resource allocator that will inject a specific devicemask into each
+ \class nvvk::ExplicitDeviceMaskResourceAllocator
+ nvvk::ExplicitDeviceMaskResourceAllocator is a resource allocator that will inject a specific devicemask into each
  allocation, making the created allocations and objects available to only the devices in the mask.
 */
 class ExplicitDeviceMaskResourceAllocator : public ResourceAllocator

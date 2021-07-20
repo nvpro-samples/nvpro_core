@@ -28,14 +28,14 @@
 #include "nvprint.hpp"
 
 /**
-  # functions in nvh
+ # functions in nvh
 
-  - fileExists : check if file exists
-  - findFile : finds filename in provided search directories
-  - loadFile : (multiple overloads) loads file as std::string, binary or text, can also search in provided directories
-  - getFileName : splits filename from filename with path
-  - getFilePath : splits filepath from filename with path
-*/
+ - nvh::fileExists : check if file exists
+ - nvh::findFile : finds filename in provided search directories
+ - nvh::loadFile : (multiple overloads) loads file as std::string, binary or text, can also search in provided directories
+ - nvh::getFileName : splits filename from filename with path
+ - nvh::getFilePath : splits filepath from filename with path
+ */
 
 namespace nvh {
 

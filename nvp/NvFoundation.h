@@ -17,7 +17,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
  //--------------------------------------------------------------------
-
+/// \nodoc
 #ifndef NV_FOUNDATION_H
 #define NV_FOUNDATION_H
 

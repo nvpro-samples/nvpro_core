@@ -53,7 +53,7 @@ namespace nvvk {
 
 # class nvvk::AppBaseVk
 
-This simple framework is used in a few samples, can serve as base class for various needs.
+nvvk::AppBaseVk is used in a few samples, can serve as base class for various needs.
 They might differ a bit in setup and functionality, but in principle aid the setup of context and window,
 as well as some common event processing.
 
@@ -65,11 +65,11 @@ for the render passes and the swapchain.
 
 An example will derive from this class:
 
-~~~~ C++
+\code{.cpp}
 class VkSample : public AppBaseVk 
 {
 };
-~~~~
+\endcode
 
 ## Setup
 
@@ -94,11 +94,11 @@ in a sample, but default implementation exist.
 
 Here is the dependency order:
 
-~~~~C++
+\code{.cpp}
   vkSample.createDepthBuffer();
   vkSample.createRenderPass();
   vkSample.createFrameBuffers();
-~~~~
+\endcode
 
 
 The nvvk::Swapchain will create n images, typically 3. With this information, AppBase is also creating 3 VkFence, 
@@ -106,7 +106,7 @@ The nvvk::Swapchain will create n images, typically 3. With this information, Ap
 
 ### Frame Buffers
 
-The created frame buffers are “display” frame buffers,  made to be presented on screen. The frame buffers will be created 
+The created frame buffers are *display* frame buffers,  made to be presented on screen. The frame buffers will be created 
 using one of the images from swapchain, and a depth buffer. There is only one depth buffer because that resource is not 
 used simultaneously. For example, when we clear the depth buffer, it is not done immediately, but done through a command 
 buffer, which will be executed later. 
@@ -116,9 +116,9 @@ buffer, which will be executed later.
 
 ### Command Buffers
 
-AppBase works with 3 “frame command buffers”. Each frame is filling a command buffer and gets submitted, one after the 
+AppBase works with 3 *frame command buffers*. Each frame is filling a command buffer and gets submitted, one after the 
 other. This is a design choice that can be debated, but makes it simple. I think it is still possible to submit other 
-command buffers in a frame, but those command buffers will have to be submitted before the “frame” one. The “frame” 
+command buffers in a frame, but those command buffers will have to be submitted before the *frame* one. The *frame* 
 command buffer when submitted with submitFrame, will use the current fence.
 
 ### Fences
@@ -147,7 +147,7 @@ will handle the default ImGui callback .
 
 **Note**: All the methods are virtual and can be overloaded if they are not doing the typical setup. 
 
-~~~~ C++
+\code{.cpp}
   // Create example
   VulkanSample vkSample;
 
@@ -164,7 +164,7 @@ will handle the default ImGui callback .
   vkSample.setupGlfwCallbacks(window);
   
   ImGui_ImplGlfw_InitForVulkan(window, true);
-~~~~
+\endcode
 
 ## Drawing loop
 
@@ -173,7 +173,7 @@ AppBase has a convenient function to tell if the window is minimize, therefore n
 work and contain a sleep(), so the CPU is not going crazy. 
 
 
-~~~~ C++
+\code{.cpp}
 // Window system loop
 while(!glfwWindowShouldClose(window))
 {
@@ -183,7 +183,7 @@ while(!glfwWindowShouldClose(window))
 
   vkSample.display();  // infinitely drawing
 }
-~~~~
+\endcode
 
 ## Display
 
@@ -197,7 +197,7 @@ A typical display() function will need the following:
 * End rendering
 * Submitting frame to display
 
-~~~~ C++
+\code{.cpp}
 void VkSample::display()
 {
   // Acquire 
@@ -238,15 +238,15 @@ void VkSample::display()
   vkEndCommandBuffer(cmdBuf);
   submitFrame();
 }
-~~~~~
+\endcode
 
 ## Closing
 
 Finally, all resources can be destroyed by calling `destroy()` at the end of main().
 
-~~~~ C++
+\code{.cpp}
   vkSample.destroy();
-~~~~
+\endcode
 
 */
 

@@ -17,6 +17,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+/// \nodoc (keyword to exclude this file from automatic README.md generation)
 
 #ifndef NV_BASEGL_H_INCLUDED
 #define NV_BASEGL_H_INCLUDED
@@ -178,7 +179,7 @@ inline void bindMultiTexture(GLenum target, GLenum textarget, GLuint tex)
     * newQuery / deleteQuery
     * newVertexArray / deleteVertexArray
 
-    ~~~ C++
+    \code{.cpp}
     // typical use-case
     FrameBuffer::resize(int with, int height){
       newFramebuffer(m_fbo);
@@ -189,7 +190,7 @@ inline void bindMultiTexture(GLenum target, GLenum textarget, GLuint tex)
       glNamedFramebufferTexture(m_fbo, GL_COLOR_ATTACHMENT0,        m_color, 0);
       glNamedFramebufferTexture(m_fbo, GL_DEPTH_STENCIL_ATTACHMENT, m_depthStencil, 0);
     }
-    ~~~
+    \endcode
   */
 
 inline void newBuffer(GLuint& glid)

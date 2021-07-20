@@ -33,17 +33,23 @@ class ShaderFileManager
 
   //////////////////////////////////////////////////////////////////////////
   /**
-    # class nvh::ShaderFileManager
+    \class nvh::ShaderFileManager
 
-    The ShaderFileManager class is meant to be derived from to create the actual api-specific 
+    The nvh::ShaderFileManager class is meant to be derived from to create the actual api-specific
     shader/program managers.
 
     The ShaderFileManager provides a system to find/load shader files.
     It also allows resolving #include instructions in HLSL/GLSL source files.
     Such includes can be registered before pointing to strings in memory.
 
-    Furthermore it handles injecting prepended strings (typically used for #defines) 
-    after the #version statement of GLSL files.
+    If m_handleIncludePasting is true, then `#include`s are replaced by
+    the include file contents (recursively) before presenting the
+    loaded shader source code to the caller. Otherwise, the include file
+    loader is still available but `#include`s are left unchanged.
+
+    Furthermore it handles injecting prepended strings (typically used
+    for #defines) after the #version statement of GLSL files,
+    regardless of m_handleIncludePasting's value.
 
   */
 
@@ -144,12 +150,13 @@ public:
   // add search directories
   void addDirectory(const std::string& dir) { m_directories.push_back(dir); }
 
-  ShaderFileManager()
-      : m_forceLineFilenames(false)
+  ShaderFileManager(bool handleIncludePasting = true)
+      : m_filetype(FILETYPE_GLSL)
       , m_lineMarkers(true)
+      , m_forceLineFilenames(false)
       , m_forceIncludeContent(false)
       , m_supportsExtendedInclude(false)
-      , m_filetype(FILETYPE_GLSL)
+      , m_handleIncludePasting(handleIncludePasting)
   {
     m_directories.push_back(".");
   }
@@ -168,16 +175,26 @@ protected:
   std::string markerString(int line, std::string const& filename, int fileid);
   std::string getIncludeContent(IncludeID idx, std::string& filenameFound);
   std::string getContent(std::string const& filename, std::string& filenameFound);
-  std::string manualInclude(std::string const& filename, std::string& filenameFound, std::string const& prepend, bool foundVersion);
+  std::string getContentWithRequestingSourceDirectory(std::string const& filename,
+                                                      std::string&       filenameFound,
+                                                      std::string const& requestingSource);
 
+  static std::string getDirectoryComponent(std::string filename);
+
+  std::string manualInclude(std::string const& filename, std::string& filenameFound, std::string const& prepend, bool foundVersion);
+  std::string manualIncludeText(std::string const& sourceText, std::string const& textFilename, std::string const& prepend, bool foundVersion);
 
   bool m_lineMarkers;
   bool m_forceLineFilenames;
   bool m_forceIncludeContent;
   bool m_supportsExtendedInclude;
+  bool m_handleIncludePasting;
 
   std::vector<std::string> m_directories;
   IncludeRegistry          m_includes;
+
+  // Used as temporary storage in getContentWithRequestingSourceDirectory; saves on dynamic allocation.
+  std::vector<std::string> m_extendedDirectories;
 };
 
 }  // namespace nvh

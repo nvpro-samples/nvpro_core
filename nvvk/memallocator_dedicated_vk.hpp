@@ -24,8 +24,8 @@
 namespace nvvk {
 
 /**
- # class nvvk::DedicatedMemoryAllocator
- DedicatedMemoryAllocator is a simple implementation of the MemAllocator interface, using
+ \class nvvk::DedicatedMemoryAllocator
+ nvvk::DedicatedMemoryAllocator is a simple implementation of the MemAllocator interface, using
  one vkDeviceMemory allocation per allocMemory() call. The simplicity of the implementation is
  bought with potential slowness (vkAllocateMemory tends to be very slow) and running
  out of operating system resources quickly (as some OSs limit the number of physical

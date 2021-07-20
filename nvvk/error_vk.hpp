@@ -20,8 +20,9 @@
 
 //////////////////////////////////////////////////////////////////////////
 /**
-# function nvvk::checkResult
-Returns true on critical error result, logs errors.
+\fn nvvk::checkResult
+\brief Returns true on critical error result, logs errors.
+
 Use `NVVK_CHECK(result)` to automatically log filename/linenumber.
 */
 

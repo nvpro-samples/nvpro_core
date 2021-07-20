@@ -20,20 +20,20 @@
 
 //--------------------------------------------------------------------------------------------------
 /** 
-  # class nvh::InputParser
-  Simple command line parser
+  \class InputParser
+  \brief InputParser is a Simple command line parser
   
   Example of usage for: test.exe -f name.txt -size 200 100
   
   Parsing the command line: mandatory '-f' for the filename of the scene
 
-  ``` c++
+  \code{.cpp}
   nvh::InputParser parser(argc, argv);
   std::string filename = parser.getString("-f");
   if(filename.empty())  filename = "default.txt";
   if(parser.exist("-size") {
         auto values = parser.getInt2("-size");
-  ```
+  \endcode
 */
 
 #pragma once

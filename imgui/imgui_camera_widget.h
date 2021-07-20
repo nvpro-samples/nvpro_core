@@ -14,17 +14,27 @@
 
 namespace ImGuiH {
 
+/**
+  # functions in ImGuiH
+  
+  - CameraWidget : CameraWidget is a Camera widget for the the Camera Manipulator
+  - SetCameraJsonFile : set the name (without .json) of the setting file. It will load and replace all camera and settings
+  - SetHomeCamera : set the home camera - replace the one on load
+  - AddCamera : adding a camera to the list of cameras
+  */
+
 bool CameraWidget(
     nvh::CameraManipulator& cameraM =
-        nvh::CameraManipulator::Singleton());  // Camera widget for the the Camera Manipulator
+        nvh::CameraManipulator::Singleton());
 
 void SetCameraJsonFile(
     const std::string&
-        filename);  // set the name (without .json) of the setting file. It will load and replace all camera and settings
-void SetHomeCamera(
-    const nvh::CameraManipulator::Camera& camera);  // set the home camera - replace the one on load
-void AddCamera(
-    const nvh::CameraManipulator::Camera& camera);  // adding a camera to the list of cameras
+        filename);
 
+void SetHomeCamera(
+    const nvh::CameraManipulator::Camera& camera);
+
+void AddCamera(
+    const nvh::CameraManipulator::Camera& camera);
 
 }  // namespace ImGuiH

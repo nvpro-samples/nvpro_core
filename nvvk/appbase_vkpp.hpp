@@ -45,9 +45,9 @@
 namespace nvvk {
 
 /**
-# class nvvk::AppBase
+\class nvvk::AppBase
 
-This class is the same as the [`nvvk::AppBaseVk`](#appbase_vkhpp) but use of the Vulkan C++ API (`vulkan.hpp`).
+nvvk::AppBaseVk is the same as nvvk::AppBaseVk but makes use of the Vulkan C++ API (`vulkan.hpp`).
 
 */
 

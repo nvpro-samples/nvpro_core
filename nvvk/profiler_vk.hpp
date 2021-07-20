@@ -28,9 +28,9 @@ namespace nvvk {
 
 //////////////////////////////////////////////////////////////////////////
 /**
-  # class nvvk::ProfilerVK
+  \class nvvk::ProfilerVK
 
-  ProfilerVK derives from nvh::Profiler and uses vkCmdWriteTimestamp
+  nvvk::ProfilerVK derives from nvh::Profiler and uses vkCmdWriteTimestamp
   to measure the gpu time within a section.
 
   If profiler.setLabelUsage(true) was used then it will make use
@@ -46,7 +46,7 @@ namespace nvvk {
 
   Example:
 
-  ``` c++
+  \code{.cpp}
   nvvk::ProfilerVK profiler;
   std::string     profilerStats;
 
@@ -82,7 +82,7 @@ namespace nvvk {
     }
   }
 
-  ```
+  \endcode
 */
 
 class ProfilerVK : public nvh::Profiler

@@ -90,7 +90,10 @@ inline void DrawToggles()
   }
 }
 //-----------------------------------------------------------------------------
-// Derive the Window for this sample
+/// \class AppWindowCameraInertia
+/// \brief AppWindowCameraInertia is a Window base for samples, adding a camera with inertia
+///
+/// It derives the Window for this sample
 //-----------------------------------------------------------------------------
 class AppWindowCameraInertia : public NVPWindow
 {

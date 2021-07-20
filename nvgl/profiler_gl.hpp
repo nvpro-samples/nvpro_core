@@ -28,9 +28,9 @@ namespace nvgl {
 
 //////////////////////////////////////////////////////////////////////////
 /**
-    # class nvgl::ProfilerGL
+    \class nvgl::ProfilerGL
 
-    ProfilerGL extends Profiler and uses `glQueryCounter(... GL_TIMESTAMP)`
+    nvgl::ProfilerGL extends Profiler and uses `glQueryCounter(... GL_TIMESTAMP)`
     to compute the GPU time of a section.
     `glPushDebugGroup` and `glPopDebugGroup` are used within each timed
     section, so that the section names can show up in NSightGraphics,

@@ -1,13 +1,10 @@
-#################
-## Eclipse
-#################
-
+doxygen/html
+doxygen/log.txt
 *.pydevproject
 .project
 .metadata
 bin/
 tmp/
-bk3d_models/
 *.tmp
 *.bak
 *.swp

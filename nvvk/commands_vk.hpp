@@ -59,13 +59,13 @@ inline VkSubmitInfo makeSubmitInfo(uint32_t numCmds, VkCommandBuffer* cmds, uint
 
 //--------------------------------------------------------------------------------------------------
 /**
-  # class nvvk::CommandPool
+  \class nvvk::CommandPool
 
-  CommandPool stores a single VkCommandPool and provides utility functions
+  nvvk::CommandPool stores a single VkCommandPool and provides utility functions
   to create VkCommandBuffers from it.
 
   Example:
-  ``` C++
+  \code{.cpp}
   {
     nvvk::CommandPool cmdPool;
     cmdPool.init(...);
@@ -99,7 +99,7 @@ inline VkSubmitInfo makeSubmitInfo(uint32_t numCmds, VkCommandBuffer* cmds, uint
     cmdPool.destroy(cmds.size(), cmds.data());
     cmdPool.deinit();
   }
-  ```
+  \endcode
 */
 
 class CommandPool
@@ -228,21 +228,21 @@ private:
 
 //--------------------------------------------------------------------------------------------------
 /**
-  # class nvvk::ScopeCommandBuffer
+  \class nvvk::ScopeCommandBuffer
 
-  Provides a single VkCommandBuffer that lives within the scope
+  nvvk::ScopeCommandBuffer provides a single VkCommandBuffer that lives within the scope
   and is directly submitted and deleted when the scope is left.
   Not recommended for efficiency, since it results in a blocking
   operation, but aids sample writing.
 
   Example:
-  ``` C++
+  \code{.cpp}
   {
     ScopeCommandBuffer cmd(device, queueFamilyIndex, queue);
     ... do stuff
     vkCmdCopyBuffer(cmd, ...);
   }
-  ```
+  \endcode
 */
 
 class ScopeCommandBuffer : public CommandPool
@@ -268,7 +268,7 @@ private:
 
 //--------------------------------------------------------------------------------------------------
 /**
-  # classes **nvvk::Ring...**
+  \classes **nvvk::Ring...**
 
   In real-time processing, the CPU typically generates commands 
   in advance to the GPU and send them in batches for execution.
@@ -290,9 +290,9 @@ private:
 static const uint32_t DEFAULT_RING_SIZE = 3;
 //--------------------------------------------------------------------------------------------------
 /**
-  ## class nvvk::RingFences
+  #\class nvvk::RingFences
 
-  Recycles a fixed number of fences, provides information in which cycle
+  nvvk::RingFences recycles a fixed number of fences, provides information in which cycle
   we are currently at, and prevents accidental access to a cycle in-flight.
 
   A typical frame would start by "setCycleAndWait", which waits for the
@@ -342,9 +342,9 @@ private:
 };
 //--------------------------------------------------------------------------------------------------
 /**
-  ## class nvvk::RingCommandPool
+  #\class nvvk::RingCommandPool
 
-  Manages a fixed cycle set of VkCommandBufferPools and
+  nvvk::RingCommandPool manages a fixed cycle set of VkCommandBufferPools and
   one-shot command buffers allocated from them.
 
   The usage of multiple command buffer pools also means we get nice allocation
@@ -356,7 +356,7 @@ private:
 
   Example:
 
-  ~~~ C++
+  \code{.cpp}
   {
     frame++;
 
@@ -374,7 +374,7 @@ private:
     // use this fence in the submit
     vkQueueSubmit(...fence..);
   }
-  ~~~
+  \endcode
 */
 
 class RingCommandPool
@@ -469,9 +469,9 @@ protected:
 
 //--------------------------------------------------------------------------------------------------
 /**
-  # class nvvk::BatchSubmission
+  \class nvvk::BatchSubmission
 
-  Batches the submission arguments of VkSubmitInfo for VkQueueSubmit.
+  nvvk::BatchSubmission batches the submission arguments of VkSubmitInfo for VkQueueSubmit.
 
   vkQueueSubmit is a rather costly operation (depending on OS)
   and should be avoided to be done too often (e.g. < 10 per frame). Therefore 
@@ -483,7 +483,7 @@ protected:
 
   Example
 
-  ~~~ C++
+  \code{.cpp}
     // within upload logic
     {
       semTransfer = handleUpload(...);
@@ -510,7 +510,7 @@ protected:
 
       graphicsSubmission.execute(frameFence);
     }
-  ~~~
+  \endcode
 */
 
 class BatchSubmission
@@ -552,9 +552,9 @@ public:
 
 //////////////////////////////////////////////////////////////////////////
 /**
-  # class nvvk::FencedCommandPools
+  \class nvvk::FencedCommandPools
 
-  This container class contains the typical utilities to handle
+  nvvk::FencedCommandPools container class contains the typical utilities to handle
   command submission. It contains RingFences, RingCommandPool and BatchSubmission
   with a convenient interface.
 

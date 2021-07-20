@@ -31,8 +31,8 @@
 namespace nvh {
 
 /**
-    # class nvh::AppWindowProfiler
-    AppWindowProfiler provides an alternative utility wrapper class around NVPWindow.
+    \class nvh::AppWindowProfiler
+    nvh::AppWindowProfiler provides an alternative utility wrapper class around NVPWindow.
     It is useful to derive single-window applications from and is used by some
     but not all nvpro-samples.
 

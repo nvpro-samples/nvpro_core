@@ -54,6 +54,7 @@ set(RESOURCE_DIRECTORY "${BASE_DIRECTORY}/nvpro_core/resources")
 add_definitions(-DRESOURCE_DIRECTORY="${RESOURCE_DIRECTORY}/")
 
 include_directories(${BASE_DIRECTORY}/nvpro_core)
+include_directories(${BASE_DIRECTORY}/nvpro_core/nvp)
 
 # Specify the list of directories to search for cmake modules.
 set(CMAKE_MODULE_PATH ${BASE_DIRECTORY}/nvpro_core/cmake ${BASE_DIRECTORY}/nvpro_core/cmake/find)
@@ -820,8 +821,8 @@ macro(_process_shared_cmake_code)
   
   set(COMMON_SOURCE_FILES)
   LIST(APPEND COMMON_SOURCE_FILES
-      ${BASE_DIRECTORY}/nvpro_core/resources.h
-      ${BASE_DIRECTORY}/nvpro_core/resources.rc
+      ${BASE_DIRECTORY}/nvpro_core/nvp/resources.h
+      ${BASE_DIRECTORY}/nvpro_core/nvp/resources.rc
   )
    
   if(UNIX)

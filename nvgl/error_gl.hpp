@@ -95,8 +95,8 @@ public:
 };
 
 /**
-    # class nvgl::CheckBufferResidency
-    Utility class to test if a certain gpu address is coming from
+    \class nvgl::CheckBufferResidency
+    nvgl::CheckBufferResidency utility class to test if a certain gpu address is coming from
     a resident buffer. Register the address of buffers in advance.
   */
 class CheckBufferResidency

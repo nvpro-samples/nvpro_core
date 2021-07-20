@@ -27,9 +27,9 @@
 
 //////////////////////////////////////////////////////////////////////////
 /**
-  # class nvgl::AppWindowProfilerGL
+  \class nvgl::AppWindowProfilerGL
 
-  AppWindowProfilerGL derives from nvh::AppWindowProfiler
+  nvgl::AppWindowProfilerGL derives from nvh::AppWindowProfiler
   and overrides the context and swapbuffer functions.
   
   To influence the context creation modify

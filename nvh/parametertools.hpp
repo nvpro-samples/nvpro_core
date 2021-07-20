@@ -33,15 +33,15 @@ namespace nvh {
 
 //////////////////////////////////////////////////////////////////////////
 /** 
-    # class nvh::ParameterList
+    \class nvh::ParameterList
 
-    The ParameterList helps parsing commandline arguments
+    The nvh::ParameterList helps parsing commandline arguments
     or commandline arguments stored within ascii config files.
     
     Parameters always update the values they point to, and optionally
     can trigger a callback that can be provided per-parameter.
     
-    ``` c++
+    \code{.cpp}
     ParameterList list;
     std::string   modelFilename;
     float         modelScale;
@@ -50,7 +50,7 @@ namespace nvh {
     list.add("scale|model scale", &modelScale);
     
     list.applyTokens(3, {"blah.gltf","-scale","4"}, "-", "/assets/");
-    ``` 
+    \endcode 
 
     Use in combination with the ParameterSequence class to iterate
     sequences of parameter changes for benchmarking/automation.
@@ -147,9 +147,9 @@ private:
 
 //////////////////////////////////////////////////////////////////////////
 /** 
-    # class nvh::ParameterSequence
+    \class nvh::ParameterSequence
 
-    The ParameterSequence processes provided tokens in sequences.
+    The nvh::ParameterSequence processes provided tokens in sequences.
     The sequences are terminated by a special "separator" token.
     All tokens between the last iteration and the separator are applied
     to the provided ParameterList.
@@ -157,7 +157,7 @@ private:
   
     Example:
   
-    ``` c++
+    \code{.cpp}
     ParameterSequence sequence;
     ParameterList     list;
     int               mode;
@@ -177,7 +177,7 @@ private:
     // would print:
     //   0 simple mode 10
     //   1 complex mode 20
-    ```
+    \endcode
   */
 
 

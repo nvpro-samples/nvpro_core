@@ -17,6 +17,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+/// \nodoc (keyword to exclude this file from automatic README.md generation)
 
 #ifndef NV_GLSLTYPES_INCLUDED
 #define NV_GLSLTYPES_INCLUDED

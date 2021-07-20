@@ -12,16 +12,16 @@ endif()
 
 
 set(NVPWINDOW_SOURCE
-  ${BASE_DIRECTORY}/nvpro_core/nvpwindow.cpp
-  ${BASE_DIRECTORY}/nvpro_core/nvpwindow.hpp
-  ${BASE_DIRECTORY}/nvpro_core/nvpsystem.cpp
-  ${BASE_DIRECTORY}/nvpro_core/nvpsystem.hpp
+  ${BASE_DIRECTORY}/nvpro_core/nvp/nvpwindow.cpp
+  ${BASE_DIRECTORY}/nvpro_core/nvp/nvpwindow.hpp
+  ${BASE_DIRECTORY}/nvpro_core/nvp/nvpsystem.cpp
+  ${BASE_DIRECTORY}/nvpro_core/nvp/nvpsystem.hpp
 )
 
 if(UNIX) 
-  LIST(APPEND NVPWINDOW_SOURCE ${BASE_DIRECTORY}/nvpro_core/nvpsystem_linux.cpp )
+  LIST(APPEND NVPWINDOW_SOURCE ${BASE_DIRECTORY}/nvpro_core/nvp/nvpsystem_linux.cpp )
 else()
-  LIST(APPEND NVPWINDOW_SOURCE ${BASE_DIRECTORY}/nvpro_core/nvpsystem_win32.cpp )
+  LIST(APPEND NVPWINDOW_SOURCE ${BASE_DIRECTORY}/nvpro_core/nvp/nvpsystem_win32.cpp )
 endif()
 
 if(NOT (CMAKE_SIZEOF_VOID_P EQUAL 8))
@@ -29,9 +29,9 @@ if(NOT (CMAKE_SIZEOF_VOID_P EQUAL 8))
 endif()
 
 
-
-# Add third party libraries
+# Add third party libraries. This sets THIRDPARTY_LIBRARIES to list of added libraries
 add_subdirectory(third_party)
+
 
 # add packages that may be needed by some of the samples
 _optional_package_VulkanSDK()
@@ -51,6 +51,11 @@ file(GLOB FILEFORMATS_SOURCE fileformats/*.cpp fileformats/*.hpp fileformats/*.i
 file(GLOB NVMATH_SOURCE nvmath/*.cpp nvmath/*.hpp nvmath/*.inl nvmath/*.h)
 file(GLOB NVHELPERS_SOURCE nvh/*.cpp nvh/*.hpp nvh/*.inl nvh/*.h)
 
+if (NOT TARGET tinygltf)
+  list(REMOVE_ITEM NVHELPERS_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/nvh/gltfscene.cpp)
+  list(REMOVE_ITEM NVHELPERS_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/nvh/gltfscene.hpp)
+  list(REMOVE_ITEM FILEFORMATS_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/fileformats/tiny_gltf_freeimage.h)
+endif()
 
 set(library_name "nvpro_core")
 
@@ -63,6 +68,11 @@ endif()
 
 if(USING_VULKANSDK)
   file(GLOB NVHELPERSVK_SOURCE nvvk/*.cpp nvvk/*.hpp nvvk/*.inl nvvk/*.h)
+  if (NOT TARGET vma)
+    list(REMOVE_ITEM NVHELPERSVK_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/nvvk/memallocator_vma_vk.hpp)
+    list(REMOVE_ITEM NVHELPERSVK_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/nvvk/memallocator_vma_vk.inl)
+  endif()
+  
   source_group("nvvk" FILES ${NVHELPERSVK_SOURCE})
 
   string(CONCAT library_name ${library_name} "_vk")
@@ -87,6 +97,11 @@ if(USING_IMGUI)
       ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp
       ${IMGUI_DIR}/backends/imgui_impl_glfw.h
       )
+  if (NOT TARGET tinygltf)
+    # depends on json.hpp from tinygltf
+    list(REMOVE_ITEM IMGUI_SOURCE imgui/imgui_camera_widget.h)
+    list(REMOVE_ITEM IMGUI_SOURCE imgui/imgui_camera_widget.cpp)
+  endif()
 
   include_directories(${IMGUI_DIR} ${IMGUI_DIR}/backends)
   
@@ -94,8 +109,6 @@ if(USING_IMGUI)
     list(APPEND IMGUI_SOURCE 
          imgui/backends/imgui_impl_gl.cpp
          imgui/backends/imgui_impl_gl.h
-         # ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
-         # ${IMGUI_DIR}/backends/imgui_impl_opengl3.h
          )
   endif() 
  
@@ -169,16 +182,10 @@ endif()
 
 target_link_libraries(nvpro_core
   ${PLATFORM_LIBRARIES} 
-  cgltf
   glfw 
   imgui
-  stb
-  tinygltf
-  tinyobjloader
-  vma
-  nvtx
+  ${THIRDPARTY_LIBRARIES}
  )
-
 
 set_target_properties(nvpro_core PROPERTIES OUTPUT_NAME ${library_name})
 _set_target_output(nvpro_core)
