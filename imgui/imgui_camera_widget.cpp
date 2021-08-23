@@ -401,13 +401,13 @@ void CameraExtraTab(nvh::CameraManipulator& cameraM, bool& changed)
   // Speed
   auto  speed = cameraM.getSpeed();
   float def_speed{3.0f};
-  ImGuiH::Control::Slider("Speed", "Changing the default speed movement", &speed, &def_speed, Control::Flags::Normal, 0.01f, 10.f);
+  changed |= ImGuiH::Control::Slider("Speed", "Changing the default speed movement", &speed, &def_speed, Control::Flags::Normal, 0.01f, 10.f);
   cameraM.setSpeed(speed);
 
   // Animation
   float duration = (float)cameraM.getAnimationDuration();
   float def_duration{0.5f};
-  ImGuiH::Control::Slider("Transition", "Nb seconds to move to new position", &duration, &def_duration,
+  changed |= ImGuiH::Control::Slider("Transition", "Nb seconds to move to new position", &duration, &def_duration,
                           Control::Flags::Normal, 0.0f, 2.f);
   cameraM.setAnimationDuration(duration);
 }
@@ -455,9 +455,6 @@ bool CameraWidget(nvh::CameraManipulator& cameraM /*= nvh::CameraManipulator::Si
     cameraM.setCamera(camera, instantSet);
     sCamMgr.markIniSettingsDirty();
   }
-
-  // This makes the camera to transition smoothly to the new position
-  cameraM.updateAnim();
 
   return changed;
 }
