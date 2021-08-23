@@ -29,6 +29,7 @@
 
 // Utilities
 #include "nvh/cameramanipulator.hpp"
+#include "nvh/timesampler.hpp"
 #include "swapchain_vk.hpp"
 
 #ifdef LINUX
@@ -47,6 +48,7 @@
 #include <vector>
 
 namespace nvvk {
+
 
 //--------------------------------------------------------------------------------------------------
 /**
@@ -271,7 +273,6 @@ public:
   virtual void createDepthBuffer();
   virtual void prepareFrame();
   virtual void submitFrame();
-  void         setViewport(const VkCommandBuffer& cmdBuf);
   virtual void onFramebufferSize(int w, int h);
   virtual void onMouseMotion(int x, int y);
   virtual void onKeyboard(int key, int scancode, int action, int mods);
@@ -279,56 +280,23 @@ public:
   virtual void onMouseButton(int button, int action, int mods);
   virtual void onMouseWheel(int delta);
   virtual void onFileDrop(const char* filename) {}
+  void         setViewport(const VkCommandBuffer& cmdBuf);
   void         initGUI(uint32_t subpassID = 0);
   void         fitCamera(const nvmath::vec3f& boxMin, const nvmath::vec3f& boxMax, bool instantFit = true);
   bool         isMinimized(bool doSleeping = true);
   void         setTitle(const std::string& title) { glfwSetWindowTitle(m_window, title.c_str()); }
+  void         useNvlink(bool useNvlink) { m_useNvlink = useNvlink; }
 
   // GLFW Callback setup
   void        setupGlfwCallbacks(GLFWwindow* window);
-  static void framebuffersize_cb(GLFWwindow* window, int w, int h)
-  {
-    auto app = reinterpret_cast<AppBaseVk*>(glfwGetWindowUserPointer(window));
-    app->onFramebufferSize(w, h);
-  }
-  static void mousebutton_cb(GLFWwindow* window, int button, int action, int mods)
-  {
-    auto app = reinterpret_cast<AppBaseVk*>(glfwGetWindowUserPointer(window));
-    app->onMouseButton(button, action, mods);
-  }
-  static void cursorpos_cb(GLFWwindow* window, double x, double y)
-  {
-    auto app = reinterpret_cast<AppBaseVk*>(glfwGetWindowUserPointer(window));
-    app->onMouseMotion(static_cast<int>(x), static_cast<int>(y));
-  }
-  static void scroll_cb(GLFWwindow* window, double x, double y)
-  {
-    auto app = reinterpret_cast<AppBaseVk*>(glfwGetWindowUserPointer(window));
-    app->onMouseWheel(static_cast<int>(y));
-  }
-  static void key_cb(GLFWwindow* window, int key, int scancode, int action, int mods)
-  {
-    auto app = reinterpret_cast<AppBaseVk*>(glfwGetWindowUserPointer(window));
-    app->onKeyboard(key, scancode, action, mods);
-  }
-  static void char_cb(GLFWwindow* window, unsigned int key)
-  {
-    auto app = reinterpret_cast<AppBaseVk*>(glfwGetWindowUserPointer(window));
-    app->onKeyboardChar(key);
-  }
-  static void drop_cb(GLFWwindow* window, int count, const char** paths)
-  {
-    auto app = reinterpret_cast<AppBaseVk*>(glfwGetWindowUserPointer(window));
-    int  i;
-    for(i = 0; i < count; i++)
-      app->onFileDrop(paths[i]);
-  }
-  // GLFW Callback end
+  static void framebuffersize_cb(GLFWwindow* window, int w, int h);
+  static void mousebutton_cb(GLFWwindow* window, int button, int action, int mods);
+  static void cursorpos_cb(GLFWwindow* window, double x, double y);
+  static void scroll_cb(GLFWwindow* window, double x, double y);
+  static void key_cb(GLFWwindow* window, int key, int scancode, int action, int mods);
+  static void char_cb(GLFWwindow* window, unsigned int key);
+  static void drop_cb(GLFWwindow* window, int count, const char** paths);
 
-  // Set if Nvlink will be used
-  void useNvlink(bool useNvlink) { m_useNvlink = useNvlink; }
-
-  //--------------------------------------------------------------------------------------------------
   // Getters
   VkInstance                          getInstance() { return m_instance; }
   VkDevice                            getDevice() { return m_device; }
@@ -349,7 +317,8 @@ public:
 
 protected:
   uint32_t getMemoryType(uint32_t typeBits, const VkMemoryPropertyFlags& properties) const;
-  void     uiDisplayHelp();  // Showing help
+  void     uiDisplayHelp();
+  void     updateCamera();
 
   // Vulkan low level
   VkInstance       m_instance{};
@@ -383,6 +352,8 @@ protected:
   // Camera manipulators
   nvh::CameraManipulator::Inputs m_inputs;  // Mouse button pressed
   std::set<int>                  m_keys;    // Keyboard pressed
+
+  nvh::Stopwatch m_timer;  // measure time from frame to frame to base camera movement on
 
   // Other
   bool m_showHelp{false};  // Show help, pressing

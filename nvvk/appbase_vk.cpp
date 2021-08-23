@@ -18,11 +18,7 @@
  */
 
 #include "nvvk/appbase_vk.hpp"
-
-
-#ifndef PROJECT_NAME
-#define PROJECT_NAME "AppBaseVk"
-#endif
+#include "nvp/perproject_globals.hpp"
 
 //--------------------------------------------------------------------------------------------------
 // Setup the low level Vulkan for various operations
@@ -42,7 +38,7 @@ void nvvk::AppBaseVk::setup(const VkInstance& instance, const VkDevice& device, 
   VkPipelineCacheCreateInfo pipelineCacheInfo{VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO};
   vkCreatePipelineCache(m_device, &pipelineCacheInfo, nullptr, &m_pipelineCache);
 
-  ImGuiH::SetCameraJsonFile(PROJECT_NAME);
+  ImGuiH::SetCameraJsonFile(getProjectName());
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -367,8 +363,8 @@ void nvvk::AppBaseVk::createDepthBuffer()
 
 //--------------------------------------------------------------------------------------------------
 // Convenient function to call before rendering.
-// Waits for a framebuffer to be available
-//
+// - Waits for a framebuffer to be available
+// - Update camera matrix if in movement
 void nvvk::AppBaseVk::prepareFrame()
 {
   // Resize protection - should be cached by the glFW callback
@@ -388,8 +384,23 @@ void nvvk::AppBaseVk::prepareFrame()
   // Use a fence to wait until the command buffer has finished execution before using it again
   uint32_t imageIndex = m_swapChain.getActiveImageIndex();
 
-  VkResult result = vkWaitForFences(m_device, 1, &m_waitFences[imageIndex], VK_TRUE, ~0);
+  VkResult result{VK_SUCCESS};
+  do
+  {
+    result = vkWaitForFences(m_device, 1, &m_waitFences[imageIndex], VK_TRUE, 1'000'000);
+  } while(result == VK_TIMEOUT);
+  if (result != VK_SUCCESS)
+  {// This allows Aftermath to do things and later assert below
+#ifdef _WIN32
+    Sleep(1000);
+#else
+    usleep(1000);
+#endif
+  }
   assert(result == VK_SUCCESS);
+
+  // start new frame with updated camera
+  updateCamera();
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -480,7 +491,7 @@ void nvvk::AppBaseVk::onFramebufferSize(int w, int h)
 
   CameraManip.setWindowSize(m_size.width, m_size.height);
   // Invoking Sample callback
-  onResize(m_size.width, m_size.height); // <-- to implement on derived class
+  onResize(m_size.width, m_size.height);  // <-- to implement on derived class
   // Recreating other resources
   createDepthBuffer();
   createFrameBuffers();
@@ -508,18 +519,20 @@ void nvvk::AppBaseVk::onMouseMotion(int x, int y)
 // Window callback when a special key gets hit
 // - Handling ImGui and a default camera
 //
-void nvvk::AppBaseVk::onKeyboard(int key, int scancode, int action, int mods)
+void nvvk::AppBaseVk::onKeyboard(int key, int /*scancode*/, int action, int mods)
 {
-  const bool capture = ImGui::GetCurrentContext() != nullptr && ImGui::GetIO().WantCaptureKeyboard;
   const bool pressed = action != GLFW_RELEASE;
 
-  // Keeping track of the modifiers
-  m_inputs.ctrl  = mods & GLFW_MOD_CONTROL;
-  m_inputs.shift = mods & GLFW_MOD_SHIFT;
-  m_inputs.alt   = mods & GLFW_MOD_ALT;
+  if(pressed && key == GLFW_KEY_F10)
+  {
+    m_show_gui = !m_show_gui;
+  }
+  else if(pressed && key == GLFW_KEY_ESCAPE)
+  {
+    glfwSetWindowShouldClose(m_window, 1);
+  }
 
-  // Remember all keys that are pressed for animating the camera when
-  // many keys are pressed and stop when all keys are released.
+  // Remember all keys that are simultaneously pressed for animating the camera
   if(pressed)
   {
     m_keys.insert(key);
@@ -529,52 +542,58 @@ void nvvk::AppBaseVk::onKeyboard(int key, int scancode, int action, int mods)
     m_keys.erase(key);
   }
 
+  // Keeping track of the modifiers
+  m_inputs.ctrl  = mods & GLFW_MOD_CONTROL;
+  m_inputs.shift = mods & GLFW_MOD_SHIFT;
+  m_inputs.alt   = mods & GLFW_MOD_ALT;
+}
+
+//--------------------------------------------------------------------------------------------------
+// Called every frame to translate currently pressed keys into camera movement
+//
+void nvvk::AppBaseVk::updateCamera()
+{
+  // measure one frame at a time
+  float factor = static_cast<float>(m_timer.elapsed().count());
+  m_timer.reset();
+
+  // Allow camera movement only when not editing
+  if(ImGui::GetCurrentContext() != nullptr && ImGui::GetIO().WantCaptureKeyboard)
+    return;
+
   // For all pressed keys - apply the action
   CameraManip.keyMotion(0, 0, nvh::CameraManipulator::NoAction);
   for(auto key : m_keys)
   {
     switch(key)
     {
-      case GLFW_KEY_F10:
-        m_show_gui = !m_show_gui;
+      case GLFW_KEY_W:
+        CameraManip.keyMotion(factor, 0, nvh::CameraManipulator::Dolly);
         break;
-      case GLFW_KEY_ESCAPE:
-        glfwSetWindowShouldClose(m_window, 1);
+      case GLFW_KEY_S:
+        CameraManip.keyMotion(-factor, 0, nvh::CameraManipulator::Dolly);
+        break;
+      case GLFW_KEY_A:
+      case GLFW_KEY_LEFT:
+        CameraManip.keyMotion(-factor, 0, nvh::CameraManipulator::Pan);
+        break;
+      case GLFW_KEY_UP:
+        CameraManip.keyMotion(0, factor, nvh::CameraManipulator::Pan);
+        break;
+      case GLFW_KEY_D:
+      case GLFW_KEY_RIGHT:
+        CameraManip.keyMotion(factor, 0, nvh::CameraManipulator::Pan);
+        break;
+      case GLFW_KEY_DOWN:
+        CameraManip.keyMotion(0, -factor, nvh::CameraManipulator::Pan);
         break;
       default:
         break;
     }
-
-    // Allow camera movement only when not editing
-    if(!capture)
-    {
-      switch(key)
-      {
-        case GLFW_KEY_W:
-          CameraManip.keyMotion(1.f, 0, nvh::CameraManipulator::Dolly);
-          break;
-        case GLFW_KEY_S:
-          CameraManip.keyMotion(-1.f, 0, nvh::CameraManipulator::Dolly);
-          break;
-        case GLFW_KEY_A:
-        case GLFW_KEY_LEFT:
-          CameraManip.keyMotion(-1.f, 0, nvh::CameraManipulator::Pan);
-          break;
-        case GLFW_KEY_UP:
-          CameraManip.keyMotion(0, 1, nvh::CameraManipulator::Pan);
-          break;
-        case GLFW_KEY_D:
-        case GLFW_KEY_RIGHT:
-          CameraManip.keyMotion(1.f, 0, nvh::CameraManipulator::Pan);
-          break;
-        case GLFW_KEY_DOWN:
-          CameraManip.keyMotion(0, -1, nvh::CameraManipulator::Pan);
-          break;
-        default:
-          break;
-      }
-    }
   }
+
+  // This makes the camera to transition smoothly to the new position
+  CameraManip.updateAnim();
 }
 
 
@@ -744,6 +763,50 @@ void nvvk::AppBaseVk::setupGlfwCallbacks(GLFWwindow* window)
   glfwSetDropCallback(window, &drop_cb);
 }
 
+void nvvk::AppBaseVk::framebuffersize_cb(GLFWwindow* window, int w, int h)
+{
+  auto app = reinterpret_cast<AppBaseVk*>(glfwGetWindowUserPointer(window));
+  app->onFramebufferSize(w, h);
+}
+
+void nvvk::AppBaseVk::mousebutton_cb(GLFWwindow* window, int button, int action, int mods)
+{
+  auto app = reinterpret_cast<AppBaseVk*>(glfwGetWindowUserPointer(window));
+  app->onMouseButton(button, action, mods);
+}
+
+void nvvk::AppBaseVk::cursorpos_cb(GLFWwindow* window, double x, double y)
+{
+  auto app = reinterpret_cast<AppBaseVk*>(glfwGetWindowUserPointer(window));
+  app->onMouseMotion(static_cast<int>(x), static_cast<int>(y));
+}
+
+void nvvk::AppBaseVk::scroll_cb(GLFWwindow* window, double x, double y)
+{
+  auto app = reinterpret_cast<AppBaseVk*>(glfwGetWindowUserPointer(window));
+  app->onMouseWheel(static_cast<int>(y));
+}
+
+void nvvk::AppBaseVk::key_cb(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+  auto app = reinterpret_cast<AppBaseVk*>(glfwGetWindowUserPointer(window));
+  app->onKeyboard(key, scancode, action, mods);
+}
+
+void nvvk::AppBaseVk::char_cb(GLFWwindow* window, unsigned int key)
+{
+  auto app = reinterpret_cast<AppBaseVk*>(glfwGetWindowUserPointer(window));
+  app->onKeyboardChar(key);
+}
+
+void nvvk::AppBaseVk::drop_cb(GLFWwindow* window, int count, const char** paths)
+{
+  auto app = reinterpret_cast<AppBaseVk*>(glfwGetWindowUserPointer(window));
+  int  i;
+  for(i = 0; i < count; i++)
+    app->onFileDrop(paths[i]);
+}
+
 uint32_t nvvk::AppBaseVk::getMemoryType(uint32_t typeBits, const VkMemoryPropertyFlags& properties) const
 {
   VkPhysicalDeviceMemoryProperties memoryProperties;
@@ -762,6 +825,7 @@ uint32_t nvvk::AppBaseVk::getMemoryType(uint32_t typeBits, const VkMemoryPropert
   return ~0u;
 }
 
+// Showing help
 void nvvk::AppBaseVk::uiDisplayHelp()
 {
   if(m_showHelp)
