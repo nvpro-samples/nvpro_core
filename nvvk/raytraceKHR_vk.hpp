@@ -239,5 +239,5 @@ protected:
 }  // namespace nvvk
 
 #else
-#error This include requires VK_KHR_ray_tracing support in the Vulkan SDK.
+#error This include requires VK_KHR_acceleration_structure support in the Vulkan SDK.
 #endif
