@@ -433,15 +433,27 @@ std::string AppWindowProfiler::specialStrings(const char* original)
 {
   std::string str(original);
 
-  if(contextGetDeviceName())
+  if(strstr(original, "$DEVICE$"))
   {
-    std::string deviceName = contextGetDeviceName();
-    fixDeviceName(deviceName);
+    if(contextGetDeviceName())
+    {
+      std::string deviceName = contextGetDeviceName();
+      fixDeviceName(deviceName);
+      if(deviceName.empty())
+      {
+        // no proper device name available
+        return std::string();
+      }
 
-    // replace $DEVICE$
-    replace(str, "$DEVICE$", deviceName);
+      // replace $DEVICE$
+      replace(str, "$DEVICE$", deviceName);
+    }
+    else
+    {
+      // no proper device name available
+      return std::string();
+    }
   }
-
   return str;
 }
 
@@ -450,7 +462,10 @@ void AppWindowProfiler::parameterCallback(uint32_t param)
   if(param == m_paramLog)
   {
     std::string logfileName = specialStrings(m_config.logFilename.c_str());
-    nvprintSetLogFileName(logfileName.c_str());
+    if (!logfileName.empty())
+    {
+      nvprintSetLogFileName(logfileName.c_str());
+    }
   }
   else if(param == m_paramCfg || param == m_paramBat)
   {
@@ -474,7 +489,10 @@ void AppWindowProfiler::parameterCallback(uint32_t param)
   else if(param == m_paramScreenshot)
   {
     std::string filename = specialStrings(m_config.screenshotFilename.c_str());
-    screenshot(filename.c_str());
+    if (!filename.empty())
+    {
+      screenshot(filename.c_str());
+    }
   }
   else if(param == m_paramClear)
   {

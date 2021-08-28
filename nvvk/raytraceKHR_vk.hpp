@@ -220,7 +220,7 @@ protected:
   {
     VkAccelerationStructureBuildGeometryInfoKHR buildInfo{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR};
     VkAccelerationStructureBuildSizesInfoKHR sizeInfo{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR};
-    const VkAccelerationStructureBuildRangeInfoKHR* rangeInfo;
+    const VkAccelerationStructureBuildRangeInfoKHR* offsetInfo;
     nvvk::AccelKHR                                  as;  // result acceleration structure
     nvvk::AccelKHR                                  cleanupAS;
   };

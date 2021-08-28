@@ -526,6 +526,9 @@ endmacro(_optional_package_DirectX12)
 # see https://cmake.org/cmake/help/v3.3/module/FindCUDA.html
 #
 macro(_add_package_Cuda)
+  if(CUDA_TOOLKIT_ROOT_DIR)
+    string(REPLACE "\\" "/" CUDA_TOOLKIT_ROOT_DIR ${CUDA_TOOLKIT_ROOT_DIR})
+  endif()
   find_package(CUDA QUIET)
   if(CUDA_FOUND)
       add_definitions("-DCUDA_PATH=R\"(${CUDA_TOOLKIT_ROOT_DIR})\"")
@@ -823,6 +826,9 @@ macro(_process_shared_cmake_code)
   LIST(APPEND COMMON_SOURCE_FILES
       ${BASE_DIRECTORY}/nvpro_core/nvp/resources.h
       ${BASE_DIRECTORY}/nvpro_core/nvp/resources.rc
+      # Add this cpp file into the individual projects such that each one gets a unique g_ProjectName definition
+      # This will allow to move more nvpro_core code relying on PROJECT_NAME into .cpp files.
+      ${BASE_DIRECTORY}/nvpro_core/nvp/perproject_globals.cpp
   )
    
   if(UNIX)

@@ -2097,7 +2097,14 @@ CSFAPI int CSFile_loadGTLF(CSFile** outcsf, const char* filename, CSFileMemoryPT
       csfmat.color[3] = 1.0f;
     }
 
-    strncpy(csfmat.name, mat.name, sizeof(csfmat.name));
+    if (mat.name)
+    {
+      strncpy(csfmat.name, mat.name, sizeof(csfmat.name));
+    }
+    else
+    {
+      strncpy(csfmat.name, "undefined", sizeof(csfmat.name));
+    }
     csfmat.bytes    = nullptr;
     csfmat.numBytes = 0;
     csfmat.type     = 0;

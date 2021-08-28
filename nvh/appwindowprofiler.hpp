@@ -146,6 +146,11 @@ public:
   void leave();
 
   void        parseConfigFile(const char* filename);
+
+  // handles special strings (returns empty string if
+  // could not do the replacement properly)
+  // known specials:
+  // $DEVICE$
   std::string specialStrings(const char* original);
 
   void setVsync(bool state);

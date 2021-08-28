@@ -16,6 +16,10 @@ set(NVPWINDOW_SOURCE
   ${BASE_DIRECTORY}/nvpro_core/nvp/nvpwindow.hpp
   ${BASE_DIRECTORY}/nvpro_core/nvp/nvpsystem.cpp
   ${BASE_DIRECTORY}/nvpro_core/nvp/nvpsystem.hpp
+  # Do not add project_name.cpp here as it contains per-project dependent data.
+  # perproject_globals.cpp will be automatically added to the per-project builds via
+  # COMMON_SOURCE_FILES
+  ${BASE_DIRECTORY}/nvpro_core/nvp/perproject_globals.hpp
 )
 
 if(UNIX) 
