@@ -686,7 +686,7 @@ CSFAPI void CSFMatrix_identity(float*);
 
 struct CSFileMemory_s
 {
-  CSFLoaderConfig m_config;
+  CSFLoaderConfig m_config
 
   std::vector<void*> m_allocations;
   std::mutex         m_mutex;
