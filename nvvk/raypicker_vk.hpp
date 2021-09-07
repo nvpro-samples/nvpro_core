@@ -69,10 +69,10 @@ struct RayPickerKHR
 public:
   struct PickInfo
   {
-    nvmath::mat4f modelViewInv;    // inverse model view matrix
-    nvmath::mat4f perspectiveInv;  // inverse perspective matrix
-    float         pickX{0};        // normalized X position
-    float         pickY{0};        // normalized Y position
+    mat4  modelViewInv;    // inverse model view matrix
+    mat4  perspectiveInv;  // inverse perspective matrix
+    float pickX{0};        // normalized X position
+    float pickY{0};        // normalized Y position
   } m_pickInfo;
 
   struct PickResult
@@ -207,7 +207,7 @@ private:
 
     VkWriteDescriptorSetAccelerationStructureKHR descAsInfo{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR};
     descAsInfo.accelerationStructureCount = 1;
-    descAsInfo.pAccelerationStructures    = &m_tlas;
+    descAsInfo.pAccelerationStructures = &m_tlas;
 
     VkDescriptorBufferInfo            pickDesc{m_pickResult.buffer, 0, VK_WHOLE_SIZE};
     std::vector<VkWriteDescriptorSet> writes;
@@ -232,7 +232,7 @@ private:
 
     VkComputePipelineCreateInfo computePipelineCreateInfo{VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO};
     computePipelineCreateInfo.layout = m_pipelineLayout;
-    computePipelineCreateInfo.stage  = nvvk::createShaderStageInfo(m_device, getSpirV(), VK_SHADER_STAGE_COMPUTE_BIT);
+    computePipelineCreateInfo.stage = nvvk::createShaderStageInfo(m_device, getSpirV(), VK_SHADER_STAGE_COMPUTE_BIT);
     vkCreateComputePipelines(m_device, {}, 1, &computePipelineCreateInfo, nullptr, &m_pipeline);
     NAME_VK(m_pipeline);
 
