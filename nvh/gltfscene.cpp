@@ -83,9 +83,9 @@ void GltfScene::importMaterials(const tinygltf::Model& tmodel)
       getInt(ext, "texCoord", tt.texCoord);
 
       // Computing the transformation
-      mat3 translation = mat3(1, 0, tt.offset.x, 0, 1, tt.offset.y, 0, 0, 1);
-      mat3 rotation    = mat3(cos(tt.rotation), sin(tt.rotation), 0, -sin(tt.rotation), cos(tt.rotation), 0, 0, 0, 1);
-      mat3 scale       = mat3(tt.scale.x, 0, 0, 0, tt.scale.y, 0, 0, 0, 1);
+      auto translation = nvmath::mat3f(1, 0, tt.offset.x, 0, 1, tt.offset.y, 0, 0, 1);
+      auto rotation = nvmath::mat3f(cos(tt.rotation), sin(tt.rotation), 0, -sin(tt.rotation), cos(tt.rotation), 0, 0, 0, 1);
+      auto scale       = nvmath::mat3f(tt.scale.x, 0, 0, 0, tt.scale.y, 0, 0, 0, 1);
       tt.uvTransform   = scale * rotation * translation;
     }
 
@@ -402,7 +402,7 @@ void GltfScene::processMesh(const tinygltf::Model& tmodel, const tinygltf::Primi
       if(!getAttribute<nvmath::vec3f>(tmodel, tmesh, m_normals, "NORMAL"))
       {
         // Need to compute the normals
-        std::vector<nvmath::vec3> geonormal(resultMesh.vertexCount);
+        std::vector<nvmath::vec3f> geonormal(resultMesh.vertexCount);
         for(size_t i = 0; i < resultMesh.indexCount; i += 3)
         {
           uint32_t    ind0 = m_indices[resultMesh.firstIndex + i + 0];

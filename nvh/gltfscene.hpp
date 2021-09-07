@@ -47,9 +47,7 @@
 */
 
 #pragma once
-#pragma once
 #include "nvmath/nvmath.h"
-#include "nvmath/nvmath_glsltypes.h"
 #include "tiny_gltf.h"
 #include <algorithm>
 #include <map>
@@ -57,7 +55,6 @@
 #include <unordered_map>
 #include <vector>
 
-using namespace nvmath;
 #define KHR_LIGHTS_PUNCTUAL_EXTENSION_NAME "KHR_lights_punctual"
 
 namespace nvh {
@@ -66,22 +63,22 @@ namespace nvh {
 #define KHR_MATERIALS_PBRSPECULARGLOSSINESS_EXTENSION_NAME "KHR_materials_pbrSpecularGlossiness"
 struct KHR_materials_pbrSpecularGlossiness
 {
-  vec4  diffuseFactor{1.f, 1.f, 1.f, 1.f};
-  int   diffuseTexture{-1};
-  vec3  specularFactor{1.f, 1.f, 1.f};
-  float glossinessFactor{1.f};
-  int   specularGlossinessTexture{-1};
+  nvmath::vec4f diffuseFactor{1.f, 1.f, 1.f, 1.f};
+  int           diffuseTexture{-1};
+  nvmath::vec3f specularFactor{1.f, 1.f, 1.f};
+  float         glossinessFactor{1.f};
+  int           specularGlossinessTexture{-1};
 };
 
 // https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_texture_transform
 #define KHR_TEXTURE_TRANSFORM_EXTENSION_NAME "KHR_texture_transform"
 struct KHR_texture_transform
 {
-  vec2  offset{0.f, 0.f};
-  float rotation{0.f};
-  vec2  scale{1.f};
-  int   texCoord{0};
-  mat3  uvTransform{1};  // Computed transform of offset, rotation, scale
+  nvmath::vec2f offset{0.f, 0.f};
+  float         rotation{0.f};
+  nvmath::vec2f scale{1.f};
+  int           texCoord{0};
+  nvmath::mat3f uvTransform{1};  // Computed transform of offset, rotation, scale
 };
 
 
@@ -100,10 +97,10 @@ struct KHR_materials_clearcoat
 #define KHR_MATERIALS_SHEEN_EXTENSION_NAME "KHR_materials_sheen"
 struct KHR_materials_sheen
 {
-  vec3  colorFactor{0.f, 0.f, 0.f};
-  int   colorTexture{-1};
-  float roughnessFactor{0.f};
-  int   roughnessTexture{-1};
+  nvmath::vec3f colorFactor{0.f, 0.f, 0.f};
+  int           colorTexture{-1};
+  float         roughnessFactor{0.f};
+  int           roughnessTexture{-1};
 };
 
 // https://github.com/DassaultSystemes-Technology/glTF/tree/KHR_materials_volume/extensions/2.0/Khronos/KHR_materials_transmission
@@ -125,9 +122,9 @@ struct KHR_materials_unlit
 #define KHR_MATERIALS_ANISOTROPY_EXTENSION_NAME "KHR_materials_anisotropy"
 struct KHR_materials_anisotropy
 {
-  float factor{0.f};
-  vec3  direction{1.f, 0.f, 0.f};
-  int   texture{-1};
+  float         factor{0.f};
+  nvmath::vec3f direction{1.f, 0.f, 0.f};
+  int           texture{-1};
 };
 
 
@@ -142,10 +139,10 @@ struct KHR_materials_ior
 #define KHR_MATERIALS_VOLUME_EXTENSION_NAME "KHR_materials_volume"
 struct KHR_materials_volume
 {
-  float thicknessFactor{0};
-  int   thicknessTexture{-1};
-  float attenuationDistance{std::numeric_limits<float>::max()};
-  vec3  attenuationColor{1.f, 1.f, 1.f};
+  float         thicknessFactor{0};
+  int           thicknessTexture{-1};
+  float         attenuationDistance{std::numeric_limits<float>::max()};
+  nvmath::vec3f attenuationColor{1.f, 1.f, 1.f};
 };
 
 // https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md#reference-material
@@ -154,17 +151,17 @@ struct GltfMaterial
   int shadingModel{0};  // 0: metallic-roughness, 1: specular-glossiness
 
   // pbrMetallicRoughness
-  vec4  baseColorFactor{1.f, 1.f, 1.f, 1.f};
-  int   baseColorTexture{-1};
-  float metallicFactor{1.f};
-  float roughnessFactor{1.f};
-  int   metallicRoughnessTexture{-1};
+  nvmath::vec4f baseColorFactor{1.f, 1.f, 1.f, 1.f};
+  int           baseColorTexture{-1};
+  float         metallicFactor{1.f};
+  float         roughnessFactor{1.f};
+  int           metallicRoughnessTexture{-1};
 
-  int   emissiveTexture{-1};
-  vec3  emissiveFactor{0, 0, 0};
-  int   alphaMode{0};
-  float alphaCutoff{0.5f};
-  int   doubleSided{0};
+  int           emissiveTexture{-1};
+  nvmath::vec3f emissiveFactor{0, 0, 0};
+  int           alphaMode{0};
+  float         alphaCutoff{0.5f};
+  int           doubleSided{0};
 
   int   normalTexture{-1};
   float normalTextureScale{1.f};
@@ -352,30 +349,30 @@ static inline void getInt(const tinygltf::Value& value, const std::string& name,
   }
 }
 
-static inline void getVec2(const tinygltf::Value& value, const std::string& name, vec2& val)
+static inline void getVec2(const tinygltf::Value& value, const std::string& name, nvmath::vec2f& val)
 {
   if(value.Has(name))
   {
     auto s = getVector<float>(value.Get(name));
-    val    = vec2{s[0], s[1]};
+    val    = nvmath::vec2f{s[0], s[1]};
   }
 }
 
-static inline void getVec3(const tinygltf::Value& value, const std::string& name, vec3& val)
+static inline void getVec3(const tinygltf::Value& value, const std::string& name, nvmath::vec3f& val)
 {
   if(value.Has(name))
   {
     auto s = getVector<float>(value.Get(name));
-    val    = vec3{s[0], s[1], s[2]};
+    val    = nvmath::vec3f{s[0], s[1], s[2]};
   }
 }
 
-static inline void getVec4(const tinygltf::Value& value, const std::string& name, vec4& val)
+static inline void getVec4(const tinygltf::Value& value, const std::string& name, nvmath::vec4f& val)
 {
   if(value.Has(name))
   {
     auto s = getVector<float>(value.Get(name));
-    val    = vec4{s[0], s[1], s[2], s[3]};
+    val    = nvmath::vec4f{s[0], s[1], s[2], s[3]};
   }
 }
 

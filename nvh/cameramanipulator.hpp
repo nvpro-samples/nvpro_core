@@ -23,7 +23,6 @@
 #pragma warning(disable : 4201)
 #include <array>
 #include <nvmath/nvmath.h>
-#include <nvmath/nvmath_glsltypes.h>
 #include <string>
 
 namespace nvh {
@@ -112,7 +111,7 @@ public:
 
   // Set the camera to look at the interest point
   // instantSet = true will not interpolate to the new position
-  void setLookat(const nvmath::vec3& eye, const nvmath::vec3& center, const nvmath::vec3& up, bool instantSet = true);
+  void setLookat(const nvmath::vec3f& eye, const nvmath::vec3f& center, const nvmath::vec3f& up, bool instantSet = true);
 
   // This should be called in an application loop to update the camera matrix if this one is animated: new position, key movement
   void updateAnim();
@@ -127,7 +126,7 @@ public:
   void   setCamera(Camera camera, bool instantSet = true);
 
   // Retrieve the position, interest and up vector of the camera
-  void getLookat(nvmath::vec3& eye, nvmath::vec3& center, nvmath::vec3& up) const;
+  void getLookat(nvmath::vec3f& eye, nvmath::vec3f& center, nvmath::vec3f& up) const;
 
   // Set the manipulator mode, from Examiner, to walk, to fly, ...
   void setMode(Modes mode) { m_mode = mode; }
@@ -136,12 +135,12 @@ public:
   Modes getMode() const { return m_mode; }
 
   // Retrieving the transformation matrix of the camera
-  const nvmath::mat4& getMatrix() const { return m_matrix; }
+  const nvmath::mat4f& getMatrix() const { return m_matrix; }
 
   // Set the position, interest from the matrix.
   // instantSet = true will not interpolate to the new position
   // centerDistance is the distance of the center from the eye
-  void setMatrix(const nvmath::mat4& mat_, bool instantSet = true, float centerDistance = 1.f);
+  void setMatrix(const nvmath::mat4f& mat_, bool instantSet = true, float centerDistance = 1.f);
 
   // Changing the default speed movement
   void setSpeed(float speed) { m_speed = speed; }

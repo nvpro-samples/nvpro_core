@@ -64,7 +64,7 @@ void CameraManipulator::setCamera(Camera camera, bool instantSet /*=true*/)
 // Creates a viewing matrix derived from an eye point, a reference point indicating the center of
 // the scene, and an up vector
 //
-void CameraManipulator::setLookat(const nvmath::vec3& eye, const nvmath::vec3& center, const nvmath::vec3& up, bool instantSet)
+void CameraManipulator::setLookat(const nvmath::vec3f& eye, const nvmath::vec3f& center, const nvmath::vec3f& up, bool instantSet)
 {
   Camera camera{eye, center, up, m_current.fov};
   setCamera(camera, instantSet);
@@ -124,7 +124,7 @@ void CameraManipulator::updateAnim()
 //   interest  camera interesting point (look at position)
 //   up        camera up vector
 //
-void CameraManipulator::getLookat(nvmath::vec3& eye, nvmath::vec3& center, nvmath::vec3& up) const
+void CameraManipulator::getLookat(nvmath::vec3f& eye, nvmath::vec3f& center, nvmath::vec3f& up) const
 {
   eye    = m_current.eye;
   center = m_current.ctr;
@@ -133,7 +133,7 @@ void CameraManipulator::getLookat(nvmath::vec3& eye, nvmath::vec3& center, nvmat
 
 //--------------------------------------------------------------------------------------------------
 //
-void CameraManipulator::setMatrix(const nvmath::mat4& matrix, bool instantSet, float centerDistance)
+void CameraManipulator::setMatrix(const nvmath::mat4f& matrix, bool instantSet, float centerDistance)
 {
   Camera camera;
   matrix.get_translation(camera.eye);
@@ -370,13 +370,13 @@ void CameraManipulator::pan(float dx, float dy)
     dy *= -1;
   }
 
-  nvmath::vec3 z(m_current.eye - m_current.ctr);
-  float        length = static_cast<float>(nvmath::length(z)) / 0.785f;  // 45 degrees
-  z                   = nvmath::normalize(z);
-  nvmath::vec3 x      = nvmath::cross(m_current.up, z);
-  x                   = nvmath::normalize(x);
-  nvmath::vec3 y      = nvmath::cross(z, x);
-  y                   = nvmath::normalize(y);
+  nvmath::vec3f z(m_current.eye - m_current.ctr);
+  float         length = static_cast<float>(nvmath::length(z)) / 0.785f;  // 45 degrees
+  z                    = nvmath::normalize(z);
+  nvmath::vec3f x      = nvmath::cross(m_current.up, z);
+  x                    = nvmath::normalize(x);
+  nvmath::vec3f y      = nvmath::cross(z, x);
+  y                    = nvmath::normalize(y);
   x *= -dx * length;
   y *= dy * length;
 
@@ -398,32 +398,32 @@ void CameraManipulator::orbit(float dx, float dy, bool invert)
   dy *= nv_two_pi;
 
   // Get the camera
-  nvmath::vec3 origin(invert ? m_current.eye : m_current.ctr);
-  nvmath::vec3 position(invert ? m_current.ctr : m_current.eye);
+  nvmath::vec3f origin(invert ? m_current.eye : m_current.ctr);
+  nvmath::vec3f position(invert ? m_current.ctr : m_current.eye);
 
   // Get the length of sight
-  nvmath::vec3 centerToEye(position - origin);
-  float        radius = nvmath::length(centerToEye);
-  centerToEye         = nvmath::normalize(centerToEye);
+  nvmath::vec3f centerToEye(position - origin);
+  float         radius = nvmath::length(centerToEye);
+  centerToEye          = nvmath::normalize(centerToEye);
 
-  nvmath::mat4 rot_x, rot_y;
+  nvmath::mat4f rot_x, rot_y;
 
   // Find the rotation around the UP axis (Y)
-  nvmath::vec3 axe_z(nvmath::normalize(centerToEye));
+  nvmath::vec3f axe_z(nvmath::normalize(centerToEye));
   rot_y = nvmath::mat4f().as_rot(-dx, m_current.up);
 
   // Apply the (Y) rotation to the eye-center vector
-  nvmath::vec4 vect_tmp = rot_y * nvmath::vec4(centerToEye.x, centerToEye.y, centerToEye.z, 0);
-  centerToEye           = nvmath::vec3(vect_tmp.x, vect_tmp.y, vect_tmp.z);
+  nvmath::vec4f vect_tmp = rot_y * nvmath::vec4f(centerToEye.x, centerToEye.y, centerToEye.z, 0);
+  centerToEye            = nvmath::vec3f(vect_tmp.x, vect_tmp.y, vect_tmp.z);
 
   // Find the rotation around the X vector: cross between eye-center and up (X)
-  nvmath::vec3 axe_x = nvmath::cross(m_current.up, axe_z);
-  axe_x              = nvmath::normalize(axe_x);
-  rot_x              = nvmath::mat4f().as_rot(-dy, axe_x);
+  nvmath::vec3f axe_x = nvmath::cross(m_current.up, axe_z);
+  axe_x               = nvmath::normalize(axe_x);
+  rot_x               = nvmath::mat4f().as_rot(-dy, axe_x);
 
   // Apply the (X) rotation to the eye-center vector
-  vect_tmp = rot_x * nvmath::vec4(centerToEye.x, centerToEye.y, centerToEye.z, 0);
-  nvmath::vec3 vect_rot(vect_tmp.x, vect_tmp.y, vect_tmp.z);
+  vect_tmp = rot_x * nvmath::vec4f(centerToEye.x, centerToEye.y, centerToEye.z, 0);
+  nvmath::vec3f vect_rot(vect_tmp.x, vect_tmp.y, vect_tmp.z);
   if(sign(vect_rot.x) == sign(centerToEye.x))
     centerToEye = vect_rot;
 
@@ -431,7 +431,7 @@ void CameraManipulator::orbit(float dx, float dy, bool invert)
   centerToEye *= radius;
 
   // Finding the new position
-  nvmath::vec3 newPosition = centerToEye + origin;
+  nvmath::vec3f newPosition = centerToEye + origin;
 
   if(!invert)
   {
@@ -448,8 +448,8 @@ void CameraManipulator::orbit(float dx, float dy, bool invert)
 //
 void CameraManipulator::dolly(float dx, float dy)
 {
-  nvmath::vec3 z      = m_current.ctr - m_current.eye;
-  float        length = static_cast<float>(nvmath::length(z));
+  nvmath::vec3f z      = m_current.ctr - m_current.eye;
+  float         length = static_cast<float>(nvmath::length(z));
 
   // We are at the point of interest, and don't know any direction, so do nothing!
   if(length < 0.000001f)
