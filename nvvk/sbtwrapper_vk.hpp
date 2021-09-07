@@ -161,7 +161,7 @@ private:
   std::array<entry, 4>                 m_data;                // Local data to groups (Shader Record)
 
   uint32_t m_handleSize{0};
-  uint32_t m_handleAlignement{0};
+  uint32_t m_handleAlignment{0};
 
   VkDevice                 m_device{VK_NULL_HANDLE};
   nvvk::ResourceAllocator* m_pAlloc{nullptr};  // Allocator for buffer, images, acceleration structures
