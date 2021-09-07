@@ -21,7 +21,6 @@
 #include "imgui_helper.h"
 #include "backends/imgui_impl_glfw.h"
 #include "nvmath/nvmath.h"
-#include "nvmath/nvmath_glsltypes.h"
 #include <GLFW/glfw3.h>
 #include <math.h>
 
@@ -459,7 +458,7 @@ bool Control::show_drag_control<nvmath::vec2f>(nvmath::vec2f* value, float speed
 }
 
 template <>
-bool Control::show_drag_control<nvmath::vec3>(nvmath::vec3* value, float speed, nvmath::vec3& min, nvmath::vec3& max, const char* format)
+bool Control::show_drag_control<nvmath::vec3f>(nvmath::vec3f* value, float speed, nvmath::vec3f& min, nvmath::vec3f& max, const char* format)
 {
   return show_drag_control_scalar<float, ImGuiDataType_Float, 3>(&value->x, speed, &min.x, &max.x, format ? format : "%.3f");
 }
@@ -599,7 +598,7 @@ void ImGui::PlotMultiEx(const char* label, int num_datas, ImPlotMulti* datas, co
 
   const ImVec2 label_size = CalcTextSize(label, nullptr, true);
   if(frame_size.x == 0.0f)
-    frame_size.x = CalcItemWidth();
+    frame_size.x = ImGui::GetContentRegionAvail().x;
   if(frame_size.y == 0.0f)
     frame_size.y = label_size.y + (style.FramePadding.y * 2);
 
@@ -656,7 +655,7 @@ void ImGui::PlotMultiEx(const char* label, int num_datas, ImPlotMulti* datas, co
       IM_ASSERT(v_idx >= 0 && v_idx < cur_data.values_count);
 
       const float v0 = cur_data.data[(v_idx + cur_data.values_offset) % cur_data.values_count];
-      TextColored(cur_data.color, "%8.4g | %s", v0, cur_data.name);
+      TextColored(cur_data.color, "%.1f | %s", v0, cur_data.name);
     }
     ImGui::EndTooltip();
 
@@ -668,8 +667,8 @@ void ImGui::PlotMultiEx(const char* label, int num_datas, ImPlotMulti* datas, co
 
   for(int data_idx = 0; data_idx < num_datas; data_idx++)
   {
-    auto& cur_data  = datas[data_idx];
-    bool  type_line = (cur_data.plot_type == ImGuiPlotType_Lines) || (cur_data.plot_type == (ImGuiPlotType)ImGuiPlotType_Area);
+    auto& cur_data = datas[data_idx];
+    bool type_line = (cur_data.plot_type == ImGuiPlotType_Lines) || (cur_data.plot_type == (ImGuiPlotType)ImGuiPlotType_Area);
 
     int res_w      = ImMin((int)frame_size.x, cur_data.values_count) + (type_line ? -1 : 0);
     int item_count = cur_data.values_count + (type_line ? -1 : 0);
