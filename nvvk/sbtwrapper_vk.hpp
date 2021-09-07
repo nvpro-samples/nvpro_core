@@ -91,11 +91,8 @@ m_sbtWrapper.create(m_rtPipeline);
 
 #include <array>
 
-#include "nvh/alignment.hpp"
 #include "nvvk/resourceallocator_vk.hpp"
-#include "nvvk/commands_vk.hpp"
 #include "nvvk/debug_util_vk.hpp"
-#include "nvh/nvprint.hpp"
 
 namespace nvvk {
 class SBTWrapper
@@ -112,7 +109,7 @@ public:
   void setup(VkDevice                                               device,
              uint32_t                                               familyIndex,
              nvvk::ResourceAllocator*                               allocator,
-             const VkPhysicalDeviceRayTracingPipelinePropertiesKHR& rt_properties);
+             const VkPhysicalDeviceRayTracingPipelinePropertiesKHR& rtProperties);
   void destroy();
 
   // To call after the ray tracer pipeline creation
@@ -164,7 +161,7 @@ private:
   std::array<entry, 4>                 m_data;                // Local data to groups (Shader Record)
 
   uint32_t m_handleSize{0};
-  uint32_t m_baseAlignment{0};
+  uint32_t m_handleAlignement{0};
 
   VkDevice                 m_device{VK_NULL_HANDLE};
   nvvk::ResourceAllocator* m_pAlloc{nullptr};  // Allocator for buffer, images, acceleration structures

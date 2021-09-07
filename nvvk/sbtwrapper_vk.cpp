@@ -19,23 +19,28 @@
 
 #include "sbtwrapper_vk.hpp"
 
+#include "nvvk/commands_vk.hpp"
+#include "nvvk/debug_util_vk.hpp"
+#include "nvh/nvprint.hpp"
+#include "nvh/alignment.hpp"
+
 using namespace nvvk;
 
 //--------------------------------------------------------------------------------------------------
 // Default setup
 //
-void SBTWrapper::setup(VkDevice                                               device,
-                       uint32_t                                               familyIndex,
-                       nvvk::ResourceAllocator*                               allocator,
-                       const VkPhysicalDeviceRayTracingPipelinePropertiesKHR& rt_properties)
+void nvvk::SBTWrapper::setup(VkDevice                                               device,
+                             uint32_t                                               familyIndex,
+                             nvvk::ResourceAllocator*                               allocator,
+                             const VkPhysicalDeviceRayTracingPipelinePropertiesKHR& rtProperties)
 {
   m_device     = device;
   m_queueIndex = familyIndex;
   m_pAlloc     = allocator;
   m_debug.setup(device);
 
-  m_handleSize    = rt_properties.shaderGroupHandleSize;  // Size of a program identifier
-  m_baseAlignment = rt_properties.shaderGroupBaseAlignment;
+  m_handleSize      = rtProperties.shaderGroupHandleSize;       // Size of a program identifier
+  m_handleAlignment = rtProperties.shaderGroupHandleAlignment;  // Alignment in bytes for each SBT entry
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -156,12 +161,12 @@ void SBTWrapper::create(VkPipeline                                            rt
       vkGetRayTracingShaderGroupHandlesKHR(m_device, rtPipeline, 0, totalGroupCount, sbtSize, shaderHandleStorage.data());
   // Find the max stride, minimum is the handle size + size of 'data (if any)' aligned to shaderGroupBaseAlignment
   auto findStride = [&](auto entry, auto& stride) {
-    stride = nvh::align_up(m_handleSize, m_baseAlignment);  // minimum stride
+    stride = nvh::align_up(m_handleSize, m_handleAlignment);  // minimum stride
     for(auto& e : entry)
     {
       // Find the largest data + handle size, all aligned
       uint32_t dataHandleSize =
-          nvh::align_up(static_cast<uint32_t>(m_handleSize + e.second.size() * sizeof(uint8_t)), m_baseAlignment);
+          nvh::align_up(static_cast<uint32_t>(m_handleSize + e.second.size() * sizeof(uint8_t)), m_handleAlignment);
       stride = std::max(stride, dataHandleSize);
     }
   };
@@ -224,7 +229,7 @@ VkDeviceAddress SBTWrapper::getAddress(GroupType t)
   if(m_buffer[t].buffer == VK_NULL_HANDLE)
     return 0;
   VkBufferDeviceAddressInfo i{VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, nullptr, m_buffer[t].buffer};
-  return vkGetBufferDeviceAddress(m_device, &i);
+  return vkGetBufferDeviceAddress(m_device, &i);  // Aligned on VkMemoryRequirements::alignment which includes shaderGroupBaseAlignment
 }
 
 const VkStridedDeviceAddressRegionKHR SBTWrapper::getRegion(GroupType t)
