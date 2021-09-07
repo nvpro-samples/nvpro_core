@@ -91,8 +91,8 @@ void nvvk::RaytracingBuilderKHR::buildBlas(const std::vector<BlasInput>& input, 
     buildAs[idx].buildInfo.geometryCount = static_cast<uint32_t>(input[idx].asGeometry.size());
     buildAs[idx].buildInfo.pGeometries   = input[idx].asGeometry.data();
 
-    // Offset information
-    buildAs[idx].offsetInfo = input[idx].asBuildOffsetInfo.data();
+    // Build range information
+    buildAs[idx].rangeInfo = input[idx].asBuildOffsetInfo.data();
 
     // Finding sizes to create acceleration structures and scratch
     std::vector<uint32_t> maxPrimCount(input[idx].asBuildOffsetInfo.size());
@@ -112,6 +112,7 @@ void nvvk::RaytracingBuilderKHR::buildBlas(const std::vector<BlasInput>& input, 
       m_alloc->createBuffer(maxScratchSize, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
   VkBufferDeviceAddressInfo bufferInfo{VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, nullptr, scratchBuffer.buffer};
   VkDeviceAddress           scratchAddress = vkGetBufferDeviceAddress(m_device, &bufferInfo);
+  NAME_VK(scratchBuffer.buffer);
 
   // Allocate a query pool for storing the needed size for every BLAS compaction.
   VkQueryPool queryPool{VK_NULL_HANDLE};
@@ -209,7 +210,7 @@ void nvvk::RaytracingBuilderKHR::cmdCreateBlas(VkCommandBuffer                  
     buildAs[idx].buildInfo.scratchData.deviceAddress = scratchAddress;  // All build are using the same scratch buffer
 
     // Building the bottom-level-acceleration-structure
-    vkCmdBuildAccelerationStructuresKHR(cmdBuf, 1, &buildAs[idx].buildInfo, &buildAs[idx].offsetInfo);
+    vkCmdBuildAccelerationStructuresKHR(cmdBuf, 1, &buildAs[idx].buildInfo, &buildAs[idx].rangeInfo);
 
     // Since the scratch buffer is reused across builds, we need a barrier to ensure one build
     // is finished before starting the next one.
@@ -348,6 +349,7 @@ void nvvk::RaytracingBuilderKHR::cmdCreateTlas(VkCommandBuffer                  
 
     m_tlas = m_alloc->createAcceleration(createInfo);
     NAME_VK(m_tlas.accel);
+    NAME_VK(m_tlas.buffer.buffer);
   }
 
   // Allocate the scratch memory
@@ -356,6 +358,7 @@ void nvvk::RaytracingBuilderKHR::cmdCreateTlas(VkCommandBuffer                  
 
   VkBufferDeviceAddressInfo bufferInfo{VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, nullptr, scratchBuffer.buffer};
   VkDeviceAddress           scratchAddress = vkGetBufferDeviceAddress(m_device, &bufferInfo);
+  NAME_VK(scratchBuffer.buffer);
 
   // Update build information
   buildInfo.srcAccelerationStructure  = update ? m_tlas.accel : VK_NULL_HANDLE;
@@ -401,7 +404,7 @@ void nvvk::RaytracingBuilderKHR::updateBlas(uint32_t blasIdx, BlasInput& blas, V
   VkBufferDeviceAddressInfo bufferInfo{VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO};
   bufferInfo.buffer                    = scratchBuffer.buffer;
   buildInfos.scratchData.deviceAddress = vkGetBufferDeviceAddress(m_device, &bufferInfo);
-
+  NAME_VK(scratchBuffer.buffer);
 
   std::vector<const VkAccelerationStructureBuildRangeInfoKHR*> pBuildOffset(blas.asBuildOffsetInfo.size());
   for(size_t i = 0; i < blas.asBuildOffsetInfo.size(); i++)
