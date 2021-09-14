@@ -64,3 +64,4 @@ PenaltyBreakFirstLessLess: 1
 PenaltyBreakComment: 30
 PenaltyBreakString: 30
 PenaltyReturnTypeOnItsOwnLine: 9999
+BreakStringLiterals: false
