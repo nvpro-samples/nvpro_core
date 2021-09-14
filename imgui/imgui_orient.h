@@ -1,11 +1,11 @@
 #pragma once
 
 #include <algorithm>
-#include <float.h>
-#include <math.h>
+#include <cfloat>
+#include <cmath>
 
 #ifndef M_PI
-#define M_PI 3.14159862f
+#define M_PI 3.1415926535
 #endif
 
 // ----------------------------
@@ -25,7 +25,7 @@
 ///
 /// The widget works by transforming the 3D object to screen space and clipping the triangles.  This makes it work with any
 /// imgui back end, without modifications to the renderers.
-/// 
+///
 /// \todo More cleanup.
 /// \todo Figure out what ShowDir is for.
 /// \todo Test direction vectors more
