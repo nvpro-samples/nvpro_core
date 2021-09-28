@@ -30,6 +30,7 @@
 #include <nvpwindow.hpp>
 
 #include <algorithm>
+#include <limits>
 #include <array>
 #include <climits>
 #include <functional>
