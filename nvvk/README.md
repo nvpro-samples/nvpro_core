@@ -535,13 +535,17 @@ nvvk::Context class helps creating the Vulkan instance and to choose the logical
 At this point, the class will have created the `VkInstance` and `VkDevice` according to the information passed. It will also keeps track or have query the information of:
  
 * Physical Device information that you can later query : `PhysicalDeviceInfo` in which lots of `VkPhysicalDevice...` are stored
-* `VkInstance` : the one instance being used for the programm
+* `VkInstance` : the one instance being used for the program
 * `VkPhysicalDevice` : physical device(s) used for the logical device creation. In case of more than one physical device, we have a std::vector for this purpose...
-* `VkDevice` : the logical device instanciated
-* `VkQueue` : we will enumerate all the available queues and make them available in `nvvk::Context`. Some queues are specialized, while other are for general purpose (most of the time, only one can handle everything, while other queues are more specialized). We decided to make them all available in some explicit way :
- * `Queue m_queueGCT` : Graphics/Compute/Transfer Queue + family index
- * `Queue m_queueT` : async Transfer Queue + family index
- * `Queue m_queueC` : Compute Queue + family index
+* `VkDevice` : the logical device instantiated
+* `VkQueue` : By default, 3 queues are created, one per family: Graphic-Compute-Transfer, Compute and Transfer.
+              For any additionnal queue, they need to be requested with `ContextCreateInfo::addRequestedQueue()`. This is creating information of the best suitable queues,
+              but not creating them. To create the additional queues, 
+              `Context::createQueue()` **must be call after** creating the Vulkan context.
+              </br>The following queues are always created and can be directly accessed without calling createQueue :
+   * `Queue m_queueGCT` : Graphics/Compute/Transfer Queue + family index
+   * `Queue m_queueT` : async Transfer Queue + family index
+   * `Queue m_queueC` : async Compute Queue + family index
 * maintains what extensions are finally available
 * implicitly hooks up the debug callback
 
@@ -562,7 +566,6 @@ When there are multiple devices, the `init` method is choosing the first compati
 When multiple graphic cards should be used as a single device, the `ContextCreateInfo::useDeviceGroups` need to be set to `true`.
 The above methods will transparently create the `VkDevice` using `VkDeviceGroupDeviceCreateInfo`.
 Especially in the context of NVLink connected cards this is useful.
-
 
 
 
@@ -1196,7 +1199,7 @@ m_rtBuilder.buildBlas(inputs);
 // You create a vector of RaytracingBuilder::Instance and pass to
 // buildTlas. The blasId member of each instance must be below
 // inputs.size() (above).
-std::vector<RayTracingBuilderKHR::Instance> instances = // ...
+std::vector<VkAccelerationStructureInstanceKHR> instances = // ...
 m_rtBuilder.buildTlas(instances);
 
 // Retrieve the handle to the acceleration structure.
