@@ -86,11 +86,11 @@ public:
     nvmath::vec3f baryCoord{0, 0, 0};
   };
 
-  void setup(const VkDevice& device, const VkPhysicalDevice& physicalDevice, uint32_t queueIndex, nvvk::ResourceAllocator* allocator)
+  void setup(const VkDevice& device, const VkPhysicalDevice& physicalDevice, uint32_t queueFamilyIndex, nvvk::ResourceAllocator* allocator)
   {
-    m_physicalDevice = physicalDevice;
-    m_device         = device;
-    m_queueIndex     = queueIndex;
+    m_physicalDevice   = physicalDevice;
+    m_device           = device;
+    m_queueFamilyIndex = queueFamilyIndex;
     m_debug.setup(device);
     m_alloc = allocator;
   }
@@ -165,7 +165,7 @@ private:
   VkAccelerationStructureKHR  m_tlas{VK_NULL_HANDLE};
   VkPhysicalDevice            m_physicalDevice{VK_NULL_HANDLE};
   VkDevice                    m_device{VK_NULL_HANDLE};
-  uint32_t                    m_queueIndex{0};
+  uint32_t                    m_queueFamilyIndex{0};
   nvvk::ResourceAllocator*    m_alloc{nullptr};
   nvvk::DebugUtil             m_debug;
 
@@ -173,7 +173,7 @@ private:
   void createOutputResult()
   {
     m_alloc->destroy(m_pickResult);
-    nvvk::CommandPool sCmd(m_device, m_queueIndex);
+    nvvk::CommandPool sCmd(m_device, m_queueFamilyIndex);
     VkCommandBuffer   cmdBuf = sCmd.createCommandBuffer();
     PickResult        presult{};
     m_pickResult = m_alloc->createBuffer(cmdBuf, sizeof(PickResult), &presult,
