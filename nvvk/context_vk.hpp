@@ -82,6 +82,10 @@ struct ContextCreateInfo
   void removeInstanceLayer(const char* name);
   void removeDeviceExtension(const char* name);
 
+  // by default-constructor three queues are requested,
+  // if you want more/different setups manipulate the requestedQueues vector
+  // or use this function.
+  void addRequestedQueue(VkQueueFlags flags, uint32_t count = 1, float priority = 1.0f);
 
   // Configure additional device creation with these variables and functions
 
@@ -134,6 +138,28 @@ struct ContextCreateInfo
   EntryArray deviceExtensions;
   void*      deviceCreateInfoExt{nullptr};
   void*      instanceCreateInfoExt{nullptr};
+
+  struct QueueSetup
+  {
+    VkQueueFlags requiredFlags = 0;
+    uint32_t     count         = 0;
+    float        priority      = 1.0;
+  };
+  using QueueArray = std::vector<QueueSetup>;
+
+  // this array defines how many queues are required for the provided queue flags
+  // reset / add new entries if changes are desired
+  //
+  // ContextCreateInfo constructor adds 1 queue per default queue flag below
+  QueueArray requestedQueues;
+
+  // leave 0 and no default queue will be created
+  VkQueueFlags defaultQueueGCT    = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT | VK_QUEUE_TRANSFER_BIT;
+  VkQueueFlags defaultQueueT      = VK_QUEUE_TRANSFER_BIT;
+  VkQueueFlags defaultQueueC      = VK_QUEUE_COMPUTE_BIT;
+  float        defaultPriorityGCT = 1.0f;
+  float        defaultPriorityT   = 1.0f;
+  float        defaultPriorityC   = 1.0f;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -156,13 +182,17 @@ nvvk::Context class helps creating the Vulkan instance and to choose the logical
 At this point, the class will have created the `VkInstance` and `VkDevice` according to the information passed. It will also keeps track or have query the information of:
  
 * Physical Device information that you can later query : `PhysicalDeviceInfo` in which lots of `VkPhysicalDevice...` are stored
-* `VkInstance` : the one instance being used for the programm
+* `VkInstance` : the one instance being used for the program
 * `VkPhysicalDevice` : physical device(s) used for the logical device creation. In case of more than one physical device, we have a std::vector for this purpose...
-* `VkDevice` : the logical device instanciated
-* `VkQueue` : we will enumerate all the available queues and make them available in `nvvk::Context`. Some queues are specialized, while other are for general purpose (most of the time, only one can handle everything, while other queues are more specialized). We decided to make them all available in some explicit way :
- * `Queue m_queueGCT` : Graphics/Compute/Transfer Queue + family index
- * `Queue m_queueT` : async Transfer Queue + family index
- * `Queue m_queueC` : Compute Queue + family index
+* `VkDevice` : the logical device instantiated
+* `VkQueue` : By default, 3 queues are created, one per family: Graphic-Compute-Transfer, Compute and Transfer.
+              For any additionnal queue, they need to be requested with `ContextCreateInfo::addRequestedQueue()`. This is creating information of the best suitable queues,
+              but not creating them. To create the additional queues, 
+              `Context::createQueue()` **must be call after** creating the Vulkan context.
+              </br>The following queues are always created and can be directly accessed without calling createQueue :
+   * `Queue m_queueGCT` : Graphics/Compute/Transfer Queue + family index
+   * `Queue m_queueT` : async Transfer Queue + family index
+   * `Queue m_queueC` : async Compute Queue + family index
 * maintains what extensions are finally available
 * implicitly hooks up the debug callback
 
@@ -183,7 +213,6 @@ When there are multiple devices, the `init` method is choosing the first compati
 When multiple graphic cards should be used as a single device, the `ContextCreateInfo::useDeviceGroups` need to be set to `true`.
 The above methods will transparently create the `VkDevice` using `VkDeviceGroupDeviceCreateInfo`.
 Especially in the context of NVLink connected cards this is useful.
-
 
 */
 class Context
@@ -306,11 +335,11 @@ public:
     VkQueue  queue       = VK_NULL_HANDLE;
     uint32_t familyIndex = ~0;
     uint32_t queueIndex  = ~0;
+    float    priority    = 1.0f;
 
     operator VkQueue() const { return queue; }
     operator uint32_t() const { return familyIndex; }
   };
-
 
   VkInstance         m_instance{VK_NULL_HANDLE};
   VkDevice           m_device{VK_NULL_HANDLE};
@@ -319,10 +348,15 @@ public:
   uint32_t           m_apiMajor = 0;
   uint32_t           m_apiMinor = 0;
 
-  // All the queues (if present) is distinct from each other
-  Queue m_queueGCT;  // for Graphics/Compute/Transfer (must exist)
-  Queue m_queueT;    // for pure async Transfer Queue (can exist, supports at least transfer)
-  Queue m_queueC;    // for async Compute (can exist, supports at least compute)
+  // following queues are automatically created if appropriate ContextCreateInfo.defaultQueue??? is set
+  // and ContextCreateInfo::requestedQueues contains a compatible config.
+  Queue m_queueGCT;  // for Graphics/Compute/Transfer
+  Queue m_queueT;    // for pure async Transfer Queue
+  Queue m_queueC;    // for async Compute
+
+  // additional queues must be created once through this function
+  // returns new Queue and pops entry from available Queues that were requested via info.requestedQueues
+  Queue createQueue(VkQueueFlags requiredFlags, const std::string& debugName, float priority = 1.0f);
 
   operator VkDevice() const { return m_device; }
 
@@ -345,10 +379,8 @@ public:
   std::vector<VkExtensionProperties>           getDeviceExtensions(VkPhysicalDevice physicalDevice);
   bool hasMandatoryExtensions(VkPhysicalDevice physicalDevice, const ContextCreateInfo& info, bool bVerbose);
 
-  // Ensures the GCT queue can present to the provided surface (return false if fails to set)
+  // Returns if GCTQueue supports present
   bool setGCTQueueWithPresent(VkSurfaceKHR surface);
-
-  uint32_t getQueueFamily(VkQueueFlags flagsSupported, VkQueueFlags flagsDisabled = 0, VkSurfaceKHR surface = VK_NULL_HANDLE);
 
   // true if the context has the optional extension activated
   bool hasDeviceExtension(const char* name) const;
@@ -356,7 +388,28 @@ public:
 
   void ignoreDebugMessage(int32_t msgID) { m_dbgIgnoreMessages.insert(msgID); }
 
+
 private:
+  struct QueueScore
+  {
+    uint32_t score       = 0;  // the lower the score, the more 'specialized' it is
+    uint32_t familyIndex = ~0;
+    uint32_t queueIndex  = ~0;
+    float    priority    = 1.0f;
+  };
+  using QueueScoreList = std::vector<QueueScore>;
+
+  // This list is created from ContextCreateInfo::requestedQueues.
+  // It contains the most specialized queues for compatible flags first.
+  // Each Context::createQueue call finds a compatible item in this list
+  // and removes it upon success.
+  QueueScoreList m_availableQueues;
+
+  // optional maxFamilyCounts overrides the device's max queue count per queue family
+  // optional priorities overrides default priority 1.0 and must be sized physical device's queue family count * maxQueueCount
+  void       initQueueList(QueueScoreList& list, const uint32_t* maxFamilyCounts, const float* priorities, uint32_t maxQueueCount) const;
+  QueueScore removeQueueListItem(QueueScoreList& list, VkQueueFlags flags, float priority) const;
+
   static VKAPI_ATTR VkBool32 VKAPI_CALL debugMessengerCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
                                                                VkDebugUtilsMessageTypeFlagsEXT        messageType,
                                                                const VkDebugUtilsMessengerCallbackDataEXT* callbackData,

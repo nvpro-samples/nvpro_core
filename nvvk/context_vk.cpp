@@ -117,7 +117,6 @@ static std::string ObjectTypeToString(VkObjectType value)
   }
 }
 
-
 // Define a callback to capture the messages
 VKAPI_ATTR VkBool32 VKAPI_CALL Context::debugMessengerCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
                                                                VkDebugUtilsMessageTypeFlagsEXT        messageType,
@@ -324,6 +323,67 @@ bool Context::initInstance(const ContextCreateInfo& info)
   return true;
 }
 
+void Context::initQueueList(QueueScoreList& list, const uint32_t* maxFamilyCounts, const float* priorities, uint32_t maxQueueCount) const
+{
+  for(uint32_t qF = 0; qF < m_physicalInfo.queueProperties.size(); ++qF)
+  {
+    const auto& queueFamily = m_physicalInfo.queueProperties[qF];
+    QueueScore  score{0, qF, 0, 1.0f};
+
+    for(uint32_t i = 0; i < 32; i++)
+    {
+      if(queueFamily.queueFlags & (1 << i))
+      {
+        score.score++;
+      }
+    }
+    for(uint32_t qI = 0; qI < (maxFamilyCounts ? maxFamilyCounts[qF] : queueFamily.queueCount); ++qI)
+    {
+      score.queueIndex = qI;
+
+      if(priorities)
+      {
+        score.priority = priorities[qF * maxQueueCount + qI];
+      }
+
+      list.emplace_back(score);
+    }
+  }
+
+  // Sort the queues for specialization, highest specialization has lowest score
+  std::sort(list.begin(), list.end(), [](const QueueScore& lhs, const QueueScore& rhs) {
+    if(lhs.score < rhs.score)
+      return true;
+    if(lhs.score > rhs.score)
+      return false;
+    if(lhs.priority > rhs.priority)
+      return true;
+    if(lhs.priority < rhs.priority)
+      return false;
+    return lhs.queueIndex < rhs.queueIndex;
+  });
+}
+
+nvvk::Context::QueueScore Context::removeQueueListItem(QueueScoreList& list, VkQueueFlags needFlags, float priority) const
+{
+  for(uint32_t q = 0; q < list.size(); ++q)
+  {
+    const QueueScore& score  = list[q];
+    auto&             family = m_physicalInfo.queueProperties[score.familyIndex];
+    if((family.queueFlags & needFlags) == needFlags && score.priority == priority)
+    {
+      QueueScore queue  = score;
+      queue.familyIndex = score.familyIndex;
+      queue.queueIndex  = score.queueIndex;
+      // we used this queue
+      list.erase(list.begin() + q);
+      return queue;
+    }
+  }
+
+  return QueueScore();
+}
+
 //--------------------------------------------------------------------------------------------------
 // Create Vulkan device
 // \p deviceIndex is the index from the list of getPhysicalDevices/getPhysicalDeviceGroups
@@ -348,10 +408,78 @@ bool Context::initDevice(uint32_t deviceIndex, const ContextCreateInfo& info)
 
   initPhysicalInfo(m_physicalInfo, m_physicalDevice, info.apiMajor, info.apiMinor);
 
-  // features
+
+  //////////////////////////////////////////////////////////////////////////
+  // queue setup
+  
+  std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
+  std::vector<float>                   priorities;
+
+  {
+    QueueScoreList queueScoresTemp;
+
+    uint32_t maxQueueCount = 0;
+
+    for(auto& it : m_physicalInfo.queueProperties)
+    {
+      maxQueueCount = std::max(maxQueueCount, it.queueCount);
+    }
+    // priorities is sized to easily address enough slots for each family
+    priorities.resize(m_physicalInfo.queueProperties.size() * maxQueueCount);
+
+    // init list with all maximum queue counts
+    initQueueList(queueScoresTemp, nullptr, nullptr, 0);
+
+    // figure out how many queues we need per family
+    std::vector<uint32_t> queueFamilyCounts(m_physicalInfo.queueProperties.size(), 0);
+
+    for (auto& it : info.requestedQueues)
+    {
+      // handle each request individually
+      for (uint32_t i = 0; i < it.count; i++)
+      {
+        // in this pass we don't care about the real priority yet, queueList is initialized with 1.0f
+        QueueScore queue = removeQueueListItem(queueScoresTemp, it.requiredFlags, 1.0f);
+        if(!queue.score)
+        {
+          // there were not enough queues left supporting the required flags
+          LOGE("could not setup requested queue configuration\n");
+          return false;
+        }
+
+        priorities[queue.familyIndex * maxQueueCount + queueFamilyCounts[queue.familyIndex]] = it.priority;
+        queueFamilyCounts[queue.familyIndex]++;
+      }
+    }
+
+    // init requested families with appropriate family count
+    for(uint32_t i = 0; i < m_physicalInfo.queueProperties.size(); ++i)
+    {
+      if (queueFamilyCounts[i])
+      {
+        VkDeviceQueueCreateInfo queueInfo{VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO};
+        queueInfo.queueFamilyIndex = i;
+        queueInfo.queueCount       = queueFamilyCounts[i];
+        queueInfo.pQueuePriorities = priorities.data() + (i * maxQueueCount);
+
+        queueCreateInfos.push_back(queueInfo);
+      }
+    }
+
+    // setup available queues, now with actual requested counts and available priorities
+    initQueueList(m_availableQueues, queueFamilyCounts.data(), priorities.data(), maxQueueCount);
+  }
+
+  VkDeviceCreateInfo deviceCreateInfo{VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
+  deviceCreateInfo.queueCreateInfoCount = (uint32_t)queueCreateInfos.size();
+  deviceCreateInfo.pQueueCreateInfos    = queueCreateInfos.data();
+
+  //////////////////////////////////////////////////////////////////////////
+  // version features and physical device extensions
 
   VkPhysicalDeviceFeatures2 features2{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
   Features11Old             features11old;
+  std::vector<void*>        featureStructs;
 
   features2.features = m_physicalInfo.features10;
   features11old.read(m_physicalInfo.features11);
@@ -367,47 +495,6 @@ bool Context::initDevice(uint32_t deviceIndex, const ContextCreateInfo& info)
     m_physicalInfo.features12.pNext = nullptr;
   }
 
-  std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-  std::vector<float>                   priorities;
-  std::vector<void*>                   featureStructs;
-
-  bool queueFamilyGeneralPurpose = false;
-  {
-    for(auto& it : m_physicalInfo.queueProperties)
-    {
-      if((it.queueFlags & (VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT | VK_QUEUE_TRANSFER_BIT))
-         == (VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT | VK_QUEUE_TRANSFER_BIT))
-      {
-        queueFamilyGeneralPurpose = true;
-      }
-      if(it.queueCount > priorities.size())
-      {
-        // set all priorities equal
-        priorities.resize(it.queueCount, 1.0f);
-      }
-    }
-    for(uint32_t i = 0; i < m_physicalInfo.queueProperties.size(); ++i)
-    {
-      VkDeviceQueueCreateInfo queueInfo{VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO};
-      queueInfo.queueFamilyIndex = i;
-      queueInfo.queueCount       = m_physicalInfo.queueProperties[i].queueCount;
-      queueInfo.pQueuePriorities = priorities.data();
-
-      queueCreateInfos.push_back(queueInfo);
-    }
-  }
-
-  if(!queueFamilyGeneralPurpose)
-  {
-    LOGW("could not find queue that supports graphics, compute and transfer");
-  }
-
-  // allow all queues
-  VkDeviceCreateInfo deviceCreateInfo{VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
-  deviceCreateInfo.queueCreateInfoCount = (uint32_t)queueCreateInfos.size();
-  deviceCreateInfo.pQueueCreateInfos    = queueCreateInfos.data();
-
-  // physical device extensions
   auto extensionProperties = getDeviceExtensions(m_physicalDevice);
 
   if(info.verboseAvailable)
@@ -525,132 +612,47 @@ bool Context::initDevice(uint32_t deviceIndex, const ContextCreateInfo& info)
 
   load_VK_EXTENSIONS(m_instance, vkGetInstanceProcAddr, m_device, vkGetDeviceProcAddr);
 
-#ifdef VK_EXT_debug_utils
   nvvk::DebugUtil::setEnabled(hasDebugUtils());
-#endif
 
-  // Now we have the device and instance, we can initialize the debug tool
-  nvvk::DebugUtil debugUtil(m_device);
-
-  // Now pick 3 distinct queues for graphics, compute and transfer operations
-  struct QueueScore
-  {
-    uint32_t score;  // the lower the score, the more 'specialized' it is
-    uint32_t familyIndex;
-    uint32_t queueIndex;
-  };
-
-  std::vector<QueueScore> queueScores;
-  for(uint32_t qF = 0; qF < m_physicalInfo.queueProperties.size(); ++qF)
-  {
-    const auto& queueFamily = m_physicalInfo.queueProperties[qF];
-
-    QueueScore score{0, qF, 0};
-    if(queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
-    {
-      score.score++;
-    }
-    if(queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT)
-    {
-      score.score++;
-    }
-    if(queueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT)
-    {
-      score.score++;
-    }
-    for(uint32_t qI = 0; qI < queueFamily.queueCount; ++qI)
-    {
-      score.queueIndex = qI;
-      queueScores.emplace_back(score);
-    }
-  }
-
-  // Sort the queues for specialization, highest specialization has lowest score
-  std::sort(queueScores.begin(), queueScores.end(), [](const QueueScore& lhs, const QueueScore& rhs) {
-    if(lhs.score < rhs.score)
-      return true;
-    if(lhs.score > rhs.score)
-      return false;
-    return lhs.queueIndex < rhs.queueIndex;
-  });
-
-  auto findQueue = [this, &queueScores, &debugUtil](VkQueueFlags needFlags, const std::string& name) -> Queue {
-    for(uint32_t q = 0; q < queueScores.size(); ++q)
-    {
-      const QueueScore& score  = queueScores[q];
-      auto&             family = m_physicalInfo.queueProperties[score.familyIndex];
-      if((family.queueFlags & needFlags) == needFlags)
-      {
-        Queue queue;
-        vkGetDeviceQueue(m_device, score.familyIndex, score.queueIndex, &queue.queue);
-        queue.familyIndex = score.familyIndex;
-        queue.queueIndex  = score.queueIndex;
-        debugUtil.setObjectName(queue.queue, name);
-        // we used this queue
-        queueScores.erase(queueScores.begin() + q);
-        return queue;
-      }
-    }
-    return Queue();
-  };
-
-  m_queueGCT = findQueue(VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT | VK_QUEUE_TRANSFER_BIT, "queueGCT");
-  assert(m_queueGCT.familyIndex != ~uint32_t(0));
-
-  m_queueC = findQueue(VK_QUEUE_COMPUTE_BIT, "queueC");
-  m_queueT = findQueue(VK_QUEUE_TRANSFER_BIT, "queueT");
+  m_queueGCT = createQueue(info.defaultQueueGCT, "queueGCT", info.defaultPriorityGCT);
+  m_queueC   = createQueue(info.defaultQueueC, "queueC", info.defaultPriorityC);
+  m_queueT   = createQueue(info.defaultQueueT, "queueT", info.defaultPriorityT);
 
   return true;
 }
 
+nvvk::Context::Queue Context::createQueue(VkQueueFlags requiredFlags, const std::string& debugName, float priority)
+{
+  if(!requiredFlags || m_availableQueues.empty())
+  {
+    return Queue();
+  }
+
+  QueueScore score = removeQueueListItem(m_availableQueues, requiredFlags, priority);
+  if(!score.score)
+  {
+    return Queue();
+  }
+
+  nvvk::DebugUtil debugUtil(m_device);
+  Queue           queue;
+  queue.familyIndex = score.familyIndex;
+  queue.queueIndex  = score.queueIndex;
+  queue.priority    = score.priority;
+  vkGetDeviceQueue(m_device, queue.familyIndex, queue.queueIndex, &queue.queue);
+  debugUtil.setObjectName(queue.queue, debugName);
+
+  return queue;
+}
 
 //--------------------------------------------------------------------------------------------------
-// Set the queue family index compatible with the \p surface
+// returns if GCTQueue supports present \p surface
 //
 bool Context::setGCTQueueWithPresent(VkSurfaceKHR surface)
 {
-  VkQueueFlags bits = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT | VK_QUEUE_TRANSFER_BIT;
-
-  for(uint32_t i = 0; i < uint32_t(m_physicalInfo.queueProperties.size()); i++)
-  {
-    VkBool32 supportsPresent;
-    vkGetPhysicalDeviceSurfaceSupportKHR(m_physicalDevice, i, surface, &supportsPresent);
-
-    if((supportsPresent == VK_TRUE) && ((m_physicalInfo.queueProperties[i].queueFlags & bits) == bits))
-    {
-      vkGetDeviceQueue(m_device, i, 0, &m_queueGCT.queue);
-      m_queueGCT.familyIndex = i;
-      nvvk::DebugUtil(m_device).setObjectName(m_queueGCT.queue, "queueGCT");
-
-      return true;
-    }
-  }
-
-  return false;
-}
-
-// #UNSUED
-uint32_t Context::getQueueFamily(VkQueueFlags flagsSupported, VkQueueFlags flagsDisabled, VkSurfaceKHR surface)
-{
-  uint32_t queueFamilyIndex = 0;
-  for(auto& it : m_physicalInfo.queueProperties)
-  {
-    VkBool32 supportsPresent = VK_TRUE;
-    if(surface)
-    {
-      supportsPresent = VK_FALSE;
-      vkGetPhysicalDeviceSurfaceSupportKHR(m_physicalDevice, queueFamilyIndex, surface, &supportsPresent);
-    }
-
-    if(supportsPresent && ((it.queueFlags & flagsSupported) == flagsSupported) && ((it.queueFlags & flagsDisabled) == 0))
-    {
-      return queueFamilyIndex;
-    }
-
-    queueFamilyIndex++;
-  }
-
-  return ~0;
+  VkBool32 supportsPresent;
+  vkGetPhysicalDeviceSurfaceSupportKHR(m_physicalDevice, m_queueGCT.familyIndex, surface, &supportsPresent);
+  return supportsPresent == VK_TRUE;
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -716,11 +718,25 @@ bool Context::hasInstanceExtension(const char* name) const
   return false;
 }
 
+
 //--------------------------------------------------------------------------------------------------
 //
 //
 ContextCreateInfo::ContextCreateInfo(bool bUseValidation)
 {
+  if (defaultQueueGCT)
+  {
+    requestedQueues.push_back({defaultQueueGCT, 1, defaultPriorityGCT});
+  }
+  if(defaultQueueT)
+  {
+    requestedQueues.push_back({defaultQueueT, 1, defaultPriorityT});
+  }
+  if(defaultQueueC)
+  {
+    requestedQueues.push_back({defaultQueueC, 1, defaultPriorityC});
+  }
+
 #ifdef _DEBUG
   instanceExtensions.push_back({VK_EXT_DEBUG_UTILS_EXTENSION_NAME, true});
   if(bUseValidation)
@@ -778,6 +794,11 @@ void ContextCreateInfo::removeDeviceExtension(const char* name)
       deviceExtensions.erase(deviceExtensions.begin() + i);
     }
   }
+}
+
+void ContextCreateInfo::addRequestedQueue(VkQueueFlags flags, uint32_t count /*= 1*/, float priority /*= 1.0f*/)
+{
+  requestedQueues.push_back({flags, count, priority});
 }
 
 void ContextCreateInfo::setVersion(uint32_t major, uint32_t minor)
