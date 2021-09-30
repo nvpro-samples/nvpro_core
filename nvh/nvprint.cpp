@@ -101,10 +101,13 @@ void nvprintf2(va_list& vlist, const char* fmt, int level)
     s_strBuffer_sz = 1024;
     s_strBuffer    = (char*)malloc(s_strBuffer_sz);
   }
-  while((vsnprintf(s_strBuffer, s_strBuffer_sz, fmt, vlist)) < 0)  // means there wasn't enough room
+  while((vsnprintf(s_strBuffer, s_strBuffer_sz - 1, fmt, vlist)) < 0)  // means there wasn't enough room
   {
     s_strBuffer_sz *= 2;
-    s_strBuffer = (char*)realloc(s_strBuffer, s_strBuffer_sz);
+    char* tmp = (char*)realloc(s_strBuffer, s_strBuffer_sz);
+    if(tmp == nullptr)  // !C6308
+      return;
+    s_strBuffer = tmp;
   }
 
   // Do nothing if allocating/reallocating s_strBuffer failed
