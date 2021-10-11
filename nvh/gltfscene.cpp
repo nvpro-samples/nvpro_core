@@ -646,6 +646,7 @@ void GltfScene::processMesh(const tinygltf::Model& tmodel, const tinygltf::Primi
           nvmath::vec3f t = (e1 * duvE2.y - e2 * duvE1.y) * r;
           nvmath::vec3f b = (e2 * duvE1.x - e1 * duvE2.x) * r;
 
+
           tangent[i0] += t;
           tangent[i1] += t;
           tangent[i2] += t;
@@ -662,11 +663,20 @@ void GltfScene::processMesh(const tinygltf::Model& tmodel, const tinygltf::Primi
           const auto& n = m_normals[resultMesh.vertexOffset + a];
 
           // Gram-Schmidt orthogonalize
-          nvmath::vec3f tangent = nvmath::normalize(t - (nvmath::dot(n, t) * n));
+          nvmath::vec3f otangent = nvmath::normalize(t - (nvmath::dot(n, t) * n));
+
+          // In case the tangent is invalid
+          if(otangent == nvmath::vec3f(0, 0, 0))
+          {
+            if(abs(n.x) > abs(n.y))
+              otangent = nvmath::vec3f(n.z, 0, -n.x) / sqrt(n.x * n.x + n.z * n.z);
+            else
+              otangent = nvmath::vec3f(0, -n.z, n.y) / sqrt(n.y * n.y + n.z * n.z);
+          }
 
           // Calculate handedness
           float handedness = (nvmath::dot(nvmath::cross(n, t), b) < 0.0F) ? -1.0F : 1.0F;
-          m_tangents.emplace_back(tangent.x, tangent.y, tangent.z, handedness);
+          m_tangents.emplace_back(otangent.x, otangent.y, otangent.z, handedness);
         }
       }
     }

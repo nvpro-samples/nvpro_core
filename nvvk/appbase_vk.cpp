@@ -389,8 +389,8 @@ void nvvk::AppBaseVk::prepareFrame()
   {
     result = vkWaitForFences(m_device, 1, &m_waitFences[imageIndex], VK_TRUE, 1'000'000);
   } while(result == VK_TIMEOUT);
-  if(result != VK_SUCCESS)
-  {  // This allows Aftermath to do things and later assert below
+  if (result != VK_SUCCESS)
+  {// This allows Aftermath to do things and later assert below
 #ifdef _WIN32
     Sleep(1000);
 #else
