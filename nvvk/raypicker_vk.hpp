@@ -145,10 +145,11 @@ public:
     vkDestroyPipelineLayout(m_device, m_pipelineLayout, nullptr);
 
     m_pickResult     = nvvk::Buffer();
-    m_descSetLayout  = VkDescriptorSetLayout();
-    m_descSet        = VkDescriptorSet();
-    m_pipelineLayout = VkPipelineLayout();
-    m_pipeline       = VkPipeline();
+    m_descSetLayout  = VK_NULL_HANDLE;
+    m_descSet        = VK_NULL_HANDLE;
+    m_pipelineLayout = VK_NULL_HANDLE;
+    m_pipeline       = VK_NULL_HANDLE;
+    m_descPool       = VK_NULL_HANDLE;
   }
 
 

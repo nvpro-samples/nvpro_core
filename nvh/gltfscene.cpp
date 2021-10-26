@@ -750,6 +750,11 @@ void GltfScene::destroy()
   //m_joints0.clear();
   //m_weights0.clear();
   m_dimensions = {};
+  m_meshToPrimMeshes.clear();
+  primitiveIndices32u.clear();
+  primitiveIndices16u.clear();
+  primitiveIndices8u.clear();
+  m_cachePrimMesh.clear();
 }
 
 //--------------------------------------------------------------------------------------------------
