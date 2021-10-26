@@ -66,50 +66,44 @@ void SBTWrapper::addIndices(VkRayTracingPipelineCreateInfoKHR                   
   for(auto& i : m_index)
     i = {};
 
-  uint32_t stageIdx = 0;
-
+  // Libraries contain stages referencing their internal groups. When those groups
+  // are used in the final pipeline we need to offset them to ensure each group has
+  // a unique index
+  uint32_t groupOffset = 0;
 
   for(size_t i = 0; i < libraries.size() + 1; i++)
   {
     // When using libraries, their groups and stages are appended after the groups and
     // stages defined in the main VkRayTracingPipelineCreateInfoKHR
     const auto& info = (i == 0) ? rayPipelineInfo : libraries[i - 1];
-    // Libraries contain stages referencing their internal groups. When those groups
-    // are used in the final pipeline we need to offset them to ensure each group has
-    // a unique index
-    uint32_t groupOffset = stageIdx;
+
     // Finding the handle position of each group, splitting by raygen, miss and hit group
     for(uint32_t g = 0; g < info.groupCount; g++)
     {
       if(info.pGroups[g].type == VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR)
       {
-        if(info.pStages[stageIdx].stage == VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+        uint32_t genShader = info.pGroups[g].generalShader;
+        assert(genShader < info.stageCount);
+        if(info.pStages[genShader].stage == VK_SHADER_STAGE_RAYGEN_BIT_KHR)
         {
           m_index[eRaygen].push_back(g + groupOffset);
-          stageIdx++;
         }
-        else if(info.pStages[stageIdx].stage == VK_SHADER_STAGE_MISS_BIT_KHR)
+        else if(info.pStages[genShader].stage == VK_SHADER_STAGE_MISS_BIT_KHR)
         {
           m_index[eMiss].push_back(g + groupOffset);
-          stageIdx++;
         }
-        else if(info.pStages[stageIdx].stage == VK_SHADER_STAGE_CALLABLE_BIT_KHR)
+        else if(info.pStages[genShader].stage == VK_SHADER_STAGE_CALLABLE_BIT_KHR)
         {
           m_index[eCallable].push_back(g + groupOffset);
-          stageIdx++;
         }
       }
       else
       {
         m_index[eHit].push_back(g + groupOffset);
-        if(info.pGroups[g].closestHitShader != VK_SHADER_UNUSED_KHR)
-          stageIdx++;
-        if(info.pGroups[g].anyHitShader != VK_SHADER_UNUSED_KHR)
-          stageIdx++;
-        if(info.pGroups[g].intersectionShader != VK_SHADER_UNUSED_KHR)
-          stageIdx++;
       }
     }
+
+    groupOffset += info.groupCount;
   }
 }
 
