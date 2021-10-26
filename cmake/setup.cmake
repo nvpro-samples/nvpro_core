@@ -368,6 +368,31 @@ macro(_optional_package_Optix)
 endmacro(_optional_package_Optix)
 
 #####################################################################################
+# Optional OptiX7 package
+#
+macro(_add_package_Optix7)
+  find_package(Optix7)  
+  if(OPTIX7_FOUND)
+      Message(STATUS "--> using package OptiX7")
+      add_definitions(-DNVP_SUPPORTS_OPTIX7)
+      include_directories(${OPTIX7_INCLUDE_DIR})
+      LIST(APPEND PACKAGE_SOURCE_FILES ${OPTIX7_HEADERS} )
+      source_group(OPTIX FILES  ${OPTIX7_HEADERS} )
+      set( USING_OPTIX7 "YES")
+ else()
+     Message(STATUS "--> NOT using package OptiX7")
+ endif()
+endmacro()
+# this macro is needed for the samples to add this package, although not needed
+# this happens when the nvpro_core library was built with these stuff in it
+# so many samples can share the same library for many purposes
+macro(_optional_package_Optix7)
+  if(OPTIX7_FOUND)
+    _add_package_Optix7()
+  endif(OPTIX7_FOUND)
+endmacro(_optional_package_Optix7)
+
+#####################################################################################
 # Optional VulkanSDK package
 #
 macro(_add_package_VulkanSDK)
