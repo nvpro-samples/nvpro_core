@@ -145,6 +145,14 @@ struct KHR_materials_volume
   nvmath::vec3f attenuationColor{1.f, 1.f, 1.f};
 };
 
+
+// https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_texture_basisu/README.md
+#define KHR_TEXTURE_BASISU_NAME "KHR_texture_basisu"
+struct KHR_texture_basisu
+{
+  int source{-1};
+};
+
 // https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md#reference-material
 struct GltfMaterial
 {

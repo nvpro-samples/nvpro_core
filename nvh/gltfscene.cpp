@@ -891,6 +891,7 @@ void GltfScene::checkRequiredExtensions(const tinygltf::Model& tmodel)
       KHR_MATERIALS_IOR_EXTENSION_NAME,
       KHR_MATERIALS_VOLUME_EXTENSION_NAME,
       KHR_MATERIALS_TRANSMISSION_EXTENSION_NAME,
+      KHR_TEXTURE_BASISU_NAME,
   };
 
   for(auto& e : tmodel.extensionsRequired)
