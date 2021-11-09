@@ -144,22 +144,24 @@ public:
   BufferSubAllocator& operator=(BufferSubAllocator const&) = delete;
 
   BufferSubAllocator() { m_debugName = "nvvk::BufferSubAllocator:" + std::to_string((uint64_t)this); }
-  BufferSubAllocator(MemAllocator*         memAllocator,
-                     VkDeviceSize          blockSize,
-                     VkBufferUsageFlags    bufferUsageFlags,
-                     VkMemoryPropertyFlags memPropFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                     bool                  mapped       = false)
+  BufferSubAllocator(MemAllocator*                memAllocator,
+                     VkDeviceSize                 blockSize,
+                     VkBufferUsageFlags           bufferUsageFlags,
+                     VkMemoryPropertyFlags        memPropFlags              = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                     bool                         mapped                    = false,
+                     const std::vector<uint32_t>& sharingQueueFamilyIndices = std::vector<uint32_t>())
   {
-    init(memAllocator, blockSize, bufferUsageFlags, memPropFlags, mapped);
+    init(memAllocator, blockSize, bufferUsageFlags, memPropFlags, mapped, sharingQueueFamilyIndices);
   }
 
   ~BufferSubAllocator() { deinit(); }
 
-  void init(MemAllocator*         memallocator,
-            VkDeviceSize          blockSize,
-            VkBufferUsageFlags    bufferUsageFlags,
-            VkMemoryPropertyFlags memPropFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-            bool                  mapped       = false);
+  void init(MemAllocator*                memallocator,
+            VkDeviceSize                 blockSize,
+            VkBufferUsageFlags           bufferUsageFlags,
+            VkMemoryPropertyFlags        memPropFlags  = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+            bool                         mapped        = false,
+            const std::vector<uint32_t>& sharingQueues = std::vector<uint32_t>());
   void deinit();
   void setDebugName(const std::string& name) { m_debugName = name; }
 
@@ -245,6 +247,7 @@ protected:
   VkDeviceSize          m_blockSize;
   VkBufferUsageFlags    m_bufferUsageFlags;
   VkMemoryPropertyFlags m_memoryPropFlags;
+  std::vector<uint32_t>  m_sharingQueueFamilyIndices;
   bool                  m_mapped;
   bool                  m_keepLastBlock = false;
 

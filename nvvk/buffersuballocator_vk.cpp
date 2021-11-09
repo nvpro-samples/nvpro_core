@@ -27,21 +27,23 @@ namespace nvvk {
 
 //////////////////////////////////////////////////////////////////////////
 
-void BufferSubAllocator::init(MemAllocator*         memAllocator,
-                              VkDeviceSize          blockSize,
-                              VkBufferUsageFlags    bufferUsageFlags,
-                              VkMemoryPropertyFlags memPropFlags,
-                              bool                  mapped)
+void BufferSubAllocator::init(MemAllocator*                memAllocator,
+                              VkDeviceSize                 blockSize,
+                              VkBufferUsageFlags           bufferUsageFlags,
+                              VkMemoryPropertyFlags        memPropFlags,
+                              bool                         mapped,
+                              const std::vector<uint32_t>& sharingQueueFamilyIndices)
 {
   assert(!m_device);
   m_memAllocator     = memAllocator;
   m_device           = memAllocator->getDevice();
-  m_blockSize        = std::min(blockSize, ((uint64_t(1) << Handle::BLOCKBITS)-1) * uint64_t(BASE_ALIGNMENT));
+  m_blockSize        = std::min(blockSize, ((uint64_t(1) << Handle::BLOCKBITS) - 1) * uint64_t(BASE_ALIGNMENT));
   m_bufferUsageFlags = bufferUsageFlags;
   m_memoryPropFlags  = memPropFlags;
   m_memoryTypeIndex  = ~0;
   m_keepLastBlock    = true;
   m_mapped           = mapped;
+  m_sharingQueueFamilyIndices = sharingQueueFamilyIndices;
 
   m_freeBlockIndex = INVALID_ID_INDEX;
   m_usedSize       = 0;
@@ -109,7 +111,7 @@ BufferSubAllocator::Handle BufferSubAllocator::subAllocate(VkDeviceSize size, ui
     block.size   = std::max(m_blockSize, size);
     if(!isDedicated)
     {
-      // only adjust size if not dedicated. 
+      // only adjust size if not dedicated.
       // warning this lowers from 64 bit to 32 bit size, which should be fine given
       // such big allocations will trigger the dedicated path
       block.size = block.range.alignedSize((uint32_t)block.size);
@@ -179,7 +181,7 @@ float BufferSubAllocator::getUtilization(VkDeviceSize& allocatedSize, VkDeviceSi
 
 bool BufferSubAllocator::fitsInAllocated(VkDeviceSize size, uint32_t alignment) const
 {
-  if (Handle::needsDedicated(size, alignment))
+  if(Handle::needsDedicated(size, alignment))
   {
     return false;
   }
@@ -250,6 +252,9 @@ VkResult BufferSubAllocator::allocBlock(Block& block, uint32_t index, VkDeviceSi
   VkBufferCreateInfo createInfo = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
   createInfo.size               = size;
   createInfo.usage              = m_bufferUsageFlags;
+  createInfo.sharingMode = m_sharingQueueFamilyIndices.size() > 1 ? VK_SHARING_MODE_CONCURRENT : VK_SHARING_MODE_EXCLUSIVE;
+  createInfo.pQueueFamilyIndices   = m_sharingQueueFamilyIndices.data();
+  createInfo.queueFamilyIndexCount = static_cast<uint32_t>(m_sharingQueueFamilyIndices.size());
 
   VkBuffer buffer = VK_NULL_HANDLE;
   result          = vkCreateBuffer(m_device, &createInfo, nullptr, &buffer);
