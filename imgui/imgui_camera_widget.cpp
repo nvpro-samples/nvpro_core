@@ -274,8 +274,7 @@ void CurrentCameraTab(nvh::CameraManipulator& cameraM, nvh::CameraManipulator::C
   changed |= ImGui::IsItemDeactivatedAfterEdit();
 
   changed |= Gui::Checkbox("Y is UP", "Is Y pointing up or Z?", &y_is_up);
-  if(Gui::Drag("FOV", "Field of view in degrees", &camera.fov, &sCamMgr.cameras[0].fov, flag, 1.0f, 179.0f, 0.1f,
-               "%.2f deg"))
+  if(Gui::Drag("FOV", "Field of view in degrees", &camera.fov, &sCamMgr.cameras[0].fov, flag, 1.0f, 179.0f, 0.1f, "%.2f deg"))
   {
     // Need to instantly set the camera, otherwise the transition to the new camera will have
     // a different value as the one currently set the next time it comes here and will be impossible
@@ -397,18 +396,24 @@ void CameraExtraTab(nvh::CameraManipulator& cameraM, bool& changed)
     return changed;
   });
 
+  // Clip near/far
+  nvmath::vec2f clip = cameraM.getClipPlanes();
+  Gui::Custom("Near / Far", "Clip Planes", [&] { return ImGui::InputFloat2("##Clip", &clip.x); });
+  changed |= ImGui::IsItemDeactivatedAfterEdit();
+  cameraM.setClipPlanes(clip);
 
   // Speed
   auto  speed = cameraM.getSpeed();
   float def_speed{3.0f};
-  changed |= ImGuiH::Control::Slider("Speed", "Changing the default speed movement", &speed, &def_speed, Control::Flags::Normal, 0.01f, 10.f);
+  changed |= ImGuiH::Control::Slider("Speed", "Changing the default speed movement", &speed, &def_speed,
+                                     Control::Flags::Normal, 0.01f, 10.f);
   cameraM.setSpeed(speed);
 
   // Animation
   float duration = (float)cameraM.getAnimationDuration();
   float def_duration{0.5f};
   changed |= ImGuiH::Control::Slider("Transition", "Nb seconds to move to new position", &duration, &def_duration,
-                          Control::Flags::Normal, 0.0f, 2.f);
+                                     Control::Flags::Normal, 0.0f, 2.f);
   cameraM.setAnimationDuration(duration);
 }
 

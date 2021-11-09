@@ -168,6 +168,10 @@ public:
   void  setFov(float _fov);
   float getFov() { return m_current.fov; }
 
+  void                 setClipPlanes(nvmath::vec2f clip) { m_clipPlanes = clip; }
+  const nvmath::vec2f& getClipPlanes() const { return m_clipPlanes; }
+
+
   // Animation duration
   double getAnimationDuration() const { return m_duration; }
   void   setAnimationDuration(double val) { m_duration = val; }
@@ -218,8 +222,9 @@ protected:
   int m_height = 1;
 
   // Other
-  float         m_speed = 3.f;
-  nvmath::vec2f m_mouse = nvmath::vec2f(0.f, 0.f);
+  float         m_speed      = 3.f;
+  nvmath::vec2f m_mouse      = nvmath::vec2f(0.f, 0.f);
+  nvmath::vec2f m_clipPlanes = nvmath::vec2f(0.001f, 100000000.f);
 
   bool  m_button = false;  // Button pressed
   bool  m_moving = false;  // Mouse is moving
