@@ -64,6 +64,7 @@ public:
   void setObjectName(VkDescriptorPool object, const std::string& name)          { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_DESCRIPTOR_POOL); }
   void setObjectName(VkDescriptorSet object, const std::string& name)           { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_DESCRIPTOR_SET); }
   void setObjectName(VkDescriptorSetLayout object, const std::string& name)     { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT); }
+  void setObjectName(VkDevice object, const std::string& name)                  { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_DEVICE); }
   void setObjectName(VkDeviceMemory object, const std::string& name)            { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_DEVICE_MEMORY); }
   void setObjectName(VkFramebuffer object, const std::string& name)             { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_FRAMEBUFFER); }
   void setObjectName(VkImage object, const std::string& name)                   { setObjectName((uint64_t)object, name, VK_OBJECT_TYPE_IMAGE); }
