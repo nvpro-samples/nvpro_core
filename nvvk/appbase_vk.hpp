@@ -251,6 +251,17 @@ Finally, all resources can be destroyed by calling `destroy()` at the end of mai
 \endcode
 
 */
+struct AppBaseVkCreateInfo
+{
+  VkInstance            instance{};
+  VkDevice              device{};
+  VkPhysicalDevice      physicalDevice{};
+  std::vector<uint32_t> queueIndices{};
+  VkSurfaceKHR          surface{};
+  VkExtent2D            size{};
+  GLFWwindow*           window{nullptr};
+};
+
 
 class AppBaseVk
 {
@@ -258,6 +269,7 @@ public:
   AppBaseVk()          = default;
   virtual ~AppBaseVk() = default;
 
+  virtual void create(const AppBaseVkCreateInfo& info);
   virtual void onResize(int /*w*/, int /*h*/){};  // To implement when the size of the window change
   virtual void setup(const VkInstance& instance, const VkDevice& device, const VkPhysicalDevice& physicalDevice, uint32_t graphicsQueueIndex);
   virtual void destroy();
@@ -314,6 +326,7 @@ public:
   VkFormat                            getColorFormat() const { return m_colorFormat; }
   VkFormat                            getDepthFormat() const { return m_depthFormat; }
   bool                                showGui() { return m_show_gui; }
+  const nvvk::SwapChain&              getSwapChain() { return m_swapChain; }
 
 protected:
   uint32_t getMemoryType(uint32_t typeBits, const VkMemoryPropertyFlags& properties) const;

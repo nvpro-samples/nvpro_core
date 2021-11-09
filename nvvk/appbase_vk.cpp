@@ -20,6 +20,24 @@
 #include "nvvk/appbase_vk.hpp"
 #include "nvp/perproject_globals.hpp"
 
+
+//--------------------------------------------------------------------------------------------------
+// Creation order of all elements for the application
+// First keep the Vulkan instance, device, ... in class members
+// Then create the swapchain, a depth buffer, a default render pass and the
+// framebuffers for the swapchain (all sharing the depth image)
+// Initialize Imgui and setup callback functions for windows operations (mouse, key, ...)
+void nvvk::AppBaseVk::create(const AppBaseVkCreateInfo& info)
+{
+  setup(info.instance, info.device, info.physicalDevice, info.queueIndices[0]);
+  createSwapchain(info.surface, info.size.width, info.size.height);
+  createDepthBuffer();
+  createRenderPass();
+  createFrameBuffers();
+  initGUI();
+  setupGlfwCallbacks(info.window);
+}
+
 //--------------------------------------------------------------------------------------------------
 // Setup the low level Vulkan for various operations
 //
@@ -389,8 +407,8 @@ void nvvk::AppBaseVk::prepareFrame()
   {
     result = vkWaitForFences(m_device, 1, &m_waitFences[imageIndex], VK_TRUE, 1'000'000);
   } while(result == VK_TIMEOUT);
-  if (result != VK_SUCCESS)
-  {// This allows Aftermath to do things and later assert below
+  if(result != VK_SUCCESS)
+  {  // This allows Aftermath to do things and later assert below
 #ifdef _WIN32
     Sleep(1000);
 #else
