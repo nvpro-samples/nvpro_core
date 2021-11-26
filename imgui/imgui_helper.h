@@ -360,6 +360,10 @@ void setStyle(bool useLinearColor = false);
 void setFonts(FontMode fontmode = FONT_PROPORTIONAL_SCALED);
 
 
+// Display a tooltip for the previous item
+void tooltip(const char* description, bool questionMark = false);
+
+
 //--------------------------------------------------------------------------------------------------
 // Creating a window panel
 // - Panel will be on the left or the right side of the window.

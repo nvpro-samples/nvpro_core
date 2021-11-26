@@ -364,6 +364,25 @@ void setFonts(FontMode fontmode)
   }
 }
 
+
+void tooltip(const char* description, bool questionMark)
+{
+  if(questionMark)
+  {
+    ImGui::SameLine();
+    ImGui::TextDisabled("(?)");
+  }
+  if(ImGui::IsItemHovered())
+  {
+    ImGui::BeginTooltip();
+    ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+    ImGui::TextUnformatted(description);
+    ImGui::PopTextWrapPos();
+    ImGui::EndTooltip();
+  }
+}
+
+
 // ------------------------------------------------------------------------------------------------
 template <>
 void Control::show_tooltip(const char* description)
