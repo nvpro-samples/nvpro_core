@@ -110,11 +110,15 @@ if(NOT DEFINED OPTIX7_ROOT_DIR)
 endif()
 
 if (OPTIX7_ROOT_DIR)
-
 	#-------- Locate HEADERS
 	_find_files( OPTIX7_HEADERS OPTIX7_ROOT_DIR "optix.h" "optix.h" "include/" )
 
+    include(FindPackageHandleStandardArgs)
 
+    SET(OPTIX7_INCLUDE_DIR "${OPTIX7_ROOT_DIR}/include" CACHE PATH "path")
+    add_definitions("-DOPTIX7_PATH=R\"(${OPTIX7_ROOT_DIR})\"")
+    add_definitions("-DOPTIX7_VERSION_STR=\"${OPTIX7_VERSION}\"")
+    
 else(OPTIX7_ROOT_DIR)
 
   message(WARNING "
@@ -125,15 +129,6 @@ else(OPTIX7_ROOT_DIR)
   )
 endif(OPTIX7_ROOT_DIR)
 
-include(FindPackageHandleStandardArgs)
-
-SET(OPTIX7_INCLUDE_DIR "${OPTIX7_ROOT_DIR}/include" CACHE PATH "path")
-add_definitions("-DOPTIX7_PATH=R\"(${OPTIX7_ROOT_DIR})\"")
-add_definitions("-DOPTIX7_VERSION_STR=\"${OPTIX7_VERSION}\"")
-
-find_package_handle_standard_args(Optix7 DEFAULT_MSG
-    OPTIX7_INCLUDE_DIR
-)
-
+find_package_handle_standard_args(Optix7 DEFAULT_MSG OPTIX7_ROOT_DIR)
 mark_as_advanced( OPTIX7_FOUND )
 
