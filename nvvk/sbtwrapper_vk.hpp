@@ -144,12 +144,18 @@ public:
   }
 
   // Getters
-  uint32_t                              indexCount(GroupType t) { return static_cast<uint32_t>(m_index[t].size()); }
-  uint32_t                              getStride(GroupType t) { return m_stride[t]; }
-  uint32_t                              getSize(GroupType t) { return getStride(t) * indexCount(t); }
-  VkDeviceAddress                       getAddress(GroupType t);
-  const VkStridedDeviceAddressRegionKHR getRegion(GroupType t);
-  const std::array<VkStridedDeviceAddressRegionKHR, 4> getRegions();
+  uint32_t        indexCount(GroupType t) { return static_cast<uint32_t>(m_index[t].size()); }
+  uint32_t        getStride(GroupType t) { return m_stride[t]; }
+  VkDeviceAddress getAddress(GroupType t);
+
+  // returns the entire size of a group. Raygen Stride and Size must be equal, even if the buffer contains many of them.
+  uint32_t getSize(GroupType t) { return t == eRaygen ? getStride(eRaygen) : getStride(t) * indexCount(t); }
+
+  // Return the address region of a group. indexOffset allow to offset the starting shader of the group.
+  const VkStridedDeviceAddressRegionKHR getRegion(GroupType t, uint32_t indexOffset = 0);
+
+  // Return the address regions of all groups. The offset allows to select which RayGen to use.
+  const std::array<VkStridedDeviceAddressRegionKHR, 4> getRegions(uint32_t rayGenIndexOffset = 0);
 
 
 private:
@@ -162,6 +168,7 @@ private:
 
   uint32_t m_handleSize{0};
   uint32_t m_handleAlignment{0};
+  uint32_t m_shaderGroupBaseAlignment{0};
 
   VkDevice                 m_device{VK_NULL_HANDLE};
   nvvk::ResourceAllocator* m_pAlloc{nullptr};  // Allocator for buffer, images, acceleration structures

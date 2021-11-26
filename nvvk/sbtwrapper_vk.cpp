@@ -39,8 +39,9 @@ void nvvk::SBTWrapper::setup(VkDevice                                           
   m_pAlloc     = allocator;
   m_debug.setup(device);
 
-  m_handleSize      = rtProperties.shaderGroupHandleSize;       // Size of a program identifier
-  m_handleAlignment = rtProperties.shaderGroupHandleAlignment;  // Alignment in bytes for each SBT entry
+  m_handleSize               = rtProperties.shaderGroupHandleSize;       // Size of a program identifier
+  m_handleAlignment          = rtProperties.shaderGroupHandleAlignment;  // Alignment in bytes for each SBT entry
+  m_shaderGroupBaseAlignment = rtProperties.shaderGroupBaseAlignment;
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -169,6 +170,9 @@ void SBTWrapper::create(VkPipeline                                            rt
   findStride(m_data[eHit], m_stride[eHit]);
   findStride(m_data[eCallable], m_stride[eCallable]);
 
+  // Special case, all Raygen must start aligned on GroupBase
+  m_stride[eRaygen] = nvh::align_up(m_stride[eRaygen], m_shaderGroupBaseAlignment);
+
   // Buffer holding the staging information
   std::array<std::vector<uint8_t>, 4> stage;
   stage[eRaygen]   = std::vector<uint8_t>(m_stride[eRaygen] * indexCount(eRaygen));
@@ -226,13 +230,14 @@ VkDeviceAddress SBTWrapper::getAddress(GroupType t)
   return vkGetBufferDeviceAddress(m_device, &i);  // Aligned on VkMemoryRequirements::alignment which includes shaderGroupBaseAlignment
 }
 
-const VkStridedDeviceAddressRegionKHR SBTWrapper::getRegion(GroupType t)
+const VkStridedDeviceAddressRegionKHR SBTWrapper::getRegion(GroupType t, uint32_t indexOffset)
 {
-  return VkStridedDeviceAddressRegionKHR{getAddress(t), getStride(t), getSize(t)};
+  return VkStridedDeviceAddressRegionKHR{getAddress(t) + indexOffset * getStride(t), getStride(t), getSize(t)};
 }
 
-const std::array<VkStridedDeviceAddressRegionKHR, 4> SBTWrapper::getRegions()
+const std::array<VkStridedDeviceAddressRegionKHR, 4> SBTWrapper::getRegions(uint32_t rayGenIndexOffset)
 {
-  std::array<VkStridedDeviceAddressRegionKHR, 4> regions{getRegion(eRaygen), getRegion(eMiss), getRegion(eHit), getRegion(eCallable)};
+  std::array<VkStridedDeviceAddressRegionKHR, 4> regions{getRegion(eRaygen, rayGenIndexOffset), getRegion(eMiss),
+                                                         getRegion(eHit), getRegion(eCallable)};
   return regions;
 }
