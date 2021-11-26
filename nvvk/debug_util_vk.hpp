@@ -178,6 +178,7 @@ inline const char* upToLastSpace(const char* n) { return std::max<const char*>(n
 
 // Individual naming
 #define NAME_VK(_x) m_debug.setObjectName(_x, (std::string(CLASS_NAME) + std::string("::") + std::string(#_x " (") + NAME_FILE_LOCATION).c_str())
+#define NAME2_VK(_x, _s) m_debug.setObjectName(_x, (std::string(_s) + std::string(" (" #_x) + NAME_FILE_LOCATION).c_str())
 #define NAME_IDX_VK(_x, _i) m_debug.setObjectName(_x, \
                             (std::string(CLASS_NAME) + std::string("::") + std::string(#_x " (" #_i "=") + std::to_string(_i) + std::string(", ") + NAME_FILE_LOCATION).c_str())
 
