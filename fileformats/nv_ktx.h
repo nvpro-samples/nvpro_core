@@ -33,6 +33,11 @@
 //   // Access subresources using image.subresource(...), and upload them
 //   // to the GPU using your graphics API of choice.
 // }
+//
+// Define NVP_SUPPORTS_ZSTD, NVP_SUPPORTS_GZLIB, and NVP_SUPPORTS_BASISU to
+// include the Zstd, Zlib, and Basis Universal headers respectively, and to
+// enable reading these formats. This will also enable writing Zstd and
+// Basis Universal-compressed formats.
 //-----------------------------------------------------------------------------
 
 #ifndef __NV_KTX_H__
@@ -77,12 +82,42 @@ struct ReadSettings
   // byte per subresource. This will involve seeking to the end of the stream
   // to determine the length of the stream or file.
   bool validate_input_size = true;
+  // Limits the maximum uncompressed image size size per mip and
+  // supercompression global data size in bytes; produces errors for any files
+  // with a larger size. This allows certain types of issues with
+  // supercompression to be caught before the rest of the file is loaded. If
+  // one wants to allow larger images, they should set this to a larger value
+  // (such as UINT64_MAX).
+  uint64_t max_resource_size_in_bytes = 1ULL << 30;
+  // By default, UASTC is transcoded to BC7 instead of ASTC. Setting this to
+  // true will transcode UASTC to ASTC.
+  bool device_supports_astc = false;
 };
 
 enum class WriteSupercompressionType
 {
-  NONE,  // Apply no supercompression
-  ZSTD   // ZStandard
+  NONE,  // Apply no supercompression, or use the supercompression included with ETC1S.
+  ZSTD,  // ZStandard
+};
+
+enum class EncodeRGBA8ToFormat
+{
+  NO,  // Don't encode the data to a Basis Universal format.
+  // For the following modes, the image format must be VK_FORMAT_B8G8R8A8_SRGB
+  // or VK_FORMAT_B8G8R8A8_UNORM. Basis Universal will then be called to encode
+  // the data and write the KTX2 file.
+  UASTC,       // Highest-quality format; RGBA data, usually decodes to ASTC or BC7.
+  ETC1S_RGBA,  // RGBA data; usually decodes to BC7 (8bpp).
+  ETC1S_RGB    // RGB channels only; usually decodes to BC7 (8bpp).
+};
+
+enum class UASTCEncodingQuality
+{
+  FASTEST  = 0,
+  FASTER   = 1,
+  DEFAULT  = 2,
+  SLOWER   = 3,
+  VERYSLOW = 4
 };
 
 // Configurable settings for writing files. This is a struct so that it can
@@ -91,10 +126,26 @@ struct WriteSettings
 {
   // Type of supercompression to apply if any
   WriteSupercompressionType supercompression = WriteSupercompressionType::NONE;
-  // Supercompression type-specific quality level.
+  // Supercompression quality level for Zstandard, which is supported by all
+  // formats other than ETC1s. This ranges from ZSTD_minCLevel() to
+  // ZSTD_maxCLevel().
+  // Higher levels are slower.
   int supercompression_level = 0;
   // See docs for CustomExportSizeFuncPtr
   CustomExportSizeFuncPtr custom_size_callback = nullptr;
+  // Whether to encode the data to a Basis format. If not NO, the image format
+  // must be VK_FORMAT_B8G8R8A8_SRGB or VK_FORMAT_B8G8R8A8_UNORM.
+  EncodeRGBA8ToFormat encode_rgba8_to_format = EncodeRGBA8ToFormat::NO;
+  // Applies when encoding RGBA8 to UASTC. Corresponds to cPackUASTCLevel in Basis.
+  UASTCEncodingQuality uastc_encoding_quality = UASTCEncodingQuality::DEFAULT;
+  // Applies when encoding RGBA8 to ETC1S. Ranges from 0 to BASISU_MAX_COMPRESSION_LEVEL.
+  // Higher levels are slower.
+  int etc1s_encoding_level = 3;
+  // Lambda for UASTC Rate-Distortion Optimization, from 0 to 50. Higher numbers
+  // compress more at lower quality.
+  float rdo_lambda = 10.0f;
+  // Enables Rate-Distortion Optimization for ETC1S.
+  bool rdo_etc1s = true;
 };
 
 // An enum for each of the possible elements in a ktxSwizzle value.
@@ -185,9 +236,9 @@ public:
   uint32_t mip_0_height = 0;
   // The depth in pixels of the largest mip. 0 for a 1D or 2D texture.
   uint32_t mip_0_depth = 0;
-  // The number of mips (levels) in the image, including the base mip.
-  // 0 indicates that an app should generate additional mips.
-  uint32_t num_mips_possibly_0 = 1;
+  // The number of mips (levels) in the image, including the base mip. Always
+  // greater than or equal to 1.
+  uint32_t num_mips = 1;
   // The number of array elements (layers) in the image. 0 for a non-array
   // texture (this has meaning in OpenGL, but not in Vulkan).
   // If representing an incomplete cube map (i.e. a cube map where not all
