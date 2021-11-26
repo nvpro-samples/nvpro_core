@@ -67,6 +67,7 @@ int has_GL_NV_conservative_raster_pre_snap = 0;
 int has_GL_NV_conservative_raster_pre_snap_triangles = 0;
 int has_GL_NV_conservative_raster_underestimation = 0;
 int has_GL_NV_draw_vulkan_image = 0;
+int has_GL_NV_draw_texture = 0;
 int has_GL_NV_fill_rectangle = 0;
 int has_GL_NV_fragment_coverage_to_color = 0;
 int has_GL_NV_fragment_shader_barycentric = 0;
@@ -171,6 +172,7 @@ void load_GL(nvGLLoaderGetProcFN fnGetProcAddress)
   has_GL_NV_conservative_raster_pre_snap_triangles = load_GL_NV_conservative_raster_pre_snap_triangles(fnGetProcAddress);
   has_GL_NV_conservative_raster_underestimation = load_GL_NV_conservative_raster_underestimation(fnGetProcAddress);
   has_GL_NV_draw_vulkan_image = load_GL_NV_draw_vulkan_image(fnGetProcAddress);
+  has_GL_NV_draw_texture = load_GL_NV_draw_texture(fnGetProcAddress);
   has_GL_NV_fill_rectangle = load_GL_NV_fill_rectangle(fnGetProcAddress);
   has_GL_NV_fragment_coverage_to_color = load_GL_NV_fragment_coverage_to_color(fnGetProcAddress);
   has_GL_NV_fragment_shader_barycentric = load_GL_NV_fragment_shader_barycentric(fnGetProcAddress);
@@ -6261,6 +6263,25 @@ int load_GL_NV_draw_vulkan_image(nvGLLoaderGetProcFN fnGetProcAddress)
   success = success && (pfn_glWaitVkSemaphoreNV != 0);
   success = success && (pfn_glSignalVkSemaphoreNV != 0);
   success = success && (pfn_glSignalVkFenceNV != 0);
+  return success;
+}
+
+/* /////////////////////////////////// */
+/* GL_NV_draw_texture */
+
+static PFNGLDRAWTEXTURENVPROC pfn_glDrawTextureNV = 0;
+
+GLAPI void APIENTRY glDrawTextureNV(GLuint texture, GLuint sampler, GLfloat x0, GLfloat y0, GLfloat x1, GLfloat y1, GLfloat z, GLfloat s0, GLfloat t0, GLfloat s1, GLfloat t1)
+{
+  assert(pfn_glDrawTextureNV);
+  pfn_glDrawTextureNV(texture,sampler,x0,y0,x1,y1,z,s0,t0,s1,t1);
+}
+
+int load_GL_NV_draw_texture(nvGLLoaderGetProcFN fnGetProcAddress)
+{
+  pfn_glDrawTextureNV = (PFNGLDRAWTEXTURENVPROC)fnGetProcAddress("glDrawTextureNV");
+  int success = has_extension("GL_NV_draw_texture");
+  success = success && (pfn_glDrawTextureNV != 0);
   return success;
 }
 

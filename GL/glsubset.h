@@ -4491,6 +4491,14 @@ GLAPI void APIENTRY glSignalVkFenceNV (GLuint64 vkFence);
 #endif
 #endif /* GL_NV_draw_vulkan_image */
 
+#ifndef GL_NV_draw_texture
+#define GL_NV_draw_texture 1
+typedef void (APIENTRYP PFNGLDRAWTEXTURENVPROC) (GLuint texture, GLuint sampler, GLfloat x0, GLfloat y0, GLfloat x1, GLfloat y1, GLfloat z, GLfloat s0, GLfloat t0, GLfloat s1, GLfloat t1);
+#ifdef GL_GLEXT_PROTOTYPES
+GLAPI void APIENTRY glDrawTextureNV (GLuint texture, GLuint sampler, GLfloat x0, GLfloat y0, GLfloat x1, GLfloat y1, GLfloat z, GLfloat s0, GLfloat t0, GLfloat s1, GLfloat t1);
+#endif
+#endif /* GL_NV_draw_texture */
+
 #ifndef GL_NV_fill_rectangle
 #define GL_NV_fill_rectangle 1
 #define GL_FILL_RECTANGLE_NV              0x933C
