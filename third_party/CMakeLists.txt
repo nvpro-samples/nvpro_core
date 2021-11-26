@@ -131,4 +131,55 @@ if (TARGET nvtx)
   LIST(APPEND THIRDPARTY_LIBRARIES nvtx)
 endif()
 
+# Zstandard (~450 KB)
+if (NOT TARGET libzstd_static AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/zstd)
+  set(ZSTD_BUILD_PROGRAMS OFF)
+  set(ZSTD_BUILD_SHARED OFF)
+  set(ZSTD_BUILD_STATIC ON)
+  set(ZSTD_USE_STATIC_RUNTIME ON)
+  set(_ZSTD_DIR ${CMAKE_CURRENT_SOURCE_DIR}/zstd)
+  add_subdirectory(${_ZSTD_DIR}/build/cmake)
+  target_sources(libzstd_static INTERFACE ${_ZSTD_DIR}/lib/zstd.h)
+  target_include_directories(libzstd_static INTERFACE ${_ZSTD_DIR}/lib)
+endif()
+if (TARGET libzstd_static)
+  # Make targets linking with libzstd_static compile with NVP_SUPPORTS_ZSTD
+  target_compile_definitions(libzstd_static INTERFACE NVP_SUPPORTS_ZSTD)
+  LIST(APPEND THIRDPARTY_LIBRARIES libzstd_static)
+  set_property(TARGET libzstd_static PROPERTY FOLDER "ThirdParty")
+endif()
+
+# Basis Universal (~800 KB)
+if (NOT TARGET basisu AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/basis_universal)
+  set(_BASISU_DIR ${CMAKE_CURRENT_SOURCE_DIR}/basis_universal)
+  file(GLOB _BASISU_FILES "${_BASISU_DIR}/transcoder/*.*" "${_BASISU_DIR}/encoder/*.*")
+  add_library(basisu STATIC "${_BASISU_FILES}")
+  target_include_directories(basisu INTERFACE "${_BASISU_DIR}/transcoder" "${_BASISU_DIR}/encoder")
+endif()
+if (TARGET basisu)
+  # basisu.h wants to set the iterator debug level to a different value than the
+  # default for debug performance. However, this can cause it to fail linking.
+  target_compile_definitions(basisu PUBLIC BASISU_NO_ITERATOR_DEBUG_LEVEL=1)
+  # Make targets linking with basisu compile with NVP_SUPPORTS_BASISU
+  target_compile_definitions(basisu INTERFACE NVP_SUPPORTS_BASISU)
+  # Turn off some transcoding formats we don't use to reduce code size by about
+  # 500 KB.
+  target_compile_definitions(basisu PRIVATE
+    BASISD_SUPPORT_ATC=0
+    BASISD_SUPPORT_DXT1=0
+    BASISD_SUPPORT_DXT5A=0
+    BASISD_SUPPORT_ETC2_EAC_A8=0
+    BASISD_SUPPORT_ETC2_EAC_RG11=0
+    BASISD_SUPPORT_FXT1=0
+    BASISD_SUPPORT_PVRTC1=0
+    BASISD_SUPPORT_PVRTC2=0
+  )
+  LIST(APPEND THIRDPARTY_LIBRARIES basisu)
+  set_property(TARGET basisu PROPERTY FOLDER "ThirdParty")
+  # If Zstandard isn't included, also turn off Zstd support in Basis:
+  if(NOT TARGET libzstd_static)
+    target_compile_definitions(basisu PRIVATE BASISD_SUPPORT_KTX2_ZSTD=0)
+  endif()
+endif()
+
 set(THIRDPARTY_LIBRARIES "${THIRDPARTY_LIBRARIES}" PARENT_SCOPE)
