@@ -321,6 +321,15 @@ void nvvk::AppBaseVk::createDepthBuffer()
   // Create the depth image
   vkCreateImage(m_device, &depthStencilCreateInfo, nullptr, &m_depthImage);
 
+#ifdef _DEBUG
+  std::string                   name = std::string("AppBaseDepth");
+  VkDebugUtilsObjectNameInfoEXT nameInfo{VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT};
+  nameInfo.objectHandle = (uint64_t)m_depthImage;
+  nameInfo.objectType   = VK_OBJECT_TYPE_IMAGE;
+  nameInfo.pObjectName  = R"(AppBase)";
+  vkSetDebugUtilsObjectNameEXT(m_device, &nameInfo);
+#endif  // _DEBUG
+
   // Allocate the memory
   VkMemoryRequirements memReqs;
   vkGetImageMemoryRequirements(m_device, m_depthImage, &memReqs);
