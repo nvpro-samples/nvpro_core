@@ -238,7 +238,6 @@ void nvvk::RaytracingBuilderKHR::cmdCompactBlas(VkCommandBuffer                 
                                                 VkQueryPool                              queryPool)
 {
   uint32_t                    queryCtn{0};
-  std::vector<nvvk::AccelKHR> cleanupAS;  // previous AS to destroy
 
   // Get the compacted size result back
   std::vector<VkDeviceSize> compactSizes(static_cast<uint32_t>(indices.size()));
