@@ -49,8 +49,11 @@ void nvvk::SBTWrapper::setup(VkDevice                                           
 //
 void SBTWrapper::destroy()
 {
-  for(auto& b : m_buffer)
-    m_pAlloc->destroy(b);
+  if(m_pAlloc)
+  {
+    for(auto& b : m_buffer)
+      m_pAlloc->destroy(b);
+  }
 
   for(auto& i : m_index)
     i = {};

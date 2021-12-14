@@ -36,11 +36,14 @@ void nvvk::RaytracingBuilderKHR::setup(const VkDevice& device, nvvk::ResourceAll
 //
 void nvvk::RaytracingBuilderKHR::destroy()
 {
-  for(auto& b : m_blas)
+  if(m_alloc)
   {
-    m_alloc->destroy(b);
+    for(auto& b : m_blas)
+    {
+      m_alloc->destroy(b);
+    }
+    m_alloc->destroy(m_tlas);
   }
-  m_alloc->destroy(m_tlas);
   m_blas.clear();
 }
 
@@ -74,7 +77,7 @@ VkDeviceAddress nvvk::RaytracingBuilderKHR::getBlasDeviceAddress(uint32_t blasId
 void nvvk::RaytracingBuilderKHR::buildBlas(const std::vector<BlasInput>& input, VkBuildAccelerationStructureFlagsKHR flags)
 {
   m_cmdPool.init(m_device, m_queueIndex);
-  uint32_t     nbBlas = static_cast<uint32_t>(input.size());
+  auto         nbBlas = static_cast<uint32_t>(input.size());
   VkDeviceSize asTotalSize{0};     // Memory size of all allocated BLAS
   uint32_t     nbCompactions{0};   // Nb of BLAS requesting compaction
   VkDeviceSize maxScratchSize{0};  // Largest scratch size
@@ -237,7 +240,7 @@ void nvvk::RaytracingBuilderKHR::cmdCompactBlas(VkCommandBuffer                 
                                                 std::vector<BuildAccelerationStructure>& buildAs,
                                                 VkQueryPool                              queryPool)
 {
-  uint32_t                    queryCtn{0};
+  uint32_t queryCtn{0};
 
   // Get the compacted size result back
   std::vector<VkDeviceSize> compactSizes(static_cast<uint32_t>(indices.size()));
