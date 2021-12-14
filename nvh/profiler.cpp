@@ -75,7 +75,7 @@ void Profiler::endFrame()
 
   m_data->cpuCurrentTime += m_clock.getMicroSeconds();
 
-  if((uint32_t)m_data->frameSections.size() != m_data->numLastEntries)
+  if(!m_data->frameSections.empty() && ((uint32_t)m_data->frameSections.size() != m_data->numLastEntries))
   {
     m_data->numLastEntries  = (uint32_t)m_data->frameSections.size();
     m_data->numLastSections = m_data->frameSections.back() + 1;
