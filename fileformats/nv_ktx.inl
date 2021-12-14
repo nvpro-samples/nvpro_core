@@ -62,12 +62,12 @@ inline bool GetNumSubresources(size_t a, size_t b, size_t c, size_t& out)
   const size_t b_or_1 = std::max(b, size_t(1));
   const size_t c_or_1 = std::max(c, size_t(1));
   out                 = a_or_1;
-  if(b_or_1 > MAXSIZE_T / out)
+  if(b_or_1 > SIZE_MAX / out)
   {
     return false;
   }
   out *= b_or_1;
-  if(c_or_1 > MAXSIZE_T / out)
+  if(c_or_1 > SIZE_MAX / out)
   {
     return false;
   }
@@ -1953,7 +1953,7 @@ inline ErrorWithText KTXImage::readFromKTX2Stream(std::istream& input, const Rea
       // Read up to 4 characters (slightly less constrained than the spec)
       const std::vector<char> value = kvpIt->second;
       // Value should end with a NULL character, but if it doesn't that's OK
-      const size_t charsToRead = std::min(4ULL, value.size());
+      const size_t charsToRead = std::min(size_t(4), value.size());
       for(size_t i = 0; i < charsToRead; i++)
       {
         switch(value[i])
