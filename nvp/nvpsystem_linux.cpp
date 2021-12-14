@@ -166,11 +166,12 @@ void NVPSystem::platformDeinit()
 {
 }
 
-static std::string s_exePath;
 static bool        s_exePathInit = false;
 
 std::string NVPSystem::exePath()
 {
+  static std::string s_exePath;
+
   if(!s_exePathInit)
   {
     char modulePath[PATH_MAX];
