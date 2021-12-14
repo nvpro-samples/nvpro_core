@@ -145,10 +145,12 @@ void nvprintf(const char* fmt, ...)
   va_list vlist;
   va_start(vlist, fmt);
   nvprintf2(vlist, fmt, s_printLevel);
+  va_end(vlist);
 }
 void nvprintfLevel(int level, const char* fmt, ...)
 {
   va_list vlist;
   va_start(vlist, fmt);
   nvprintf2(vlist, fmt, level);
+  va_end(vlist);
 }
