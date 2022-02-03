@@ -27,6 +27,7 @@
 #include "extensions_vk.hpp"
 
 #include <nvvk/debug_util_vk.hpp>
+#include <nvp/perproject_globals.hpp>
 
 namespace nvvk {
 
@@ -209,6 +210,12 @@ bool Context::init(const ContextCreateInfo& info)
 //
 bool Context::initInstance(const ContextCreateInfo& info)
 {
+  // #Aftermath - Initialization
+  if(::isAftermathAvailable() && info.enableAftermath)
+  {
+    m_gpuCrashTracker.Initialize();
+  }
+
   VkApplicationInfo applicationInfo{VK_STRUCTURE_TYPE_APPLICATION_INFO};
   applicationInfo.pApplicationName = info.appTitle.c_str();
   applicationInfo.pEngineName      = info.appEngine.c_str();
@@ -614,6 +621,25 @@ bool Context::initDevice(uint32_t deviceIndex, const ContextCreateInfo& info)
 
   nvvk::DebugUtil::setEnabled(hasDebugUtils());
 
+  if(hasDeviceExtension(VK_NV_DEVICE_DIAGNOSTIC_CHECKPOINTS_EXTENSION_NAME)
+     || hasDeviceExtension(VK_NV_DEVICE_DIAGNOSTICS_CONFIG_EXTENSION_NAME))
+  {
+    LOGI(
+        "\n-------------------------------------------------------------------"
+        "\nWARNING: Aftermath extensions enabled. This may affect performance."
+        "\n-------------------------------------------------------------------\n\n");
+  }
+  else if(isAftermathAvailable() && info.enableAftermath)
+  {
+    LOGI(
+        "\n--------------------------------------------------------------"
+        "\nWARNING: Attempted to enable Aftermath extensions, but failed."
+        "\n" VK_NV_DEVICE_DIAGNOSTIC_CHECKPOINTS_EXTENSION_NAME " or\n " \
+             VK_NV_DEVICE_DIAGNOSTICS_CONFIG_EXTENSION_NAME
+        " not enabled or missing."
+        "\n--------------------------------------------------------------\n\n");
+  }
+
   m_queueGCT = createQueue(info.defaultQueueGCT, "queueGCT", info.defaultPriorityGCT);
   m_queueC   = createQueue(info.defaultQueueC, "queueC", info.defaultPriorityC);
   m_queueT   = createQueue(info.defaultQueueT, "queueT", info.defaultPriorityT);
@@ -722,7 +748,7 @@ bool Context::hasInstanceExtension(const char* name) const
 //--------------------------------------------------------------------------------------------------
 //
 //
-ContextCreateInfo::ContextCreateInfo(bool bUseValidation)
+ContextCreateInfo::ContextCreateInfo(bool bUseValidation, VkDeviceDiagnosticsConfigFlagsNV aftermathFlags)
 {
   if (defaultQueueGCT)
   {
@@ -742,6 +768,22 @@ ContextCreateInfo::ContextCreateInfo(bool bUseValidation)
   if(bUseValidation)
     instanceLayers.push_back({"VK_LAYER_KHRONOS_validation", true});
 #endif
+
+  this->enableAftermath = !!aftermathFlags;
+  if(isAftermathAvailable() && this->enableAftermath)
+  {
+    // #Aftermath
+    // Set up device creation info for Aftermath feature flag configuration.
+
+    // BEWARE: we need to use static here, because addDeviceExtension doesn't make a copy of aftermathInfo.
+    // The pointer to aftermathInfo MUST be valid until initDevice() time!!!
+    static VkDeviceDiagnosticsConfigCreateInfoNV aftermathInfo{VK_STRUCTURE_TYPE_DEVICE_DIAGNOSTICS_CONFIG_CREATE_INFO_NV};
+    aftermathInfo.flags = aftermathFlags;
+    // Enable NV_device_diagnostic_checkpoints extension to be able to use Aftermath event markers.
+    addDeviceExtension(VK_NV_DEVICE_DIAGNOSTIC_CHECKPOINTS_EXTENSION_NAME, true);
+    // Enable NV_device_diagnostics_config extension to configure Aftermath features.
+    addDeviceExtension(VK_NV_DEVICE_DIAGNOSTICS_CONFIG_EXTENSION_NAME, true, &aftermathInfo);
+  }
 }
 
 void ContextCreateInfo::addInstanceExtension(const char* name, bool optional)
@@ -755,8 +797,9 @@ void ContextCreateInfo::addInstanceLayer(const char* name, bool optional)
 }
 
 //--------------------------------------------------------------------------------------------------
-// pFeatureStruct must be provided if it exists, it will be queried from physical device
-// and then passed in this state to device create info.
+// pFeatureStruct must be provided if a feature structure exists for the given extension.
+// The *pFeatureStruct struct will be filled out by querying the physical device.
+// The filled struct will then be passed to device create info.
 //
 void ContextCreateInfo::addDeviceExtension(const char* name, bool optional, void* pFeatureStruct, uint32_t version)
 {

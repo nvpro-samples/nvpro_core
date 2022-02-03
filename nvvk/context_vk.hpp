@@ -21,10 +21,13 @@
 #ifndef NV_VK_DEVICEINSTANCE_INCLUDED
 #define NV_VK_DEVICEINSTANCE_INCLUDED
 
+#include <string>    // std::string
 #include <string.h>  // memcpy
 #include <unordered_set>
 #include <vector>
 #include <vulkan/vulkan_core.h>
+
+#include "nsight_aftermath_vk.hpp"
 
 static_assert(VK_HEADER_VERSION >= 131, "Vulkan SDK version needs to be 1.2.131.1 or greater");
 
@@ -65,18 +68,37 @@ then you are ready to create initialize `nvvk::Context`
 
 > Note: In debug builds, the extension `VK_EXT_DEBUG_UTILS_EXTENSION_NAME` and the layer `VK_LAYER_KHRONOS_validation` are added to help finding issues early.
 
-
 */
+
+static const VkDeviceDiagnosticsConfigFlagsNV defaultAftermathFlags =
+    (VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_RESOURCE_TRACKING_BIT_NV  // Additional information about the resource related to a GPU virtual address
+     | VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_AUTOMATIC_CHECKPOINTS_BIT_NV  // Automatic checkpoints for all draw calls (ADD OVERHEAD)
+     | VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_SHADER_DEBUG_INFO_BIT_NV);  // instructs the shader compiler to generate debug information (ADD OVERHEAD)
+
+
 struct ContextCreateInfo
 {
-  ContextCreateInfo(bool bUseValidation = true);
+  // aftermathFlags != 0 will enable GPU crash dumps when Aftermath is available via SUPPORT_AFTERMATH
+  // No-op when Aftermath is not available.
+  ContextCreateInfo(bool bUseValidation = true,  VkDeviceDiagnosticsConfigFlagsNV aftermathFlags = defaultAftermathFlags);
 
   void setVersion(uint32_t major, uint32_t minor);
 
   void addInstanceExtension(const char* name, bool optional = false);
   void addInstanceLayer(const char* name, bool optional = false);
-  // version = 0: don't care, otherwise check against equality (useful for provisional exts)
-  void addDeviceExtension(const char* name, bool optional = false, void* pFeatureStruct = nullptr, uint32_t version = 0);
+
+  // Add a extension to be enabled at context creation time. If 'optional' is
+  // false, context creation will fail if the extension is not supported by the
+  // device. If the extension requires a feature struct, pass the initialized
+  // struct to 'pFeatureStruct'. If 'version' = 0: don't care, otherwise check
+  // against equality (useful for provisional exts)
+  //
+  // IMPORTANT: The 'pFeatureStruct' pointer will be stored and the object will
+  // later be written to! Make sure the pointer is still valid when
+  // Context::Init() gets called with the ContextCreateInfo object. All
+  // pFeatureStruct objects will be chained together and filled out with the
+  // actual device capabilities during Context::Init().
+    void addDeviceExtension(const char* name, bool optional = false, void* pFeatureStruct = nullptr, uint32_t version = 0);
 
   void removeInstanceExtension(const char* name);
   void removeInstanceLayer(const char* name);
@@ -112,6 +134,10 @@ struct ContextCreateInfo
 #else
       false;
 #endif
+
+  // Will Enable GPU crash dumps when Aftermath is available.
+  // No-op when Aftermath has not been made available via SUPPORT_AFTERMATH in CMakeLists.txt
+  bool enableAftermath = true;
 
   struct Entry
   {
@@ -425,6 +451,9 @@ private:
   VkDebugUtilsMessengerEXT            m_dbgMessenger                  = nullptr;
 
   std::unordered_set<int32_t> m_dbgIgnoreMessages;
+
+  // nSight Aftermath
+  GpuCrashTracker m_gpuCrashTracker;
 
   void initDebugUtils();
   bool hasDebugUtils() const { return m_createDebugUtilsMessengerEXT != nullptr; }

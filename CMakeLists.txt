@@ -72,6 +72,12 @@ endif()
 
 if(USING_VULKANSDK)
   file(GLOB NVHELPERSVK_SOURCE nvvk/*.cpp nvvk/*.hpp nvvk/*.inl nvvk/*.h)
+
+  # the implementation depends on SUPPORTS_AFTERMATH and thus can only be provided
+  # as part of the individual sample projects. Check setup.cmake where we insert
+  # nsight_aftermath_vk.cpp into the projects automatically
+  list(REMOVE_ITEM NVHELPERSVK_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/nvvk/nsight_aftermath_vk.cpp)
+
   if (NOT TARGET vma)
     list(REMOVE_ITEM NVHELPERSVK_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/nvvk/memallocator_vma_vk.hpp)
     list(REMOVE_ITEM NVHELPERSVK_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/nvvk/memallocator_vma_vk.inl)
@@ -122,6 +128,12 @@ if(USING_IMGUI)
          imgui/backends/imgui_vk_extra.h
          ${IMGUI_DIR}/backends/imgui_impl_vulkan.cpp 
          ${IMGUI_DIR}/backends/imgui_impl_vulkan.h)
+  endif()
+ 
+  if(USING_DIRECTX12)
+    list(APPEND IMGUI_SOURCE 
+         ${IMGUI_DIR}/backends/imgui_impl_dx12.cpp
+         ${IMGUI_DIR}/backends/imgui_impl_dx12.h)
   endif()
 
 endif()

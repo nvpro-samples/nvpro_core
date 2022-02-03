@@ -7,6 +7,7 @@
 #include <fstream>
 #include <mutex>
 #include <sstream>
+#include <string.h> // memcpy
 #include <vulkan/vulkan.h>
 #ifdef NVP_SUPPORTS_ZSTD
 #include <zstd.h>
@@ -54,25 +55,49 @@ inline ErrorWithText ResizeVectorOrError(std::vector<T>& vec, size_t newSize)
   return {};
 }
 
-// Multiplies three values, returning false if the calculation could overflow,
+// Multiplies two values, returning false if the calculation would overflow
+inline bool CheckedMul2(size_t a, size_t b, size_t& out)
+{
+  if((a != 0) && (b > SIZE_MAX / a))  // Safe way of checking a * b > SIZE_MAX
+  {
+    return false;
+  }
+  out = a * b;
+  return true;
+}
+
+inline bool CheckedMul3(size_t a, size_t b, size_t c, size_t& out)
+{
+  if(!CheckedMul2(a, b, out))
+    return false;
+  if(!CheckedMul2(c, out, out))
+    return false;
+  return true;
+}
+
+inline bool CheckedMul4(size_t a, size_t b, size_t c, size_t d, size_t& out)
+{
+  if(!CheckedMul3(a, b, c, out))
+    return false;
+  if(!CheckedMul2(d, out, out))
+    return false;
+  return true;
+}
+
+inline bool CheckedMul5(size_t a, size_t b, size_t c, size_t d, size_t e, size_t& out)
+{
+  if(!CheckedMul4(a, b, c, d, out))
+    return false;
+  if(!CheckedMul2(e, out, out))
+    return false;
+  return true;
+}
+
+// Multiplies three values, returning false if the calculation would overflow,
 // interpreting each value as 1 if it would be 0.
 inline bool GetNumSubresources(size_t a, size_t b, size_t c, size_t& out)
 {
-  const size_t a_or_1 = std::max(a, size_t(1));
-  const size_t b_or_1 = std::max(b, size_t(1));
-  const size_t c_or_1 = std::max(c, size_t(1));
-  out                 = a_or_1;
-  if(b_or_1 > SIZE_MAX / out)
-  {
-    return false;
-  }
-  out *= b_or_1;
-  if(c_or_1 > SIZE_MAX / out)
-  {
-    return false;
-  }
-  out *= c_or_1;
-  return true;
+  return CheckedMul3(std::max(a, size_t(1)), std::max(b, size_t(1)), std::max(c, size_t(1)), out);
 }
 
 inline ErrorWithText KTXImage::allocate(uint32_t _num_mips, uint32_t _num_layers, uint32_t _num_faces)
@@ -309,19 +334,25 @@ inline ErrorWithText ReadKeyValueData(std::istream&                             
   return {};
 }
 
-inline size_t ASTCSize(size_t blockWidth, size_t blockHeight, size_t blockDepth, size_t width, size_t height, size_t depth)
+// Computes the size of a subresource of size `width` x `height` x `depth`, encoded
+// using ASTC blocks of size `blockWidth` x `blockHeight` x `blockDepth`. Returns false
+// if the calculation would overflow, and returns true and stores the result in
+// `out` otherwise.
+inline bool ASTCSize(size_t blockWidth, size_t blockHeight, size_t blockDepth, size_t width, size_t height, size_t depth, size_t& out)
 {
-  // Each ASTC block size is 128 bits = 16 bytes
-  return ((width + blockWidth - 1) / blockWidth)       //
-         * ((height + blockHeight - 1) / blockHeight)  //
-         * ((depth + blockDepth - 1) / blockDepth)     //
-         * 16;
+  return CheckedMul4(((width + blockWidth - 1) / blockWidth),     // # of ASTC blocks along the x axis
+                     ((height + blockHeight - 1) / blockHeight),  // # of ASTC blocks along the y axis
+                     ((depth + blockDepth - 1) / blockDepth),     // # of ASTC blocks along the z axis
+                     16,                                          // Each ASTC block size is 128 bits = 16 bytes
+                     out);
 }
 
 // Returns the size of a width x height x depth image of the given VkFormat.
 // Returns an error if the given image sizes are strictly invalid.
 inline ErrorWithText ExportSize(size_t width, size_t height, size_t depth, VkFormat format, size_t& outSize)
 {
+  static const char* overflow_error_message =
+      "Invalid file: One of the subresources had a size that would require more than 2^64-1 bytes of data!";
   switch(format)
   {
     case VK_FORMAT_R4G4_UNORM_PACK8:
@@ -333,7 +364,8 @@ inline ErrorWithText ExportSize(size_t width, size_t height, size_t depth, VkFor
     case VK_FORMAT_R8_SINT:
     case VK_FORMAT_R8_SRGB:
     case VK_FORMAT_S8_UINT:
-      outSize = width * height * depth * (8 / 8);  // 8 bits per pixel
+      if(!CheckedMul4(width, height, depth, 8 / 8, outSize))  // 8 bits per pixel
+        return overflow_error_message;
       return {};
     case VK_FORMAT_R4G4B4A4_UNORM_PACK16:
     case VK_FORMAT_B4G4R4A4_UNORM_PACK16:
@@ -358,7 +390,8 @@ inline ErrorWithText ExportSize(size_t width, size_t height, size_t depth, VkFor
     case VK_FORMAT_R16_SFLOAT:
     case VK_FORMAT_D16_UNORM:
     case VK_FORMAT_D16_UNORM_S8_UINT:
-      outSize = width * height * depth * (16 / 8);  // 16 bits per pixel
+      if(!CheckedMul4(width, height, depth, 16 / 8, outSize))  // 16 bits per pixel
+        return overflow_error_message;
       return {};
     case VK_FORMAT_R8G8B8_UNORM:
     case VK_FORMAT_R8G8B8_SNORM:
@@ -374,7 +407,8 @@ inline ErrorWithText ExportSize(size_t width, size_t height, size_t depth, VkFor
     case VK_FORMAT_B8G8R8_UINT:
     case VK_FORMAT_B8G8R8_SINT:
     case VK_FORMAT_B8G8R8_SRGB:
-      outSize = width * height * depth * (24 / 8);  // 24 bits per pixel
+      if(!CheckedMul4(width, height, depth, 24 / 8, outSize))  // 24 bits per pixel
+        return overflow_error_message;
       return {};
     case VK_FORMAT_R8G8B8A8_UNORM:
     case VK_FORMAT_R8G8B8A8_SNORM:
@@ -424,7 +458,8 @@ inline ErrorWithText ExportSize(size_t width, size_t height, size_t depth, VkFor
     case VK_FORMAT_X8_D24_UNORM_PACK32:
     case VK_FORMAT_D32_SFLOAT:
     case VK_FORMAT_D24_UNORM_S8_UINT:
-      outSize = width * height * depth * (32 / 8);  // 32 bits per pixel
+      if(!CheckedMul4(width, height, depth, 32 / 8, outSize))  // 32 bits per pixel
+        return overflow_error_message;
       return {};
     case VK_FORMAT_R16G16B16_UNORM:
     case VK_FORMAT_R16G16B16_SNORM:
@@ -433,7 +468,8 @@ inline ErrorWithText ExportSize(size_t width, size_t height, size_t depth, VkFor
     case VK_FORMAT_R16G16B16_UINT:
     case VK_FORMAT_R16G16B16_SINT:
     case VK_FORMAT_R16G16B16_SFLOAT:
-      outSize = width * height * depth * (48 / 8);  // 48 bits per pixel
+      if(!CheckedMul4(width, height, depth, 48 / 8, outSize))  // 48 bits per pixel
+        return overflow_error_message;
       return {};
     case VK_FORMAT_R16G16B16A16_UNORM:
     case VK_FORMAT_R16G16B16A16_SNORM:
@@ -450,12 +486,14 @@ inline ErrorWithText ExportSize(size_t width, size_t height, size_t depth, VkFor
     case VK_FORMAT_R64_SFLOAT:
     // Technically 40 or 64, but we choose the latter to make earlier special cases work:
     case VK_FORMAT_D32_SFLOAT_S8_UINT:
-      outSize = width * height * depth * (64 / 8);  // 64 bits per pixel
+      if(!CheckedMul4(width, height, depth, 64 / 8, outSize))  // 64 bits per pixel
+        return overflow_error_message;
       return {};
     case VK_FORMAT_R32G32B32_UINT:
     case VK_FORMAT_R32G32B32_SINT:
     case VK_FORMAT_R32G32B32_SFLOAT:
-      outSize = width * height * depth * (96 / 8);  // 96 bits per pixel
+      if(!CheckedMul4(width, height, depth, 96 / 8, outSize))  // 96 bits per pixel
+        return overflow_error_message;
       return {};
     case VK_FORMAT_R32G32B32A32_UINT:
     case VK_FORMAT_R32G32B32A32_SINT:
@@ -463,17 +501,20 @@ inline ErrorWithText ExportSize(size_t width, size_t height, size_t depth, VkFor
     case VK_FORMAT_R64G64_UINT:
     case VK_FORMAT_R64G64_SINT:
     case VK_FORMAT_R64G64_SFLOAT:
-      outSize = width * height * depth * (128 / 8);  // 128 bits per pixel
+      if(!CheckedMul4(width, height, depth, 128 / 8, outSize))  // 128 bits per pixel
+        return overflow_error_message;
       return {};
     case VK_FORMAT_R64G64B64_UINT:
     case VK_FORMAT_R64G64B64_SINT:
     case VK_FORMAT_R64G64B64_SFLOAT:
-      outSize = width * height * depth * (196 / 8);  // 196 bits per pixel
+      if(!CheckedMul4(width, height, depth, 196 / 8, outSize))  // 196 bits per pixel
+        return overflow_error_message;
       return {};
     case VK_FORMAT_R64G64B64A64_UINT:
     case VK_FORMAT_R64G64B64A64_SINT:
     case VK_FORMAT_R64G64B64A64_SFLOAT:
-      outSize = width * height * depth * (256 / 8);  // 256 bits per pixel
+      if(!CheckedMul4(width, height, depth, 256 / 8, outSize))  // 256 bits per pixel
+        return overflow_error_message;
       return {};
     case VK_FORMAT_BC1_RGB_UNORM_BLOCK:
     case VK_FORMAT_BC1_RGB_SRGB_BLOCK:
@@ -481,7 +522,8 @@ inline ErrorWithText ExportSize(size_t width, size_t height, size_t depth, VkFor
     case VK_FORMAT_BC1_RGBA_SRGB_BLOCK:
     case VK_FORMAT_BC4_UNORM_BLOCK:
     case VK_FORMAT_BC4_SNORM_BLOCK:
-      outSize = ((width + 3) / 4) * ((height + 3) / 4) * depth * 8;  // 8 bytes per block
+      if(!CheckedMul4((width + 3) / 4, (height + 3) / 4, depth, 8, outSize))  // 8 bytes per block
+        return overflow_error_message;
       return {};
     case VK_FORMAT_BC2_UNORM_BLOCK:
     case VK_FORMAT_BC2_SRGB_BLOCK:
@@ -493,63 +535,78 @@ inline ErrorWithText ExportSize(size_t width, size_t height, size_t depth, VkFor
     case VK_FORMAT_BC6H_SFLOAT_BLOCK:
     case VK_FORMAT_BC7_UNORM_BLOCK:
     case VK_FORMAT_BC7_SRGB_BLOCK:
-      outSize = ((width + 3) / 4) * ((height + 3) / 4) * depth * 16;  // 16 bytes per block
+      if(!CheckedMul4((width + 3) / 4, (height + 3) / 4, depth, 16, outSize))  // 16 bytes per block
+        return overflow_error_message;
       return {};
     case VK_FORMAT_ASTC_4x4_UNORM_BLOCK:
     case VK_FORMAT_ASTC_4x4_SRGB_BLOCK:
-      outSize = ASTCSize(4, 4, 1, width, height, depth);
+      if(!ASTCSize(4, 4, 1, width, height, depth, outSize))
+        return overflow_error_message;
       return {};
     case VK_FORMAT_ASTC_5x4_UNORM_BLOCK:
     case VK_FORMAT_ASTC_5x4_SRGB_BLOCK:
-      outSize = ASTCSize(5, 4, 1, width, height, depth);
+      if(!ASTCSize(5, 4, 1, width, height, depth, outSize))
+        return overflow_error_message;
       return {};
     case VK_FORMAT_ASTC_5x5_UNORM_BLOCK:
     case VK_FORMAT_ASTC_5x5_SRGB_BLOCK:
-      outSize = ASTCSize(5, 5, 1, width, height, depth);
+      if(!ASTCSize(5, 5, 1, width, height, depth, outSize))
+        return overflow_error_message;
       return {};
     case VK_FORMAT_ASTC_6x5_UNORM_BLOCK:
     case VK_FORMAT_ASTC_6x5_SRGB_BLOCK:
-      outSize = ASTCSize(6, 5, 1, width, height, depth);
+      if(!ASTCSize(6, 5, 1, width, height, depth, outSize))
+        return overflow_error_message;
       return {};
     case VK_FORMAT_ASTC_6x6_UNORM_BLOCK:
     case VK_FORMAT_ASTC_6x6_SRGB_BLOCK:
-      outSize = ASTCSize(6, 6, 1, width, height, depth);
+      if(!ASTCSize(6, 6, 1, width, height, depth, outSize))
+        return overflow_error_message;
       return {};
     case VK_FORMAT_ASTC_8x5_UNORM_BLOCK:
     case VK_FORMAT_ASTC_8x5_SRGB_BLOCK:
-      outSize = ASTCSize(8, 5, 1, width, height, depth);
+      if(!ASTCSize(8, 5, 1, width, height, depth, outSize))
+        return overflow_error_message;
       return {};
     case VK_FORMAT_ASTC_8x6_UNORM_BLOCK:
     case VK_FORMAT_ASTC_8x6_SRGB_BLOCK:
-      outSize = ASTCSize(8, 6, 1, width, height, depth);
+      if(!ASTCSize(8, 6, 1, width, height, depth, outSize))
+        return overflow_error_message;
       return {};
     case VK_FORMAT_ASTC_8x8_UNORM_BLOCK:
     case VK_FORMAT_ASTC_8x8_SRGB_BLOCK:
-      outSize = ASTCSize(8, 8, 1, width, height, depth);
+      if(!ASTCSize(8, 8, 1, width, height, depth, outSize))
+        return overflow_error_message;
       return {};
     case VK_FORMAT_ASTC_10x5_UNORM_BLOCK:
     case VK_FORMAT_ASTC_10x5_SRGB_BLOCK:
-      outSize = ASTCSize(10, 5, 1, width, height, depth);
+      if(!ASTCSize(10, 5, 1, width, height, depth, outSize))
+        return overflow_error_message;
       return {};
     case VK_FORMAT_ASTC_10x6_UNORM_BLOCK:
     case VK_FORMAT_ASTC_10x6_SRGB_BLOCK:
-      outSize = ASTCSize(10, 6, 1, width, height, depth);
+      if(!ASTCSize(10, 6, 1, width, height, depth, outSize))
+        return overflow_error_message;
       return {};
     case VK_FORMAT_ASTC_10x8_UNORM_BLOCK:
     case VK_FORMAT_ASTC_10x8_SRGB_BLOCK:
-      outSize = ASTCSize(10, 8, 1, width, height, depth);
+      if(!ASTCSize(10, 8, 1, width, height, depth, outSize))
+        return overflow_error_message;
       return {};
     case VK_FORMAT_ASTC_10x10_UNORM_BLOCK:
     case VK_FORMAT_ASTC_10x10_SRGB_BLOCK:
-      outSize = ASTCSize(10, 10, 1, width, height, depth);
+      if(!ASTCSize(10, 10, 1, width, height, depth, outSize))
+        return overflow_error_message;
       return {};
     case VK_FORMAT_ASTC_12x10_UNORM_BLOCK:
     case VK_FORMAT_ASTC_12x10_SRGB_BLOCK:
-      outSize = ASTCSize(12, 10, 1, width, height, depth);
+      if(!ASTCSize(12, 10, 1, width, height, depth, outSize))
+        return overflow_error_message;
       return {};
     case VK_FORMAT_ASTC_12x12_UNORM_BLOCK:
     case VK_FORMAT_ASTC_12x12_SRGB_BLOCK:
-      outSize = ASTCSize(12, 12, 1, width, height, depth);
+      if(!ASTCSize(12, 12, 1, width, height, depth, outSize))
+        return overflow_error_message;
       return {};
     default:
       return "Tried to find size of unrecognized VkFormat " + std::to_string(format) + ".";
@@ -1271,15 +1328,15 @@ inline ErrorWithText KTXImage::readFromKTX1Stream(std::istream& input, const Rea
         {
           // faceSizeBytes mod 4: 0 1 2 3
           // cubePadding        : 0 3 2 1
-          const std::streamoff cubePaddingBytes = static_cast<std::streamoff>(3 - ((faceSizeBytes + 3) % 4));
+          const std::streamoff cubePaddingBytes = 3 - ((static_cast<std::streamoff>(faceSizeBytes) + 3) % 4);
           input.seekg(cubePaddingBytes, std::ios_base::cur);
         }
       }
     }
     // Handle mip padding. The spec says that this is always 3 - ((imageSize + 3)%4) bytes,
-    // and we assume bytes are the same size as chars:
+    // and we assume bytes are the same size as chars.
     {
-      const std::streamoff mipPaddingBytes = static_cast<std::streamoff>(3 - ((imageSize + 3) % 4));
+      const std::streamoff mipPaddingBytes = 3 - ((static_cast<std::streamoff>(imageSize) + 3) % 4);
       input.seekg(mipPaddingBytes, std::ios_base::cur);
     }
   }
@@ -1807,9 +1864,13 @@ inline ErrorWithText KTXImage::readFromKTX2Stream(std::istream& input, const Rea
     }
 
     const size_t numDFDSamples = (size_t(basicDFD.descriptorBlockSize) - sizeof(BasicDataFormatDescriptor)) / sizeof(DFSample);
-    dfdSamples.resize(numDFDSamples);
-    memcpy(dfdSamples.data(), reinterpret_cast<char*>(dfd.data()) + sizeof(dfdTotalSize) + sizeof(BasicDataFormatDescriptor),
-           numDFDSamples * sizeof(DFSample));
+    UNWRAP_ERROR(ResizeVectorOrError(dfdSamples, numDFDSamples));
+    // If numDFDSamples is 0, dfdSamples.data() can be nullptr, and passing nullptr to memcpy() is undefined behavior.
+    if(numDFDSamples != 0)
+    {
+      memcpy(dfdSamples.data(), reinterpret_cast<char*>(dfd.data()) + sizeof(dfdTotalSize) + sizeof(BasicDataFormatDescriptor),
+             numDFDSamples * sizeof(DFSample));
+    }
   }
 
 
@@ -2143,11 +2204,16 @@ inline ErrorWithText KTXImage::readFromKTX2Stream(std::istream& input, const Rea
       // or UASTC supports depth.
       if(isBasisUASTC)
       {
-        inflatedFaceSize = ((mipWidth + 3) / 4) * ((mipHeight + 3) / 4) * mipDepth * 16;  // 16 bytes per 4x4 block
+        if(!CheckedMul4((mipWidth + 3) / 4, (mipHeight + 3) / 4, mipDepth, 16, inflatedFaceSize))  // 16 bytes per 4x4 block
+          return "Invalid KTX2 file: A subresource had size " + std::to_string(mipWidth) + " x " + std::to_string(mipHeight)
+                 + " x " + std::to_string(mipDepth) + ", which would require more than 2^64 - 1 bytes to store decompressed.";
       }
       else if(isBasisETC1S)
       {
-        inflatedFaceSize = ((mipWidth + 3) / 4) * ((mipHeight + 3) / 4) * mipDepth * basisETC1SNumSlices * 8;  // 8 bytes per 4x4 block per slice
+        if(!CheckedMul5((mipWidth + 3) / 4, (mipHeight + 3) / 4, mipDepth, basisETC1SNumSlices, 8, inflatedFaceSize))  // 8 bytes per 4x4 block per slice
+          return "Invalid KTX2 file: A subresource had size " + std::to_string(mipWidth) + " x " + std::to_string(mipHeight)
+                 + " x " + std::to_string(mipDepth) + " with " + std::to_string(basisETC1SNumSlices)
+                 + " slices, which would require more than 2^64 - 1 bytes to store decompressed.";
       }
       else
       {
@@ -2229,7 +2295,7 @@ inline ErrorWithText KTXImage::readFromKTX2Stream(std::istream& input, const Rea
       //                             |
       //                             in the ETC1S + UASTC case, we load file data into here directly
       //                             (it turns out ETC1S doesn't do anything per-level)
-      if((header.supercompressionScheme == 0))
+      if(header.supercompressionScheme == 0)
       {
         // UASTC, ETC1S: Load file data into inflatedData directly
         UNWRAP_ERROR(ResizeVectorOrError(inflatedData, levelIndex.uncompressedByteLength));

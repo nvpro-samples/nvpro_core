@@ -24,3 +24,12 @@ std::string getProjectName()
   return PROJECT_NAME;
 }
 
+bool isAftermathAvailable()
+{
+#ifdef NVVK_SUPPORTS_AFTERMATH
+  return true;
+#else
+  return false;
+#endif
+}
+

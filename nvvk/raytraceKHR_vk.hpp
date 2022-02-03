@@ -81,6 +81,9 @@ namespace nvvk {
 // Convert a Mat4x4 to the matrix required by acceleration structures
 inline VkTransformMatrixKHR toTransformMatrixKHR(nvmath::mat4f matrix)
 {
+  // VkTransformMatrixKHR uses a row-major memory layout, while nvmath::mat4f
+  // uses a column-major memory layout. We transpose the matrix so we can
+  // memcpy the matrix's data directly.
   nvmath::mat4f        temp = nvmath::transpose(matrix);
   VkTransformMatrixKHR out_matrix;
   memcpy(&out_matrix, &temp, sizeof(VkTransformMatrixKHR));

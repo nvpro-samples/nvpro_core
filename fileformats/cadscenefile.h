@@ -66,10 +66,11 @@ enum
   // adds support for vertex and part channels
   CADSCENEFILE_VERSION_GEOMETRYCHANNELS = 6,
 
-  CADSCENEFILE_NOERROR         = 0,
-  CADSCENEFILE_ERROR_NOFILE    = 1,
-  CADSCENEFILE_ERROR_VERSION   = 2,
-  CADSCENEFILE_ERROR_OPERATION = 3,
+  CADSCENEFILE_NOERROR         = 0,  // Success.
+  CADSCENEFILE_ERROR_NOFILE    = 1,  // The file did not exist or an I/O operation failed.
+  CADSCENEFILE_ERROR_VERSION   = 2,  // The file had an invalid header.
+  CADSCENEFILE_ERROR_OPERATION = 3,  // Called an operation that cannot be called on this object.
+  CADSCENEFILE_ERROR_INVALID   = 4,  // The file contains invalid data.
 
   // node tree, no multiple references to same node
   // always set, as no application supports non-unique case
@@ -368,7 +369,7 @@ typedef struct _CSFGeometry
   };
   union
   {
-    // 4 * numVertices * numAuxiliarChannels
+    // 4 * numVertices * numAuxChannels
     CSFoffset auxOFFSET;
     float*    aux;
   };
@@ -784,12 +785,111 @@ static size_t CSFile_getHeaderSize(const CSFile* csf)
   }
 }
 
+// Adds two unsigned size_t numbers and returns the result. If the sum would
+// overflow, sets the provided flag to true and returns 0.
+// This is used for range checking; for instance, imagine a file where
+// pointersOFFSET = 0x100 and numPointers = 0x20000000`00000001. Then
+// pointersOFFSET + numPointers * sizeof(CSFoffset) = 0x108 - so if we didn't
+// check for this, both the start and end of the pointer array could appear to
+// be in-bounds, even though the header would be invalid.
+static size_t CSFile_checkedAdd(const size_t a, const size_t b, bool& overflow)
+{
+  if(a > SIZE_MAX - b)  // Safe way of checking a+b > SIZE_MAX without overflow
+  {
+    overflow = true;
+    return 0;
+  }
+  return a + b;
+}
+
+// Multiplies two unsigned size_t numbers and returns the result. If the sum
+// would overflow, sets the provided flag to true and returns 0.
+static size_t CSFile_checkedMul(const size_t a, const size_t b, bool& overflow)
+{
+  if(b != 0 && (a > SIZE_MAX / b))
+  {
+    overflow = true;
+    return 0;
+  }
+  return a * b;
+}
+
+static size_t CSFile_max(const size_t a, const size_t b)
+{
+  if(a > b)
+  {
+    return a;
+  }
+  return b;
+}
+
+// Returns the minimum required size of the file based on the header, or 0 if
+// the file fails validation checks. This assumes that csf points to at least
+// CSFile_getHeaderSize(csf) bytes of data.
 static size_t CSFile_getRawSize(const CSFile* csf)
 {
+  // The header must have a valid version number.
   if(CSFile_invalidVersion(csf))
+  {
     return 0;
+  }
 
-  return csf->pointersOFFSET + csf->numPointers * sizeof(CSFoffset);
+  // All length-type fields in the header must not be negative.
+  if((csf->numPointers < 0)       //
+     || (csf->numGeometries < 0)  //
+     || (csf->numMaterials < 0)   //
+     || (csf->numNodes < 0)       //
+     || (csf->rootIDX < 0))
+  {
+    return 0;
+  }
+
+  // rootIDX must be in-bounds.
+  if(csf->rootIDX >= csf->numNodes)
+  {
+    return 0;
+  }
+
+  // Determine the minimum file length from the different ranges specified
+  // in the header.
+  bool   overflow            = false;
+  size_t minimum_file_length = CSFile_getHeaderSize(csf);
+  minimum_file_length =
+      CSFile_max(minimum_file_length, CSFile_checkedAdd(csf->pointersOFFSET, csf->numPointers * sizeof(CSFoffset), overflow));
+  minimum_file_length =
+      CSFile_max(minimum_file_length, CSFile_checkedAdd(csf->geometriesOFFSET, csf->numGeometries * sizeof(CSFGeometry), overflow));
+  minimum_file_length =
+      CSFile_max(minimum_file_length, CSFile_checkedAdd(csf->materialsOFFSET, csf->numMaterials * sizeof(CSFMaterial), overflow));
+  minimum_file_length =
+      CSFile_max(minimum_file_length, CSFile_checkedAdd(csf->nodesOFFSET, csf->numNodes * sizeof(CSFNode), overflow));
+
+  if(csf->version >= CADSCENEFILE_VERSION_META)
+  {
+    if((csf->fileFlags & CADSCENEFILE_FLAG_META_NODE) != 0)
+    {
+      minimum_file_length =
+          CSFile_max(minimum_file_length, CSFile_checkedAdd(csf->nodeMetasOFFSET, csf->numNodes * sizeof(CSFMeta), overflow));
+    }
+
+    if((csf->fileFlags & CADSCENEFILE_FLAG_META_GEOMETRY) != 0)
+    {
+      minimum_file_length =
+          CSFile_max(minimum_file_length, CSFile_checkedAdd(csf->fileMetaOFFSET, csf->numNodes * sizeof(CSFMeta), overflow));
+    }
+
+    if((csf->fileFlags & CADSCENEFILE_FLAG_META_FILE) != 0)
+    {
+      minimum_file_length =
+          CSFile_max(minimum_file_length, CSFile_checkedAdd(csf->geometryMetasOFFSET, csf->numNodes * sizeof(CSFMeta), overflow));
+    }
+  }
+
+  if(overflow)
+  {
+    return 0;
+  }
+
+  return minimum_file_length;
 }
 
 
@@ -853,20 +953,188 @@ static void CSFile_fixSecondaryPointers(CSFile* csf, void* base)
   }
 }
 
+// Returns whether an array defined by `ptr` and `numElements` is contained
+// within the range of bytes specified by `csf` and `csf_size`, not including
+// the header.
+template <class T, class CountType>
+static bool CSFile_validateRange(const T* ptr, CountType numElements, const CSFile* csf, size_t csf_size)
+{
+  if(numElements < 0)
+    return false;
+
+  // Always allow a range of length 0, even if ptr is not valid. This occurs on
+  // worldcar.csf.gz, for instance.
+  if(numElements == 0)
+    return true;
+
+  // Two casts here to ensure cast from void* to uintptr_t is valid, since only
+  // T* -> void* and void* -> uintptr_t are defined.
+  const uintptr_t ptr_as_number = reinterpret_cast<uintptr_t>(static_cast<const void*>(ptr));
+  const uintptr_t csf_as_number = reinterpret_cast<uintptr_t>(static_cast<const void*>(csf));
+
+  // We say that csf->pointers is the only array which can point to other values
+  // in the header. Otherwise, it is very easy for objects to contain pointers
+  // into the header - and when functions like CSFile_setupDefaultChannels
+  // modify these objects, they could make the header invalid!
+  if(ptr_as_number < (csf_as_number + CSFile_getHeaderSize(csf)))
+    return false;
+
+  if(ptr_as_number % alignof(T) != 0)
+  {
+    return false;
+  }
+
+  static_assert(std::is_same<size_t, uintptr_t>::value,
+                "Behavior of CSFile_validatePointer requires size_t and uintptr_t to be equivalent!");
+
+  bool         overflow    = false;
+  const size_t address_end = CSFile_checkedAdd(csf_as_number, csf_size, overflow);
+  const size_t array_size  = CSFile_checkedMul(sizeof(T), static_cast<size_t>(numElements), overflow);
+  const size_t pointer_end = CSFile_checkedAdd(ptr_as_number, array_size, overflow);
+  if(overflow || (pointer_end > address_end))
+    return false;
+
+  return true;
+}
+
+// Returns whether a CSFMeta array is within bounds.
+static bool CSFile_validateMetaArray(const CSFMeta* meta_ptr, int numElements, const CSFile* csf, size_t csf_size)
+{
+  if(!CSFile_validateRange(meta_ptr, numElements, csf, csf_size))
+    return false;
+
+  for(int m = 0; m < numElements; m++)
+  {
+    const CSFMeta& meta = meta_ptr[m];
+    if(!CSFile_validateRange(meta.bytes, meta.numBytes, csf, csf_size))
+      return false;
+  }
+
+  return true;
+}
+
+// Returns whether all ranges are within bounds. This will catch if
+// csf->pointers didn't include some pointers.
+static bool CSFile_validateAllRanges(const CSFile* csf, size_t csf_size)
+{
+  if(!CSFile_validateRange(csf->geometries, csf->numGeometries, csf, csf_size))
+    return false;
+
+  if(csf->version >= CADSCENEFILE_VERSION_GEOMETRYCHANNELS)
+  {
+    for(int g = 0; g < csf->numGeometries; g++)
+    {
+      const CSFGeometry& geo = csf->geometries[g];
+      if(geo.numNormalChannels < 0 || geo.numTexChannels < 0 || geo.numAuxChannels < 0 || geo.numPartChannels < 0
+         || geo.numParts < 0 || geo.numVertices < 0 || geo.numIndexSolid < 0 || geo.numIndexWire < 0)
+        return false;
+
+      if(!CSFile_validateRange(geo.auxStorageOrder, geo.numAuxChannels, csf, csf_size))
+        return false;
+
+      bool         overflow = false;
+      const size_t aux_count = CSFile_checkedMul(CSFile_checkedMul(4, geo.numVertices, overflow), geo.numAuxChannels, overflow);
+      if(overflow)
+        return false;
+      if(!CSFile_validateRange(geo.aux, aux_count, csf, csf_size))
+        return false;
+
+      if(!CSFile_validateRange(geo.perpartStorageOrder, geo.numPartChannels, csf, csf_size))
+        return false;
+
+      // For simplicity here, we require that
+      // geo.numPartChannels * sizeof(CSFGeometryPartBbox) * geo.numParts <= SIZE_MAX -
+      // that ensures that these functions called here don't overflow.
+      CSFile_checkedMul(sizeof(CSFGeometryPartBbox), CSFile_checkedMul(geo.numPartChannels, geo.numParts, overflow), overflow);
+      if(overflow)
+        return false;
+
+      const size_t perpart_size = CSFGeometry_getPerPartSize(&geo);
+      if(!CSFile_validateRange(geo.perpart, perpart_size, csf, csf_size))
+        return false;
+
+      const size_t vertex_num_elements = CSFile_checkedMul(3, geo.numVertices, overflow);
+      if(overflow || !CSFile_validateRange(geo.vertex, vertex_num_elements, csf, csf_size))
+        return false;
+
+      const size_t normal_num_elements = CSFile_checkedMul(vertex_num_elements, geo.numNormalChannels, overflow);
+      if(overflow || !CSFile_validateRange(geo.normal, normal_num_elements, csf, csf_size))
+        return false;
+
+      const size_t tex_num_elements =
+          CSFile_checkedMul(2, CSFile_checkedMul(geo.numVertices, geo.numTexChannels, overflow), overflow);
+      if(!CSFile_validateRange(geo.tex, tex_num_elements, csf, csf_size))
+        return false;
+
+      if(!CSFile_validateRange(geo.indexSolid, geo.numIndexSolid, csf, csf_size))
+        return false;
+      if(!CSFile_validateRange(geo.indexWire, geo.numIndexWire, csf, csf_size))
+        return false;
+      if(!CSFile_validateRange(geo.parts, geo.numParts, csf, csf_size))
+        return false;
+    }
+  }
+
+  if(!CSFile_validateRange(csf->materials, csf->numMaterials, csf, csf_size))
+    return false;
+  for(int m = 0; m < csf->numMaterials; m++)
+  {
+    if(!CSFile_validateRange(csf->materials[m].bytes, csf->materials[m].numBytes, csf, csf_size))
+      return false;
+  }
+
+  if(!CSFile_validateRange(csf->nodes, csf->numNodes, csf, csf_size))
+    return false;
+  for(int n = 0; n < csf->numNodes; n++)
+  {
+    CSFNode& node = csf->nodes[n];
+    if(node.geometryIDX >= 0)
+    {
+      if(node.geometryIDX >= csf->numGeometries)
+        return false;
+      CSFGeometry& geo = csf->geometries[node.geometryIDX];
+      if(node.numParts != geo.numParts)
+        return false;
+      if(!CSFile_validateRange(node.parts, node.numParts, csf, csf_size))
+        return false;
+    }
+
+    if(!CSFile_validateRange(node.children, node.numChildren, csf, csf_size))
+      return false;
+  }
+
+  if(csf->version >= CADSCENEFILE_VERSION_META)
+  {
+    if((csf->fileFlags & CADSCENEFILE_FLAG_META_NODE) != 0)
+    {
+      if(!CSFile_validateMetaArray(csf->nodeMetas, csf->numNodes, csf, csf_size))
+        return false;
+    }
+
+    if((csf->fileFlags & CADSCENEFILE_FLAG_META_GEOMETRY) != 0)
+    {
+      if(!CSFile_validateMetaArray(csf->geometryMetas, csf->numNodes, csf, csf_size))
+        return false;
+    }
+
+    if((csf->fileFlags & CADSCENEFILE_FLAG_META_FILE) != 0)
+    {
+      if(!CSFile_validateMetaArray(csf->fileMeta, csf->numNodes, csf, csf_size))
+        return false;
+    }
+  }
+
+  return true;
+}
+
 CSFAPI int CSFile_loadRaw(CSFile** outcsf, size_t size, void* dataraw)
 {
   char*   data = (char*)dataraw;
   CSFile* csf  = (CSFile*)data;
+  *outcsf      = 0;
 
   if(size < sizeof(CSFile) || CSFile_invalidVersion(csf))
   {
-    *outcsf = 0;
-    return CADSCENEFILE_ERROR_VERSION;
-  }
-
-  if(size < CSFile_getRawSize((CSFile*)dataraw))
-  {
-    *outcsf = 0;
     return CADSCENEFILE_ERROR_VERSION;
   }
 
@@ -875,20 +1143,56 @@ CSFAPI int CSFile_loadRaw(CSFile** outcsf, size_t size, void* dataraw)
     csf->fileFlags = csf->fileFlags ? CADSCENEFILE_FLAG_UNIQUENODES : 0;
   }
 
+  {
+    const size_t required_minimum_size = CSFile_getRawSize(csf);
+    if((required_minimum_size == 0) || (size < required_minimum_size))
+    {
+      // The file was truncated, or the header pointed to data that was out of bounds.
+      return CADSCENEFILE_ERROR_VERSION;
+    }
+  }
+
+  // Pointers are saved relative to the start of the file. Modify them so that
+  // they point to locations in memory. Also check that alignments are OK to
+  // avoid undefined behavior. Finally, check that each element of csf->pointers
+  // points to csf->geometries or later - otherwise, this shift could change the
+  // header, or even the location of the pointers array itself!
+  if(csf->pointersOFFSET % alignof(CSFoffset) != 0)
+  {
+    return CADSCENEFILE_ERROR_INVALID;
+  }
   csf->pointersOFFSET += (CSFoffset)csf;
   for(int i = 0; i < csf->numPointers; i++)
   {
-    CSFoffset* ptr = (CSFoffset*)(data + csf->pointers[i]);
+    const CSFoffset location_of_ptr_from_start = csf->pointers[i];
+    if((location_of_ptr_from_start > static_cast<CSFoffset>(size) - sizeof(CSFoffset*))  //
+       || (location_of_ptr_from_start < offsetof(CSFile, geometries))                    //
+       || (location_of_ptr_from_start % alignof(CSFoffset) != 0))
+    {
+      return CADSCENEFILE_ERROR_INVALID;
+    }
+
+    CSFoffset* ptr = (CSFoffset*)(data + location_of_ptr_from_start);
     *(ptr) += (CSFoffset)csf;
+  }
+
+  // Check that pointers really contained all pointers in the file.
+  if(!CSFile_validateAllRanges(csf, size))
+  {
+    return CADSCENEFILE_ERROR_INVALID;
   }
 
   if(csf->version < CADSCENEFILE_VERSION_PARTNODEIDX)
   {
     for(int i = 0; i < csf->numNodes; i++)
     {
-      for(int p = 0; p < csf->nodes[i].numParts; p++)
+      // csf->nodes[i].parts is only guaranteed to be valid if geometryIDX >= 0:
+      if(csf->nodes[i].geometryIDX >= 0)
       {
-        csf->nodes[i].parts[p].nodeIDX = -1;
+        for(int p = 0; p < csf->nodes[i].numParts; p++)
+        {
+          csf->nodes[i].parts[p].nodeIDX = -1;
+        }
       }
     }
   }
@@ -1192,18 +1496,43 @@ struct CSFOffsetMgr
   {
   }
 
-  size_t store(const void* data, size_t dataSize)
+  size_t handleAlignment(size_t alignment)
   {
-    size_t last = m_current;
+    // always align to 4 bytes at least
+    alignment   = alignment < 4 ? 4 : alignment;
+    size_t rest = m_current % alignment;
+    if(rest)
+    {
+      static const uint32_t padBufferSize            = 16;
+      static const uint8_t  padBuffer[padBufferSize] = {0};
+      size_t                padding                  = alignment - rest;
+
+      m_current += padding;
+
+      while(padding)
+      {
+        size_t padCurrent = padding > padBufferSize ? padBufferSize : padding;
+        m_file.write(padBuffer, padCurrent);
+
+        padding -= padCurrent;
+      }
+    }
+
+    return m_current;
+  }
+
+  size_t store(const void* data, size_t dataSize, size_t alignment)
+  {
+    size_t last = handleAlignment(alignment);
     m_file.write(data, dataSize);
 
     m_current += dataSize;
     return last;
   }
 
-  size_t store(size_t location, const void* data, size_t dataSize)
+  size_t storeLocation(size_t location, const void* data, size_t dataSize, size_t alignment)
   {
-    size_t last = m_current;
+    size_t last = handleAlignment(alignment);
     m_file.write(data, dataSize);
 
     m_current += dataSize;
@@ -1220,7 +1549,8 @@ struct CSFOffsetMgr
     int num = int(m_offsetLocations.size());
     m_file.write(&num, sizeof(int));
 
-    CSFoffset offset = (CSFoffset)m_current;
+    m_file.seek(0, SEEK_END);
+    CSFoffset offset = (CSFoffset)handleAlignment(alignof(CSFoffset));
     m_file.seek(tableLocation, SEEK_SET);
     m_file.write(&offset, sizeof(CSFoffset));
 
@@ -1256,12 +1586,12 @@ static int CSFile_saveInternal(const CSFile* csf, const char* filename)
   dump.version = CADSCENEFILE_VERSION;
   dump.magic   = CADSCENEFILE_MAGIC;
   // dump main part as is
-  mgr.store(&dump, sizeof(CSFile));
+  mgr.store(&dump, sizeof(CSFile), alignof(CSFile));
 
   // iterate the objects
-
   {
-    size_t geomOFFSET = mgr.store(offsetof(CSFile, geometriesOFFSET), csf->geometries, sizeof(CSFGeometry) * csf->numGeometries);
+    size_t geomOFFSET = mgr.storeLocation(offsetof(CSFile, geometriesOFFSET), csf->geometries,
+                                          sizeof(CSFGeometry) * csf->numGeometries, alignof(CSFGeometry));
 
     for(int i = 0; i < csf->numGeometries; i++, geomOFFSET += sizeof(CSFGeometry))
     {
@@ -1269,122 +1599,138 @@ static int CSFile_saveInternal(const CSFile* csf, const char* filename)
 
       if(geo->vertex && geo->numVertices)
       {
-        mgr.store(geomOFFSET + offsetof(CSFGeometry, vertexOFFSET), geo->vertex, sizeof(float) * 3 * geo->numVertices);
+        mgr.storeLocation(geomOFFSET + offsetof(CSFGeometry, vertexOFFSET), geo->vertex,
+                          sizeof(float) * 3 * geo->numVertices, alignof(float));
       }
       if(geo->normal && geo->numVertices)
       {
-        mgr.store(geomOFFSET + offsetof(CSFGeometry, normalOFFSET), geo->normal,
-                  sizeof(float) * 3 * geo->numVertices * geo->numNormalChannels);
+        mgr.storeLocation(geomOFFSET + offsetof(CSFGeometry, normalOFFSET), geo->normal,
+                          sizeof(float) * 3 * geo->numVertices * geo->numNormalChannels, alignof(float));
       }
       if(geo->tex && geo->numVertices)
       {
-        mgr.store(geomOFFSET + offsetof(CSFGeometry, texOFFSET), geo->tex, sizeof(float) * 2 * geo->numVertices * geo->numTexChannels);
+        mgr.storeLocation(geomOFFSET + offsetof(CSFGeometry, texOFFSET), geo->tex,
+                          sizeof(float) * 2 * geo->numVertices * geo->numTexChannels, alignof(float));
       }
 
       if(geo->aux && geo->numVertices)
       {
-        mgr.store(geomOFFSET + offsetof(CSFGeometry, auxOFFSET), geo->aux, sizeof(float) * 4 * geo->numVertices * geo->numAuxChannels);
+        mgr.storeLocation(geomOFFSET + offsetof(CSFGeometry, auxOFFSET), geo->aux,
+                          sizeof(float) * 4 * geo->numVertices * geo->numAuxChannels, alignof(float));
       }
       if(geo->auxStorageOrder && geo->numAuxChannels)
       {
-        mgr.store(geomOFFSET + offsetof(CSFGeometry, auxStorageOrderOFFSET), geo->auxStorageOrder,
-                  sizeof(CSFGeometryAuxChannel) * geo->numAuxChannels);
+        mgr.storeLocation(geomOFFSET + offsetof(CSFGeometry, auxStorageOrderOFFSET), geo->auxStorageOrder,
+                          sizeof(CSFGeometryAuxChannel) * geo->numAuxChannels, alignof(CSFGeometryAuxChannel));
       }
 
       if(geo->indexSolid && geo->numIndexSolid)
       {
-        mgr.store(geomOFFSET + offsetof(CSFGeometry, indexSolidOFFSET), geo->indexSolid, sizeof(int) * geo->numIndexSolid);
+        mgr.storeLocation(geomOFFSET + offsetof(CSFGeometry, indexSolidOFFSET), geo->indexSolid,
+                          sizeof(int) * geo->numIndexSolid, alignof(int));
       }
       if(geo->indexWire && geo->numIndexWire)
       {
-        mgr.store(geomOFFSET + offsetof(CSFGeometry, indexWireOFFSET), geo->indexWire, sizeof(int) * geo->numIndexWire);
+        mgr.storeLocation(geomOFFSET + offsetof(CSFGeometry, indexWireOFFSET), geo->indexWire,
+                          sizeof(int) * geo->numIndexWire, alignof(int));
       }
 
       if(geo->perpartStorageOrder && geo->numPartChannels)
       {
-        mgr.store(geomOFFSET + offsetof(CSFGeometry, perpartStorageOrder), geo->perpartStorageOrder,
-                  sizeof(CSFGeometryPartChannel) * geo->numPartChannels);
+        mgr.storeLocation(geomOFFSET + offsetof(CSFGeometry, perpartStorageOrder), geo->perpartStorageOrder,
+                          sizeof(CSFGeometryPartChannel) * geo->numPartChannels, alignof(CSFGeometryAuxChannel));
       }
       if(geo->perpart && geo->numPartChannels)
       {
-        mgr.store(geomOFFSET + offsetof(CSFGeometry, perpart), geo->perpart, CSFGeometry_getPerPartSize(geo));
+        mgr.storeLocation(geomOFFSET + offsetof(CSFGeometry, perpart), geo->perpart, CSFGeometry_getPerPartSize(geo), 16);
       }
 
       if(geo->parts && geo->numParts)
       {
-        mgr.store(geomOFFSET + offsetof(CSFGeometry, partsOFFSET), geo->parts, sizeof(CSFGeometryPart) * geo->numParts);
+        mgr.storeLocation(geomOFFSET + offsetof(CSFGeometry, partsOFFSET), geo->parts,
+                          sizeof(CSFGeometryPart) * geo->numParts, alignof(CSFGeometryPart));
       }
     }
   }
 
 
   {
-    size_t matOFFSET = mgr.store(offsetof(CSFile, materialsOFFSET), csf->materials, sizeof(CSFMaterial) * csf->numMaterials);
+    size_t matOFFSET = mgr.storeLocation(offsetof(CSFile, materialsOFFSET), csf->materials,
+                                         sizeof(CSFMaterial) * csf->numMaterials, alignof(CSFMaterial));
 
     for(int i = 0; i < csf->numMaterials; i++, matOFFSET += sizeof(CSFMaterial))
     {
       const CSFMaterial* mat = csf->materials + i;
       if(mat->bytes && mat->numBytes)
       {
-        mgr.store(matOFFSET + offsetof(CSFMaterial, bytesOFFSET), mat->bytes, sizeof(unsigned char) * mat->numBytes);
+        mgr.storeLocation(matOFFSET + offsetof(CSFMaterial, bytesOFFSET), mat->bytes,
+                          sizeof(unsigned char) * mat->numBytes, alignof(unsigned char));
       }
     }
   }
 
   {
-    size_t nodeOFFSET = mgr.store(offsetof(CSFile, nodesOFFSET), csf->nodes, sizeof(CSFNode) * csf->numNodes);
+    size_t nodeOFFSET =
+        mgr.storeLocation(offsetof(CSFile, nodesOFFSET), csf->nodes, sizeof(CSFNode) * csf->numNodes, alignof(CSFNode));
 
     for(int i = 0; i < csf->numNodes; i++, nodeOFFSET += sizeof(CSFNode))
     {
       const CSFNode* node = csf->nodes + i;
       if(node->parts && node->numParts)
       {
-        mgr.store(nodeOFFSET + offsetof(CSFNode, partsOFFSET), node->parts, sizeof(CSFNodePart) * node->numParts);
+        mgr.storeLocation(nodeOFFSET + offsetof(CSFNode, partsOFFSET), node->parts,
+                          sizeof(CSFNodePart) * node->numParts, alignof(CSFNodePart));
       }
       if(node->children && node->numChildren)
       {
-        mgr.store(nodeOFFSET + offsetof(CSFNode, childrenOFFSET), node->children, sizeof(int) * node->numChildren);
+        mgr.storeLocation(nodeOFFSET + offsetof(CSFNode, childrenOFFSET), node->children,
+                          sizeof(int) * node->numChildren, alignof(int));
       }
     }
   }
 
   if(CSFile_getNodeMetas(csf))
   {
-    size_t metaOFFSET = mgr.store(offsetof(CSFile, nodeMetasOFFSET), csf->nodeMetas, sizeof(CSFMeta) * csf->numNodes);
+    size_t metaOFFSET = mgr.storeLocation(offsetof(CSFile, nodeMetasOFFSET), csf->nodeMetas,
+                                          sizeof(CSFMeta) * csf->numNodes, alignof(CSFMeta));
 
     for(int i = 0; i < csf->numNodes; i++, metaOFFSET += sizeof(CSFMeta))
     {
       const CSFMeta* meta = csf->nodeMetas + i;
       if(meta->bytes && meta->numBytes)
       {
-        mgr.store(metaOFFSET + offsetof(CSFMeta, bytesOFFSET), meta->bytes, sizeof(unsigned char) * meta->numBytes);
+        mgr.storeLocation(metaOFFSET + offsetof(CSFMeta, bytesOFFSET), meta->bytes,
+                          sizeof(unsigned char) * meta->numBytes, alignof(unsigned char));
       }
     }
   }
 
   if(CSFile_getGeometryMetas(csf))
   {
-    size_t metaOFFSET = mgr.store(offsetof(CSFile, geometryMetasOFFSET), csf->geometryMetas, sizeof(CSFMeta) * csf->numGeometries);
+    size_t metaOFFSET = mgr.storeLocation(offsetof(CSFile, geometryMetasOFFSET), csf->geometryMetas,
+                                          sizeof(CSFMeta) * csf->numGeometries, alignof(CSFMeta));
 
     for(int i = 0; i < csf->numNodes; i++, metaOFFSET += sizeof(CSFMeta))
     {
       const CSFMeta* meta = csf->geometryMetas + i;
       if(meta->bytes && meta->numBytes)
       {
-        mgr.store(metaOFFSET + offsetof(CSFMeta, bytesOFFSET), meta->bytes, sizeof(unsigned char) * meta->numBytes);
+        mgr.storeLocation(metaOFFSET + offsetof(CSFMeta, bytesOFFSET), meta->bytes,
+                          sizeof(unsigned char) * meta->numBytes, alignof(unsigned char));
       }
     }
   }
 
   if(CSFile_getFileMeta(csf))
   {
-    size_t metaOFFSET = mgr.store(offsetof(CSFile, fileMetaOFFSET), csf->fileMeta, sizeof(CSFMeta));
+    size_t metaOFFSET = mgr.storeLocation(offsetof(CSFile, fileMetaOFFSET), csf->fileMeta, sizeof(CSFMeta), alignof(CSFMeta));
 
     {
       const CSFMeta* meta = csf->fileMeta;
       if(meta->bytes && meta->numBytes)
       {
-        mgr.store(metaOFFSET + offsetof(CSFMeta, bytesOFFSET), meta->bytes, sizeof(unsigned char) * meta->numBytes);
+        mgr.storeLocation(metaOFFSET + offsetof(CSFMeta, bytesOFFSET), meta->bytes,
+                          sizeof(unsigned char) * meta->numBytes, alignof(unsigned char));
       }
     }
   }
@@ -1903,6 +2249,8 @@ struct GLTFGeometryInfo
               hashLightTexcoord = strMurmurHash2A(data, accessor->stride, hashLightTexcoord);
             }
             break;
+          default:
+            break;  // No matching csf attribute
         }
       }
 
@@ -1943,6 +2291,8 @@ struct GLTFGeometryInfo
               hashTexcoord = strMurmurHash2A(data, accessor->stride * accessor->count, hashTexcoord);
             }
             break;
+          default:
+            break;  // No matching csf attribute
         }
       }
 
@@ -2097,7 +2447,7 @@ CSFAPI int CSFile_loadGTLF(CSFile** outcsf, const char* filename, CSFileMemoryPT
       csfmat.color[3] = 1.0f;
     }
 
-    if (mat.name)
+    if(mat.name)
     {
       strncpy(csfmat.name, mat.name, sizeof(csfmat.name));
     }
@@ -2266,6 +2616,8 @@ CSFAPI int CSFile_loadGTLF(CSFile** outcsf, const char* filename, CSFileMemoryPT
               hasTexcoords = true;
             }
             break;
+          default:
+            break;  // No matching csf attribute
         }
       }
       indexTotCount += uint32_t(primitive.indices->count);
@@ -2343,6 +2695,8 @@ CSFAPI int CSFile_loadGTLF(CSFile** outcsf, const char* filename, CSFileMemoryPT
               }
             }
             break;
+          default:
+            break;  // No matching csf attribute
         }
       }
 

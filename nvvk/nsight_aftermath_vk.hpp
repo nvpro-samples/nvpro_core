@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2021, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,10 +16,22 @@
  * SPDX-FileCopyrightText: Copyright (c) 2014-2021 NVIDIA CORPORATION
  * SPDX-License-Identifier: Apache-2.0
  */
-
 #pragma once
 
-#include <string>
+#include <memory>
 
-extern std::string getProjectName();
-extern bool        isAftermathAvailable();
+namespace nvvk {
+
+class GpuCrashTracker
+{
+public:
+  GpuCrashTracker();
+  ~GpuCrashTracker();
+
+  void Initialize();  // Initialize the GPU crash dump tracker.
+
+private:
+  class GpuCrashTrackerImpl *m_pimpl;
+};
+
+}  //namespace nvvk

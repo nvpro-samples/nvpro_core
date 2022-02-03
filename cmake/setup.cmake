@@ -39,6 +39,7 @@ set(OpenGL_GL_PREFERENCE GLVND)
 
 set(SUPPORT_SOCKETS OFF CACHE BOOL "add a socket protocol so samples can be controled remotely")
 set(SUPPORT_NVTOOLSEXT OFF CACHE BOOL "enable NVToolsExt for custom NSIGHT markers")
+set(SUPPORT_AFTERMATH OFF CACHE BOOL "enable nSight Aftermath")
 
 if(WIN32)
   set( MEMORY_LEAKS_CHECK OFF CACHE BOOL "Check for Memory leaks" )
@@ -48,6 +49,15 @@ if(MSVC)
   # Enable parallel builds by default on MSVC
   string(APPEND CMAKE_C_FLAGS " /MP")
   string(APPEND CMAKE_CXX_FLAGS " /MP")
+endif()
+
+# USD specifc stuff
+# When building a library containing nvpro-core code, it needs to be compiled position independent
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+if(UNIX)
+    # Our copy of USD is not compiled with the C++11 ABI.
+    # Disable it for us as, so we can use USD
+    add_definitions(-D_GLIBCXX_USE_CXX11_ABI=0)
 endif()
 
 set(RESOURCE_DIRECTORY "${BASE_DIRECTORY}/nvpro_core/resources")
@@ -642,6 +652,171 @@ macro(_add_package_NVML)
   endif()
 endmacro()
 
+#####################################################################################
+# nSight Aftermath
+macro(_add_package_NsightAftermath)
+  if(SUPPORT_AFTERMATH)
+     message(STATUS "--> using package Aftermmath")
+    if (NOT DEFINED $ENV{NSIGHT_AFTERMATH_SDK})
+      if(UNIX)
+        set(AFTERMATH_URL "https://developer.nvidia.com/rdp/assets/nsight-aftermath-sdk-2021_1-linux-package")
+        set(AFTERMATH_FILE "${DOWNLOAD_TARGET_DIR}/aftermath.tgz")
+      else()
+        set(AFTERMATH_URL "https://developer.nvidia.com/rdp/assets/nsight-aftermath-sdk-2021_1-windows-package")
+        set(AFTERMATH_FILE "${DOWNLOAD_TARGET_DIR}/aftermath.zip")
+      endif()
+
+      set(AFTERMATH_DIR "${DOWNLOAD_TARGET_DIR}/aftermath")
+
+      if (NOT EXISTS ${AFTERMATH_DIR})
+        if (NOT EXISTS ${AFTERMATH_FILE})
+          message(STATUS "Downloading Aftermath SDK...")
+          file(DOWNLOAD ${AFTERMATH_URL}
+              ${AFTERMATH_FILE}
+              SHOW_PROGRESS
+              STATUS STAT
+              LOG  log)
+    #     message(STATUS "Status: ${STAT}
+    #                    Log: ${log}")
+        endif()
+        file(MAKE_DIRECTORY ${AFTERMATH_DIR})
+        execute_process(COMMAND ${CMAKE_COMMAND} -E tar xzf ${AFTERMATH_FILE}
+                        WORKING_DIRECTORY ${AFTERMATH_DIR})
+      endif()
+      set(NSIGHT_AFTERMATH_SDK ${AFTERMATH_DIR})
+    else()
+      set(NSIGHT_AFTERMATH_SDK  $ENV{NSIGHT_AFTERMATH_SDK} CACHE STRING "Path to the Aftermath SDK")
+    endif()
+
+    find_package(NsightAftermath)
+
+    if(NsightAftermath_FOUND)
+        add_definitions(-DNVVK_SUPPORTS_AFTERMATH)
+
+        include_directories(${NsightAftermath_INCLUDE_DIRS})
+        LIST(APPEND LIBRARIES_OPTIMIZED ${NsightAftermath_LIBRARIES})
+        LIST(APPEND LIBRARIES_DEBUG ${NsightAftermath_LIBRARIES})
+    endif(NsightAftermath_FOUND)
+
+  endif(SUPPORT_AFTERMATH)
+
+  list(APPEND COMMON_SOURCE_FILES "${BASE_DIRECTORY}/nvpro_core/nvvk/nsight_aftermath_vk.cpp")
+
+endmacro(_add_package_NsightAftermath)
+
+#####################################################################################
+# KTX dependencies (Zstandard and Basis Universal; also adds Zlib)
+# By default, the nv_ktx KTX reader/writer can only handle files
+# without supercompression.
+# Add _add_package_KTX() to your project to also build, include, and enable
+# compression libraries for the Zstandard, Basis Universal, and Zlib
+# supercompression modes.
+# This is not included by default so that projects that don't use these formats
+# don't have to spend time compiling these dependencies.
+macro(_add_package_KTX)
+  # Zlib
+  _add_package_ZLIB()
+  
+  # Zstandard
+  set(_ZSTD_DIR ${BASE_DIRECTORY}/nvpro_core/third_party/zstd)
+  if(NOT TARGET libzstd_static AND EXISTS ${_ZSTD_DIR})
+    if(NOT EXISTS ${_ZSTD_DIR}/lib/zstd.h)
+      message(WARNING "It looks like the zstd submodule hasn't been downloaded; try running git submodule update --init --recursive in the nvpro_core directory.")
+    else()
+      set(ZSTD_BUILD_PROGRAMS OFF)
+      set(ZSTD_BUILD_SHARED OFF)
+      set(ZSTD_BUILD_STATIC ON)
+      set(ZSTD_USE_STATIC_RUNTIME ON)
+      add_subdirectory(${_ZSTD_DIR}/build/cmake ${CMAKE_BINARY_DIR}/zstd)
+      target_sources(libzstd_static INTERFACE $<BUILD_INTERFACE:${_ZSTD_DIR}/lib/zstd.h>)
+      target_include_directories(libzstd_static INTERFACE $<BUILD_INTERFACE:${_ZSTD_DIR}/lib>)
+    endif()
+  endif()
+  if(TARGET libzstd_static)
+    message(STATUS "--> using package Zstd (from KTX)")
+    # Make targets linking with libzstd_static compile with NVP_SUPPORTS_ZSTD
+    target_compile_definitions(libzstd_static INTERFACE NVP_SUPPORTS_ZSTD)
+    LIST(APPEND LIBRARIES_OPTIMIZED libzstd_static)
+    LIST(APPEND LIBRARIES_DEBUG libzstd_static)
+    set_target_properties(libzstd_static clean-all uninstall PROPERTIES FOLDER "ThirdParty")
+    # Exclude Zstd's clean-all and uninstall targets from ALL_BUILD and INSTALL;
+    # otherwise, it'll fail when building everything.
+    set_target_properties(clean-all uninstall PROPERTIES
+      EXCLUDE_FROM_ALL 1
+      EXCLUDE_FROM_DEFAULT_BUILD 1
+    )
+  else()
+    message(STATUS "--> NOT using package Zstd (from KTX)") 
+  endif()
+  
+  # Basis Universal
+  set(_BASISU_DIR ${BASE_DIRECTORY}/nvpro_core/third_party/basis_universal)
+  if(NOT TARGET basisu AND EXISTS ${_BASISU_DIR})
+    if(NOT EXISTS ${_BASISU_DIR}/transcoder)
+      message(WARNING "It looks like the basis_universal submodule hasn't been downloaded; try running git submodule update --init --recursive in the nvpro_core directory.")
+    else()
+      file(GLOB _BASISU_FILES "${_BASISU_DIR}/transcoder/*.*" "${_BASISU_DIR}/encoder/*.*")
+      add_library(basisu STATIC "${_BASISU_FILES}")
+      target_include_directories(basisu INTERFACE "${_BASISU_DIR}/transcoder" "${_BASISU_DIR}/encoder")
+    endif()
+  endif()
+  if(TARGET basisu)
+    # basisu.h wants to set the iterator debug level to a different value than the
+    # default for debug performance. However, this can cause it to fail linking.
+    target_compile_definitions(basisu PUBLIC BASISU_NO_ITERATOR_DEBUG_LEVEL=1)
+    # Make targets linking with basisu compile with NVP_SUPPORTS_BASISU
+    target_compile_definitions(basisu INTERFACE NVP_SUPPORTS_BASISU)
+    # Turn off some transcoding formats we don't use to reduce code size by about
+    # 500 KB.
+    target_compile_definitions(basisu PRIVATE
+      BASISD_SUPPORT_ATC=0
+      BASISD_SUPPORT_DXT1=0
+      BASISD_SUPPORT_DXT5A=0
+      BASISD_SUPPORT_ETC2_EAC_A8=0
+      BASISD_SUPPORT_ETC2_EAC_RG11=0
+      BASISD_SUPPORT_FXT1=0
+      BASISD_SUPPORT_PVRTC1=0
+      BASISD_SUPPORT_PVRTC2=0
+    )
+    LIST(APPEND LIBRARIES_OPTIMIZED basisu)
+    LIST(APPEND LIBRARIES_DEBUG basisu)
+    set_property(TARGET basisu PROPERTY FOLDER "ThirdParty")
+    # If Zstandard isn't included, also turn off Zstd support in Basis:
+    if(NOT TARGET libzstd_static)
+      target_compile_definitions(basisu PRIVATE BASISD_SUPPORT_KTX2_ZSTD=0)
+    endif()
+  endif()
+endmacro()
+
+#####################################################################################
+# Omniverse
+#
+macro(_add_package_Omniverse)
+  Message(STATUS "--> using package Omniverse")
+  get_directory_property(hasParent PARENT_DIRECTORY)
+  if(hasParent)
+    set( USING_OMNIVERSE "YES" PARENT_SCOPE)
+  else()
+    set( USING_OMNIVERSE "YES")
+  endif()
+  find_package(OmniClient REQUIRED)
+  find_package(USD)
+  
+  find_package(Python REQUIRED COMPONENTS Development)
+  
+  #message("Python3_ROOT_DIR " ${Python3_ROOT_DIR})
+  
+  add_compile_definitions(TBB_USE_DEBUG=0)
+  
+endmacro()
+# this macro is needed for the samples to add this package, although not needed
+# this happens when the nvpro_core library was built with these stuff in it
+# so many samples can share the same library for many purposes
+macro(_optional_package_Omniverse)
+  if(USING_OMNIVERSE)
+    _add_package_Omniverse()
+  endif()
+endmacro(_optional_package_Omniverse)
 
 #####################################################################################
 # Generate PTX files
@@ -761,6 +936,11 @@ macro(_finalize_target _PROJNAME)
     _copy_files_to_target( ${_PROJNAME} "${PERFWORKS_DLL}")
     install(FILES ${PERFWORKS_DLL} CONFIGURATIONS Release DESTINATION bin_${ARCH})
     install(FILES ${PERFWORKS_DLL} CONFIGURATIONS Debug DESTINATION bin_${ARCH}_debug)
+  endif()
+  if(NsightAftermath_FOUND)
+    _copy_files_to_target( ${_PROJNAME} "${NsightAftermath_DLLS}")
+    install(FILES ${NsightAftermath_DLLS} CONFIGURATIONS Release DESTINATION bin_${ARCH})
+    install(FILES ${NsightAftermath_DLLS} CONFIGURATIONS Debug DESTINATION bin_${ARCH}_debug)
   endif()
   install(TARGETS ${_PROJNAME} CONFIGURATIONS Release DESTINATION bin_${ARCH})
   install(TARGETS ${_PROJNAME} CONFIGURATIONS Debug DESTINATION bin_${ARCH}_debug)
@@ -907,6 +1087,11 @@ macro(_add_nvpro_core_lib)
   endif()
   # finish with another part (also used by cname for the nvpro_core)
   _process_shared_cmake_code()
+
+  # added uncondtionally here, since it will also do something in case
+  # SUPPORT_AFTERMATH is OFF
+  _add_package_NsightAftermath()
+
   # putting this into one of the other branches didn't work
   if(WIN32)
     add_definitions(-DVK_USE_PLATFORM_WIN32_KHR)

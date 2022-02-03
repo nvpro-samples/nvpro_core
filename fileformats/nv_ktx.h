@@ -38,6 +38,9 @@
 // include the Zstd, Zlib, and Basis Universal headers respectively, and to
 // enable reading these formats. This will also enable writing Zstd and
 // Basis Universal-compressed formats.
+// If you're using this inside the nvpro-samples framework, you can add all
+// three quickly by adding _add_package_KTX() to your dependencies
+// in CMakeLists.txt.
 //-----------------------------------------------------------------------------
 
 #ifndef __NV_KTX_H__
@@ -250,7 +253,7 @@ public:
   uint32_t num_faces = 0;
   // This file's key/value table. Note that for the ktxSwizzle key, one should
   // use the swizzle element instead!
-  KeyValueData key_value_data;
+  KeyValueData key_value_data{};
 
   // KTX files can set the number of mips to 0 to indicate that
   // the application should generate a full mip chain.
