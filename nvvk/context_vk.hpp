@@ -29,7 +29,7 @@
 
 #include "nsight_aftermath_vk.hpp"
 
-static_assert(VK_HEADER_VERSION >= 131, "Vulkan SDK version needs to be 1.2.131.1 or greater");
+static_assert(VK_HEADER_VERSION >= 204, "Vulkan SDK version needs to be 1.3.204.0 or greater");
 
 namespace nvvk {
 /**
@@ -80,7 +80,7 @@ struct ContextCreateInfo
 {
   // aftermathFlags != 0 will enable GPU crash dumps when Aftermath is available via SUPPORT_AFTERMATH
   // No-op when Aftermath is not available.
-  ContextCreateInfo(bool bUseValidation = true,  VkDeviceDiagnosticsConfigFlagsNV aftermathFlags = defaultAftermathFlags);
+  ContextCreateInfo(bool bUseValidation = true, VkDeviceDiagnosticsConfigFlagsNV aftermathFlags = defaultAftermathFlags);
 
   void setVersion(uint32_t major, uint32_t minor);
 
@@ -98,7 +98,7 @@ struct ContextCreateInfo
   // Context::Init() gets called with the ContextCreateInfo object. All
   // pFeatureStruct objects will be chained together and filled out with the
   // actual device capabilities during Context::Init().
-    void addDeviceExtension(const char* name, bool optional = false, void* pFeatureStruct = nullptr, uint32_t version = 0);
+  void addDeviceExtension(const char* name, bool optional = false, void* pFeatureStruct = nullptr, uint32_t version = 0);
 
   void removeInstanceExtension(const char* name);
   void removeInstanceLayer(const char* name);
@@ -350,10 +350,12 @@ public:
     VkPhysicalDeviceFeatures         features10{};
     VkPhysicalDeviceVulkan11Features features11{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES};
     VkPhysicalDeviceVulkan12Features features12{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES};
+    VkPhysicalDeviceVulkan13Features features13{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES};
 
     VkPhysicalDeviceProperties         properties10{};
     VkPhysicalDeviceVulkan11Properties properties11{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_PROPERTIES};
     VkPhysicalDeviceVulkan12Properties properties12{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_PROPERTIES};
+    VkPhysicalDeviceVulkan12Properties properties13{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_PROPERTIES};
   };
 
   struct Queue
@@ -413,6 +415,7 @@ public:
   bool hasInstanceExtension(const char* name) const;
 
   void ignoreDebugMessage(int32_t msgID) { m_dbgIgnoreMessages.insert(msgID); }
+  void setDebugSeverityFilterMask(int32_t severity) { m_dbgSeverity = severity; }
 
 
 private:
@@ -451,6 +454,7 @@ private:
   VkDebugUtilsMessengerEXT            m_dbgMessenger                  = nullptr;
 
   std::unordered_set<int32_t> m_dbgIgnoreMessages;
+  uint32_t m_dbgSeverity{VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT};
 
   // nSight Aftermath
   GpuCrashTracker m_gpuCrashTracker;

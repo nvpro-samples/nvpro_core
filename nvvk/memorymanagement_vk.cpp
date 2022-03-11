@@ -133,16 +133,23 @@ MemHandle DeviceMemoryAllocator::allocMemory(const MemAllocateInfo& allocInfo, V
     *pResult = result;
   }
 
-  DMAMemoryHandle* dmaMemHandle = new DMAMemoryHandle(dmaHandle);
+  if (dmaHandle)
+  {
+    DMAMemoryHandle* dmaMemHandle = new DMAMemoryHandle(dmaHandle);
 
-  // Cannot do this, it would override the DeviceMemoryManager's chosen block buffer name
-  //   if(!allocInfo.getDebugName().empty())
-  //   {
-  //     const MemInfo& memInfo = getMemoryInfo(dmaMemHandle);
-  //     nvvk::DebugUtil(m_dma.getDevice()).setObjectName(memInfo.memory, allocInfo.getDebugName());
-  //   }
+    // Cannot do this, it would override the DeviceMemoryManager's chosen block buffer name
+    //   if(!allocInfo.getDebugName().empty())
+    //   {
+    //     const MemInfo& memInfo = getMemoryInfo(dmaMemHandle);
+    //     nvvk::DebugUtil(m_dma.getDevice()).setObjectName(memInfo.memory, allocInfo.getDebugName());
+    //   }
 
-  return dmaMemHandle;
+    return dmaMemHandle;
+  }
+  else
+  {
+    return NullMemHandle;
+  }
 }
 
 void DeviceMemoryAllocator::freeMemory(MemHandle memHandle)
@@ -478,6 +485,8 @@ AllocationID DeviceMemoryAllocator::allocInternal(const VkMemoryRequirements&   
                                                   const State&                         state)
 {
   VkMemoryAllocateInfo memInfo;
+
+  result = VK_SUCCESS;
 
   // Fill out allocation info structure
   if(memReqs.size > m_maxAllocationSize || !nvvk::getMemoryInfo(m_memoryProperties, memReqs, memProps, memInfo, preferDevice))

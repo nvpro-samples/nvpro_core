@@ -52,24 +52,25 @@ namespace ImGuiH {
 
 inline bool mouse_pos(int x, int y)
 {
-  auto& io    = ImGui::GetIO();
-  io.MousePos = ImVec2(float(x), float(y));
+  auto& io = ImGui::GetIO();
+  io.AddMousePosEvent((float)x, (float)y);
   return io.WantCaptureMouse;
 }
 
 inline bool mouse_button(int button, int action)
 {
-  auto& io             = ImGui::GetIO();
-  io.MouseDown[button] = action == NVPWindow::BUTTON_PRESS;
+  auto& io = ImGui::GetIO();
+  io.AddMouseButtonEvent(button, action == NVPWindow::BUTTON_PRESS);
   return io.WantCaptureMouse;
 }
 
 inline bool mouse_wheel(int wheel)
 {
-  auto& io      = ImGui::GetIO();
-  io.MouseWheel = static_cast<float>(wheel);
+  auto& io = ImGui::GetIO();
+  io.AddMouseWheelEvent(0, (float)wheel);
   return io.WantCaptureMouse;
 }
+
 
 inline bool key_char(int button)
 {
@@ -78,6 +79,227 @@ inline bool key_char(int button)
   return io.WantCaptureKeyboard;
 }
 
+
+inline ImGuiKey KeyToImGuiKey(int key)
+{
+  switch(key)
+  {
+    case NVPWindow::KEY_TAB:
+      return ImGuiKey_Tab;
+    case NVPWindow::KEY_LEFT:
+      return ImGuiKey_LeftArrow;
+    case NVPWindow::KEY_RIGHT:
+      return ImGuiKey_RightArrow;
+    case NVPWindow::KEY_UP:
+      return ImGuiKey_UpArrow;
+    case NVPWindow::KEY_DOWN:
+      return ImGuiKey_DownArrow;
+    case NVPWindow::KEY_PAGE_UP:
+      return ImGuiKey_PageUp;
+    case NVPWindow::KEY_PAGE_DOWN:
+      return ImGuiKey_PageDown;
+    case NVPWindow::KEY_HOME:
+      return ImGuiKey_Home;
+    case NVPWindow::KEY_END:
+      return ImGuiKey_End;
+    case NVPWindow::KEY_INSERT:
+      return ImGuiKey_Insert;
+    case NVPWindow::KEY_DELETE:
+      return ImGuiKey_Delete;
+    case NVPWindow::KEY_BACKSPACE:
+      return ImGuiKey_Backspace;
+    case NVPWindow::KEY_SPACE:
+      return ImGuiKey_Space;
+    case NVPWindow::KEY_ENTER:
+      return ImGuiKey_Enter;
+    case NVPWindow::KEY_ESCAPE:
+      return ImGuiKey_Escape;
+    case NVPWindow::KEY_APOSTROPHE:
+      return ImGuiKey_Apostrophe;
+    case NVPWindow::KEY_COMMA:
+      return ImGuiKey_Comma;
+    case NVPWindow::KEY_MINUS:
+      return ImGuiKey_Minus;
+    case NVPWindow::KEY_PERIOD:
+      return ImGuiKey_Period;
+    case NVPWindow::KEY_SLASH:
+      return ImGuiKey_Slash;
+    case NVPWindow::KEY_SEMICOLON:
+      return ImGuiKey_Semicolon;
+    case NVPWindow::KEY_EQUAL:
+      return ImGuiKey_Equal;
+    case NVPWindow::KEY_LEFT_BRACKET:
+      return ImGuiKey_LeftBracket;
+    case NVPWindow::KEY_BACKSLASH:
+      return ImGuiKey_Backslash;
+    case NVPWindow::KEY_RIGHT_BRACKET:
+      return ImGuiKey_RightBracket;
+    case NVPWindow::KEY_GRAVE_ACCENT:
+      return ImGuiKey_GraveAccent;
+    case NVPWindow::KEY_CAPS_LOCK:
+      return ImGuiKey_CapsLock;
+    case NVPWindow::KEY_SCROLL_LOCK:
+      return ImGuiKey_ScrollLock;
+    case NVPWindow::KEY_NUM_LOCK:
+      return ImGuiKey_NumLock;
+    case NVPWindow::KEY_PRINT_SCREEN:
+      return ImGuiKey_PrintScreen;
+    case NVPWindow::KEY_PAUSE:
+      return ImGuiKey_Pause;
+    case NVPWindow::KEY_KP_0:
+      return ImGuiKey_Keypad0;
+    case NVPWindow::KEY_KP_1:
+      return ImGuiKey_Keypad1;
+    case NVPWindow::KEY_KP_2:
+      return ImGuiKey_Keypad2;
+    case NVPWindow::KEY_KP_3:
+      return ImGuiKey_Keypad3;
+    case NVPWindow::KEY_KP_4:
+      return ImGuiKey_Keypad4;
+    case NVPWindow::KEY_KP_5:
+      return ImGuiKey_Keypad5;
+    case NVPWindow::KEY_KP_6:
+      return ImGuiKey_Keypad6;
+    case NVPWindow::KEY_KP_7:
+      return ImGuiKey_Keypad7;
+    case NVPWindow::KEY_KP_8:
+      return ImGuiKey_Keypad8;
+    case NVPWindow::KEY_KP_9:
+      return ImGuiKey_Keypad9;
+    case NVPWindow::KEY_KP_DECIMAL:
+      return ImGuiKey_KeypadDecimal;
+    case NVPWindow::KEY_KP_DIVIDE:
+      return ImGuiKey_KeypadDivide;
+    case NVPWindow::KEY_KP_MULTIPLY:
+      return ImGuiKey_KeypadMultiply;
+    case NVPWindow::KEY_KP_SUBTRACT:
+      return ImGuiKey_KeypadSubtract;
+    case NVPWindow::KEY_KP_ADD:
+      return ImGuiKey_KeypadAdd;
+    case NVPWindow::KEY_KP_ENTER:
+      return ImGuiKey_KeypadEnter;
+    case NVPWindow::KEY_KP_EQUAL:
+      return ImGuiKey_KeypadEqual;
+    case NVPWindow::KEY_LEFT_SHIFT:
+      return ImGuiKey_LeftShift;
+    case NVPWindow::KEY_LEFT_CONTROL:
+      return ImGuiKey_LeftCtrl;
+    case NVPWindow::KEY_LEFT_ALT:
+      return ImGuiKey_LeftAlt;
+    case NVPWindow::KEY_LEFT_SUPER:
+      return ImGuiKey_LeftSuper;
+    case NVPWindow::KEY_RIGHT_SHIFT:
+      return ImGuiKey_RightShift;
+    case NVPWindow::KEY_RIGHT_CONTROL:
+      return ImGuiKey_RightCtrl;
+    case NVPWindow::KEY_RIGHT_ALT:
+      return ImGuiKey_RightAlt;
+    case NVPWindow::KEY_RIGHT_SUPER:
+      return ImGuiKey_RightSuper;
+    case NVPWindow::KEY_MENU:
+      return ImGuiKey_Menu;
+    case NVPWindow::KEY_0:
+      return ImGuiKey_0;
+    case NVPWindow::KEY_1:
+      return ImGuiKey_1;
+    case NVPWindow::KEY_2:
+      return ImGuiKey_2;
+    case NVPWindow::KEY_3:
+      return ImGuiKey_3;
+    case NVPWindow::KEY_4:
+      return ImGuiKey_4;
+    case NVPWindow::KEY_5:
+      return ImGuiKey_5;
+    case NVPWindow::KEY_6:
+      return ImGuiKey_6;
+    case NVPWindow::KEY_7:
+      return ImGuiKey_7;
+    case NVPWindow::KEY_8:
+      return ImGuiKey_8;
+    case NVPWindow::KEY_9:
+      return ImGuiKey_9;
+    case NVPWindow::KEY_A:
+      return ImGuiKey_A;
+    case NVPWindow::KEY_B:
+      return ImGuiKey_B;
+    case NVPWindow::KEY_C:
+      return ImGuiKey_C;
+    case NVPWindow::KEY_D:
+      return ImGuiKey_D;
+    case NVPWindow::KEY_E:
+      return ImGuiKey_E;
+    case NVPWindow::KEY_F:
+      return ImGuiKey_F;
+    case NVPWindow::KEY_G:
+      return ImGuiKey_G;
+    case NVPWindow::KEY_H:
+      return ImGuiKey_H;
+    case NVPWindow::KEY_I:
+      return ImGuiKey_I;
+    case NVPWindow::KEY_J:
+      return ImGuiKey_J;
+    case NVPWindow::KEY_K:
+      return ImGuiKey_K;
+    case NVPWindow::KEY_L:
+      return ImGuiKey_L;
+    case NVPWindow::KEY_M:
+      return ImGuiKey_M;
+    case NVPWindow::KEY_N:
+      return ImGuiKey_N;
+    case NVPWindow::KEY_O:
+      return ImGuiKey_O;
+    case NVPWindow::KEY_P:
+      return ImGuiKey_P;
+    case NVPWindow::KEY_Q:
+      return ImGuiKey_Q;
+    case NVPWindow::KEY_R:
+      return ImGuiKey_R;
+    case NVPWindow::KEY_S:
+      return ImGuiKey_S;
+    case NVPWindow::KEY_T:
+      return ImGuiKey_T;
+    case NVPWindow::KEY_U:
+      return ImGuiKey_U;
+    case NVPWindow::KEY_V:
+      return ImGuiKey_V;
+    case NVPWindow::KEY_W:
+      return ImGuiKey_W;
+    case NVPWindow::KEY_X:
+      return ImGuiKey_X;
+    case NVPWindow::KEY_Y:
+      return ImGuiKey_Y;
+    case NVPWindow::KEY_Z:
+      return ImGuiKey_Z;
+    case NVPWindow::KEY_F1:
+      return ImGuiKey_F1;
+    case NVPWindow::KEY_F2:
+      return ImGuiKey_F2;
+    case NVPWindow::KEY_F3:
+      return ImGuiKey_F3;
+    case NVPWindow::KEY_F4:
+      return ImGuiKey_F4;
+    case NVPWindow::KEY_F5:
+      return ImGuiKey_F5;
+    case NVPWindow::KEY_F6:
+      return ImGuiKey_F6;
+    case NVPWindow::KEY_F7:
+      return ImGuiKey_F7;
+    case NVPWindow::KEY_F8:
+      return ImGuiKey_F8;
+    case NVPWindow::KEY_F9:
+      return ImGuiKey_F9;
+    case NVPWindow::KEY_F10:
+      return ImGuiKey_F10;
+    case NVPWindow::KEY_F11:
+      return ImGuiKey_F11;
+    case NVPWindow::KEY_F12:
+      return ImGuiKey_F12;
+    default:
+      return ImGuiKey_None;
+  }
+}
+
+
 inline bool key_button(int button, int action, int mods)
 {
   if(button == NVPWindow::KEY_KP_ENTER)
@@ -85,12 +307,14 @@ inline bool key_button(int button, int action, int mods)
     button = NVPWindow::KEY_ENTER;
   }
 
-  auto& io            = ImGui::GetIO();
-  io.KeyCtrl          = (mods & NVPWindow::KMOD_CONTROL) != 0;
-  io.KeyShift         = (mods & NVPWindow::KMOD_SHIFT) != 0;
-  io.KeyAlt           = (mods & NVPWindow::KMOD_ALT) != 0;
-  io.KeySuper         = (mods & NVPWindow::KMOD_SUPER) != 0;
-  io.KeysDown[button] = action == NVPWindow::BUTTON_PRESS;
+  auto& io    = ImGui::GetIO();
+  io.AddKeyEvent(ImGuiKey_ModCtrl, (mods & NVPWindow::KMOD_CONTROL) != 0);
+  io.AddKeyEvent(ImGuiKey_ModShift, (mods & NVPWindow::KMOD_SHIFT) != 0);
+  io.AddKeyEvent(ImGuiKey_ModAlt, (mods & NVPWindow::KMOD_ALT) != 0);
+  io.AddKeyEvent(ImGuiKey_ModSuper, (mods & NVPWindow::KMOD_SUPER) != 0);
+
+  int keyIndex = KeyToImGuiKey(button);
+  io.AddKeyEvent(keyIndex, action == NVPWindow::BUTTON_PRESS);
   return io.WantCaptureKeyboard;
 }
 
@@ -382,79 +606,7 @@ public:
 
 
   // Starting the panel, equivalent to ImGui::Begin for a window. Need ImGui::end()
-  static void Begin(Side side = Side::Right, float alpha = 0.5f, char* name = nullptr)
-  {
-    // Keeping the unique ID of the dock space
-    dockspaceID = ImGui::GetID("DockSpace");
-
-    // The dock need a dummy window covering the entire viewport.
-    ImGuiViewport* viewport = ImGui::GetMainViewport();
-    ImGui::SetNextWindowPos(viewport->WorkPos);
-    ImGui::SetNextWindowSize(viewport->WorkSize);
-    ImGui::SetNextWindowViewport(viewport->ID);
-    // All flags to dummy window
-    ImGuiWindowFlags host_window_flags = 0;
-    host_window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize;
-    host_window_flags |= ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDocking;
-    host_window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
-    host_window_flags |= ImGuiWindowFlags_NoBackground;
-    // Starting dummy window
-    char label[32];
-    ImFormatString(label, IM_ARRAYSIZE(label), "DockSpaceViewport_%08X", viewport->ID);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-    ImGui::Begin(label, NULL, host_window_flags);
-    ImGui::PopStyleVar(3);
-
-    // The central node is transparent, so that when UI is draw after, the image is visible
-    // Auto Hide Bar, no title of the panel
-    // Center is not dockable, that is for the scene
-    ImGuiDockNodeFlags dockspaceFlags = ImGuiDockNodeFlags_PassthruCentralNode | ImGuiDockNodeFlags_AutoHideTabBar
-                                        | ImGuiDockNodeFlags_NoDockingInCentralNode;
-
-    // Default panel/window is name setting
-    std::string dock_name("Settings");
-    if(name != nullptr)
-      dock_name = name;
-
-    // Building the splitting of the dock space is done only once
-    if(!ImGui::DockBuilderGetNode(dockspaceID))
-    {
-
-      ImGui::DockBuilderRemoveNode(dockspaceID);
-      ImGui::DockBuilderAddNode(dockspaceID, ImGuiDockNodeFlags_DockSpace);
-
-      ImGuiID dock_main_id = dockspaceID;
-
-      // Slitting all 4 directions
-      ImGuiID id_left = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Left, 0.2f, nullptr, &dock_main_id);
-      ImGui::DockBuilderDockWindow(side == Side::Left ? dock_name.c_str() : "Dock_left", id_left);
-      ImGuiID id_right = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Right, 0.2f, nullptr, &dock_main_id);
-      ImGui::DockBuilderDockWindow(side == Side::Right ? dock_name.c_str() : "Dock_right", id_right);
-      ImGuiID id_up = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Up, 0.2f, nullptr, &dock_main_id);
-      ImGui::DockBuilderDockWindow("Dock_up", id_up);
-      ImGuiID id_down = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Down, 0.2f, nullptr, &dock_main_id);
-      ImGui::DockBuilderDockWindow("Dock_down", id_down);
-
-      ImGui::DockBuilderDockWindow("Scene", dock_main_id);  // Center
-
-      ImGui::DockBuilderFinish(dock_main_id);
-    }
-
-    // Setting the panel to blend with alpha
-    ImVec4 col = ImGui::GetStyleColorVec4(ImGuiCol_WindowBg);
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(col.x, col.y, col.z, alpha));
-
-    ImGui::DockSpace(dockspaceID, ImVec2(0.0f, 0.0f), dockspaceFlags);
-    ImGui::PopStyleColor();
-    ImGui::End();
-
-    // The panel
-    if(alpha < 1)
-      ImGui::SetNextWindowBgAlpha(alpha);  // For when the panel becomes a floating window
-    ImGui::Begin(dock_name.c_str());
-  }
+  static void Begin(Side side = Side::Right, float alpha = 0.5f, char* name = nullptr);
 
   // Mirror begin but can use directly End()
   static void End() { ImGui::End(); }

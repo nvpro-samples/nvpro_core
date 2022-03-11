@@ -19,6 +19,7 @@
 
 #include "nvvk/appbase_vk.hpp"
 #include "nvp/perproject_globals.hpp"
+#include "backends/imgui_impl_glfw.h"
 
 
 //--------------------------------------------------------------------------------------------------
@@ -29,6 +30,7 @@
 // Initialize Imgui and setup callback functions for windows operations (mouse, key, ...)
 void nvvk::AppBaseVk::create(const AppBaseVkCreateInfo& info)
 {
+  m_useDynamicRendering = info.useDynamicRendering;
   setup(info.instance, info.device, info.physicalDevice, info.queueIndices[0]);
   createSwapchain(info.surface, info.size.width, info.size.height);
   createDepthBuffer();
@@ -36,6 +38,7 @@ void nvvk::AppBaseVk::create(const AppBaseVkCreateInfo& info)
   createFrameBuffers();
   initGUI();
   setupGlfwCallbacks(info.window);
+  ImGui_ImplGlfw_InitForVulkan(info.window, true);
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -68,12 +71,13 @@ void nvvk::AppBaseVk::destroy()
 
   if(ImGui::GetCurrentContext() != nullptr)
   {
-    //ImGui::ShutdownVK();
     ImGui_ImplVulkan_Shutdown();
     ImGui::DestroyContext();
   }
 
-  vkDestroyRenderPass(m_device, m_renderPass, nullptr);
+  if(!m_useDynamicRendering)
+    vkDestroyRenderPass(m_device, m_renderPass, nullptr);
+
   vkDestroyImageView(m_device, m_depthView, nullptr);
   vkDestroyImage(m_device, m_depthImage, nullptr);
   vkFreeMemory(m_device, m_depthMemory, nullptr);
@@ -82,7 +86,10 @@ void nvvk::AppBaseVk::destroy()
   for(uint32_t i = 0; i < m_swapChain.getImageCount(); i++)
   {
     vkDestroyFence(m_device, m_waitFences[i], nullptr);
-    vkDestroyFramebuffer(m_device, m_framebuffers[i], nullptr);
+
+    if(!m_useDynamicRendering)
+      vkDestroyFramebuffer(m_device, m_framebuffers[i], nullptr);
+
     vkFreeCommandBuffers(m_device, m_cmdPool, 1, &m_commandBuffers[i]);
   }
   m_swapChain.deinit();
@@ -90,9 +97,7 @@ void nvvk::AppBaseVk::destroy()
   vkDestroyCommandPool(m_device, m_cmdPool, nullptr);
 
   if(m_surface)
-  {
     vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
-  }
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -105,10 +110,10 @@ VkSurfaceKHR nvvk::AppBaseVk::getVkSurface(const VkInstance& instance, GLFWwindo
 
   VkSurfaceKHR surface{};
   VkResult     err = glfwCreateWindowSurface(instance, window, nullptr, &surface);
+
   if(err != VK_SUCCESS)
-  {
     assert(!"Failed to create a Window surface");
-  }
+
   m_surface = surface;
 
   return surface;
@@ -167,6 +172,9 @@ void nvvk::AppBaseVk::createSwapchain(const VkSurfaceKHR& surface,
   m_commandBuffers.resize(m_swapChain.getImageCount());
   vkAllocateCommandBuffers(m_device, &allocateInfo, m_commandBuffers.data());
 
+  auto cmdBuffer = createTempCmdBuffer();
+  m_swapChain.cmdUpdateBarriers(cmdBuffer);
+  submitTempCmdBuffer(cmdBuffer);
 
 #ifdef _DEBUG
   for(size_t i = 0; i < m_commandBuffers.size(); i++)
@@ -191,11 +199,12 @@ void nvvk::AppBaseVk::createSwapchain(const VkSurfaceKHR& surface,
 //
 void nvvk::AppBaseVk::createFrameBuffers()
 {
+  if(m_useDynamicRendering)
+    return;
+
   // Recreate the frame buffers
   for(auto framebuffer : m_framebuffers)
-  {
     vkDestroyFramebuffer(m_device, framebuffer, nullptr);
-  }
 
   // Array of attachment (color, depth)
   std::array<VkImageView, 2> attachments{};
@@ -238,10 +247,11 @@ void nvvk::AppBaseVk::createFrameBuffers()
 //
 void nvvk::AppBaseVk::createRenderPass()
 {
+  if(m_useDynamicRendering)
+    return;
+
   if(m_renderPass)
-  {
     vkDestroyRenderPass(m_device, m_renderPass, nullptr);
-  }
 
   std::array<VkAttachmentDescription, 2> attachments{};
   // Color attachment
@@ -303,8 +313,10 @@ void nvvk::AppBaseVk::createDepthBuffer()
 {
   if(m_depthView)
     vkDestroyImageView(m_device, m_depthView, nullptr);
+
   if(m_depthImage)
     vkDestroyImage(m_device, m_depthImage, nullptr);
+
   if(m_depthMemory)
     vkFreeMemory(m_device, m_depthMemory, nullptr);
 
@@ -341,18 +353,7 @@ void nvvk::AppBaseVk::createDepthBuffer()
   // Bind image and memory
   vkBindImageMemory(m_device, m_depthImage, m_depthMemory, 0);
 
-  // Create an image barrier to change the layout from undefined to DepthStencilAttachmentOptimal
-  VkCommandBufferAllocateInfo allocateInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
-  allocateInfo.commandBufferCount = 1;
-  allocateInfo.commandPool        = m_cmdPool;
-  allocateInfo.level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-  VkCommandBuffer cmdBuffer;
-  vkAllocateCommandBuffers(m_device, &allocateInfo, &cmdBuffer);
-
-  VkCommandBufferBeginInfo beginInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
-  beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-  vkBeginCommandBuffer(cmdBuffer, &beginInfo);
-
+  auto cmdBuffer = createTempCmdBuffer();
 
   // Put barrier on top, Put barrier inside setup command buffer
   VkImageSubresourceRange subresourceRange{};
@@ -370,14 +371,8 @@ void nvvk::AppBaseVk::createDepthBuffer()
   const VkPipelineStageFlags destStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
 
   vkCmdPipelineBarrier(cmdBuffer, srcStageMask, destStageMask, VK_FALSE, 0, nullptr, 0, nullptr, 1, &imageMemoryBarrier);
-  vkEndCommandBuffer(cmdBuffer);
+  submitTempCmdBuffer(cmdBuffer);
 
-  VkSubmitInfo submitInfo{VK_STRUCTURE_TYPE_SUBMIT_INFO};
-  submitInfo.commandBufferCount = 1;
-  submitInfo.pCommandBuffers    = &cmdBuffer;
-  vkQueueSubmit(m_queue, 1, &submitInfo, {});
-  vkQueueWaitIdle(m_queue);
-  vkFreeCommandBuffers(m_device, m_cmdPool, 1, &cmdBuffer);
 
   // Setting up the view
   VkImageViewCreateInfo depthStencilView{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
@@ -388,6 +383,7 @@ void nvvk::AppBaseVk::createDepthBuffer()
   vkCreateImageView(m_device, &depthStencilView, nullptr, &m_depthView);
 }
 
+
 //--------------------------------------------------------------------------------------------------
 // Convenient function to call before rendering.
 // - Waits for a framebuffer to be available
@@ -397,16 +393,13 @@ void nvvk::AppBaseVk::prepareFrame()
   // Resize protection - should be cached by the glFW callback
   int w, h;
   glfwGetFramebufferSize(m_window, &w, &h);
+
   if(w != (int)m_size.width || h != (int)m_size.height)
-  {
     onFramebufferSize(w, h);
-  }
 
   // Acquire the next image from the swap chain
   if(!m_swapChain.acquire())
-  {
     assert(!"This shouldn't happen");
-  }
 
   // Use a fence to wait until the command buffer has finished execution before using it again
   uint32_t imageIndex = m_swapChain.getActiveImageIndex();
@@ -428,6 +421,7 @@ void nvvk::AppBaseVk::prepareFrame()
 
   // start new frame with updated camera
   updateCamera();
+  updateInputs();
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -494,9 +488,7 @@ void nvvk::AppBaseVk::setViewport(const VkCommandBuffer& cmdBuf)
 void nvvk::AppBaseVk::onFramebufferSize(int w, int h)
 {
   if(w == 0 || h == 0)
-  {
     return;
-  }
 
   // Update imgui
   if(ImGui::GetCurrentContext() != nullptr)
@@ -504,17 +496,19 @@ void nvvk::AppBaseVk::onFramebufferSize(int w, int h)
     auto& imgui_io       = ImGui::GetIO();
     imgui_io.DisplaySize = ImVec2(static_cast<float>(w), static_cast<float>(h));
   }
+
   // Wait to finish what is currently drawing
   vkDeviceWaitIdle(m_device);
   vkQueueWaitIdle(m_queue);
 
   // Request new swapchain image size
-  m_size = m_swapChain.update(m_size.width, m_size.height, m_vsync);
+  m_size         = m_swapChain.update(w, h, m_vsync);
+  auto cmdBuffer = createTempCmdBuffer();
+  m_swapChain.cmdUpdateBarriers(cmdBuffer);  // Make them presentable
+  submitTempCmdBuffer(cmdBuffer);
 
   if(m_size.width != w || m_size.height != h)
-  {
     LOGW("Requested size (%d, %d) is different from created size (%u, %u) ", w, h, m_size.width, m_size.height);
-  }
 
   CameraManip.setWindowSize(m_size.width, m_size.height);
   // Invoking Sample callback
@@ -531,16 +525,11 @@ void nvvk::AppBaseVk::onFramebufferSize(int w, int h)
 void nvvk::AppBaseVk::onMouseMotion(int x, int y)
 {
   if(ImGui::GetCurrentContext() != nullptr && ImGui::GetIO().WantCaptureMouse)
-  {
     return;
-  }
 
   if(m_inputs.lmb || m_inputs.rmb || m_inputs.mmb)
-  {
     CameraManip.mouseMove(x, y, m_inputs);
-  }
 }
-
 
 //--------------------------------------------------------------------------------------------------
 // Window callback when a special key gets hit
@@ -550,79 +539,11 @@ void nvvk::AppBaseVk::onKeyboard(int key, int /*scancode*/, int action, int mods
 {
   const bool pressed = action != GLFW_RELEASE;
 
-  if(pressed && key == GLFW_KEY_F10)
-  {
+  if(pressed && key == GLFW_KEY_F11)
     m_show_gui = !m_show_gui;
-  }
   else if(pressed && key == GLFW_KEY_ESCAPE)
-  {
     glfwSetWindowShouldClose(m_window, 1);
-  }
-
-  // Remember all keys that are simultaneously pressed for animating the camera
-  if(pressed)
-  {
-    m_keys.insert(key);
-  }
-  else
-  {
-    m_keys.erase(key);
-  }
-
-  // Keeping track of the modifiers
-  m_inputs.ctrl  = mods & GLFW_MOD_CONTROL;
-  m_inputs.shift = mods & GLFW_MOD_SHIFT;
-  m_inputs.alt   = mods & GLFW_MOD_ALT;
 }
-
-//--------------------------------------------------------------------------------------------------
-// Called every frame to translate currently pressed keys into camera movement
-//
-void nvvk::AppBaseVk::updateCamera()
-{
-  // measure one frame at a time
-  float factor = static_cast<float>(m_timer.elapsed().count());
-  m_timer.reset();
-
-  // Allow camera movement only when not editing
-  if(ImGui::GetCurrentContext() != nullptr && ImGui::GetIO().WantCaptureKeyboard)
-    return;
-
-  // For all pressed keys - apply the action
-  CameraManip.keyMotion(0, 0, nvh::CameraManipulator::NoAction);
-  for(auto key : m_keys)
-  {
-    switch(key)
-    {
-      case GLFW_KEY_W:
-        CameraManip.keyMotion(factor, 0, nvh::CameraManipulator::Dolly);
-        break;
-      case GLFW_KEY_S:
-        CameraManip.keyMotion(-factor, 0, nvh::CameraManipulator::Dolly);
-        break;
-      case GLFW_KEY_A:
-      case GLFW_KEY_LEFT:
-        CameraManip.keyMotion(-factor, 0, nvh::CameraManipulator::Pan);
-        break;
-      case GLFW_KEY_UP:
-        CameraManip.keyMotion(0, factor, nvh::CameraManipulator::Pan);
-        break;
-      case GLFW_KEY_D:
-      case GLFW_KEY_RIGHT:
-        CameraManip.keyMotion(factor, 0, nvh::CameraManipulator::Pan);
-        break;
-      case GLFW_KEY_DOWN:
-        CameraManip.keyMotion(0, -factor, nvh::CameraManipulator::Pan);
-        break;
-      default:
-        break;
-    }
-  }
-
-  // This makes the camera to transition smoothly to the new position
-  CameraManip.updateAnim();
-}
-
 
 //--------------------------------------------------------------------------------------------------
 // Window callback when a key gets hit
@@ -630,9 +551,7 @@ void nvvk::AppBaseVk::updateCamera()
 void nvvk::AppBaseVk::onKeyboardChar(unsigned char key)
 {
   if(ImGui::GetCurrentContext() != nullptr && ImGui::GetIO().WantCaptureKeyboard)
-  {
     return;
-  }
 
   // Toggling vsync
   if(key == 'v')
@@ -641,6 +560,9 @@ void nvvk::AppBaseVk::onKeyboardChar(unsigned char key)
     vkDeviceWaitIdle(m_device);
     vkQueueWaitIdle(m_queue);
     m_swapChain.update(m_size.width, m_size.height, m_vsync);
+    auto cmdBuffer = createTempCmdBuffer();
+    m_swapChain.cmdUpdateBarriers(cmdBuffer);  // Make them presentable
+    submitTempCmdBuffer(cmdBuffer);
     createFrameBuffers();
   }
 
@@ -655,15 +577,12 @@ void nvvk::AppBaseVk::onKeyboardChar(unsigned char key)
 //
 void nvvk::AppBaseVk::onMouseButton(int button, int action, int mods)
 {
-  (void)mods;
+  if(ImGui::GetCurrentContext() != nullptr && ImGui::GetIO().WantCaptureMouse)
+    return;
 
   double x, y;
   glfwGetCursorPos(m_window, &x, &y);
   CameraManip.setMousePosition(static_cast<int>(x), static_cast<int>(y));
-
-  m_inputs.lmb = (button == GLFW_MOUSE_BUTTON_LEFT) && (action == GLFW_PRESS);
-  m_inputs.mmb = (button == GLFW_MOUSE_BUTTON_MIDDLE) && (action == GLFW_PRESS);
-  m_inputs.rmb = (button == GLFW_MOUSE_BUTTON_RIGHT) && (action == GLFW_PRESS);
 }
 
 
@@ -674,11 +593,56 @@ void nvvk::AppBaseVk::onMouseButton(int button, int action, int mods)
 void nvvk::AppBaseVk::onMouseWheel(int delta)
 {
   if(ImGui::GetCurrentContext() != nullptr && ImGui::GetIO().WantCaptureMouse)
-  {
     return;
-  }
 
-  CameraManip.wheel(delta > 0 ? 1 : -1, m_inputs);
+  if(delta != 0)
+    CameraManip.wheel(delta > 0 ? 1 : -1, m_inputs);
+}
+
+
+//--------------------------------------------------------------------------------------------------
+// Called every frame to translate currently pressed keys into camera movement
+//
+void nvvk::AppBaseVk::updateCamera()
+{
+  // measure one frame at a time
+  float factor = ImGui::GetIO().DeltaTime * 1000;
+
+  m_inputs.lmb   = ImGui::IsMouseDown(ImGuiMouseButton_Left);
+  m_inputs.rmb   = ImGui::IsMouseDown(ImGuiMouseButton_Right);
+  m_inputs.mmb   = ImGui::IsMouseDown(ImGuiMouseButton_Middle);
+  m_inputs.ctrl  = ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl);
+  m_inputs.shift = ImGui::IsKeyDown(ImGuiKey_LeftShift) || ImGui::IsKeyDown(ImGuiKey_RightShift);
+  m_inputs.alt   = ImGui::IsKeyDown(ImGuiKey_LeftAlt) || ImGui::IsKeyDown(ImGuiKey_RightAlt);
+  auto mousePos  = ImGui::GetMousePos();
+
+  // Allow camera movement only when not editing
+  if(ImGui::GetCurrentContext() != nullptr && ImGui::GetIO().WantCaptureKeyboard)
+    return;
+
+  // For all pressed keys - apply the action
+  CameraManip.keyMotion(0, 0, nvh::CameraManipulator::NoAction);
+
+  if(ImGui::IsKeyDown(ImGuiKey_W))
+    CameraManip.keyMotion(factor, 0, nvh::CameraManipulator::Dolly);
+
+  if(ImGui::IsKeyDown(ImGuiKey_S))
+    CameraManip.keyMotion(-factor, 0, nvh::CameraManipulator::Dolly);
+
+  if(ImGui::IsKeyDown(ImGuiKey_D) || ImGui::IsKeyDown(ImGuiKey_RightArrow))
+    CameraManip.keyMotion(factor, 0, nvh::CameraManipulator::Pan);
+
+  if(ImGui::IsKeyDown(ImGuiKey_A) || ImGui::IsKeyDown(ImGuiKey_LeftArrow))
+    CameraManip.keyMotion(-factor, 0, nvh::CameraManipulator::Pan);
+
+  if(ImGui::IsKeyDown(ImGuiKey_UpArrow))
+    CameraManip.keyMotion(0, factor, nvh::CameraManipulator::Pan);
+
+  if(ImGui::IsKeyDown(ImGuiKey_DownArrow))
+    CameraManip.keyMotion(0, -factor, nvh::CameraManipulator::Pan);
+
+  // This makes the camera to transition smoothly to the new position
+  CameraManip.updateAnim();
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -687,7 +651,7 @@ void nvvk::AppBaseVk::onMouseWheel(int delta)
 //
 void nvvk::AppBaseVk::initGUI(uint32_t subpassID /*= 0*/)
 {
-  assert(m_renderPass && "Render Pass must be set");
+  //assert(m_renderPass && "Render Pass must be set");
 
   // UI
   ImGui::CreateContext();
@@ -719,35 +683,29 @@ void nvvk::AppBaseVk::initGUI(uint32_t subpassID /*= 0*/)
   init_info.DescriptorPool            = m_imguiDescPool;
   init_info.Subpass                   = subpassID;
   init_info.MinImageCount             = 2;
-  init_info.ImageCount                = static_cast<int>(m_framebuffers.size());
+  init_info.ImageCount                = static_cast<int>(m_swapChain.getImageCount());
   init_info.MSAASamples               = VK_SAMPLE_COUNT_1_BIT;  // <--- need argument?
   init_info.CheckVkResultFn           = nullptr;
   init_info.Allocator                 = nullptr;
+
+#ifdef VK_KHR_dynamic_rendering
+  VkPipelineRenderingCreateInfoKHR rfInfo{VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR};
+  if(m_useDynamicRendering)
+  {
+    rfInfo.colorAttachmentCount    = 1;
+    rfInfo.pColorAttachmentFormats = &m_colorFormat;
+    rfInfo.depthAttachmentFormat   = m_depthFormat;
+    rfInfo.stencilAttachmentFormat = m_depthFormat;
+    init_info.rinfo                = &rfInfo;
+  }
+#endif
+
   ImGui_ImplVulkan_Init(&init_info, m_renderPass);
 
-
   // Upload Fonts
-  VkCommandBufferAllocateInfo allocateInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
-  allocateInfo.commandBufferCount = 1;
-  allocateInfo.commandPool        = m_cmdPool;
-  allocateInfo.level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-  VkCommandBuffer cmdbuf;
-  vkAllocateCommandBuffers(m_device, &allocateInfo, &cmdbuf);
-
-  VkCommandBufferBeginInfo beginInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
-  beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-  vkBeginCommandBuffer(cmdbuf, &beginInfo);
-
+  VkCommandBuffer cmdbuf = createTempCmdBuffer();
   ImGui_ImplVulkan_CreateFontsTexture(cmdbuf);
-
-  vkEndCommandBuffer(cmdbuf);
-
-  VkSubmitInfo submitInfo{VK_STRUCTURE_TYPE_SUBMIT_INFO};
-  submitInfo.commandBufferCount = 1;
-  submitInfo.pCommandBuffers    = &cmdbuf;
-  vkQueueSubmit(m_queue, 1, &submitInfo, {});
-  vkQueueWaitIdle(m_queue);
-  vkFreeCommandBuffers(m_device, m_cmdPool, 1, &cmdbuf);
+  submitTempCmdBuffer(cmdbuf);
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -792,43 +750,43 @@ void nvvk::AppBaseVk::setupGlfwCallbacks(GLFWwindow* window)
 
 void nvvk::AppBaseVk::framebuffersize_cb(GLFWwindow* window, int w, int h)
 {
-  auto app = reinterpret_cast<AppBaseVk*>(glfwGetWindowUserPointer(window));
+  auto app = static_cast<AppBaseVk*>(glfwGetWindowUserPointer(window));
   app->onFramebufferSize(w, h);
 }
 
 void nvvk::AppBaseVk::mousebutton_cb(GLFWwindow* window, int button, int action, int mods)
 {
-  auto app = reinterpret_cast<AppBaseVk*>(glfwGetWindowUserPointer(window));
+  auto app = static_cast<AppBaseVk*>(glfwGetWindowUserPointer(window));
   app->onMouseButton(button, action, mods);
 }
 
 void nvvk::AppBaseVk::cursorpos_cb(GLFWwindow* window, double x, double y)
 {
-  auto app = reinterpret_cast<AppBaseVk*>(glfwGetWindowUserPointer(window));
+  auto app = static_cast<AppBaseVk*>(glfwGetWindowUserPointer(window));
   app->onMouseMotion(static_cast<int>(x), static_cast<int>(y));
 }
 
 void nvvk::AppBaseVk::scroll_cb(GLFWwindow* window, double x, double y)
 {
-  auto app = reinterpret_cast<AppBaseVk*>(glfwGetWindowUserPointer(window));
+  auto app = static_cast<AppBaseVk*>(glfwGetWindowUserPointer(window));
   app->onMouseWheel(static_cast<int>(y));
 }
 
 void nvvk::AppBaseVk::key_cb(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
-  auto app = reinterpret_cast<AppBaseVk*>(glfwGetWindowUserPointer(window));
+  auto app = static_cast<AppBaseVk*>(glfwGetWindowUserPointer(window));
   app->onKeyboard(key, scancode, action, mods);
 }
 
 void nvvk::AppBaseVk::char_cb(GLFWwindow* window, unsigned int key)
 {
-  auto app = reinterpret_cast<AppBaseVk*>(glfwGetWindowUserPointer(window));
+  auto app = static_cast<AppBaseVk*>(glfwGetWindowUserPointer(window));
   app->onKeyboardChar(key);
 }
 
 void nvvk::AppBaseVk::drop_cb(GLFWwindow* window, int count, const char** paths)
 {
-  auto app = reinterpret_cast<AppBaseVk*>(glfwGetWindowUserPointer(window));
+  auto app = static_cast<AppBaseVk*>(glfwGetWindowUserPointer(window));
   int  i;
   for(i = 0; i < count; i++)
     app->onFileDrop(paths[i]);
@@ -842,9 +800,7 @@ uint32_t nvvk::AppBaseVk::getMemoryType(uint32_t typeBits, const VkMemoryPropert
   for(uint32_t i = 0; i < memoryProperties.memoryTypeCount; i++)
   {
     if(((typeBits & (1 << i)) > 0) && (memoryProperties.memoryTypes[i].propertyFlags & properties) == properties)
-    {
       return i;
-    }
   }
   std::string err = "Unable to find memory type " + std::to_string(properties);
   LOGE(err.c_str());
@@ -861,4 +817,32 @@ void nvvk::AppBaseVk::uiDisplayHelp()
     ImGui::Text("%s", CameraManip.getHelp().c_str());
     ImGui::EndChild();
   }
+}
+
+VkCommandBuffer nvvk::AppBaseVk::createTempCmdBuffer()
+{
+  // Create an image barrier to change the layout from undefined to DepthStencilAttachmentOptimal
+  VkCommandBufferAllocateInfo allocateInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
+  allocateInfo.commandBufferCount = 1;
+  allocateInfo.commandPool        = m_cmdPool;
+  allocateInfo.level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+  VkCommandBuffer cmdBuffer;
+  vkAllocateCommandBuffers(m_device, &allocateInfo, &cmdBuffer);
+
+  VkCommandBufferBeginInfo beginInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+  beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+  vkBeginCommandBuffer(cmdBuffer, &beginInfo);
+  return cmdBuffer;
+}
+
+void nvvk::AppBaseVk::submitTempCmdBuffer(VkCommandBuffer cmdBuffer)
+{
+  vkEndCommandBuffer(cmdBuffer);
+
+  VkSubmitInfo submitInfo{VK_STRUCTURE_TYPE_SUBMIT_INFO};
+  submitInfo.commandBufferCount = 1;
+  submitInfo.pCommandBuffers    = &cmdBuffer;
+  vkQueueSubmit(m_queue, 1, &submitInfo, {});
+  vkQueueWaitIdle(m_queue);
+  vkFreeCommandBuffers(m_device, m_cmdPool, 1, &cmdBuffer);
 }

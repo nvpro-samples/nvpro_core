@@ -129,6 +129,9 @@ VKAPI_ATTR VkBool32 VKAPI_CALL Context::debugMessengerCallback(VkDebugUtilsMessa
   if(ctx->m_dbgIgnoreMessages.find(callbackData->messageIdNumber) != ctx->m_dbgIgnoreMessages.end())
     return VK_FALSE;
 
+  // Check for severity: default ERROR and WARNING
+  if((ctx->m_dbgSeverity & messageSeverity) != messageSeverity)
+    return VK_FALSE;
 
   int level = LOGLEVEL_INFO;
   // repeating nvprintfLevel to help with breakpoints : so we can selectively break right after the print
@@ -418,7 +421,7 @@ bool Context::initDevice(uint32_t deviceIndex, const ContextCreateInfo& info)
 
   //////////////////////////////////////////////////////////////////////////
   // queue setup
-  
+
   std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
   std::vector<float>                   priorities;
 
@@ -440,10 +443,10 @@ bool Context::initDevice(uint32_t deviceIndex, const ContextCreateInfo& info)
     // figure out how many queues we need per family
     std::vector<uint32_t> queueFamilyCounts(m_physicalInfo.queueProperties.size(), 0);
 
-    for (auto& it : info.requestedQueues)
+    for(auto& it : info.requestedQueues)
     {
       // handle each request individually
-      for (uint32_t i = 0; i < it.count; i++)
+      for(uint32_t i = 0; i < it.count; i++)
       {
         // in this pass we don't care about the real priority yet, queueList is initialized with 1.0f
         QueueScore queue = removeQueueListItem(queueScoresTemp, it.requiredFlags, 1.0f);
@@ -462,7 +465,7 @@ bool Context::initDevice(uint32_t deviceIndex, const ContextCreateInfo& info)
     // init requested families with appropriate family count
     for(uint32_t i = 0; i < m_physicalInfo.queueProperties.size(); ++i)
     {
-      if (queueFamilyCounts[i])
+      if(queueFamilyCounts[i])
       {
         VkDeviceQueueCreateInfo queueInfo{VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO};
         queueInfo.queueFamilyIndex = i;
@@ -495,11 +498,18 @@ bool Context::initDevice(uint32_t deviceIndex, const ContextCreateInfo& info)
   {
     features2.pNext = &features11old.multiview;
   }
-  else if(info.apiMajor == 1 && info.apiMinor >= 2)
+  
+  if(info.apiMajor == 1 && info.apiMinor >= 2)
   {
     features2.pNext                 = &m_physicalInfo.features11;
     m_physicalInfo.features11.pNext = &m_physicalInfo.features12;
     m_physicalInfo.features12.pNext = nullptr;
+  }
+  
+  if(info.apiMajor == 1 && info.apiMinor >= 3)
+  {
+    m_physicalInfo.features12.pNext = &m_physicalInfo.features13;
+    m_physicalInfo.features13.pNext = nullptr;
   }
 
   auto extensionProperties = getDeviceExtensions(m_physicalDevice);
@@ -634,8 +644,7 @@ bool Context::initDevice(uint32_t deviceIndex, const ContextCreateInfo& info)
     LOGI(
         "\n--------------------------------------------------------------"
         "\nWARNING: Attempted to enable Aftermath extensions, but failed."
-        "\n" VK_NV_DEVICE_DIAGNOSTIC_CHECKPOINTS_EXTENSION_NAME " or\n " \
-             VK_NV_DEVICE_DIAGNOSTICS_CONFIG_EXTENSION_NAME
+        "\n" VK_NV_DEVICE_DIAGNOSTIC_CHECKPOINTS_EXTENSION_NAME " or\n " VK_NV_DEVICE_DIAGNOSTICS_CONFIG_EXTENSION_NAME
         " not enabled or missing."
         "\n--------------------------------------------------------------\n\n");
   }
@@ -750,7 +759,7 @@ bool Context::hasInstanceExtension(const char* name) const
 //
 ContextCreateInfo::ContextCreateInfo(bool bUseValidation, VkDeviceDiagnosticsConfigFlagsNV aftermathFlags)
 {
-  if (defaultQueueGCT)
+  if(defaultQueueGCT)
   {
     requestedQueues.push_back({defaultQueueGCT, 1, defaultPriorityGCT});
   }
@@ -949,6 +958,14 @@ void Context::initPhysicalInfo(PhysicalDeviceInfo& info, VkPhysicalDevice physic
     properties2.pNext       = &info.properties11;
     info.properties11.pNext = &info.properties12;
     info.properties12.pNext = nullptr;
+  }
+
+  if(versionMajor == 1 && versionMinor >= 3)
+  {
+    info.features12.pNext = &info.features13;
+    info.features13.pNext = nullptr;
+    info.properties12.pNext = &info.properties13;
+    info.properties13.pNext = nullptr;
   }
 
   vkGetPhysicalDeviceFeatures2(physicalDevice, &features2);

@@ -192,16 +192,6 @@ public:
   {
     m_usedSetupIF             = &m_defaultSetupIF;
     m_supportsExtendedInclude = true;
-#if NVP_SUPPORTS_SHADERC
-    // First user initializes compiler.
-    std::lock_guard<std::mutex> lock(s_shadercCompilerMutex);
-    s_shadercCompilerUsers++;
-    if(!s_shadercCompiler)
-    {
-      s_shadercCompiler = shaderc_compiler_initialize();
-    }
-    m_shadercOptions = shaderc_compile_options_initialize();
-#endif
 
     if(device)
       init(device);
@@ -210,20 +200,6 @@ public:
   ~ShaderModuleManager()
   {
     deinit();
-#if NVP_SUPPORTS_SHADERC
-    // Last user de-inits compiler.
-    std::lock_guard<std::mutex> lock(s_shadercCompilerMutex);
-    s_shadercCompilerUsers--;
-    if(s_shadercCompiler && s_shadercCompilerUsers == 0)
-    {
-      shaderc_compiler_release(s_shadercCompiler);
-      s_shadercCompiler = nullptr;
-    }
-    if(m_shadercOptions)
-    {
-      shaderc_compile_options_release(m_shadercOptions);
-    }
-#endif
   }
 
   // Shaderc has its own interface for handling include files that I

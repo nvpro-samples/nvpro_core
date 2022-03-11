@@ -174,7 +174,7 @@ struct GraphicsPipelineState
   }
 
 #ifdef VULKAN_HPP
-  static inline VkPipelineColorBlendAttachmentState makePipelineColorBlendAttachmentState(
+  static inline vk::PipelineColorBlendAttachmentState makePipelineColorBlendAttachmentState(
       vk::ColorComponentFlags colorWriteMask_ = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG
                                                 | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA,
       vk::Bool32      blendEnable_         = 0,
@@ -234,7 +234,12 @@ struct GraphicsPipelineState
 
   void clearBlendAttachmentStates() { blendAttachmentStates.clear(); }
   void setBlendAttachmentCount(uint32_t attachmentCount) { blendAttachmentStates.resize(attachmentCount); }
-  void setBlendAttachmentState(uint32_t attachment, VkPipelineColorBlendAttachmentState blendState)
+
+#ifdef VULKAN_HPP
+  void setBlendAttachmentState(uint32_t attachment, const vk::PipelineColorBlendAttachmentState& blendState)
+#else
+  void setBlendAttachmentState(uint32_t attachment, const VkPipelineColorBlendAttachmentState& blendState)
+#endif
   {
     assert(attachment < blendAttachmentStates.size());
     if(attachment <= blendAttachmentStates.size())
@@ -242,15 +247,20 @@ struct GraphicsPipelineState
       blendAttachmentStates[attachment] = blendState;
     }
   }
-  uint32_t addBlendAttachmentState(VkPipelineColorBlendAttachmentState blendState)
+
+#ifdef VULKAN_HPP
+  uint32_t addBlendAttachmentState(const vk::PipelineColorBlendAttachmentState& blendState)
+#else
+  uint32_t addBlendAttachmentState(const VkPipelineColorBlendAttachmentState& blendState)
+#endif
   {
     blendAttachmentStates.push_back(blendState);
     return (uint32_t)(blendAttachmentStates.size() - 1);
   }
 
-
   void clearDynamicStateEnables() { dynamicStateEnables.clear(); }
   void setDynamicStateEnablesCount(uint32_t dynamicStateCount) { dynamicStateEnables.resize(dynamicStateCount); }
+
 #ifdef VULKAN_HPP
   void setDynamicStateEnable(uint32_t state, vk::DynamicState dynamicState)
 #else
@@ -288,7 +298,12 @@ struct GraphicsPipelineState
       bindingDescriptions[binding] = bindingDescription;
     }
   }
-  uint32_t addBindingDescription(VkVertexInputBindingDescription bindingDescription)
+
+#ifdef VULKAN_HPP
+  uint32_t addBindingDescription(const vk::VertexInputBindingDescription& bindingDescription)
+#else
+  uint32_t addBindingDescription(const VkVertexInputBindingDescription& bindingDescription)
+#endif
   {
     bindingDescriptions.push_back(bindingDescription);
     return (uint32_t)(bindingDescriptions.size() - 1);
@@ -308,7 +323,12 @@ struct GraphicsPipelineState
   {
     attributeDescriptions.resize(attributeDescriptionCount);
   }
-  void setAttributeDescription(uint32_t attribute, VkVertexInputAttributeDescription attributeDescription)
+
+#ifdef VULKAN_HPP
+  void setAttributeDescription(uint32_t attribute, const vk::VertexInputAttributeDescription &attributeDescription)
+#else
+  void setAttributeDescription(uint32_t attribute, const VkVertexInputAttributeDescription &attributeDescription)
+#endif
   {
     assert(attribute < attributeDescriptions.size());
     if(attribute <= attributeDescriptions.size())
@@ -316,7 +336,13 @@ struct GraphicsPipelineState
       attributeDescriptions[attribute] = attributeDescription;
     }
   }
-  uint32_t addAttributeDescription(VkVertexInputAttributeDescription attributeDescription)
+
+
+#ifdef VULKAN_HPP
+  uint32_t addAttributeDescription(const vk::VertexInputAttributeDescription &attributeDescription)
+#else
+  uint32_t addAttributeDescription(const VkVertexInputAttributeDescription &attributeDescription)
+#endif
   {
     attributeDescriptions.push_back(attributeDescription);
     return (uint32_t)(attributeDescriptions.size() - 1);
@@ -466,6 +492,25 @@ public:
     init();
   }
 
+  // For VK_KHR_dynamic_rendering
+#ifdef VULKAN_HPP
+  using PipelineRenderingCreateInfo = vk::PipelineRenderingCreateInfo;
+#else
+  using PipelineRenderingCreateInfo = VkPipelineRenderingCreateInfo;
+#endif
+
+  GraphicsPipelineGenerator(VkDevice                           device_,
+                            const VkPipelineLayout&            layout,
+                            const PipelineRenderingCreateInfo& pipelineRenderingCreateInfo,
+                            GraphicsPipelineState&             pipelineState_)
+      : device(device_)
+      , pipelineState(pipelineState_)
+  {
+    createInfo.layout = layout;
+    setPipelineRenderingCreateInfo(pipelineRenderingCreateInfo);
+    init();
+  }
+
   const GraphicsPipelineGenerator& operator=(const GraphicsPipelineGenerator& src)
   {
     device        = src.device;
@@ -479,7 +524,31 @@ public:
 
   void setDevice(VkDevice device_) { device = device_; }
 
-  void setRenderPass(VkRenderPass renderPass) { createInfo.renderPass = renderPass; }
+  void setRenderPass(VkRenderPass renderPass)
+  {
+    createInfo.renderPass = renderPass;
+    createInfo.pNext      = nullptr;
+  }
+
+  void setPipelineRenderingCreateInfo(const PipelineRenderingCreateInfo& pipelineRenderingCreateInfo)
+  {
+    // Deep copy
+#ifndef VULKAN_HPP
+    assert(pipelineRenderingCreateInfo.sType == VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO);
+#endif
+    assert(pipelineRenderingCreateInfo.pNext == nullptr);  // Update deep copy if needed.
+    dynamicRenderingInfo = pipelineRenderingCreateInfo;
+    if(dynamicRenderingInfo.colorAttachmentCount != 0)
+    {
+      dynamicRenderingColorFormats.assign(dynamicRenderingInfo.pColorAttachmentFormats,
+                                          dynamicRenderingInfo.pColorAttachmentFormats + dynamicRenderingInfo.colorAttachmentCount);
+      dynamicRenderingInfo.pColorAttachmentFormats = dynamicRenderingColorFormats.data();
+    }
+
+    // Set VkGraphicsPipelineCreateInfo::pNext to point to deep copy of extension struct.
+    // NB: Will have to change if more than 1 extension struct needs to be supported.
+    createInfo.pNext = &dynamicRenderingInfo;
+  }
 
   void setLayout(VkPipelineLayout layout) { createInfo.layout = layout; }
 
@@ -585,7 +654,6 @@ public:
   VkGraphicsPipelineCreateInfo createInfo{VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
 #endif
 
-
 private:
 #ifdef VULKAN_HPP
   vk::Device        device;
@@ -593,6 +661,7 @@ private:
 
   std::vector<vk::PipelineShaderStageCreateInfo> shaderStages;
   std::vector<vk::ShaderModule>                  temporaryModules;
+  std::vector<vk::Format>                        dynamicRenderingColorFormats;
 
 #else
   VkDevice        device;
@@ -600,8 +669,10 @@ private:
 
   std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
   std::vector<VkShaderModule>                  temporaryModules;
+  std::vector<VkFormat>                        dynamicRenderingColorFormats;
 #endif
-  GraphicsPipelineState& pipelineState;
+  GraphicsPipelineState&      pipelineState;
+  PipelineRenderingCreateInfo dynamicRenderingInfo;
 
 
   void init()

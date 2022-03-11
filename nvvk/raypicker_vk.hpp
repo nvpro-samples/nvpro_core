@@ -104,6 +104,8 @@ public:
     createPipeline();
   }
 
+  bool isValid() { return m_pipeline != VK_NULL_HANDLE; }
+
   void run(const VkCommandBuffer& cmdBuf, const PickInfo& pickInfo)
   {
     m_pickInfo = pickInfo;

@@ -71,6 +71,7 @@ struct Bbox
     return m_min == nvmath::vec3f{std::numeric_limits<float>::max()}
            || m_max == nvmath::vec3f{std::numeric_limits<float>::lowest()};
   }
+
   inline uint32_t rank() const
   {
     uint32_t result{0};
@@ -109,6 +110,12 @@ private:
   nvmath::vec3f m_min{std::numeric_limits<float>::max()};
   nvmath::vec3f m_max{std::numeric_limits<float>::lowest()};
 };
+
+template <typename T, typename TFlag>
+inline bool hasFlag(T a, TFlag flag)
+{
+  return (a & flag) == flag;
+}
 
 
 //--------------------------------------------------------------------------------------------------
@@ -248,7 +255,7 @@ void GltfScene::importMaterials(const tinygltf::Model& tmodel)
 //--------------------------------------------------------------------------------------------------
 // Linearize the scene graph to world space nodes.
 //
-void GltfScene::importDrawableNodes(const tinygltf::Model& tmodel, GltfAttributes attributes)
+void GltfScene::importDrawableNodes(const tinygltf::Model& tmodel, GltfAttributes requestedAttributes, GltfAttributes forceRequested /*= GltfAttributes::All*/)
 {
   checkRequiredExtensions(tmodel);
 
@@ -288,7 +295,7 @@ void GltfScene::importDrawableNodes(const tinygltf::Model& tmodel, GltfAttribute
   {
     for(const auto& tprimitive : tmesh.primitives)
     {
-      processMesh(tmodel, tprimitive, attributes, tmesh.name);
+      processMesh(tmodel, tprimitive, requestedAttributes, forceRequested, tmesh.name);
     }
   }
 
@@ -381,7 +388,11 @@ void GltfScene::processNode(const tinygltf::Model& tmodel, int& nodeIdx, const n
 //--------------------------------------------------------------------------------------------------
 // Extracting the values to a linear buffer
 //
-void GltfScene::processMesh(const tinygltf::Model& tmodel, const tinygltf::Primitive& tmesh, GltfAttributes attributes, const std::string& name)
+void GltfScene::processMesh(const tinygltf::Model&     tmodel,
+                            const tinygltf::Primitive& tmesh,
+                            GltfAttributes             requestedAttributes,
+                            GltfAttributes             forceRequested,
+                            const std::string&         name)
 {
   // Only triangles are supported
   // 0:point, 1:lines, 2:line_loop, 3:line_strip, 4:triangles, 5:triangle_strip, 6:triangle_fan
@@ -479,216 +490,39 @@ void GltfScene::processMesh(const tinygltf::Model& tmodel, const tinygltf::Primi
     }
 
     // NORMAL
-    if((attributes & GltfAttributes::Normal) == GltfAttributes::Normal)
+    if(hasFlag(requestedAttributes, GltfAttributes::Normal))
     {
-      if(!getAttribute<nvmath::vec3f>(tmodel, tmesh, m_normals, "NORMAL"))
-      {
-        // Need to compute the normals
-        std::vector<nvmath::vec3f> geonormal(resultMesh.vertexCount);
-        for(size_t i = 0; i < resultMesh.indexCount; i += 3)
-        {
-          uint32_t    ind0 = m_indices[resultMesh.firstIndex + i + 0];
-          uint32_t    ind1 = m_indices[resultMesh.firstIndex + i + 1];
-          uint32_t    ind2 = m_indices[resultMesh.firstIndex + i + 2];
-          const auto& pos0 = m_positions[ind0 + resultMesh.vertexOffset];
-          const auto& pos1 = m_positions[ind1 + resultMesh.vertexOffset];
-          const auto& pos2 = m_positions[ind2 + resultMesh.vertexOffset];
-          const auto  v1   = nvmath::normalize(pos1 - pos0);  // Many normalize, but when objects are really small the
-          const auto  v2 = nvmath::normalize(pos2 - pos0);  // cross will go below nv_eps and the normal will be (0,0,0)
-          const auto  n  = nvmath::cross(v2, v1);
-          geonormal[ind0] += n;
-          geonormal[ind1] += n;
-          geonormal[ind2] += n;
-        }
-        for(auto& n : geonormal)
-          n = nvmath::normalize(n);
-        m_normals.insert(m_normals.end(), geonormal.begin(), geonormal.end());
-      }
+      bool normalCreated = getAttribute<nvmath::vec3f>(tmodel, tmesh, m_normals, "NORMAL");
+
+      if(!normalCreated && hasFlag(forceRequested, GltfAttributes::Normal))
+        createNormals(resultMesh);
     }
 
     // TEXCOORD_0
-    if((attributes & GltfAttributes::Texcoord_0) == GltfAttributes::Texcoord_0)
+    if(hasFlag(requestedAttributes, GltfAttributes::Texcoord_0))
     {
-      if(!getAttribute<nvmath::vec2f>(tmodel, tmesh, m_texcoords0, "TEXCOORD_0"))
-      {
-        // Set them all to zero
-        //      m_texcoords0.insert(m_texcoords0.end(), resultMesh.vertexCount, nvmath::vec2f(0, 0));
+      bool texcoordCreated = getAttribute<nvmath::vec2f>(tmodel, tmesh, m_texcoords0, "TEXCOORD_0");
 
-        // Cube map projection
-        for(uint32_t i = 0; i < resultMesh.vertexCount; i++)
-        {
-          const auto& pos  = m_positions[resultMesh.vertexOffset + i];
-          float       absX = fabs(pos.x);
-          float       absY = fabs(pos.y);
-          float       absZ = fabs(pos.z);
-
-          int isXPositive = pos.x > 0 ? 1 : 0;
-          int isYPositive = pos.y > 0 ? 1 : 0;
-          int isZPositive = pos.z > 0 ? 1 : 0;
-
-          float maxAxis, uc, vc;
-
-          // POSITIVE X
-          if(isXPositive && absX >= absY && absX >= absZ)
-          {
-            // u (0 to 1) goes from +z to -z
-            // v (0 to 1) goes from -y to +y
-            maxAxis = absX;
-            uc      = -pos.z;
-            vc      = pos.y;
-          }
-          // NEGATIVE X
-          if(!isXPositive && absX >= absY && absX >= absZ)
-          {
-            // u (0 to 1) goes from -z to +z
-            // v (0 to 1) goes from -y to +y
-            maxAxis = absX;
-            uc      = pos.z;
-            vc      = pos.y;
-          }
-          // POSITIVE Y
-          if(isYPositive && absY >= absX && absY >= absZ)
-          {
-            // u (0 to 1) goes from -x to +x
-            // v (0 to 1) goes from +z to -z
-            maxAxis = absY;
-            uc      = pos.x;
-            vc      = -pos.z;
-          }
-          // NEGATIVE Y
-          if(!isYPositive && absY >= absX && absY >= absZ)
-          {
-            // u (0 to 1) goes from -x to +x
-            // v (0 to 1) goes from -z to +z
-            maxAxis = absY;
-            uc      = pos.x;
-            vc      = pos.z;
-          }
-          // POSITIVE Z
-          if(isZPositive && absZ >= absX && absZ >= absY)
-          {
-            // u (0 to 1) goes from -x to +x
-            // v (0 to 1) goes from -y to +y
-            maxAxis = absZ;
-            uc      = pos.x;
-            vc      = pos.y;
-          }
-          // NEGATIVE Z
-          if(!isZPositive && absZ >= absX && absZ >= absY)
-          {
-            // u (0 to 1) goes from +x to -x
-            // v (0 to 1) goes from -y to +y
-            maxAxis = absZ;
-            uc      = -pos.x;
-            vc      = pos.y;
-          }
-
-          // Convert range from -1 to 1 to 0 to 1
-          float u = 0.5f * (uc / maxAxis + 1.0f);
-          float v = 0.5f * (vc / maxAxis + 1.0f);
-
-          m_texcoords0.emplace_back(u, v);
-        }
-      }
+      if(!texcoordCreated && hasFlag(forceRequested, GltfAttributes::Texcoord_0))
+        createTexcoords(resultMesh);
     }
 
 
     // TANGENT
-    if((attributes & GltfAttributes::Tangent) == GltfAttributes::Tangent)
+    if(hasFlag(requestedAttributes, GltfAttributes::Tangent))
     {
-      if(!getAttribute<nvmath::vec4f>(tmodel, tmesh, m_tangents, "TANGENT"))
-      {
-        // #TODO - Should calculate tangents using default MikkTSpace algorithms
-        // See: https://github.com/mmikk/MikkTSpace
+      bool tangentCreated = getAttribute<nvmath::vec4f>(tmodel, tmesh, m_tangents, "TANGENT");
 
-        std::vector<nvmath::vec3f> tangent(resultMesh.vertexCount);
-        std::vector<nvmath::vec3f> bitangent(resultMesh.vertexCount);
-
-        // Current implementation
-        // http://foundationsofgameenginedev.com/FGED2-sample.pdf
-        for(size_t i = 0; i < resultMesh.indexCount; i += 3)
-        {
-          // local index
-          uint32_t i0 = m_indices[resultMesh.firstIndex + i + 0];
-          uint32_t i1 = m_indices[resultMesh.firstIndex + i + 1];
-          uint32_t i2 = m_indices[resultMesh.firstIndex + i + 2];
-          assert(i0 < resultMesh.vertexCount);
-          assert(i1 < resultMesh.vertexCount);
-          assert(i2 < resultMesh.vertexCount);
-
-
-          // global index
-          uint32_t gi0 = i0 + resultMesh.vertexOffset;
-          uint32_t gi1 = i1 + resultMesh.vertexOffset;
-          uint32_t gi2 = i2 + resultMesh.vertexOffset;
-
-          const auto& p0 = m_positions[gi0];
-          const auto& p1 = m_positions[gi1];
-          const auto& p2 = m_positions[gi2];
-
-          const auto& uv0 = m_texcoords0[gi0];
-          const auto& uv1 = m_texcoords0[gi1];
-          const auto& uv2 = m_texcoords0[gi2];
-
-          nvmath::vec3f e1 = p1 - p0;
-          nvmath::vec3f e2 = p2 - p0;
-
-          nvmath::vec2f duvE1 = uv1 - uv0;
-          nvmath::vec2f duvE2 = uv2 - uv0;
-
-          float r = 1.0F;
-          float a = duvE1.x * duvE2.y - duvE2.x * duvE1.y;
-          if(fabs(a) > 0)  // Catch degenerated UV
-          {
-            r = 1.0f / a;
-          }
-
-          nvmath::vec3f t = (e1 * duvE2.y - e2 * duvE1.y) * r;
-          nvmath::vec3f b = (e2 * duvE1.x - e1 * duvE2.x) * r;
-
-
-          tangent[i0] += t;
-          tangent[i1] += t;
-          tangent[i2] += t;
-
-          bitangent[i0] += b;
-          bitangent[i1] += b;
-          bitangent[i2] += b;
-        }
-
-        for(uint32_t a = 0; a < resultMesh.vertexCount; a++)
-        {
-          const auto& t = tangent[a];
-          const auto& b = bitangent[a];
-          const auto& n = m_normals[resultMesh.vertexOffset + a];
-
-          // Gram-Schmidt orthogonalize
-          nvmath::vec3f otangent = nvmath::normalize(t - (nvmath::dot(n, t) * n));
-
-          // In case the tangent is invalid
-          if(otangent == nvmath::vec3f(0, 0, 0))
-          {
-            if(abs(n.x) > abs(n.y))
-              otangent = nvmath::vec3f(n.z, 0, -n.x) / sqrt(n.x * n.x + n.z * n.z);
-            else
-              otangent = nvmath::vec3f(0, -n.z, n.y) / sqrt(n.y * n.y + n.z * n.z);
-          }
-
-          // Calculate handedness
-          float handedness = (nvmath::dot(nvmath::cross(n, t), b) < 0.0F) ? -1.0F : 1.0F;
-          m_tangents.emplace_back(otangent.x, otangent.y, otangent.z, handedness);
-        }
-      }
+      if(!tangentCreated && hasFlag(forceRequested, GltfAttributes::Tangent))
+        createTangents(resultMesh);
     }
 
     // COLOR_0
-    if((attributes & GltfAttributes::Color_0) == GltfAttributes::Color_0)
+    if(hasFlag(requestedAttributes, GltfAttributes::Color_0))
     {
-      if(!getAttribute<nvmath::vec4f>(tmodel, tmesh, m_colors0, "COLOR_0"))
-      {
-        // Set them all to one
-        m_colors0.insert(m_colors0.end(), resultMesh.vertexCount, nvmath::vec4f(1, 1, 1, 1));
-      }
+      bool colorCreated = getAttribute<nvmath::vec4f>(tmodel, tmesh, m_colors0, "COLOR_0");
+      if(!colorCreated && hasFlag(forceRequested, GltfAttributes::Color_0))
+        createColors(resultMesh);
     }
   }
 
@@ -698,6 +532,205 @@ void GltfScene::processMesh(const tinygltf::Model& tmodel, const tinygltf::Primi
   // Append prim mesh to the list of all primitive meshes
   m_primMeshes.emplace_back(resultMesh);
 }  // namespace nvh
+
+
+void GltfScene::createNormals(GltfPrimMesh& resultMesh)
+{
+  // Need to compute the normals
+  std::vector<nvmath::vec3f> geonormal(resultMesh.vertexCount);
+  for(size_t i = 0; i < resultMesh.indexCount; i += 3)
+  {
+    uint32_t    ind0 = m_indices[resultMesh.firstIndex + i + 0];
+    uint32_t    ind1 = m_indices[resultMesh.firstIndex + i + 1];
+    uint32_t    ind2 = m_indices[resultMesh.firstIndex + i + 2];
+    const auto& pos0 = m_positions[ind0 + resultMesh.vertexOffset];
+    const auto& pos1 = m_positions[ind1 + resultMesh.vertexOffset];
+    const auto& pos2 = m_positions[ind2 + resultMesh.vertexOffset];
+    const auto  v1   = nvmath::normalize(pos1 - pos0);  // Many normalize, but when objects are really small the
+    const auto  v2   = nvmath::normalize(pos2 - pos0);  // cross will go below nv_eps and the normal will be (0,0,0)
+    const auto  n    = nvmath::cross(v2, v1);
+    geonormal[ind0] += n;
+    geonormal[ind1] += n;
+    geonormal[ind2] += n;
+  }
+  for(auto& n : geonormal)
+    n = nvmath::normalize(n);
+  m_normals.insert(m_normals.end(), geonormal.begin(), geonormal.end());
+}
+
+void GltfScene::createTexcoords(GltfPrimMesh& resultMesh)
+{
+
+  // Set them all to zero
+  //      m_texcoords0.insert(m_texcoords0.end(), resultMesh.vertexCount, nvmath::vec2f(0, 0));
+
+  // Cube map projection
+  for(uint32_t i = 0; i < resultMesh.vertexCount; i++)
+  {
+    const auto& pos  = m_positions[resultMesh.vertexOffset + i];
+    float       absX = fabs(pos.x);
+    float       absY = fabs(pos.y);
+    float       absZ = fabs(pos.z);
+
+    int isXPositive = pos.x > 0 ? 1 : 0;
+    int isYPositive = pos.y > 0 ? 1 : 0;
+    int isZPositive = pos.z > 0 ? 1 : 0;
+
+    float maxAxis, uc, vc;
+
+    // POSITIVE X
+    if(isXPositive && absX >= absY && absX >= absZ)
+    {
+      // u (0 to 1) goes from +z to -z
+      // v (0 to 1) goes from -y to +y
+      maxAxis = absX;
+      uc      = -pos.z;
+      vc      = pos.y;
+    }
+    // NEGATIVE X
+    if(!isXPositive && absX >= absY && absX >= absZ)
+    {
+      // u (0 to 1) goes from -z to +z
+      // v (0 to 1) goes from -y to +y
+      maxAxis = absX;
+      uc      = pos.z;
+      vc      = pos.y;
+    }
+    // POSITIVE Y
+    if(isYPositive && absY >= absX && absY >= absZ)
+    {
+      // u (0 to 1) goes from -x to +x
+      // v (0 to 1) goes from +z to -z
+      maxAxis = absY;
+      uc      = pos.x;
+      vc      = -pos.z;
+    }
+    // NEGATIVE Y
+    if(!isYPositive && absY >= absX && absY >= absZ)
+    {
+      // u (0 to 1) goes from -x to +x
+      // v (0 to 1) goes from -z to +z
+      maxAxis = absY;
+      uc      = pos.x;
+      vc      = pos.z;
+    }
+    // POSITIVE Z
+    if(isZPositive && absZ >= absX && absZ >= absY)
+    {
+      // u (0 to 1) goes from -x to +x
+      // v (0 to 1) goes from -y to +y
+      maxAxis = absZ;
+      uc      = pos.x;
+      vc      = pos.y;
+    }
+    // NEGATIVE Z
+    if(!isZPositive && absZ >= absX && absZ >= absY)
+    {
+      // u (0 to 1) goes from +x to -x
+      // v (0 to 1) goes from -y to +y
+      maxAxis = absZ;
+      uc      = -pos.x;
+      vc      = pos.y;
+    }
+
+    // Convert range from -1 to 1 to 0 to 1
+    float u = 0.5f * (uc / maxAxis + 1.0f);
+    float v = 0.5f * (vc / maxAxis + 1.0f);
+
+    m_texcoords0.emplace_back(u, v);
+  }
+}
+
+void GltfScene::createTangents(GltfPrimMesh& resultMesh)
+{
+
+  // #TODO - Should calculate tangents using default MikkTSpace algorithms
+  // See: https://github.com/mmikk/MikkTSpace
+
+  std::vector<nvmath::vec3f> tangent(resultMesh.vertexCount);
+  std::vector<nvmath::vec3f> bitangent(resultMesh.vertexCount);
+
+  // Current implementation
+  // http://foundationsofgameenginedev.com/FGED2-sample.pdf
+  for(size_t i = 0; i < resultMesh.indexCount; i += 3)
+  {
+    // local index
+    uint32_t i0 = m_indices[resultMesh.firstIndex + i + 0];
+    uint32_t i1 = m_indices[resultMesh.firstIndex + i + 1];
+    uint32_t i2 = m_indices[resultMesh.firstIndex + i + 2];
+    assert(i0 < resultMesh.vertexCount);
+    assert(i1 < resultMesh.vertexCount);
+    assert(i2 < resultMesh.vertexCount);
+
+
+    // global index
+    uint32_t gi0 = i0 + resultMesh.vertexOffset;
+    uint32_t gi1 = i1 + resultMesh.vertexOffset;
+    uint32_t gi2 = i2 + resultMesh.vertexOffset;
+
+    const auto& p0 = m_positions[gi0];
+    const auto& p1 = m_positions[gi1];
+    const auto& p2 = m_positions[gi2];
+
+    const auto& uv0 = m_texcoords0[gi0];
+    const auto& uv1 = m_texcoords0[gi1];
+    const auto& uv2 = m_texcoords0[gi2];
+
+    nvmath::vec3f e1 = p1 - p0;
+    nvmath::vec3f e2 = p2 - p0;
+
+    nvmath::vec2f duvE1 = uv1 - uv0;
+    nvmath::vec2f duvE2 = uv2 - uv0;
+
+    float r = 1.0F;
+    float a = duvE1.x * duvE2.y - duvE2.x * duvE1.y;
+    if(fabs(a) > 0)  // Catch degenerated UV
+    {
+      r = 1.0f / a;
+    }
+
+    nvmath::vec3f t = (e1 * duvE2.y - e2 * duvE1.y) * r;
+    nvmath::vec3f b = (e2 * duvE1.x - e1 * duvE2.x) * r;
+
+
+    tangent[i0] += t;
+    tangent[i1] += t;
+    tangent[i2] += t;
+
+    bitangent[i0] += b;
+    bitangent[i1] += b;
+    bitangent[i2] += b;
+  }
+
+  for(uint32_t a = 0; a < resultMesh.vertexCount; a++)
+  {
+    const auto& t = tangent[a];
+    const auto& b = bitangent[a];
+    const auto& n = m_normals[resultMesh.vertexOffset + a];
+
+    // Gram-Schmidt orthogonalize
+    nvmath::vec3f otangent = nvmath::normalize(t - (nvmath::dot(n, t) * n));
+
+    // In case the tangent is invalid
+    if(otangent == nvmath::vec3f(0, 0, 0))
+    {
+      if(abs(n.x) > abs(n.y))
+        otangent = nvmath::vec3f(n.z, 0, -n.x) / sqrt(n.x * n.x + n.z * n.z);
+      else
+        otangent = nvmath::vec3f(0, -n.z, n.y) / sqrt(n.y * n.y + n.z * n.z);
+    }
+
+    // Calculate handedness
+    float handedness = (nvmath::dot(nvmath::cross(n, t), b) < 0.0F) ? -1.0F : 1.0F;
+    m_tangents.emplace_back(otangent.x, otangent.y, otangent.z, handedness);
+  }
+}
+
+void GltfScene::createColors(GltfPrimMesh& resultMesh)
+{
+  // Set them all to one
+  m_colors0.insert(m_colors0.end(), resultMesh.vertexCount, nvmath::vec4f(1, 1, 1, 1));
+}
 
 //--------------------------------------------------------------------------------------------------
 // Return the matrix of the node

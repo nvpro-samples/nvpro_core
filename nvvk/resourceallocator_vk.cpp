@@ -82,12 +82,16 @@ Buffer ResourceAllocator::createBuffer(const VkBufferCreateInfo& info_, const Vk
 
   // Allocate memory
   resultBuffer.memHandle = AllocateMemory(allocInfo);
-  assert(resultBuffer.memHandle);
-
-  const auto memInfo = m_memAlloc->getMemoryInfo(resultBuffer.memHandle);
-
-  // Bind memory to buffer
-  NVVK_CHECK(vkBindBufferMemory(m_device, resultBuffer.buffer, memInfo.memory, memInfo.offset));
+  if (resultBuffer.memHandle)
+  {
+    const auto memInfo = m_memAlloc->getMemoryInfo(resultBuffer.memHandle);
+    // Bind memory to buffer
+    NVVK_CHECK(vkBindBufferMemory(m_device, resultBuffer.buffer, memInfo.memory, memInfo.offset));
+  }
+  else
+  {
+    destroy(resultBuffer);
+  }
 
   return resultBuffer;
 }
@@ -145,13 +149,16 @@ Image ResourceAllocator::createImage(const VkImageCreateInfo& info_, const VkMem
 
   // Allocate memory
   resultImage.memHandle = AllocateMemory(allocInfo);
-  assert(resultImage.memHandle);
-
-  const auto memInfo = m_memAlloc->getMemoryInfo(resultImage.memHandle);
-
-  // Bind memory to image
-  NVVK_CHECK(vkBindImageMemory(m_device, resultImage.image, memInfo.memory, memInfo.offset));
-
+  if(resultImage.memHandle)
+  {
+    const auto memInfo = m_memAlloc->getMemoryInfo(resultImage.memHandle);
+    // Bind memory to image
+    NVVK_CHECK(vkBindImageMemory(m_device, resultImage.image, memInfo.memory, memInfo.offset));
+  }
+  else
+  {
+    destroy(resultImage);
+  }
   return resultImage;
 }
 
@@ -383,16 +390,21 @@ AccelNV ResourceAllocator::createAcceleration(VkAccelerationStructureCreateInfoN
   // Allocate memory
   MemAllocateInfo info(memReqs.memoryRequirements, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, false);
   resultAccel.memHandle = AllocateMemory(info);
-  assert(resultAccel.memHandle);
+  if(resultAccel.memHandle)
+  {
+    const auto memInfo = m_memAlloc->getMemoryInfo(resultAccel.memHandle);
 
-  const auto memInfo = m_memAlloc->getMemoryInfo(resultAccel.memHandle);
-
-  // Bind memory with acceleration structure
-  VkBindAccelerationStructureMemoryInfoNV bind{VK_STRUCTURE_TYPE_BIND_ACCELERATION_STRUCTURE_MEMORY_INFO_NV};
-  bind.accelerationStructure = resultAccel.accel;
-  bind.memory                = memInfo.memory;
-  bind.memoryOffset          = memInfo.offset;
-  NVVK_CHECK(vkBindAccelerationStructureMemoryNV(m_device, 1, &bind));
+    // Bind memory with acceleration structure
+    VkBindAccelerationStructureMemoryInfoNV bind{VK_STRUCTURE_TYPE_BIND_ACCELERATION_STRUCTURE_MEMORY_INFO_NV};
+    bind.accelerationStructure = resultAccel.accel;
+    bind.memory                = memInfo.memory;
+    bind.memoryOffset          = memInfo.offset;
+    NVVK_CHECK(vkBindAccelerationStructureMemoryNV(m_device, 1, &bind));
+  }
+  else
+  {
+    destroy(resultAccel);
+  }
   return resultAccel;
 }
 

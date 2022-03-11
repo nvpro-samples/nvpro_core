@@ -24,20 +24,6 @@ namespace ImGuiH {
 using nlohmann::json;
 using Gui = ImGuiH::Control;
 
-bool IsItemActiveLastFrame()
-{
-  ImGuiContext& g = *GImGui;
-  if(g.ActiveIdPreviousFrame)
-    return g.ActiveIdPreviousFrame == g.CurrentWindow->DC.LastItemId;
-  return false;
-}
-
-bool IsItemJustReleased()
-{
-  return IsItemActiveLastFrame() && !ImGui::IsItemActive();
-}
-
-
 //--------------------------------------------------------------------------------------------------
 // Holds all saved cameras in a vector of Cameras
 // - The first camera in the list is the HOME camera, the one that was set before this is called.
@@ -149,11 +135,16 @@ struct CameraManager
 
   void loadSetting(nvh::CameraManipulator& cameraM)
   {
-    if(jsonFilename.empty() || cameras.empty())
+    if(jsonFilename.empty() || cameras.empty() || doLoadSetting == false)
       return;
 
     try
     {
+      doLoadSetting = false;
+
+      // Clear all cameras except the HOME
+      removedSavedCameras();
+
       std::ifstream i(NVPSystem::exePath() + jsonFilename);
       if(!i.is_open())
         return;
@@ -161,9 +152,6 @@ struct CameraManager
       // Parsing the file
       json j;
       i >> j;
-
-      // Clear all cameras except the HOME
-      removedSavedCameras();
 
       // Temp
       int                iVal;
@@ -194,8 +182,6 @@ struct CameraManager
           camera.fov = fVal;
         cameras.emplace_back(camera);
       }
-
-      doLoadSetting = false;
     }
     catch(...)
     {
@@ -369,7 +355,10 @@ void SavedCameraTab(nvh::CameraManipulator& cameraM, nvh::CameraManipulator::Cam
 
   // Remove element
   if(delete_item > 0)
+  {
     sCamMgr.cameras.erase(sCamMgr.cameras.begin() + delete_item);
+    sCamMgr.markIniSettingsDirty();
+  }
 }
 
 //--------------------------------------------------------------------------------------------------

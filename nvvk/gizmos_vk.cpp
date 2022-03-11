@@ -164,7 +164,7 @@ void AxisVK::display(VkCommandBuffer cmdBuf, const nvmath::mat4f& transform, con
   vkCmdDraw(cmdBuf, 2, 3, 6, 0);
 }
 
-void AxisVK::createAxisObject(VkRenderPass renderPass, uint32_t subpass)
+void AxisVK::createAxisObject(CreateAxisInfo& info)
 {
   // The shader need Push Constants: the transformation matrix
   const VkPushConstantRange push_constants{VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(nvmath::mat4f)};
@@ -195,9 +195,21 @@ void AxisVK::createAxisObject(VkRenderPass renderPass, uint32_t subpass)
   gps.depthStencilState.depthCompareOp    = VK_COMPARE_OP_LESS_OR_EQUAL;
 
   // Creating the tips
-  nvvk::GraphicsPipelineGenerator gpg(m_device, m_pipelineLayout, renderPass, gps);
+  nvvk::GraphicsPipelineGenerator gpg(m_device, m_pipelineLayout, info.renderPass, gps);
   gpg.addShader(smVertex, VK_SHADER_STAGE_VERTEX_BIT);
   gpg.addShader(smFrag, VK_SHADER_STAGE_FRAGMENT_BIT);
+
+  // Dynamic Rendering
+  VkPipelineRenderingCreateInfoKHR rfInfo{VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR};
+  if(info.renderPass == VK_NULL_HANDLE)
+  {
+    rfInfo.colorAttachmentCount    = static_cast<uint32_t>(info.colorFormat.size());
+    rfInfo.pColorAttachmentFormats = info.colorFormat.data();
+    rfInfo.depthAttachmentFormat   = info.depthFormat;
+    rfInfo.stencilAttachmentFormat = info.depthFormat;
+    gpg.createInfo.pNext           = &rfInfo;
+  }
+  
   m_pipelineTriangleFan = gpg.createPipeline();
 
   // Creating the lines

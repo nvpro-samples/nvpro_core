@@ -47,11 +47,32 @@ namespace nvvk {
 class AxisVK
 {
 public:
+  struct CreateAxisInfo
+  {
+    VkRenderPass          renderPass{VK_NULL_HANDLE};
+    uint32_t              subpass{0};
+    std::vector<VkFormat> colorFormat;
+    VkFormat              depthFormat{};
+    float                 axisSize{50.f};
+  };
+
+
   void init(VkDevice device, VkRenderPass renderPass, uint32_t subpass = 0, float axisSize = 50.f)
   {
     m_device   = device;
     m_axisSize = axisSize;
-    createAxisObject(renderPass, subpass);
+
+    CreateAxisInfo info;
+    info.renderPass = renderPass;
+    info.subpass    = subpass;
+    createAxisObject(info);
+  }
+
+  void init(VkDevice device, CreateAxisInfo info)
+  {
+    m_device   = device;
+    m_axisSize = info.axisSize;
+    createAxisObject(info);
   }
 
   void deinit()
@@ -64,12 +85,12 @@ public:
   void display(VkCommandBuffer cmdBuf, const nvmath::mat4f& transform, const VkExtent2D& screenSize);
 
 private:
-  void createAxisObject(VkRenderPass renderPass, uint32_t subpass);
+  void createAxisObject(CreateAxisInfo& info);
 
   VkPipeline       m_pipelineTriangleFan = {};
   VkPipeline       m_pipelineLines       = {};
   VkPipelineLayout m_pipelineLayout      = {};
-  float            m_axisSize            = 40.f;  // Size in pixel
+  float            m_axisSize            = 50.f;  // Size in pixel
 
   VkDevice m_device{VK_NULL_HANDLE};
 };

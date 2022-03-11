@@ -22,14 +22,13 @@
 #include "vulkan/vulkan_core.h"
 
 // Imgui
-#include "backends/imgui_impl_vulkan.h"
 #include "imgui.h"
 #include "imgui/imgui_camera_widget.h"
 #include "imgui/imgui_helper.h"
+#include "imgui/backends/imgui_impl_vulkan.h"
 
 // Utilities
 #include "nvh/cameramanipulator.hpp"
-#include "nvh/timesampler.hpp"
 #include "swapchain_vk.hpp"
 
 #ifdef LINUX
@@ -260,6 +259,7 @@ struct AppBaseVkCreateInfo
   VkSurfaceKHR          surface{};
   VkExtent2D            size{};
   GLFWwindow*           window{nullptr};
+  bool                  useDynamicRendering{false};  // VK_KHR_dynamic_rendering
 };
 
 
@@ -285,6 +285,7 @@ public:
   virtual void createDepthBuffer();
   virtual void prepareFrame();
   virtual void submitFrame();
+  virtual void updateInputs(){};
   virtual void onFramebufferSize(int w, int h);
   virtual void onMouseMotion(int x, int y);
   virtual void onKeyboard(int key, int scancode, int action, int mods);
@@ -327,11 +328,15 @@ public:
   VkFormat                            getDepthFormat() const { return m_depthFormat; }
   bool                                showGui() { return m_show_gui; }
   const nvvk::SwapChain&              getSwapChain() { return m_swapChain; }
+  VkImageView                         getDepthView() { return m_depthView; }
 
 protected:
   uint32_t getMemoryType(uint32_t typeBits, const VkMemoryPropertyFlags& properties) const;
   void     uiDisplayHelp();
   void     updateCamera();
+
+  VkCommandBuffer createTempCmdBuffer();
+  void            submitTempCmdBuffer(VkCommandBuffer cmdBuffer);
 
   // Vulkan low level
   VkInstance       m_instance{};
@@ -364,13 +369,11 @@ protected:
 
   // Camera manipulators
   nvh::CameraManipulator::Inputs m_inputs;  // Mouse button pressed
-  std::set<int>                  m_keys;    // Keyboard pressed
-
-  nvh::Stopwatch m_timer;  // measure time from frame to frame to base camera movement on
 
   // Other
   bool m_showHelp{false};  // Show help, pressing
   bool m_show_gui{true};
+  bool m_useDynamicRendering{false};  // Using VK_KHR_dynamic_rendering
 };
 
 

@@ -25,7 +25,7 @@
 #include "nvh/cameramanipulator.hpp"
 
 #include "swapchain_vk.hpp"
-#include "backends/imgui_impl_vulkan.h"
+#include "imgui/backends/imgui_impl_vulkan.h"
 
 // Not strictly needed for this header, but some samples got used to having
 // them available by just including appbase_vkpp.hpp

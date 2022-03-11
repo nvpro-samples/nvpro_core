@@ -168,6 +168,16 @@ inline vk::ImageViewCreateInfo makeImage2DViewCreateInfo(vk::Image            im
                                    static_cast<VkImageAspectFlags>(aspectFlags), levels, pNextImageView);
 }
 
+inline vk::ImageViewCreateInfo makeImageViewCreateInfo(vk::Image image, const vk::ImageCreateInfo& imageInfo, bool isCube = false)
+{
+  return makeImageViewCreateInfo(static_cast<VkImage>(image), static_cast<VkImageCreateInfo>(imageInfo), isCube);
+}
+
+inline vk::ImageViewCreateInfo makeImageViewCreateInfo(VkImage image, const vk::ImageCreateInfo& imageInfo, bool isCube = false)
+{
+  return makeImageViewCreateInfo(image, static_cast<VkImageCreateInfo>(imageInfo), isCube);
+}
+
 inline vk::ImageCreateInfo makeImageCubeCreateInfo(const vk::Extent2D& size,
                                                    vk::Format          format,
                                                    vk::ImageUsageFlags usage   = vk::ImageUsageFlagBits::eSampled,

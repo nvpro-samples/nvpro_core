@@ -197,7 +197,7 @@ function(compile_glsl)
     if(COMPILE_DEPENDENCY)
         get_glsl_dependecies(${GLSL_SRC} ${COMPILE_FLAGS})
     else()
-      set(GLSL_DEPENDENCY ${COMPILE_HEADER_FILES}) 
+      set(GLSL_DEPENDENCY ${HEADER_FILES}) 
     endif()
 
     # Default compiler command, always adding debug information (Add and option to opt-out?)

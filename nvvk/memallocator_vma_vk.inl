@@ -117,8 +117,14 @@ inline MemHandle VMAMemoryAllocator::allocMemory(const MemAllocateInfo& allocInf
   {
     *pResult = result;
   }
-
-  return new VMAMemoryHandle(allocation);
+  if(result == VK_SUCCESS)
+  {
+    return new VMAMemoryHandle(allocation);
+  }
+  else
+  {
+    return NullMemHandle;
+  }
 }
 
 inline void VMAMemoryAllocator::freeMemory(MemHandle memHandle)

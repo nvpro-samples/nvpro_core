@@ -243,15 +243,16 @@ struct GltfLight
 
 enum class GltfAttributes : uint8_t
 {
-  Position   = 0,
-  Normal     = 1,
-  Texcoord_0 = 2,
-  Texcoord_1 = 4,
-  Tangent    = 8,
-  Color_0    = 16,
-  //Joints_0   = 32, // #TODO - Add support for skinning
-  //Weights_0  = 64,
+  NoAttribs  = 0,
+  Position   = 1,
+  Normal     = 2,
+  Texcoord_0 = 4,
+  Texcoord_1 = 8,
+  Tangent    = 16,
+  Color_0    = 32,
+  All        = 0xFF
 };
+
 using GltfAttributes_t = std::underlying_type_t<GltfAttributes>;
 
 inline GltfAttributes operator|(GltfAttributes lhs, GltfAttributes rhs)
@@ -269,9 +270,20 @@ inline GltfAttributes operator&(GltfAttributes lhs, GltfAttributes rhs)
 //
 struct GltfScene
 {
+  // Importing all materials in a vector of GltfMaterial structure
   void importMaterials(const tinygltf::Model& tmodel);
-  void importDrawableNodes(const tinygltf::Model& tmodel, GltfAttributes attributes);
+
+  // Import all Mesh and primitives in a vector of GltfPrimMesh,
+  // - Reads all requested GltfAttributes and create them if `forceRequested` contains it.
+  // - Create a vector of GltfNode, GltfLight and GltfCamera
+  void importDrawableNodes(const tinygltf::Model& tmodel,
+                           GltfAttributes         requestedAttributes,
+                           GltfAttributes         forceRequested = GltfAttributes::All);
+
+  // Compute the scene bounding box
   void computeSceneDimensions();
+
+  // Removes everything
   void destroy();
 
   static GltfStats getStatistics(const tinygltf::Model& tinyModel);
@@ -310,7 +322,16 @@ struct GltfScene
 
 private:
   void processNode(const tinygltf::Model& tmodel, int& nodeIdx, const nvmath::mat4f& parentMatrix);
-  void processMesh(const tinygltf::Model& tmodel, const tinygltf::Primitive& tmesh, GltfAttributes attributes, const std::string& name);
+  void processMesh(const tinygltf::Model&     tmodel,
+                   const tinygltf::Primitive& tmesh,
+                   GltfAttributes             requestedAttributes,
+                   GltfAttributes             forceRequested,
+                   const std::string&         name);
+
+  void createNormals(GltfPrimMesh& resultMesh);
+  void createTexcoords(GltfPrimMesh& resultMesh);
+  void createTangents(GltfPrimMesh& resultMesh);
+  void createColors(GltfPrimMesh& resultMesh);
 
   // Temporary data
   std::unordered_map<int, std::vector<uint32_t>> m_meshToPrimMeshes;

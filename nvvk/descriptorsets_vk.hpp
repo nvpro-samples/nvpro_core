@@ -208,7 +208,6 @@ public:
   void addBinding(const VkDescriptorSetLayoutBinding& layoutBinding) { m_bindings.emplace_back(layoutBinding); }
 
   void setBindings(const std::vector<VkDescriptorSetLayoutBinding>& bindings) { m_bindings = bindings; }
-
   // requires use of SUPPORT_INDEXING_EXT/SUPPORT_INDEXING_V1_2 on createLayout
   void setBindingFlags(uint32_t binding, VkDescriptorBindingFlags bindingFlags);
 
@@ -291,6 +290,11 @@ public:
                                       const VkWriteDescriptorSetInlineUniformBlockEXT* pInline) const;
 #endif
 #ifdef VULKAN_HPP
+  DescriptorSetBindings(const std::vector<vk::DescriptorSetLayoutBinding>& bindings)
+  {
+    auto source = &static_cast<const VkDescriptorSetLayoutBinding&>(bindings[0]);
+    m_bindings.assign(source, source + bindings.size());
+  }
   void addBinding(uint32_t binding,           // Slot to which the descriptor will be bound, corresponding to the layout
                                               // binding index in the shader
                   vk::DescriptorType   type,  // Type of the bound descriptor(s)
@@ -301,6 +305,10 @@ public:
   {
     m_bindings.push_back({binding, static_cast<VkDescriptorType>(type), count, static_cast<VkShaderStageFlags>(stageFlags),
                           reinterpret_cast<const VkSampler*>(pImmutableSampler)});
+  }
+  void addBinding(const vk::DescriptorSetLayoutBinding& layoutBinding)
+  {
+    m_bindings.emplace_back(static_cast<VkDescriptorSetLayoutBinding>(layoutBinding));
   }
   void setBindings(const std::vector<vk::DescriptorSetLayoutBinding>& bindings)
   {

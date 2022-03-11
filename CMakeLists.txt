@@ -126,8 +126,8 @@ if(USING_IMGUI)
     list(APPEND IMGUI_SOURCE 
          imgui/backends/imgui_vk_extra.cpp 
          imgui/backends/imgui_vk_extra.h
-         ${IMGUI_DIR}/backends/imgui_impl_vulkan.cpp 
-         ${IMGUI_DIR}/backends/imgui_impl_vulkan.h)
+         imgui/backends/imgui_impl_vulkan.cpp 
+         imgui/backends/imgui_impl_vulkan.h)
   endif()
  
   if(USING_DIRECTX12)

@@ -121,6 +121,7 @@ BufferSubAllocator::Handle BufferSubAllocator::subAllocate(VkDeviceSize size, ui
     NVVK_CHECK(result);
     if(result != VK_SUCCESS)
     {
+      freeBlock(block);
       return Handle();
     }
 
@@ -301,12 +302,12 @@ VkResult BufferSubAllocator::allocBlock(Block& block, uint32_t index, VkDeviceSi
   MemAllocateInfo memAllocateInfo(memReqs.memoryRequirements, m_memoryPropFlags, false);
   memAllocateInfo.setDebugName(debugName);
 
-  MemHandle memory = m_memAllocator->allocMemory(memAllocateInfo);
-  if(!memory)
+  MemHandle memory = m_memAllocator->allocMemory(memAllocateInfo, &result);
+  if(result != VK_SUCCESS)
   {
     assert(0 && "could not allocate buffer\n");
     vkDestroyBuffer(m_device, buffer, nullptr);
-    return VK_ERROR_OUT_OF_DEVICE_MEMORY;
+    return result;
   }
 
   MemAllocator::MemInfo memInfo = m_memAllocator->getMemoryInfo(memory);

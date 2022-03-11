@@ -38,27 +38,6 @@ void Init(int width, int height, void* userData, FontMode fontmode)
   imgui_io.UserData    = userData;
   imgui_io.DisplaySize = ImVec2(float(width), float(height));
   imgui_io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable keyboard controls (tab, space, arrow keys)
-  imgui_io.KeyMap[ImGuiKey_Tab]        = NVPWindow::KEY_TAB;
-  imgui_io.KeyMap[ImGuiKey_LeftArrow]  = NVPWindow::KEY_LEFT;
-  imgui_io.KeyMap[ImGuiKey_RightArrow] = NVPWindow::KEY_RIGHT;
-  imgui_io.KeyMap[ImGuiKey_UpArrow]    = NVPWindow::KEY_UP;
-  imgui_io.KeyMap[ImGuiKey_DownArrow]  = NVPWindow::KEY_DOWN;
-  imgui_io.KeyMap[ImGuiKey_PageUp]     = NVPWindow::KEY_PAGE_UP;
-  imgui_io.KeyMap[ImGuiKey_PageDown]   = NVPWindow::KEY_PAGE_DOWN;
-  imgui_io.KeyMap[ImGuiKey_Home]       = NVPWindow::KEY_HOME;
-  imgui_io.KeyMap[ImGuiKey_End]        = NVPWindow::KEY_END;
-  imgui_io.KeyMap[ImGuiKey_Insert]     = NVPWindow::KEY_INSERT;
-  imgui_io.KeyMap[ImGuiKey_Delete]     = NVPWindow::KEY_DELETE;
-  imgui_io.KeyMap[ImGuiKey_Backspace]  = NVPWindow::KEY_BACKSPACE;
-  imgui_io.KeyMap[ImGuiKey_Space]      = NVPWindow::KEY_SPACE;
-  imgui_io.KeyMap[ImGuiKey_Enter]      = NVPWindow::KEY_ENTER;
-  imgui_io.KeyMap[ImGuiKey_Escape]     = NVPWindow::KEY_ESCAPE;
-  imgui_io.KeyMap[ImGuiKey_A]          = NVPWindow::KEY_A;
-  imgui_io.KeyMap[ImGuiKey_C]          = NVPWindow::KEY_C;
-  imgui_io.KeyMap[ImGuiKey_V]          = NVPWindow::KEY_V;
-  imgui_io.KeyMap[ImGuiKey_X]          = NVPWindow::KEY_X;
-  imgui_io.KeyMap[ImGuiKey_Y]          = NVPWindow::KEY_Y;
-  imgui_io.KeyMap[ImGuiKey_Z]          = NVPWindow::KEY_Z;
 
   // Scale style sizes for high-DPI monitors
   ImGuiStyle& imgui_style = ImGui::GetStyle();
@@ -600,7 +579,84 @@ bool Control::show_drag_control<size_t>(size_t* value, float speed, size_t& min,
 }
 
 // Static member declaration
-ImGuiID        Panel::dockspaceID{0};
+ImGuiID Panel::dockspaceID{0};
+
+void Panel::Begin(Side side /*= Side::Right*/, float alpha /*= 0.5f*/, char* name /*= nullptr*/)
+{
+  // Keeping the unique ID of the dock space
+  dockspaceID = ImGui::GetID("DockSpace");
+
+  // The dock need a dummy window covering the entire viewport.
+  ImGuiViewport* viewport = ImGui::GetMainViewport();
+  ImGui::SetNextWindowPos(viewport->WorkPos);
+  ImGui::SetNextWindowSize(viewport->WorkSize);
+  ImGui::SetNextWindowViewport(viewport->ID);
+
+  // All flags to dummy window
+  ImGuiWindowFlags host_window_flags = 0;
+  host_window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize;
+  host_window_flags |= ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDocking;
+  host_window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
+  host_window_flags |= ImGuiWindowFlags_NoBackground;
+
+  // Starting dummy window
+  char label[32];
+  ImFormatString(label, IM_ARRAYSIZE(label), "DockSpaceViewport_%08X", viewport->ID);
+  ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+  ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+  ImGui::Begin(label, nullptr, host_window_flags);
+  ImGui::PopStyleVar(3);
+
+  // The central node is transparent, so that when UI is draw after, the image is visible
+  // Auto Hide Bar, no title of the panel
+  // Center is not dockable, that is for the scene
+  ImGuiDockNodeFlags dockspaceFlags = ImGuiDockNodeFlags_PassthruCentralNode | ImGuiDockNodeFlags_AutoHideTabBar
+                                      | ImGuiDockNodeFlags_NoDockingInCentralNode;
+
+  // Default panel/window is name setting
+  std::string dock_name("Settings");
+  if(name != nullptr)
+    dock_name = name;
+
+  // Building the splitting of the dock space is done only once
+  if(!ImGui::DockBuilderGetNode(dockspaceID))
+  {
+    ImGui::DockBuilderRemoveNode(dockspaceID);
+    ImGui::DockBuilderAddNode(dockspaceID, dockspaceFlags | ImGuiDockNodeFlags_DockSpace);
+    ImGui::DockBuilderSetNodeSize(dockspaceID, viewport->Size);
+
+    ImGuiID dock_main_id = dockspaceID;
+
+    // Slitting all 4 directions
+    ImGuiID id_left  = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Left, 0.2f, nullptr, &dock_main_id);
+    ImGuiID id_right = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Right, 0.2f, nullptr, &dock_main_id);
+    ImGuiID id_up    = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Up, 0.2f, nullptr, &dock_main_id);
+    ImGuiID id_down  = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Down, 0.2f, nullptr, &dock_main_id);
+
+    ImGui::DockBuilderDockWindow(side == Side::Left ? dock_name.c_str() : "Dock_left", id_left);
+    ImGui::DockBuilderDockWindow(side == Side::Right ? dock_name.c_str() : "Dock_right", id_right);
+    ImGui::DockBuilderDockWindow("Dock_up", id_up);
+    ImGui::DockBuilderDockWindow("Dock_down", id_down);
+    ImGui::DockBuilderDockWindow("Scene", dock_main_id);  // Center
+
+    ImGui::DockBuilderFinish(dock_main_id);
+  }
+
+  // Setting the panel to blend with alpha
+  ImVec4 col = ImGui::GetStyleColorVec4(ImGuiCol_WindowBg);
+  ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(col.x, col.y, col.z, alpha));
+
+  ImGui::DockSpace(dockspaceID, ImVec2(0.0f, 0.0f), dockspaceFlags);
+  ImGui::PopStyleColor();
+  ImGui::End();
+
+  // The panel
+  if(alpha < 1)
+    ImGui::SetNextWindowBgAlpha(alpha);  // For when the panel becomes a floating window
+  ImGui::Begin(dock_name.c_str());
+}
+
 Control::Style Control::style{};
 
 }  // namespace ImGuiH

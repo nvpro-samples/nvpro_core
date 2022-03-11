@@ -99,22 +99,28 @@ MemHandle DedicatedMemoryAllocator::allocMemory(const MemAllocateInfo& allocInfo
 
   VkDeviceMemory memory = VK_NULL_HANDLE;
   VkResult result = vkAllocateMemory(m_device, &bakedInfo.memAllocInfo, nullptr, &memory);
-
   NVVK_CHECK(result);
   if (pResult)
   {
     *pResult = result;
   }
 
-  auto dedicatedMemHandle = new DedicatedMemoryHandle(memory, bakedInfo.memAllocInfo.allocationSize);
-
-  if(!allocInfo.getDebugName().empty())
+  if(result == VK_SUCCESS)
   {
-    const MemInfo& memInfo = getMemoryInfo(dedicatedMemHandle);
-    nvvk::DebugUtil(m_device).setObjectName(memInfo.memory, localInfo.getDebugName());
-  }
+    auto dedicatedMemHandle = new DedicatedMemoryHandle(memory, bakedInfo.memAllocInfo.allocationSize);
 
-  return dedicatedMemHandle;
+    if(!allocInfo.getDebugName().empty())
+    {
+      const MemInfo& memInfo = getMemoryInfo(dedicatedMemHandle);
+      nvvk::DebugUtil(m_device).setObjectName(memInfo.memory, localInfo.getDebugName());
+    }
+
+    return dedicatedMemHandle;
+  }
+  else
+  {
+    return NullMemHandle;
+  }
 }
 
 void DedicatedMemoryAllocator::freeMemory(MemHandle memHandle)

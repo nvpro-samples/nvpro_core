@@ -21,6 +21,12 @@
 
 #include <vulkan/vulkan_core.h>
 
+#ifdef VULKAN_HPP
+#include <vulkan/vulkan_structs.hpp>
+#include <vulkan/vulkan_enums.hpp>
+#include <vulkan/vulkan_handles.hpp>
+#endif
+
 #include <memory>
 #include <vector>
 
@@ -258,9 +264,21 @@ public:
                                const vk::ImageLayout&       layout_ = vk::ImageLayout::eShaderReadOnlyOptimal,
                                bool                         isCube  = false)
   {
-    return createTexture(static_cast<VkCommandBuffer>(cmdBuf), size_, data_, info_, samplerCreateInfo,
-                         static_cast<VkImageLayout>(layout_), isCube);
+    return createTexture(static_cast<VkCommandBuffer>(cmdBuf), size_, data_, static_cast<VkImageCreateInfo>(info_),
+                         static_cast<VkSamplerCreateInfo>(samplerCreateInfo), static_cast<VkImageLayout>(layout_), isCube);
   }
+
+  nvvk::Texture createTexture(const nvvk::Image& image, const vk::ImageViewCreateInfo& imageViewCreateInfo)
+  {
+    return createTexture(image, static_cast<const VkImageViewCreateInfo&>(imageViewCreateInfo));
+  }
+  nvvk::Texture createTexture(const nvvk::Image&             image,
+                              const vk::ImageViewCreateInfo& imageViewCreateInfo,
+                              const vk::SamplerCreateInfo&   samplerCreateInfo)
+  {
+    return createTexture(image, static_cast<const VkImageViewCreateInfo&>(imageViewCreateInfo), static_cast<const VkSamplerCreateInfo&>(samplerCreateInfo));
+  }
+
 #endif
 
   //--------------------------------------------------------------------------------------------------
@@ -333,7 +351,7 @@ protected:
 
 #ifdef VULKAN_HPP
 public:
-  nvvk::Buffer createBuffer(const vk::BufferCreateInfo& info_, const vk::MemoryPropertyFlags memUsage_)
+  nvvk::Buffer createBuffer(const vk::BufferCreateInfo& info_, const vk::MemoryPropertyFlags memUsage_ = vk::MemoryPropertyFlagBits::eDeviceLocal)
   {
     return createBuffer(static_cast<VkBufferCreateInfo>(info_), static_cast<VkMemoryPropertyFlags>(memUsage_));
   }
@@ -363,18 +381,19 @@ public:
     return createBuffer(cmdBuff, sizeof(T) * data_.size(), data_.data(), usage_, memUsage_);
   }
 
-  nvvk::Image createImage(const vk::ImageCreateInfo& info_, const vk::MemoryPropertyFlags memUsage_)
+  nvvk::Image createImage(const vk::ImageCreateInfo&    info_,
+                          const vk::MemoryPropertyFlags memUsage_ = vk::MemoryPropertyFlagBits::eDeviceLocal)
   {
-    return createImage(static_cast<VkImageCreateInfo>(info_), static_cast<VkMemoryPropertyFlags>(memUsage_));
+    return createImage(static_cast<const VkImageCreateInfo&>(info_), static_cast<VkMemoryPropertyFlags>(memUsage_));
   }
 
   nvvk::Image createImage(const vk::CommandBuffer&   cmdBuff,
                           size_t                     size_,
                           const void*                data_,
                           const vk::ImageCreateInfo& info_,
-                          const vk::ImageLayout&     layout_)
+                          const vk::ImageLayout&     layout_ = vk::ImageLayout::eShaderReadOnlyOptimal)
   {
-    return createImage(static_cast<VkCommandBuffer>(cmdBuff), size_, data_, static_cast<VkImageCreateInfo>(info_),
+    return createImage(static_cast<VkCommandBuffer>(cmdBuff), size_, data_, static_cast<const VkImageCreateInfo&>(info_),
                        static_cast<VkImageLayout>(layout_));
   }
 

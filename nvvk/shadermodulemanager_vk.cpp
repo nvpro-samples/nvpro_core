@@ -277,6 +277,15 @@ bool ShaderModuleManager::setupShaderModule(ShaderModule& module)
         {
           shaderc_compile_options_set_target_env(m_shadercOptions, shaderc_target_env_vulkan, shaderc_env_version_vulkan_1_2);
         }
+        else if(m_apiMajor == 1 && m_apiMinor == 3)
+        {
+          shaderc_compile_options_set_target_env(m_shadercOptions, shaderc_target_env_vulkan, shaderc_env_version_vulkan_1_3);
+        }
+        else
+        {
+          LOGE("nvvk::ShaderModuleManager: Unsupported Vulkan version: %i.%i\n", int(m_apiMajor), int(m_apiMinor));
+          assert(0);
+        }
 
         shaderc_compile_options_set_optimization_level(m_shadercOptions, m_shadercOptimizationLevel);
 
@@ -372,10 +381,38 @@ void ShaderModuleManager::init(VkDevice device, int apiMajor, int apiMinor)
   m_device   = device;
   m_apiMajor = apiMajor;
   m_apiMinor = apiMinor;
+
+#if NVP_SUPPORTS_SHADERC
+  // First user initializes compiler.
+  std::lock_guard<std::mutex> lock(s_shadercCompilerMutex);
+  s_shadercCompilerUsers++;
+  if(!s_shadercCompiler)
+  {
+    s_shadercCompiler = shaderc_compiler_initialize();
+  }
+  m_shadercOptions = shaderc_compile_options_initialize();
+#endif
 }
 
 void ShaderModuleManager::deinit()
 {
+  if(m_device)
+  {
+#if NVP_SUPPORTS_SHADERC
+    // Last user de-inits compiler.
+    std::lock_guard<std::mutex> lock(s_shadercCompilerMutex);
+    s_shadercCompilerUsers--;
+    if(s_shadercCompiler && s_shadercCompilerUsers == 0)
+    {
+      shaderc_compiler_release(s_shadercCompiler);
+      s_shadercCompiler = nullptr;
+    }
+    if(m_shadercOptions)
+    {
+      shaderc_compile_options_release(m_shadercOptions);
+    }
+#endif
+  }
   deleteShaderModules();
   m_device = nullptr;
 }
