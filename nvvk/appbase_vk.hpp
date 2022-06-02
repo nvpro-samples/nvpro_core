@@ -260,6 +260,7 @@ struct AppBaseVkCreateInfo
   VkExtent2D            size{};
   GLFWwindow*           window{nullptr};
   bool                  useDynamicRendering{false};  // VK_KHR_dynamic_rendering
+  bool                  useVsync{false};
 };
 
 
@@ -371,9 +372,10 @@ protected:
   nvh::CameraManipulator::Inputs m_inputs;  // Mouse button pressed
 
   // Other
-  bool m_showHelp{false};  // Show help, pressing
-  bool m_show_gui{true};
-  bool m_useDynamicRendering{false};  // Using VK_KHR_dynamic_rendering
+  bool  m_showHelp{false};  // Show help, pressing
+  bool  m_show_gui{true};
+  bool  m_useDynamicRendering{false};  // Using VK_KHR_dynamic_rendering
+  float m_sceneRadius{1.f};
 };
 
 

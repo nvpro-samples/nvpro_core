@@ -118,10 +118,9 @@ static void fixSingleFilter(std::string* pFilter)
   {
     if(('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z'))
     {
-      // replace c with [c|C] to make case-insensitive. TODO: Unicode support, not sure how to implement for multibyte utf-8 characters.
+      // replace c with [cC] to make case-insensitive. TODO: Unicode support, not sure how to implement for multibyte utf-8 characters.
       newFilter.push_back('[');
       newFilter.push_back(c);
-      newFilter.push_back('|');
       newFilter.push_back(char(c ^ 32));
       newFilter.push_back(']');
     }

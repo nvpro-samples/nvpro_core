@@ -44,29 +44,38 @@ set(NVML_FOUND OFF)
 if(CUDA_TOOLKIT_ROOT_DIR)
   string(REPLACE "\\" "/" CUDA_TOOLKIT_ROOT_DIR ${CUDA_TOOLKIT_ROOT_DIR})
 endif()
-
 find_package(CUDA)
-if(CUDA_FOUND)
-  # Add .lib files
-  if(WIN32) # Windows
-    if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-      set(_ARCH "x64")
-    else()
-      message(WARNING "FindNVML.cmake was called with a 32-bit platform on Windows, but NVML is not available for 32-bit systems on Windows. Did you mean to use a 64-bit platform?")
-      # Attempt to set the right path for 32-bit Windows, though,
-      # although this is unlikely to change.
-      set(_ARCH "Win32")
-    endif()
-    set(NVML_LIBRARIES "${CUDA_TOOLKIT_ROOT_DIR}/lib/${_ARCH}/nvml.lib")
-  else() # Linux
-    set(NVML_LIBRARIES "nvidia-ml")
+
+# Finding CUDA doesn't guarantee that NVML was installed with CUDA, since
+# one can turn that off during installation. Verify that NVML in fact
+# exists under CUDA_TOOLKIT_ROOT_DIR:
+if(WIN32) # Windows
+  if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+    set(_ARCH "x64")
+  else()
+    message(WARNING "FindNVML.cmake was called with a 32-bit platform on Windows, but NVML is not available for 32-bit systems on Windows. Did you mean to use a 64-bit platform?")
+    # Attempt to set the right path for 32-bit Windows, though,
+    # although this is unlikely to change.
+    set(_ARCH "Win32")
   endif()
-  
+  set(_NVML_LIBRARY_PATH "${CUDA_TOOLKIT_ROOT_DIR}/lib/${_ARCH}/nvml.lib")
+else() # Linux
+  set(_NVML_LIBRARY_PATH "nvidia-ml")
+endif()
+
+set(_NVML_IN_CUDA_DIR ON)
+if((NOT EXISTS "${CUDA_TOOLKIT_ROOT_DIR}/include/nvml.h") OR (WIN32 AND (NOT EXISTS "${_NVML_LIBRARY_PATH}")))
+  set(_NVML_IN_CUDA_DIR OFF)
+endif()
+
+if(_NVML_IN_CUDA_DIR)
+  # Add .lib files
+  set(NVML_LIBRARIES ${_NVML_LIBRARY_PATH})
   # Include directory
-  set(NVML_INCLUDE_DIRS ${CUDA_INCLUDE_DIRS})
+  set(NVML_INCLUDE_DIRS ${CUDA_TOOLKIT_ROOT_DIR}/include)
   set(NVML_FOUND ON)
-else(CUDA_FOUND)
-  Message(STATUS "No CUDA Sdk detected. Looking for nvml locally and NVML_LOCATION (${NVML_LOCATION})")
+else()
+  Message(STATUS "No CUDA SDK detected with NVML installed. Looking for NVML locally and in NVML_LOCATION (${NVML_LOCATION})")
   # if no CUDA, let's try to find nvml locally in our shared_extenal folder that contains useful external components
   find_path( NVML_INCLUDE_DIRS nvml.h
     ${NVML_LOCATION}
@@ -83,26 +92,17 @@ else(CUDA_FOUND)
     set( NVML_FOUND ON )
     # Add .lib files
     if(WIN32) # Windows
-      if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-        set(_ARCH "x64")
-      else()
-        message(WARNING "FindNVML.cmake was called with a 32-bit platform on Windows, but NVML is not available for 32-bit systems on Windows. Did you mean to use a 64-bit platform?")
-        # Attempt to set the right path for 32-bit Windows, though,
-        # although this is unlikely to change.
-        set(_ARCH "Win32")
-      endif()
       set(NVML_LIBRARIES "${NVML_INCLUDE_DIRS}/lib/${_ARCH}/nvml.lib")
     else() # Linux
       set(NVML_LIBRARIES "nvidia-ml")
     endif()
-  else(NVML_INCLUDE_DIRS)
+  else()
     message(WARNING "
-        NVML not found. 
-        To explicitly locate ituse VMA_LOCATION where it should contain:
-        nvml.h"
+        NVML not found. To explicitly locate it, set NVML_LOCATION,
+        which should be a folder containing nvml.h."
     )
-  endif(NVML_INCLUDE_DIRS)
-endif(CUDA_FOUND)
+  endif()
+endif()
 
 include(FindPackageHandleStandardArgs)
 

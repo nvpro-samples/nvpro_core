@@ -563,16 +563,16 @@ AllocationID DeviceMemoryAllocator::allocInternal(const VkMemoryRequirements&   
   // enforce custom block under certain conditions
   if(dedicated == DEDICATED_PROXY || memReqs.size > ((m_blockSize * 2) / 3))
   {
-    block.allocationSize = memInfo.allocationSize = memReqs.size;
+    block.allocationSize = memReqs.size;
   }
   else if(dedicated)
   {
-    block.allocationSize = memInfo.allocationSize = memReqs.size;
-    memInfo.pNext                                 = dedicated;
+    block.allocationSize = memReqs.size;
+    memInfo.pNext        = dedicated;
   }
   else
   {
-    block.allocationSize = memInfo.allocationSize = std::max(m_blockSize, memReqs.size);
+    block.allocationSize = std::max(m_blockSize, memReqs.size);
   }
 
   VkMemoryPriorityAllocateInfoEXT memPriority = {VK_STRUCTURE_TYPE_MEMORY_PRIORITY_ALLOCATE_INFO_EXT};
@@ -601,6 +601,9 @@ AllocationID DeviceMemoryAllocator::allocInternal(const VkMemoryRequirements&   
   block.isDedicated        = dedicated != nullptr;
   block.allocateFlags      = state.allocateFlags;
   block.allocateDeviceMask = state.allocateDeviceMask;
+
+  // set allocationSize from aligned block.allocationSize
+  memInfo.allocationSize = block.allocationSize;
 
   result = allocBlockMemory(id, memInfo, block.mem);
 

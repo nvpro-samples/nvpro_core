@@ -7,7 +7,7 @@
 #include <fstream>
 #include <mutex>
 #include <sstream>
-#include <string.h> // memcpy
+#include <string.h>  // memcpy
 #include <vulkan/vulkan.h>
 #ifdef NVP_SUPPORTS_ZSTD
 #include <zstd.h>
@@ -2880,9 +2880,10 @@ inline ErrorWithText KTXImage::writeKTX2Stream(std::ostream& output, const Write
       dfdBlock.texelBlockDimension1 = 3;
       dfdBlock.bytesPlane0          = 16;
       dfSamples[0].bitLength        = 127;
-      dfSamples[0].channelType = KHR_DF_CHANNEL_BC6H_COLOR | KHR_DF_SAMPLE_DATATYPE_FLOAT | KHR_DF_SAMPLE_DATATYPE_SIGNED;
-      dfSamples[0].lower       = 0xBF800000u;  // -1.0f
-      dfSamples[0].upper       = 0x3F800000u;  // 1.0f
+      dfSamples[0].channelType =
+          uint8_t(KHR_DF_CHANNEL_BC6H_COLOR) | uint8_t(KHR_DF_SAMPLE_DATATYPE_FLOAT | KHR_DF_SAMPLE_DATATYPE_SIGNED);
+      dfSamples[0].lower = 0xBF800000u;  // -1.0f
+      dfSamples[0].upper = 0x3F800000u;  // 1.0f
       break;
     case VK_FORMAT_ASTC_4x4_UNORM_BLOCK:
     case VK_FORMAT_ASTC_4x4_SRGB_BLOCK:
@@ -2983,7 +2984,7 @@ inline ErrorWithText KTXImage::writeKTX2Stream(std::ostream& output, const Write
       dfdBlock.bytesPlane0          = 16;
       dfSamples.resize(2);
       dfSamples[0].bitLength   = 63;
-      dfSamples[0].channelType = KHR_DF_CHANNEL_BC3_ALPHA | KHR_DF_SAMPLE_DATATYPE_LINEAR;
+      dfSamples[0].channelType = uint8_t(KHR_DF_CHANNEL_BC3_ALPHA) | uint8_t(KHR_DF_SAMPLE_DATATYPE_LINEAR);
       dfSamples[0].upper       = UINT32_MAX;
       dfSamples[1].bitOffset   = 64;
       dfSamples[1].bitLength   = 63;
@@ -3007,7 +3008,7 @@ inline ErrorWithText KTXImage::writeKTX2Stream(std::ostream& output, const Write
       dfSamples.resize(2);
       dfSamples[0].bitLength = 63;
       // The alpha channel must always be linear!
-      dfSamples[0].channelType = KHR_DF_CHANNEL_BC2_ALPHA | KHR_DF_SAMPLE_DATATYPE_LINEAR;
+      dfSamples[0].channelType = uint8_t(KHR_DF_CHANNEL_BC2_ALPHA) | uint8_t(KHR_DF_SAMPLE_DATATYPE_LINEAR);
       dfSamples[0].upper       = UINT32_MAX;
       dfSamples[1].bitOffset   = 64;
       dfSamples[1].bitLength   = 63;
@@ -3114,7 +3115,7 @@ inline ErrorWithText KTXImage::writeKTX2Stream(std::ostream& output, const Write
 
       dfSamples[3].bitOffset   = 24;
       dfSamples[3].bitLength   = 7;  // "8"
-      dfSamples[3].channelType = KHR_DF_CHANNEL_RGBSDA_ALPHA | KHR_DF_SAMPLE_DATATYPE_LINEAR;
+      dfSamples[3].channelType = uint8_t(KHR_DF_CHANNEL_RGBSDA_ALPHA) | uint8_t(KHR_DF_SAMPLE_DATATYPE_LINEAR);
       dfSamples[3].upper       = 255;
       break;
     case VK_FORMAT_R16_SFLOAT:
@@ -3124,9 +3125,10 @@ inline ErrorWithText KTXImage::writeKTX2Stream(std::ostream& output, const Write
       dfdBlock.texelBlockDimension1 = 0;
       dfdBlock.bytesPlane0          = sizeof(uint16_t);
 
-      dfSamples[0].bitOffset   = 0;
-      dfSamples[0].bitLength   = 15;  // "16"
-      dfSamples[0].channelType = KHR_DF_CHANNEL_RGBSDA_RED | KHR_DF_SAMPLE_DATATYPE_SIGNED | KHR_DF_SAMPLE_DATATYPE_FLOAT;
+      dfSamples[0].bitOffset = 0;
+      dfSamples[0].bitLength = 15;  // "16"
+      dfSamples[0].channelType =
+          uint8_t(KHR_DF_CHANNEL_RGBSDA_RED) | uint8_t(KHR_DF_SAMPLE_DATATYPE_SIGNED | KHR_DF_SAMPLE_DATATYPE_FLOAT);
       // Yes, these are 32-bit floats, not 16-bit floats! From the spec
       dfSamples[0].lower = 0xBF800000u;  // -1.0f
       dfSamples[0].upper = 0x3F800000u;  // 1.0f
@@ -3147,8 +3149,10 @@ inline ErrorWithText KTXImage::writeKTX2Stream(std::ostream& output, const Write
         dfSamples[c].upper     = 0x3F800000u;  // 1.0f
       }
 
-      dfSamples[0].channelType = KHR_DF_CHANNEL_RGBSDA_RED | KHR_DF_SAMPLE_DATATYPE_SIGNED | KHR_DF_SAMPLE_DATATYPE_FLOAT;
-      dfSamples[1].channelType = KHR_DF_CHANNEL_RGBSDA_GREEN | KHR_DF_SAMPLE_DATATYPE_SIGNED | KHR_DF_SAMPLE_DATATYPE_FLOAT;
+      dfSamples[0].channelType =
+          uint8_t(KHR_DF_CHANNEL_RGBSDA_RED) | uint8_t(KHR_DF_SAMPLE_DATATYPE_SIGNED | KHR_DF_SAMPLE_DATATYPE_FLOAT);
+      dfSamples[1].channelType =
+          uint8_t(KHR_DF_CHANNEL_RGBSDA_GREEN) | uint8_t(KHR_DF_SAMPLE_DATATYPE_SIGNED | KHR_DF_SAMPLE_DATATYPE_FLOAT);
       break;
     case VK_FORMAT_R16G16B16A16_SFLOAT:
       dfdBlock.colorModel           = KHR_DF_MODEL_RGBSDA;
@@ -3166,10 +3170,14 @@ inline ErrorWithText KTXImage::writeKTX2Stream(std::ostream& output, const Write
         dfSamples[c].upper     = 0x3F800000u;  // 1.0f
       }
 
-      dfSamples[0].channelType = KHR_DF_CHANNEL_RGBSDA_RED | KHR_DF_SAMPLE_DATATYPE_SIGNED | KHR_DF_SAMPLE_DATATYPE_FLOAT;
-      dfSamples[1].channelType = KHR_DF_CHANNEL_RGBSDA_GREEN | KHR_DF_SAMPLE_DATATYPE_SIGNED | KHR_DF_SAMPLE_DATATYPE_FLOAT;
-      dfSamples[2].channelType = KHR_DF_CHANNEL_RGBSDA_BLUE | KHR_DF_SAMPLE_DATATYPE_SIGNED | KHR_DF_SAMPLE_DATATYPE_FLOAT;
-      dfSamples[3].channelType = KHR_DF_CHANNEL_RGBSDA_ALPHA | KHR_DF_SAMPLE_DATATYPE_SIGNED | KHR_DF_SAMPLE_DATATYPE_FLOAT;
+      dfSamples[0].channelType =
+          uint8_t(KHR_DF_CHANNEL_RGBSDA_RED) | uint8_t(KHR_DF_SAMPLE_DATATYPE_SIGNED | KHR_DF_SAMPLE_DATATYPE_FLOAT);
+      dfSamples[1].channelType =
+          uint8_t(KHR_DF_CHANNEL_RGBSDA_GREEN) | uint8_t(KHR_DF_SAMPLE_DATATYPE_SIGNED | KHR_DF_SAMPLE_DATATYPE_FLOAT);
+      dfSamples[2].channelType =
+          uint8_t(KHR_DF_CHANNEL_RGBSDA_BLUE) | uint8_t(KHR_DF_SAMPLE_DATATYPE_SIGNED | KHR_DF_SAMPLE_DATATYPE_FLOAT);
+      dfSamples[3].channelType =
+          uint8_t(KHR_DF_CHANNEL_RGBSDA_ALPHA) | uint8_t(KHR_DF_SAMPLE_DATATYPE_SIGNED | KHR_DF_SAMPLE_DATATYPE_FLOAT);
       break;
     case VK_FORMAT_R32_SFLOAT:
       dfdBlock.colorModel           = KHR_DF_MODEL_RGBSDA;
@@ -3178,11 +3186,12 @@ inline ErrorWithText KTXImage::writeKTX2Stream(std::ostream& output, const Write
       dfdBlock.texelBlockDimension1 = 0;
       dfdBlock.bytesPlane0          = sizeof(uint32_t);
 
-      dfSamples[0].bitOffset   = 0;
-      dfSamples[0].bitLength   = 31;  // "32"
-      dfSamples[0].channelType = KHR_DF_CHANNEL_RGBSDA_RED | KHR_DF_SAMPLE_DATATYPE_SIGNED | KHR_DF_SAMPLE_DATATYPE_FLOAT;
-      dfSamples[0].lower       = 0xBF800000u;  // -1.0f
-      dfSamples[0].upper       = 0x3F800000u;  // 1.0f
+      dfSamples[0].bitOffset = 0;
+      dfSamples[0].bitLength = 31;  // "32"
+      dfSamples[0].channelType =
+          uint8_t(KHR_DF_CHANNEL_RGBSDA_RED) | uint8_t(KHR_DF_SAMPLE_DATATYPE_SIGNED | KHR_DF_SAMPLE_DATATYPE_FLOAT);
+      dfSamples[0].lower = 0xBF800000u;  // -1.0f
+      dfSamples[0].upper = 0x3F800000u;  // 1.0f
       break;
     case VK_FORMAT_R32G32_SFLOAT:
       dfdBlock.colorModel           = KHR_DF_MODEL_RGBSDA;
@@ -3200,8 +3209,10 @@ inline ErrorWithText KTXImage::writeKTX2Stream(std::ostream& output, const Write
         dfSamples[c].upper     = 0x3F800000u;  // 1.0f
       }
 
-      dfSamples[0].channelType = KHR_DF_CHANNEL_RGBSDA_RED | KHR_DF_SAMPLE_DATATYPE_SIGNED | KHR_DF_SAMPLE_DATATYPE_FLOAT;
-      dfSamples[1].channelType = KHR_DF_CHANNEL_RGBSDA_GREEN | KHR_DF_SAMPLE_DATATYPE_SIGNED | KHR_DF_SAMPLE_DATATYPE_FLOAT;
+      dfSamples[0].channelType =
+          uint8_t(KHR_DF_CHANNEL_RGBSDA_RED) | uint8_t(KHR_DF_SAMPLE_DATATYPE_SIGNED | KHR_DF_SAMPLE_DATATYPE_FLOAT);
+      dfSamples[1].channelType =
+          uint8_t(KHR_DF_CHANNEL_RGBSDA_GREEN) | uint8_t(KHR_DF_SAMPLE_DATATYPE_SIGNED | KHR_DF_SAMPLE_DATATYPE_FLOAT);
       break;
     case VK_FORMAT_R32G32B32A32_SFLOAT:
       dfdBlock.colorModel           = KHR_DF_MODEL_RGBSDA;
@@ -3219,10 +3230,14 @@ inline ErrorWithText KTXImage::writeKTX2Stream(std::ostream& output, const Write
         dfSamples[c].upper     = 0x3F800000u;  // 1.0f
       }
 
-      dfSamples[0].channelType = KHR_DF_CHANNEL_RGBSDA_RED | KHR_DF_SAMPLE_DATATYPE_SIGNED | KHR_DF_SAMPLE_DATATYPE_FLOAT;
-      dfSamples[1].channelType = KHR_DF_CHANNEL_RGBSDA_GREEN | KHR_DF_SAMPLE_DATATYPE_SIGNED | KHR_DF_SAMPLE_DATATYPE_FLOAT;
-      dfSamples[2].channelType = KHR_DF_CHANNEL_RGBSDA_BLUE | KHR_DF_SAMPLE_DATATYPE_SIGNED | KHR_DF_SAMPLE_DATATYPE_FLOAT;
-      dfSamples[3].channelType = KHR_DF_CHANNEL_RGBSDA_ALPHA | KHR_DF_SAMPLE_DATATYPE_SIGNED | KHR_DF_SAMPLE_DATATYPE_FLOAT;
+      dfSamples[0].channelType =
+          uint8_t(KHR_DF_CHANNEL_RGBSDA_RED) | uint8_t(KHR_DF_SAMPLE_DATATYPE_SIGNED | KHR_DF_SAMPLE_DATATYPE_FLOAT);
+      dfSamples[1].channelType =
+          uint8_t(KHR_DF_CHANNEL_RGBSDA_GREEN) | uint8_t(KHR_DF_SAMPLE_DATATYPE_SIGNED | KHR_DF_SAMPLE_DATATYPE_FLOAT);
+      dfSamples[2].channelType =
+          uint8_t(KHR_DF_CHANNEL_RGBSDA_BLUE) | uint8_t(KHR_DF_SAMPLE_DATATYPE_SIGNED | KHR_DF_SAMPLE_DATATYPE_FLOAT);
+      dfSamples[3].channelType =
+          uint8_t(KHR_DF_CHANNEL_RGBSDA_ALPHA) | uint8_t(KHR_DF_SAMPLE_DATATYPE_SIGNED | KHR_DF_SAMPLE_DATATYPE_FLOAT);
       break;
     default:
       return "The writer has no method to write the Data Format Descriptor for VkFormat " + std::to_string(format) + ".";

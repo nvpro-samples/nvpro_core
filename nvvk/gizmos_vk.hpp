@@ -84,6 +84,8 @@ public:
 
   void display(VkCommandBuffer cmdBuf, const nvmath::mat4f& transform, const VkExtent2D& screenSize);
 
+  void setAxisSize(float s) { m_axisSize = s; }
+
 private:
   void createAxisObject(CreateAxisInfo& info);
 

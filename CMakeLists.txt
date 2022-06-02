@@ -16,6 +16,8 @@ set(NVPWINDOW_SOURCE
   ${BASE_DIRECTORY}/nvpro_core/nvp/nvpwindow.hpp
   ${BASE_DIRECTORY}/nvpro_core/nvp/nvpsystem.cpp
   ${BASE_DIRECTORY}/nvpro_core/nvp/nvpsystem.hpp
+  ${BASE_DIRECTORY}/nvpro_core/nvp/nvpfilesystem.cpp
+  ${BASE_DIRECTORY}/nvpro_core/nvp/nvpfilesystem.hpp
   # Do not add project_name.cpp here as it contains per-project dependent data.
   # perproject_globals.cpp will be automatically added to the per-project builds via
   # COMMON_SOURCE_FILES
@@ -152,6 +154,10 @@ if (USING_OPTIX)
   source_group("nvoptix" FILES ${NVHELPERSOPTIX_FILES})
   
   string(CONCAT library_name ${library_name} "_optix")
+endif()
+
+if (USING_SHADERC)
+  string(CONCAT library_name ${library_name} "_shaderc")
 endif()
 
 source_group("fileformats" FILES ${FILEFORMATS_SOURCE})

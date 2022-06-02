@@ -1855,8 +1855,7 @@ template <class T>
 inline quaternion<T> matrix4<T>::get_rot_quat() const
 {
   quaternion<T> q;
-  matrix3<T>    m;
-  get_rot(m);
+  matrix3<T>    m = this->get_rot_mat3();
   q.from_matrix(m);
   return q;
 }

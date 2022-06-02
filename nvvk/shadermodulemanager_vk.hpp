@@ -149,6 +149,7 @@ public:
   const char*         getCode(ShaderModuleID idx, size_t* len = NULL) const;
   const size_t        getCodeLen(ShaderModuleID idx) const;
   bool                dumpSPIRV(ShaderModuleID idx, const char* filename) const;
+  bool                getSPIRV(ShaderModuleID idx, size_t* pLen, const uint32_t** pCode) const;
 
 
   // state will affect the next created shader module

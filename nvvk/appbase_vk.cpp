@@ -32,7 +32,7 @@ void nvvk::AppBaseVk::create(const AppBaseVkCreateInfo& info)
 {
   m_useDynamicRendering = info.useDynamicRendering;
   setup(info.instance, info.device, info.physicalDevice, info.queueIndices[0]);
-  createSwapchain(info.surface, info.size.width, info.size.height);
+  createSwapchain(info.surface, info.size.width, info.size.height, VK_FORMAT_B8G8R8A8_UNORM, VK_FORMAT_UNDEFINED, info.useVsync);
   createDepthBuffer();
   createRenderPass();
   createFrameBuffers();
@@ -606,7 +606,7 @@ void nvvk::AppBaseVk::onMouseWheel(int delta)
 void nvvk::AppBaseVk::updateCamera()
 {
   // measure one frame at a time
-  float factor = ImGui::GetIO().DeltaTime * 1000;
+  float factor = ImGui::GetIO().DeltaTime * 1000 * m_sceneRadius;
 
   m_inputs.lmb   = ImGui::IsMouseDown(ImGuiMouseButton_Left);
   m_inputs.rmb   = ImGui::IsMouseDown(ImGuiMouseButton_Right);
@@ -623,23 +623,26 @@ void nvvk::AppBaseVk::updateCamera()
   // For all pressed keys - apply the action
   CameraManip.keyMotion(0, 0, nvh::CameraManipulator::NoAction);
 
-  if(ImGui::IsKeyDown(ImGuiKey_W))
-    CameraManip.keyMotion(factor, 0, nvh::CameraManipulator::Dolly);
+  if(!(ImGui::IsKeyDown(ImGuiKey_ModAlt) || ImGui::IsKeyDown(ImGuiKey_ModCtrl) || ImGui::IsKeyDown(ImGuiKey_ModShift)))
+  {
+    if(ImGui::IsKeyDown(ImGuiKey_W))
+      CameraManip.keyMotion(factor, 0, nvh::CameraManipulator::Dolly);
 
-  if(ImGui::IsKeyDown(ImGuiKey_S))
-    CameraManip.keyMotion(-factor, 0, nvh::CameraManipulator::Dolly);
+    if(ImGui::IsKeyDown(ImGuiKey_S))
+      CameraManip.keyMotion(-factor, 0, nvh::CameraManipulator::Dolly);
 
-  if(ImGui::IsKeyDown(ImGuiKey_D) || ImGui::IsKeyDown(ImGuiKey_RightArrow))
-    CameraManip.keyMotion(factor, 0, nvh::CameraManipulator::Pan);
+    if(ImGui::IsKeyDown(ImGuiKey_D) || ImGui::IsKeyDown(ImGuiKey_RightArrow))
+      CameraManip.keyMotion(factor, 0, nvh::CameraManipulator::Pan);
 
-  if(ImGui::IsKeyDown(ImGuiKey_A) || ImGui::IsKeyDown(ImGuiKey_LeftArrow))
-    CameraManip.keyMotion(-factor, 0, nvh::CameraManipulator::Pan);
+    if(ImGui::IsKeyDown(ImGuiKey_A) || ImGui::IsKeyDown(ImGuiKey_LeftArrow))
+      CameraManip.keyMotion(-factor, 0, nvh::CameraManipulator::Pan);
 
-  if(ImGui::IsKeyDown(ImGuiKey_UpArrow))
-    CameraManip.keyMotion(0, factor, nvh::CameraManipulator::Pan);
+    if(ImGui::IsKeyDown(ImGuiKey_UpArrow))
+      CameraManip.keyMotion(0, factor, nvh::CameraManipulator::Pan);
 
-  if(ImGui::IsKeyDown(ImGuiKey_DownArrow))
-    CameraManip.keyMotion(0, -factor, nvh::CameraManipulator::Pan);
+    if(ImGui::IsKeyDown(ImGuiKey_DownArrow))
+      CameraManip.keyMotion(0, -factor, nvh::CameraManipulator::Pan);
+  }
 
   // This makes the camera to transition smoothly to the new position
   CameraManip.updateAnim();

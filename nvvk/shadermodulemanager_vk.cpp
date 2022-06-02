@@ -569,4 +569,14 @@ bool ShaderModuleManager::dumpSPIRV(ShaderModuleID idx, const char* filename) co
   return false;
 }
 
+bool ShaderModuleManager::getSPIRV(ShaderModuleID idx, size_t* pLen, const uint32_t** pCode) const
+{
+  if(m_shadermodules[idx].moduleSPIRV.empty())
+    return false;
+
+  *pLen  = m_shadermodules[idx].moduleSPIRV.size();
+  *pCode = reinterpret_cast<const uint32_t*>(m_shadermodules[idx].moduleSPIRV.data());
+  return true;
+}
+
 }  // namespace nvvk

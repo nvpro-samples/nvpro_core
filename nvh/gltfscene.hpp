@@ -54,6 +54,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <set>
 
 #define KHR_LIGHTS_PUNCTUAL_EXTENSION_NAME "KHR_lights_punctual"
 
@@ -153,6 +154,15 @@ struct KHR_texture_basisu
   int source{-1};
 };
 
+// https://github.com/KhronosGroup/glTF/issues/948
+#define KHR_MATERIALS_DISPLACEMENT_NAME "KHR_materials_displacement"
+struct KHR_materials_displacement
+{
+  float displacementGeometryFactor{1.0f};
+  float displacementGeometryOffset{0.0f};
+  int   displacementGeometryTexture{-1};
+};
+
 // https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md#reference-material
 struct GltfMaterial
 {
@@ -186,13 +196,18 @@ struct GltfMaterial
   KHR_materials_anisotropy            anisotropy;
   KHR_materials_ior                   ior;
   KHR_materials_volume                volume;
+  KHR_materials_displacement          displacement;
+
+  // Tiny Reference
+  const tinygltf::Material* tmaterial{nullptr};
 };
 
 
 struct GltfNode
 {
-  nvmath::mat4f worldMatrix{1};
-  int           primMesh{0};
+  nvmath::mat4f         worldMatrix{1};
+  int                   primMesh{0};
+  const tinygltf::Node* tnode{nullptr};
 };
 
 struct GltfPrimMesh
@@ -206,6 +221,10 @@ struct GltfPrimMesh
   nvmath::vec3f posMin{0, 0, 0};
   nvmath::vec3f posMax{0, 0, 0};
   std::string   name;
+
+  // Tiny Reference
+  const tinygltf::Mesh*      tmesh{nullptr};
+  const tinygltf::Primitive* tprim{nullptr};
 };
 
 struct GltfStats
@@ -280,6 +299,8 @@ struct GltfScene
                            GltfAttributes         requestedAttributes,
                            GltfAttributes         forceRequested = GltfAttributes::All);
 
+  void exportDrawableNodes(tinygltf::Model& tmodel, GltfAttributes requestedAttributes);
+
   // Compute the scene bounding box
   void computeSceneDimensions();
 
@@ -343,6 +364,7 @@ private:
 
   void computeCamera();
   void checkRequiredExtensions(const tinygltf::Model& tmodel);
+  void findUsedMeshes(const tinygltf::Model& tmodel, std::set<uint32_t>& usedMeshes, int nodeIdx);
 };
 
 nvmath::mat4f getLocalMatrix(const tinygltf::Node& tnode);
@@ -500,6 +522,17 @@ static bool getAttribute(const tinygltf::Model& tmodel, const tinygltf::Primitiv
 inline bool hasExtension(const tinygltf::ExtensionMap& extensions, const std::string& name)
 {
   return extensions.find(name) != extensions.end();
+}
+
+// This is appending the incoming data to the binary buffer (just one)
+// and return the amount in byte of data that was added.
+template <class T>
+uint32_t appendData(tinygltf::Buffer& buffer, const T& inData)
+{
+  auto*    pData = reinterpret_cast<const char*>(inData.data());
+  uint32_t len   = static_cast<uint32_t>(sizeof(inData[0]) * inData.size());
+  buffer.data.insert(buffer.data.end(), pData, pData + len);
+  return len;
 }
 
 

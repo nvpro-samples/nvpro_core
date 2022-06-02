@@ -15,6 +15,7 @@
 #include "imgui/imgui_camera_widget.h"
 #include "imgui_helper.h"
 #include "nvh/cameramanipulator.hpp"
+#include "nvh/misc.hpp"
 #include <fstream>
 #include <sstream>
 
@@ -230,18 +231,6 @@ struct CameraManager
 };
 static CameraManager sCamMgr;
 
-// Helper to display a tooltip when hovered.
-static void HoverText(const std::string& desc)
-{
-  if(ImGui::IsItemHovered())
-  {
-    ImGui::BeginTooltip();
-    ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-    ImGui::TextUnformatted(desc.c_str());
-    ImGui::PopTextWrapPos();
-    ImGui::EndTooltip();
-  }
-}
 
 //--------------------------------------------------------------------------------------------------
 // Display the values of the current camera: position, center, up and FOV
@@ -253,10 +242,10 @@ void CurrentCameraTab(nvh::CameraManipulator& cameraM, nvh::CameraManipulator::C
   Control::Flags flag    = Control::Flags::Normal;
 
   // Using IsItemDeactivatedAfterEdit to avoid the value to change while typing
-  Gui::Custom("Eye", "Position of the Camera", [&] { return ImGui::InputFloat3("##Eye", &camera.eye.x); });
+  Gui::Custom("Eye", "Position of the Camera", [&] { return ImGui::InputFloat3("##Eye", &camera.eye.x, "%.5f"); });
   changed |= ImGui::IsItemDeactivatedAfterEdit();
 
-  Gui::Custom("Center", "Center of camera interest", [&] { return ImGui::InputFloat3("##Ctr", &camera.ctr.x); });
+  Gui::Custom("Center", "Center of camera interest", [&] { return ImGui::InputFloat3("##Ctr", &camera.ctr.x, "%.5f"); });
   changed |= ImGui::IsItemDeactivatedAfterEdit();
 
   changed |= Gui::Checkbox("Y is UP", "Is Y pointing up or Z?", &y_is_up);
@@ -278,18 +267,33 @@ void CurrentCameraTab(nvh::CameraManipulator& cameraM, nvh::CameraManipulator::C
   }
 
   ImGui::TextDisabled("(?)");
-  HoverText(cameraM.getHelp());
+  ImGuiH::tooltip(cameraM.getHelp().c_str(), false, 0.0f);
   ImGui::SameLine();
   if(ImGui::SmallButton("Copy"))
   {
-    char text[128];
-    sprintf(text, "{%.3f, %.3f, %.3f}, {%.3f, %.3f, %.3f}, {%.3f, %.3f, %.3f}",  //
-            camera.eye.x, camera.eye.y, camera.eye.z,                            //
-            camera.ctr.x, camera.ctr.y, camera.ctr.z,                            //
-            camera.up.x, camera.up.y, camera.up.z);
-    ImGui::SetClipboardText(text);
+    std::string text = nvh::stringFormat("{%.5f, %.5f, %.5f}, {%.5f, %.5f, %.5f}, {%.5f, %.5f, %.5f}",  //
+                                         camera.eye.x, camera.eye.y, camera.eye.z,                      //
+                                         camera.ctr.x, camera.ctr.y, camera.ctr.z,                      //
+                                         camera.up.x, camera.up.y, camera.up.z);
+    ImGui::SetClipboardText(text.c_str());
   }
-  HoverText("Copy to the clipboard the current camera: {eye}, {ctr}, {up}");
+  ImGuiH::tooltip("Copy to the clipboard the current camera: {eye}, {ctr}, {up}");
+  ImGui::SameLine();
+  const char* pPastedString;
+  if(ImGui::SmallButton("Paste") && (pPastedString = ImGui::GetClipboardText()))
+  {
+    float val[9];
+    int   result = sscanf(pPastedString, "{%f, %f, %f}, {%f, %f, %f}, {%f, %f, %f}", &val[0], &val[1], &val[2], &val[3],
+                        &val[4], &val[5], &val[6], &val[7], &val[8]);
+    if(result == 9)  // 9 value properly scanned
+    {
+      camera.eye = nvmath::vec3f{val[0], val[1], val[2]};
+      camera.ctr = nvmath::vec3f{val[3], val[4], val[5]};
+      camera.up  = nvmath::vec3f{val[6], val[7], val[8]};
+      changed    = true;
+    }
+  }
+  ImGuiH::tooltip("Paste from the clipboard the current camera: {eye}, {ctr}, {up}");
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -310,7 +314,7 @@ void SavedCameraTab(nvh::CameraManipulator& cameraM, nvh::CameraManipulator::Cam
     camera  = sCamMgr.cameras[0];
     changed = true;
   }
-  HoverText("Reset the camera to its origin");
+  ImGuiH::tooltip("Reset the camera to its origin");
 
   // Display all the saved camera in an array of buttons
   int delete_item = -1;
@@ -329,9 +333,9 @@ void SavedCameraTab(nvh::CameraManipulator& cameraM, nvh::CameraManipulator::Cam
       delete_item = n;
 
     // Displaying the position of the camera when hovering the button
-    sprintf(label, "Pos: %3.2f, %3.2f, %3.2f", sCamMgr.cameras[n].eye.x, sCamMgr.cameras[n].eye.y,
+    sprintf(label, "Pos: %3.5f, %3.5f, %3.5f", sCamMgr.cameras[n].eye.x, sCamMgr.cameras[n].eye.y,
             sCamMgr.cameras[n].eye.z);
-    HoverText(label);
+    ImGuiH::tooltip(label);
 
     // Wrapping all buttons (see ImGUI Demo)
     float last_button_x2 = ImGui::GetItemRectMax().x;
@@ -348,10 +352,10 @@ void SavedCameraTab(nvh::CameraManipulator& cameraM, nvh::CameraManipulator::Cam
     sCamMgr.addCamera(cameraM.getCamera());
     sCamMgr.markIniSettingsDirty();
   }
-  HoverText("Add a new saved camera");
+  ImGuiH::tooltip("Add a new saved camera");
   ImGui::SameLine();
   ImGui::TextDisabled("(?)");
-  HoverText("Middle-click a camera to delete it");
+  ImGuiH::tooltip("Middle-click a camera to delete it", false, 0.0f);
 
   // Remove element
   if(delete_item > 0)
@@ -372,15 +376,15 @@ void CameraExtraTab(nvh::CameraManipulator& cameraM, bool& changed)
     int   rmode  = static_cast<int>(mode);
     float indent = ImGui::GetCursorPos().x;
     changed |= ImGui::RadioButton("Examine", &rmode, nvh::CameraManipulator::Examine);
-    HoverText("The camera orbit around a point of interest");
+    ImGuiH::tooltip("The camera orbit around a point of interest");
     ImGui::NewLine();
     ImGui::SameLine(indent);
     changed |= ImGui::RadioButton("Fly", &rmode, nvh::CameraManipulator::Fly);
-    HoverText("The camera is free and move toward the looking direction");
+    ImGuiH::tooltip("The camera is free and move toward the looking direction");
     ImGui::NewLine();
     ImGui::SameLine(indent);
     changed |= ImGui::RadioButton("Walk", &rmode, nvh::CameraManipulator::Walk);
-    HoverText("The camera is free but stay on a plane");
+    ImGuiH::tooltip("The camera is free but stay on a plane");
     cameraM.setMode(static_cast<nvh::CameraManipulator::Modes>(rmode));
     return changed;
   });

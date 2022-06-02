@@ -343,15 +343,17 @@ void setFonts(FontMode fontmode)
   }
 }
 
-
-void tooltip(const char* description, bool questionMark)
+void tooltip(const char* description, bool questionMark /*= false*/, float timerThreshold /*= 0.5f*/)
 {
+  bool passTimer = GImGui->HoveredIdTimer >= timerThreshold && GImGui->ActiveIdTimer == 0.0f;
   if(questionMark)
   {
     ImGui::SameLine();
     ImGui::TextDisabled("(?)");
+    passTimer = true;
   }
-  if(ImGui::IsItemHovered())
+
+  if(ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) && passTimer)
   {
     ImGui::BeginTooltip();
     ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
@@ -361,29 +363,6 @@ void tooltip(const char* description, bool questionMark)
   }
 }
 
-
-// ------------------------------------------------------------------------------------------------
-template <>
-void Control::show_tooltip(const char* description)
-{
-  if(!description || strlen(description) == 0)
-    return;
-
-  ImGui::BeginTooltip();
-  ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-  ImGui::TextUnformatted(description);
-  ImGui::PopTextWrapPos();
-  ImGui::EndTooltip();
-}
-
-// ------------------------------------------------------------------------------------------------
-template <>
-void Control::show_tooltip(const std::string& description)
-{
-  if(description.empty())
-    return;
-  show_tooltip<const char*>(description.c_str());
-}
 
 // ------------------------------------------------------------------------------------------------
 
@@ -628,11 +607,16 @@ void Panel::Begin(Side side /*= Side::Right*/, float alpha /*= 0.5f*/, char* nam
 
     ImGuiID dock_main_id = dockspaceID;
 
-    // Slitting all 4 directions
-    ImGuiID id_left  = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Left, 0.2f, nullptr, &dock_main_id);
-    ImGuiID id_right = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Right, 0.2f, nullptr, &dock_main_id);
-    ImGuiID id_up    = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Up, 0.2f, nullptr, &dock_main_id);
-    ImGuiID id_down  = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Down, 0.2f, nullptr, &dock_main_id);
+    // Slitting all 4 directions, targetting (320 pixel * DPI) panel width, (180 pixel * DPI) panel height.
+    const float xRatio = nvmath::nv_clamp<float>(320.0f * getDPIScale() / viewport->WorkSize[0], 0.01f, 0.499f);
+    const float yRatio = nvmath::nv_clamp<float>(180.0f * getDPIScale() / viewport->WorkSize[1], 0.01f, 0.499f);
+    ImGuiID id_left, id_right, id_up, id_down;
+
+    // Note, for right, down panels, we use the n / (1 - n) formula to correctly split the space remaining from the left, up panels.
+    id_left  = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Left, xRatio, nullptr, &dock_main_id);
+    id_right = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Right, xRatio / (1 - xRatio), nullptr, &dock_main_id);
+    id_up    = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Up, yRatio, nullptr, &dock_main_id);
+    id_down  = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Down, yRatio / (1 - yRatio), nullptr, &dock_main_id);
 
     ImGui::DockBuilderDockWindow(side == Side::Left ? dock_name.c_str() : "Dock_left", id_left);
     ImGui::DockBuilderDockWindow(side == Side::Right ? dock_name.c_str() : "Dock_right", id_right);

@@ -307,7 +307,7 @@ inline bool key_button(int button, int action, int mods)
     button = NVPWindow::KEY_ENTER;
   }
 
-  auto& io    = ImGui::GetIO();
+  auto& io = ImGui::GetIO();
   io.AddKeyEvent(ImGuiKey_ModCtrl, (mods & NVPWindow::KMOD_CONTROL) != 0);
   io.AddKeyEvent(ImGuiKey_ModShift, (mods & NVPWindow::KMOD_SHIFT) != 0);
   io.AddKeyEvent(ImGuiKey_ModAlt, (mods & NVPWindow::KMOD_ALT) != 0);
@@ -585,7 +585,7 @@ void setFonts(FontMode fontmode = FONT_PROPORTIONAL_SCALED);
 
 
 // Display a tooltip for the previous item
-void tooltip(const char* description, bool questionMark = false);
+void tooltip(const char* description, bool questionMark = false, float timerThreshold = 0.5f);
 
 
 //--------------------------------------------------------------------------------------------------
@@ -760,15 +760,6 @@ public:
 
 private:
   template <typename TTooltip>
-  static void show_tooltip(TTooltip description);
-
-  template <typename TRet>
-  static void show_tooltip(const std::function<TRet()>& action)
-  {
-    action();
-  }
-
-  template <typename TTooltip>
   static void show_property_label(const std::string& text, TTooltip description, Flags flags);
 
   template <typename TValue>
@@ -842,8 +833,7 @@ void ImGuiH::Control::show_property_label(const std::string& text, TTooltip desc
   if(flags == Flags::Disabled)
     ImGui::PopStyleColor();
 
-  if(ImGui::IsItemHovered())
-    show_tooltip(description);
+  ImGuiH::tooltip(description, false, 0.0f);
 }
 
 //
@@ -910,8 +900,8 @@ void ImGuiH::Control::Info(const std::string& label, TTooltip description, const
     ImGui::PopStyleVar();
   }
 
-  if(ImGui::IsItemHovered() && label.empty())
-    show_tooltip(description);
+  if(label.empty())
+    ImGuiH::tooltip(description, false, 0.0f);
 
   ImGui::PopID();
 }
@@ -985,8 +975,8 @@ bool ImGuiH::Control::button(const std::string& label, const std::string& button
   }
 
   // show the tool tip when hovering over the button in case there is no left side label
-  if(label.empty() && ImGui::IsItemHovered())
-    show_tooltip(description);
+  if(label.empty())
+    ImGuiH::tooltip(description, false, 0.0f);
 
   ImGui::PopID();
   return pressed;

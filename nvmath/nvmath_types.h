@@ -42,6 +42,10 @@
 #include <memory.h>
 #include <stdlib.h>
 
+#ifdef NVMATH_SUPPORTS_GLM
+#include <glm/glm.hpp>
+#endif
+
 namespace nvmath {
 
 typedef float nv_scalar;
@@ -165,6 +169,15 @@ struct vector2
 
   T*       get_value() { return vec_array; }
   const T* get_value() const { return vec_array; }
+
+#ifdef NVMATH_SUPPORTS_GLM
+  vector2(const glm::vec2& f)
+  {
+    x = f.x;
+    y = f.y;
+  }
+  operator glm::vec2() const { return glm::vec2(x, y); }
+#endif
 };
 
 template <class T>
@@ -324,6 +337,16 @@ struct vector3
 
   T*       get_value() { return vec_array; }
   const T* get_value() const { return vec_array; }
+
+#ifdef NVMATH_SUPPORTS_GLM
+vector3(const glm::vec3& f)
+  {
+    x = f.x;
+    y = f.y;
+    z = f.z;
+  }
+  operator glm::vec3() const { return glm::vec3(x, y, z); }
+#endif
 };
 
 template <class T>
@@ -491,6 +514,17 @@ struct vector4
 
   T*       get_value() { return vec_array; }
   const T* get_value() const { return vec_array; }
+
+#ifdef NVMATH_SUPPORTS_GLM
+  vector4(const glm::vec4& f)
+  {
+    x = f.x;
+    y = f.y;
+    z = f.z;
+    w = f.w;
+  }
+  operator glm::vec4() const { return glm::vec4(x, y, z, w); }
+#endif
 };  //struct vector4
 
 template <class T>
@@ -631,6 +665,27 @@ struct matrix3
 
   T*       get_value() { return mat_array; }
   const T* get_value() const { return mat_array; }
+
+
+#ifdef NVMATH_SUPPORTS_GLM
+  matrix3(const glm::mat3& f)
+  {
+    mat_array[0] = f[0].x;
+    mat_array[1] = f[0].y;
+    mat_array[2] = f[0].z;
+    mat_array[3] = f[1].x;
+    mat_array[4] = f[1].y;
+    mat_array[5] = f[1].z;
+    mat_array[6] = f[2].x;
+    mat_array[7] = f[3].y;
+    mat_array[8] = f[3].z;
+  }
+  operator glm::mat3() const
+  {
+    return glm::mat3(mat_array[0], mat_array[1], mat_array[2], mat_array[3], mat_array[4], mat_array[5], mat_array[6],
+                     mat_array[7], mat_array[8]);
+  }
+#endif
 };  //struct matrix3
 
 
@@ -873,6 +928,36 @@ struct matrix4
 
   T*       get_value() { return mat_array; }
   const T* get_value() const { return mat_array; }
+
+
+#ifdef NVMATH_SUPPORTS_GLM
+  matrix4(const glm::mat4& f)
+  {
+
+    mat_array[0]  = f[0].x;
+    mat_array[1]  = f[0].y;
+    mat_array[2]  = f[0].z;
+    mat_array[3]  = f[0].w;
+    mat_array[4]  = f[1].x;
+    mat_array[5]  = f[1].y;
+    mat_array[6]  = f[1].z;
+    mat_array[7]  = f[1].w;
+    mat_array[8]  = f[2].x;
+    mat_array[9]  = f[2].y;
+    mat_array[10] = f[2].z;
+    mat_array[11] = f[2].w;
+    mat_array[12] = f[3].x;
+    mat_array[13] = f[3].y;
+    mat_array[14] = f[3].z;
+    mat_array[15] = f[3].w;
+  }
+  operator glm::mat4() const
+  {
+    return glm::mat4(mat_array[0], mat_array[1], mat_array[2], mat_array[3], mat_array[4], mat_array[5], mat_array[6],
+                     mat_array[7], mat_array[8], mat_array[9], mat_array[10], mat_array[11], mat_array[12],
+                     mat_array[13], mat_array[14], mat_array[15]);
+  }
+#endif
 };  //struct matrix4
 
 

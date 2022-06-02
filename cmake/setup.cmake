@@ -26,9 +26,12 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 
-# we need the .exe suffix even on Linux to remove ambiguity between target
-# executable name  and data files stored in a directory of the same name
-set(CMAKE_EXECUTABLE_SUFFIX ".exe")
+# Most installed projects place their files under a folder with the same name as
+# the project. On Linux, this conflicts with the name of the executable. We add
+# the following suffix to avoid this.
+if(UNIX)
+  set(CMAKE_EXECUTABLE_SUFFIX "_app")
+endif()
 
 # IDE Setup
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)  # Generate folders for IDE targets
@@ -155,7 +158,6 @@ endmacro(_set_subsystem_windows)
 if(UNIX) 
   set(OS "linux")
   add_definitions(-DLINUX)
-  add_compile_options(-fpermissive)
 else(UNIX)
   if(APPLE)
   else(APPLE)
@@ -447,6 +449,19 @@ macro(_optional_package_VulkanSDK)
     _add_package_VulkanSDK()
   endif(USING_VULKANSDK)
 endmacro(_optional_package_VulkanSDK)
+
+#####################################################################################
+# Optional Glm package (Part of Vulkan SDK)
+#
+macro(_add_package_GLM)
+  find_package(GLM)  
+  if(GLM_FOUND)
+    add_definitions(-DNVMATH_SUPPORTS_GLM)
+    include_directories(${GLM_INCLUDE_DIRS})
+  else()
+    message("GLM not found. Check `GLM` with the installation of Vulkan SDK") 
+  endif()
+endmacro()
 
 #####################################################################################
 # Optional ShaderC package
@@ -801,8 +816,15 @@ macro(_add_package_Omniverse)
   endif()
   find_package(OmniClient REQUIRED)
   find_package(USD)
+  find_package(KitSDK)
   
-  find_package(Python REQUIRED COMPONENTS Development)
+  set(Python3_ROOT_DIR "${BASE_DIRECTORY}/nvpro_core/OV/downloaded/python")
+  # Stop looking fore newer versions in other locations
+  set(Python3_FIND_STRATEGY LOCATION)
+  # On Windows, ignore a potentially preinstalled newer version of Python
+  set(Python3_FIND_REGISTRY NEVER)
+
+  find_package(Python3 3.7 EXACT REQUIRED COMPONENTS Development)
   
   #message("Python3_ROOT_DIR " ${Python3_ROOT_DIR})
   

@@ -108,7 +108,7 @@ struct Bbox
 
 private:
   nvmath::vec3f m_min{std::numeric_limits<float>::max()};
-  nvmath::vec3f m_max{std::numeric_limits<float>::lowest()};
+  nvmath::vec3f m_max{-std::numeric_limits<float>::max()};
 };
 
 template <typename T, typename TFlag>
@@ -128,15 +128,18 @@ void GltfScene::importMaterials(const tinygltf::Model& tmodel)
   for(auto& tmat : tmodel.materials)
   {
     GltfMaterial gmat;
+    gmat.tmaterial = &tmat;  // Reference
 
-    gmat.alphaCutoff        = static_cast<float>(tmat.alphaCutoff);
-    gmat.alphaMode          = tmat.alphaMode == "MASK" ? 1 : (tmat.alphaMode == "BLEND" ? 2 : 0);
-    gmat.doubleSided        = tmat.doubleSided ? 1 : 0;
-    gmat.emissiveFactor     = nvmath::vec3f(tmat.emissiveFactor[0], tmat.emissiveFactor[1], tmat.emissiveFactor[2]);
-    gmat.emissiveTexture    = tmat.emissiveTexture.index;
-    gmat.normalTexture      = tmat.normalTexture.index;
-    gmat.normalTextureScale = static_cast<float>(tmat.normalTexture.scale);
-    gmat.occlusionTexture   = tmat.occlusionTexture.index;
+    gmat.alphaCutoff              = static_cast<float>(tmat.alphaCutoff);
+    gmat.alphaMode                = tmat.alphaMode == "MASK" ? 1 : (tmat.alphaMode == "BLEND" ? 2 : 0);
+    gmat.doubleSided              = tmat.doubleSided ? 1 : 0;
+    gmat.emissiveFactor           = tmat.emissiveFactor.size() == 3 ?
+                                        nvmath::vec3f(tmat.emissiveFactor[0], tmat.emissiveFactor[1], tmat.emissiveFactor[2]) :
+                                        nvmath::vec3f(0.f);
+    gmat.emissiveTexture          = tmat.emissiveTexture.index;
+    gmat.normalTexture            = tmat.normalTexture.index;
+    gmat.normalTextureScale       = static_cast<float>(tmat.normalTexture.scale);
+    gmat.occlusionTexture         = tmat.occlusionTexture.index;
     gmat.occlusionTextureStrength = static_cast<float>(tmat.occlusionTexture.strength);
 
     // PbrMetallicRoughness
@@ -239,6 +242,14 @@ void GltfScene::importMaterials(const tinygltf::Model& tmodel)
       getVec3(ext, "attenuationColor", gmat.volume.attenuationColor);
     };
 
+    // KHR_materials_displacement
+    if(tmat.extensions.find(KHR_MATERIALS_DISPLACEMENT_NAME) != tmat.extensions.end())
+    {
+      const auto& ext = tmat.extensions.find(KHR_MATERIALS_DISPLACEMENT_NAME)->second;
+      getTexId(ext, "displacementGeometryTexture", gmat.displacement.displacementGeometryTexture);
+      getFloat(ext, "displacementGeometryFactor", gmat.displacement.displacementGeometryFactor);
+      getFloat(ext, "displacementGeometryOffset", gmat.displacement.displacementGeometryOffset);
+    }
 
     m_materials.emplace_back(gmat);
   }
@@ -259,15 +270,25 @@ void GltfScene::importDrawableNodes(const tinygltf::Model& tmodel, GltfAttribute
 {
   checkRequiredExtensions(tmodel);
 
+  int         defaultScene = tmodel.defaultScene > -1 ? tmodel.defaultScene : 0;
+  const auto& tscene       = tmodel.scenes[defaultScene];
+
+  // Finding only the mesh that are used in the scene
+  std::set<uint32_t> usedMeshes;
+  for(auto nodeIdx : tscene.nodes)
+  {
+    findUsedMeshes(tmodel, usedMeshes, nodeIdx);
+  }
+
   // Find the number of vertex(attributes) and index
   //uint32_t nbVert{0};
   uint32_t nbIndex{0};
-  uint32_t meshCnt{0};  // use for mesh to new meshes
   uint32_t primCnt{0};  //  "   "  "  "
-  for(const auto& mesh : tmodel.meshes)
+  for(const auto& m : usedMeshes)
   {
+    auto&                 tmesh = tmodel.meshes[m];
     std::vector<uint32_t> vprim;
-    for(const auto& primitive : mesh.primitives)
+    for(const auto& primitive : tmesh.primitives)
     {
       if(primitive.mode != 4)  // Triangle
         continue;
@@ -284,24 +305,25 @@ void GltfScene::importDrawableNodes(const tinygltf::Model& tmodel, GltfAttribute
       }
       vprim.emplace_back(primCnt++);
     }
-    m_meshToPrimMeshes[meshCnt++] = std::move(vprim);  // mesh-id = { prim0, prim1, ... }
+    m_meshToPrimMeshes[m] = std::move(vprim);  // mesh-id = { prim0, prim1, ... }
   }
 
   // Reserving memory
   m_indices.reserve(nbIndex);
 
   // Convert all mesh/primitives+ to a single primitive per mesh
-  for(const auto& tmesh : tmodel.meshes)
+  for(const auto& m : usedMeshes)
   {
+    auto& tmesh = tmodel.meshes[m];
     for(const auto& tprimitive : tmesh.primitives)
     {
       processMesh(tmodel, tprimitive, requestedAttributes, forceRequested, tmesh.name);
+      m_primMeshes.back().tmesh = &tmesh;
+      m_primMeshes.back().tprim = &tprimitive;
     }
   }
 
   // Transforming the scene hierarchy to a flat list
-  int         defaultScene = tmodel.defaultScene > -1 ? tmodel.defaultScene : 0;
-  const auto& tscene       = tmodel.scenes[defaultScene];
   for(auto nodeIdx : tscene.nodes)
   {
     processNode(tmodel, nodeIdx, nvmath::mat4f(1));
@@ -334,6 +356,7 @@ void GltfScene::processNode(const tinygltf::Model& tmodel, int& nodeIdx, const n
       GltfNode node;
       node.primMesh    = mesh;
       node.worldMatrix = worldMatrix;
+      node.tnode       = &tnode;
       m_nodes.emplace_back(node);
     }
   }
@@ -484,9 +507,35 @@ void GltfScene::processMesh(const tinygltf::Model&     tmodel,
       const auto& accessor   = tmodel.accessors[tmesh.attributes.find("POSITION")->second];
       resultMesh.vertexCount = static_cast<uint32_t>(accessor.count);
       if(!accessor.minValues.empty())
+      {
         resultMesh.posMin = nvmath::vec3f(accessor.minValues[0], accessor.minValues[1], accessor.minValues[2]);
+      }
+      else
+      {
+        resultMesh.posMin = nvmath::vec3f(std::numeric_limits<float>::max());
+        for(const auto& p : m_positions)
+        {
+          for(int i = 0; i < 3; i++)
+          {
+            if(p[i] < resultMesh.posMin[i])
+              resultMesh.posMin[i] = p[i];
+          }
+        }
+      }
       if(!accessor.maxValues.empty())
+      {
         resultMesh.posMax = nvmath::vec3f(accessor.maxValues[0], accessor.maxValues[1], accessor.maxValues[2]);
+      }
+      else
+      {
+        resultMesh.posMax = nvmath::vec3f(-std::numeric_limits<float>::max());
+        for(const auto& p : m_positions)
+          for(int i = 0; i < 3; i++)
+          {
+            if(p[i] > resultMesh.posMax[i])
+              resultMesh.posMax[i] = p[i];
+          }
+      }
     }
 
     // NORMAL
@@ -502,7 +551,8 @@ void GltfScene::processMesh(const tinygltf::Model&     tmodel,
     if(hasFlag(requestedAttributes, GltfAttributes::Texcoord_0))
     {
       bool texcoordCreated = getAttribute<nvmath::vec2f>(tmodel, tmesh, m_texcoords0, "TEXCOORD_0");
-
+      if(!texcoordCreated)
+        texcoordCreated = getAttribute<nvmath::vec2f>(tmodel, tmesh, m_texcoords0, "TEXCOORD");
       if(!texcoordCreated && hasFlag(forceRequested, GltfAttributes::Texcoord_0))
         createTexcoords(resultMesh);
     }
@@ -802,7 +852,7 @@ void GltfScene::computeSceneDimensions()
     const auto& mesh = m_primMeshes[node.primMesh];
 
     Bbox bbox(mesh.posMin, mesh.posMax);
-    bbox.transform(node.worldMatrix);
+    bbox = bbox.transform(node.worldMatrix);
     scnBbox.insert(bbox);
   }
 
@@ -936,6 +986,366 @@ void GltfScene::checkRequiredExtensions(const tinygltf::Model& tmodel)
           "The extension %s is REQUIRED and not supported \n",
           e.c_str());
     }
+  }
+}
+
+void GltfScene::findUsedMeshes(const tinygltf::Model& tmodel, std::set<uint32_t>& usedMeshes, int nodeIdx)
+{
+  const auto& node = tmodel.nodes[nodeIdx];
+  if(node.mesh >= 0)
+    usedMeshes.insert(node.mesh);
+  for(const auto& c : node.children)
+    findUsedMeshes(tmodel, usedMeshes, c);
+}
+
+//--------------------------------------------------------------------------------------------------
+//
+//
+void GltfScene::exportDrawableNodes(tinygltf::Model& tmodel, GltfAttributes requestedAttributes)
+{
+
+  // We are rewriting buffer 0, but we will keep the information accessing the other buffers.
+  // Information will be added at the end of the function.
+  
+  // Copy the buffer view and its position, such that we have a reference from the accessors
+  std::unordered_map<uint32_t, tinygltf::BufferView> tempBufferView; 
+  for(uint32_t i = 0; i < (uint32_t)tmodel.bufferViews.size(); i++)
+  {
+    if(tmodel.bufferViews[i].buffer > 0)
+      tempBufferView[i] = tmodel.bufferViews[i];
+  }
+  // Copy all accessors, referencing to one of the temp BufferView
+  std::vector<tinygltf::Accessor> tempAccessors;
+  for(auto & accessor : tmodel.accessors)
+  {
+    if(tempBufferView.find(accessor.bufferView) != tempBufferView.end())
+    {
+      tempAccessors.push_back(accessor);
+    }
+  }
+
+
+  // Clear what will the rewritten
+  tmodel.bufferViews.clear();
+  tmodel.accessors.clear();
+  tmodel.scenes[0].nodes.clear();
+
+  // Default assets
+  tmodel.asset.copyright = "NVIDIA Corporation";
+  tmodel.asset.generator = "glTF exporter";
+  tmodel.asset.version   = "2.0";  // glTF version 2.0
+
+  bool hasExt = std::find(tmodel.extensionsUsed.begin(), tmodel.extensionsUsed.end(), EXTENSION_ATTRIB_IRAY)
+                != tmodel.extensionsUsed.end();
+  if(!hasExt)
+    tmodel.extensionsUsed.emplace_back(EXTENSION_ATTRIB_IRAY);
+
+  // Reset all information in the buffer 0
+  tmodel.buffers[0] = {};
+  auto& tBuffer     = tmodel.buffers[0];
+  tBuffer.data.reserve(1000000000);  // Reserving 1 GB to make the allocations faster (avoid re-allocations)
+
+  struct OffsetLen
+  {
+    uint32_t offset{0};
+    uint32_t len{0};
+  };
+  OffsetLen olIdx, olPos, olNrm, olTan, olCol, olTex;
+  olIdx.len    = appendData(tBuffer, m_indices);
+  olPos.offset = olIdx.offset + olIdx.len;
+  olPos.len    = appendData(tBuffer, m_positions);
+  olNrm.offset = olPos.offset + olPos.len;
+  if(hasFlag(requestedAttributes, GltfAttributes::Normal) && !m_normals.empty())
+  {
+    olNrm.len = appendData(tBuffer, m_normals);
+  }
+  olTex.offset = olNrm.offset + olNrm.len;
+  if(hasFlag(requestedAttributes, GltfAttributes::Texcoord_0) && !m_texcoords0.empty())
+  {
+    olTex.len = appendData(tBuffer, m_texcoords0);
+  }
+  olTan.offset = olTex.offset + olTex.len;
+  if(hasFlag(requestedAttributes, GltfAttributes::Tangent) && !m_tangents.empty())
+  {
+    olTan.len = appendData(tBuffer, m_tangents);
+  }
+  olCol.offset = olTan.offset + olTan.len;
+  if(hasFlag(requestedAttributes, GltfAttributes::Color_0) && !m_colors0.empty())
+  {
+    olCol.len = appendData(tBuffer, m_colors0);
+  }
+
+  nvmath::matrix4<double> identityMat;
+  identityMat.identity();
+
+  // Nodes
+  std::vector<tinygltf::Node> tnodes;
+  uint32_t                    nodeID = 0;
+  for(auto& n : m_nodes)
+  {
+    auto* node = &tnodes.emplace_back();
+    node->name = "";
+    if(n.tnode)
+    {
+      node->name = n.tnode->name;
+    }
+
+
+    // Matrix -- Adding it only if not identity
+    {
+      bool                isIdentity{true};
+      std::vector<double> matrix(16);
+      for(int i = 0; i < 16; i++)
+      {
+        isIdentity &= (identityMat.get_value()[i] == n.worldMatrix.get_value()[i]);
+        matrix[i] = n.worldMatrix.get_value()[i];
+      }
+      if(!isIdentity)
+        node->matrix = matrix;
+    }
+    node->mesh = n.primMesh;
+
+    // Adding node to the scene
+    tmodel.scenes[0].nodes.push_back(nodeID++);
+  }
+
+  // Camera
+  if(!m_cameras.empty())
+  {
+    tmodel.cameras.clear();
+    auto& camera = tmodel.cameras.emplace_back();
+    // Copy the tiny camera
+    camera = m_cameras[0].cam;
+
+    // Add camera node
+    auto& node  = tnodes.emplace_back();
+    node.name   = "Camera";
+    node.camera = 0;
+    node.matrix.resize(16);
+    for(int i = 0; i < 16; i++)
+      node.matrix[i] = m_cameras[0].worldMatrix.get_value()[i];
+
+    // Add extension with pos, interest and up
+    auto fct = [](const std::string& name, nvmath::vec3f val) {
+      tinygltf::Value::Array tarr;
+      tarr.emplace_back(val.x);
+      tarr.emplace_back(val.y);
+      tarr.emplace_back(val.z);
+
+      tinygltf::Value::Object oattrib;
+      oattrib["name"]  = tinygltf::Value(name);
+      oattrib["type"]  = tinygltf::Value(std::string("Float32<3>"));
+      oattrib["value"] = tinygltf::Value(tarr);
+      return oattrib;
+    };
+
+    tinygltf::Value::Array vattrib;
+    vattrib.emplace_back(fct("iview:position", m_cameras[0].eye));
+    vattrib.emplace_back(fct("iview:interest", m_cameras[0].center));
+    vattrib.emplace_back(fct("iview:up", m_cameras[0].up));
+    tinygltf::Value::Object oattrib;
+    oattrib["attributes"]                  = tinygltf::Value(vattrib);
+    node.extensions[EXTENSION_ATTRIB_IRAY] = std::move(tinygltf::Value(oattrib));
+
+    // Add camera to scene
+    tmodel.scenes[0].nodes.push_back((int)tnodes.size() - 1);
+  }
+  tmodel.nodes = tnodes;
+
+  // Mesh/Primitive
+  std::vector<tinygltf::Mesh> tmeshes;
+  for(const auto& pm : m_primMeshes)
+  {
+    Bbox bb;
+    {
+      for(size_t v_ctx = 0; v_ctx < pm.vertexCount; v_ctx++)
+      {
+        size_t idx = pm.vertexOffset + v_ctx;
+        bb.insert(m_positions[idx]);
+      }
+    }
+
+    // Adding a new mesh
+    tmeshes.emplace_back();
+    auto& tMesh = tmeshes.back();
+    tMesh.name  = pm.name;
+
+    if(pm.tmesh)
+    {
+      tMesh.name                   = pm.tmesh->name;
+      tMesh.extensions             = pm.tmesh->extensions;
+      tMesh.extensions_json_string = pm.tmesh->extensions_json_string;
+    }
+
+
+    //  primitive
+    tMesh.primitives.emplace_back();
+    auto& tPrim = tMesh.primitives.back();
+    tPrim.mode  = TINYGLTF_MODE_TRIANGLES;
+
+    if(pm.tprim)
+    {
+      tPrim.extensions             = pm.tprim->extensions;
+      tPrim.extensions_json_string = pm.tprim->extensions_json_string;
+    }
+
+
+    // Material reference
+    tPrim.material = pm.materialIndex;
+
+    // Attributes
+    auto& attributes = tPrim.attributes;
+
+
+    {
+      // Buffer View (INDICES)
+      tmodel.bufferViews.emplace_back();
+      auto& tBufferView      = tmodel.bufferViews.back();
+      tBufferView.buffer     = 0;
+      tBufferView.byteOffset = olIdx.offset + pm.firstIndex * sizeof(uint32_t);
+      tBufferView.byteStride = 0;  // "bufferView.byteStride must not be defined for indices accessor." ;
+      tBufferView.byteLength = sizeof(uint32_t) * pm.indexCount;
+
+      // Accessor (INDICES)
+      tmodel.accessors.emplace_back();
+      auto& tAccessor         = tmodel.accessors.back();
+      tAccessor.bufferView    = static_cast<int>(tmodel.bufferViews.size() - 1);
+      tAccessor.byteOffset    = 0;
+      tAccessor.componentType = TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT;
+      tAccessor.count         = pm.indexCount;
+      tAccessor.type          = TINYGLTF_TYPE_SCALAR;
+
+      // The accessor for the indices
+      tPrim.indices = static_cast<int>(tmodel.accessors.size() - 1);
+    }
+
+
+    {
+      // Buffer View (POSITION)
+      tmodel.bufferViews.emplace_back();
+      auto& tBufferView      = tmodel.bufferViews.back();
+      tBufferView.buffer     = 0;
+      tBufferView.byteOffset = olPos.offset + pm.vertexOffset * sizeof(nvmath::vec3f);
+      tBufferView.byteStride = 3 * sizeof(float);
+      tBufferView.byteLength = pm.vertexCount * tBufferView.byteStride;
+
+      // Accessor (POSITION)
+      tmodel.accessors.emplace_back();
+      auto& tAccessor         = tmodel.accessors.back();
+      tAccessor.bufferView    = static_cast<int>(tmodel.bufferViews.size() - 1);
+      tAccessor.byteOffset    = 0;
+      tAccessor.componentType = TINYGLTF_COMPONENT_TYPE_FLOAT;
+      tAccessor.count         = pm.vertexCount;
+      tAccessor.type          = TINYGLTF_TYPE_VEC3;
+      tAccessor.minValues     = {bb.min()[0], bb.min()[1], bb.min()[2]};
+      tAccessor.maxValues     = {bb.max()[0], bb.max()[1], bb.max()[2]};
+      assert(tAccessor.count > 0);
+
+      attributes["POSITION"] = static_cast<int>(tmodel.accessors.size() - 1);
+    }
+
+    if(hasFlag(requestedAttributes, GltfAttributes::Normal) && !m_normals.empty())
+    {
+      // Buffer View (NORMAL)
+      tmodel.bufferViews.emplace_back();
+      auto& tBufferView      = tmodel.bufferViews.back();
+      tBufferView.buffer     = 0;
+      tBufferView.byteOffset = olNrm.offset + pm.vertexOffset * sizeof(nvmath::vec3f);
+      tBufferView.byteStride = 3 * sizeof(float);
+      tBufferView.byteLength = pm.vertexCount * tBufferView.byteStride;
+
+      // Accessor (NORMAL)
+      tmodel.accessors.emplace_back();
+      auto& tAccessor         = tmodel.accessors.back();
+      tAccessor.bufferView    = static_cast<int>(tmodel.bufferViews.size() - 1);
+      tAccessor.byteOffset    = 0;
+      tAccessor.componentType = TINYGLTF_COMPONENT_TYPE_FLOAT;
+      tAccessor.count         = pm.vertexCount;
+      tAccessor.type          = TINYGLTF_TYPE_VEC3;
+
+      attributes["NORMAL"] = static_cast<int>(tmodel.accessors.size() - 1);
+    }
+
+    if(hasFlag(requestedAttributes, GltfAttributes::Texcoord_0) && !m_texcoords0.empty())
+    {
+      // Buffer View (TEXCOORD_0)
+      tmodel.bufferViews.emplace_back();
+      auto& tBufferView      = tmodel.bufferViews.back();
+      tBufferView.buffer     = 0;
+      tBufferView.byteOffset = olTex.offset + pm.vertexOffset * sizeof(nvmath::vec2f);
+      tBufferView.byteStride = 2 * sizeof(float);
+      tBufferView.byteLength = pm.vertexCount * tBufferView.byteStride;
+
+      // Accessor (TEXCOORD_0)
+      tmodel.accessors.emplace_back();
+      auto& tAccessor         = tmodel.accessors.back();
+      tAccessor.bufferView    = static_cast<int>(tmodel.bufferViews.size() - 1);
+      tAccessor.byteOffset    = 0;
+      tAccessor.componentType = TINYGLTF_COMPONENT_TYPE_FLOAT;
+      tAccessor.count         = pm.vertexCount;
+      tAccessor.type          = TINYGLTF_TYPE_VEC2;
+
+      attributes["TEXCOORD_0"] = static_cast<int>(tmodel.accessors.size() - 1);
+    }
+
+    if(hasFlag(requestedAttributes, GltfAttributes::Tangent) && !m_tangents.empty())
+    {
+      // Buffer View (TANGENT)
+      tmodel.bufferViews.emplace_back();
+      auto& tBufferView      = tmodel.bufferViews.back();
+      tBufferView.buffer     = 0;
+      tBufferView.byteOffset = olTan.offset + pm.vertexOffset * sizeof(nvmath::vec4f);
+      tBufferView.byteStride = 4 * sizeof(float);
+      tBufferView.byteLength = pm.vertexCount * tBufferView.byteStride;
+
+      // Accessor (TANGENT)
+      tmodel.accessors.emplace_back();
+      auto& tAccessor         = tmodel.accessors.back();
+      tAccessor.bufferView    = static_cast<int>(tmodel.bufferViews.size() - 1);
+      tAccessor.byteOffset    = 0;
+      tAccessor.componentType = TINYGLTF_COMPONENT_TYPE_FLOAT;
+      tAccessor.count         = pm.vertexCount;
+      tAccessor.type          = TINYGLTF_TYPE_VEC4;
+
+      attributes["TANGENT"] = static_cast<int>(tmodel.accessors.size() - 1);
+    }
+
+    if(hasFlag(requestedAttributes, GltfAttributes::Color_0) && !m_colors0.empty())
+    {
+      // Buffer View (COLOR_O)
+      tmodel.bufferViews.emplace_back();
+      auto& tBufferView      = tmodel.bufferViews.back();
+      tBufferView.buffer     = 0;
+      tBufferView.byteOffset = olCol.offset + pm.vertexOffset * sizeof(nvmath::vec4f);
+      tBufferView.byteStride = 4 * sizeof(float);
+      tBufferView.byteLength = pm.vertexCount * tBufferView.byteStride;
+
+      // Accessor (COLOR_O)
+      tmodel.accessors.emplace_back();
+      auto& tAccessor         = tmodel.accessors.back();
+      tAccessor.bufferView    = static_cast<int>(tmodel.bufferViews.size() - 1);
+      tAccessor.byteOffset    = 0;
+      tAccessor.componentType = TINYGLTF_COMPONENT_TYPE_FLOAT;
+      tAccessor.count         = pm.vertexCount;
+      tAccessor.type          = TINYGLTF_TYPE_VEC4;
+
+      attributes["COLOR_O"] = static_cast<int>(tmodel.accessors.size() - 1);
+    }
+  }
+  tmodel.meshes = tmeshes;
+
+
+  // Add back accessors for extra buffers (see collection at start of function)
+  std::unordered_map<uint32_t, uint32_t> correspondance;
+  for(auto& t : tempBufferView)
+  {
+    correspondance[t.first] = (uint32_t)tmodel.bufferViews.size(); // remember position of buffer view
+    tmodel.bufferViews.push_back(t.second); 
+  }
+  for(auto& t : tempAccessors)
+  {
+    t.bufferView = correspondance[t.bufferView]; // Find from previous buffer view, the new index
+    tmodel.accessors.push_back(t);
   }
 }
 

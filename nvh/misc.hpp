@@ -32,7 +32,7 @@
 
 /**
  # functions in nvh
- 
+
  - mipMapLevels : compute number of mip maps
  - stringFormat : sprintf for std::string
  - frand : random float using rand()
@@ -43,17 +43,35 @@ namespace nvh {
 
 inline std::string stringFormat(const char* msg, ...)
 {
-  char    text[8192];
   va_list list;
 
   if(msg == 0)
     return std::string();
 
-  va_start(list, msg);
-  vsnprintf(text, sizeof(text), msg, list);
-  va_end(list);
+  // Speculate needed string size and vsnprintf to std::string.
+  // If it was too small, we resize and try for the second (and final) time.
+  std::string str;
+  str.resize(64);
 
-  return std::string(text);
+  for(int i = 0; i < 2; ++i)
+  {
+    va_start(list, msg);
+    size_t charsNeeded = static_cast<size_t>(vsnprintf(str.data(), str.size(), msg, list));  // charsNeeded doesn't count \0
+    va_end(list);
+
+    if(charsNeeded < str.size())
+    {  // Not <= due to \0 terminator (which we trim out of std::string)
+      str.resize(charsNeeded);
+      return str;
+    }
+    else
+    {
+      str.resize(charsNeeded + 1);  // Leave room for \0
+    }
+  }
+
+  assert(!"String should have been resized perfectly second try");
+  return std::string();
 }
 
 inline float frand()

@@ -47,3 +47,7 @@
 	path = third_party/basis_universal
 	url = https://github.com/BinomialLLC/basis_universal.git
 	shallow = true
+[submodule "third_party/dxh"]
+	path = third_party/dxh
+	url = https://github.com/microsoft/DirectX-Headers.git
+	branch = main
