@@ -209,7 +209,7 @@ void SBTWrapper::create(VkPipeline                                            rt
   copyHandles(stage[eCallable], m_index[eCallable], m_stride[eCallable], m_data[eCallable]);
 
   // Creating device local buffers where handles will be stored
-  auto              usage_flags = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+  auto              usage_flags = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR;
   auto              mem_flags   = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
   nvvk::CommandPool genCmdBuf(m_device, m_queueIndex);
   VkCommandBuffer   cmdBuf = genCmdBuf.createCommandBuffer();
