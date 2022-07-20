@@ -1012,7 +1012,9 @@ void Context::initDebugUtils()
 std::vector<uint32_t> Context::getCompatibleDevices(const ContextCreateInfo& info)
 {
   assert(m_instance != nullptr);
-  std::vector<uint32_t>                        compatibleDevices;
+
+  std::vector<std::pair<bool, uint32_t>>       compatibleDevices;
+  std::vector<uint32_t>                        sortedDevices;
   std::vector<VkPhysicalDeviceGroupProperties> groups;
   std::vector<VkPhysicalDevice>                physicalDevices;
 
@@ -1039,22 +1041,24 @@ std::vector<uint32_t> Context::getCompatibleDevices(const ContextCreateInfo& inf
   {
     VkPhysicalDevice physicalDevice = info.useDeviceGroups ? groups[elemId].physicalDevices[0] : physicalDevices[elemId];
 
+    VkPhysicalDeviceProperties props;
+    vkGetPhysicalDeviceProperties(physicalDevice, &props);
+
+    bool discreteGpu = props.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
+
     // Note: all physical devices in a group are identical
     if(hasMandatoryExtensions(physicalDevice, info, info.verboseCompatibleDevices))
     {
-      compatibleDevices.push_back(elemId);
+      compatibleDevices.emplace_back(discreteGpu, elemId);
       if(info.verboseCompatibleDevices)
       {
-        VkPhysicalDeviceProperties props;
-        vkGetPhysicalDeviceProperties(physicalDevice, &props);
+
         LOGI("%d: %s\n", compatible, props.deviceName);
         compatible++;
       }
     }
     else if(info.verboseCompatibleDevices)
     {
-      VkPhysicalDeviceProperties props;
-      vkGetPhysicalDeviceProperties(physicalDevice, &props);
       LOGW("Skipping physical device %s\n", props.deviceName);
     }
   }
@@ -1071,7 +1075,13 @@ std::vector<uint32_t> Context::getCompatibleDevices(const ContextCreateInfo& inf
     }
   }
 
-  return compatibleDevices;
+  // Sorting by discrete GPU
+  std::sort(compatibleDevices.begin(), compatibleDevices.end(), [](auto a, auto b) { return a.first > b.first; });
+  sortedDevices.reserve(compatibleDevices.size());
+  for(const auto& d : compatibleDevices)
+    sortedDevices.push_back(d.second);
+
+  return sortedDevices;
 }
 
 //--------------------------------------------------------------------------------------------------

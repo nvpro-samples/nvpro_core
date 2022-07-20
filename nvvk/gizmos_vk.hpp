@@ -53,6 +53,7 @@ public:
     uint32_t              subpass{0};
     std::vector<VkFormat> colorFormat;
     VkFormat              depthFormat{};
+    VkFormat              stencilFormat{};
     float                 axisSize{50.f};
   };
 

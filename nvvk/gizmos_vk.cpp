@@ -206,7 +206,7 @@ void AxisVK::createAxisObject(CreateAxisInfo& info)
     rfInfo.colorAttachmentCount    = static_cast<uint32_t>(info.colorFormat.size());
     rfInfo.pColorAttachmentFormats = info.colorFormat.data();
     rfInfo.depthAttachmentFormat   = info.depthFormat;
-    rfInfo.stencilAttachmentFormat = info.depthFormat;
+    rfInfo.stencilAttachmentFormat = info.stencilFormat;
     gpg.createInfo.pNext           = &rfInfo;
   }
   

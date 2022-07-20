@@ -453,32 +453,26 @@ void GltfScene::processMesh(const tinygltf::Model&     tmodel,
   // INDICES
   if(tmesh.indices > -1)
   {
-    const tinygltf::Accessor&   indexAccessor = tmodel.accessors[tmesh.indices];
-    const tinygltf::BufferView& bufferView    = tmodel.bufferViews[indexAccessor.bufferView];
-    const tinygltf::Buffer&     buffer        = tmodel.buffers[bufferView.buffer];
-
-    resultMesh.indexCount = static_cast<uint32_t>(indexAccessor.count);
+    const tinygltf::Accessor& indexAccessor = tmodel.accessors[tmesh.indices];
+    resultMesh.indexCount                   = static_cast<uint32_t>(indexAccessor.count);
 
     switch(indexAccessor.componentType)
     {
       case TINYGLTF_PARAMETER_TYPE_UNSIGNED_INT: {
         primitiveIndices32u.resize(indexAccessor.count);
-        memcpy(primitiveIndices32u.data(), &buffer.data[indexAccessor.byteOffset + bufferView.byteOffset],
-               indexAccessor.count * sizeof(uint32_t));
+        copyAccessorData(primitiveIndices32u, 0, tmodel, indexAccessor, 0, indexAccessor.count);
         m_indices.insert(m_indices.end(), primitiveIndices32u.begin(), primitiveIndices32u.end());
         break;
       }
       case TINYGLTF_PARAMETER_TYPE_UNSIGNED_SHORT: {
         primitiveIndices16u.resize(indexAccessor.count);
-        memcpy(primitiveIndices16u.data(), &buffer.data[indexAccessor.byteOffset + bufferView.byteOffset],
-               indexAccessor.count * sizeof(uint16_t));
+        copyAccessorData(primitiveIndices16u, 0, tmodel, indexAccessor, 0, indexAccessor.count);
         m_indices.insert(m_indices.end(), primitiveIndices16u.begin(), primitiveIndices16u.end());
         break;
       }
       case TINYGLTF_PARAMETER_TYPE_UNSIGNED_BYTE: {
         primitiveIndices8u.resize(indexAccessor.count);
-        memcpy(primitiveIndices8u.data(), &buffer.data[indexAccessor.byteOffset + bufferView.byteOffset],
-               indexAccessor.count * sizeof(uint8_t));
+        copyAccessorData(primitiveIndices8u, 0, tmodel, indexAccessor, 0, indexAccessor.count);
         m_indices.insert(m_indices.end(), primitiveIndices8u.begin(), primitiveIndices8u.end());
         break;
       }
@@ -771,7 +765,7 @@ void GltfScene::createTangents(GltfPrimMesh& resultMesh)
     }
 
     // Calculate handedness
-    float handedness = (nvmath::dot(nvmath::cross(n, t), b) < 0.0F) ? -1.0F : 1.0F;
+    float handedness = (nvmath::dot(nvmath::cross(n, t), b) < 0.0F) ? 1.0F : -1.0F;
     m_tangents.emplace_back(otangent.x, otangent.y, otangent.z, handedness);
   }
 }
@@ -1006,9 +1000,9 @@ void GltfScene::exportDrawableNodes(tinygltf::Model& tmodel, GltfAttributes requ
 
   // We are rewriting buffer 0, but we will keep the information accessing the other buffers.
   // Information will be added at the end of the function.
-  
+
   // Copy the buffer view and its position, such that we have a reference from the accessors
-  std::unordered_map<uint32_t, tinygltf::BufferView> tempBufferView; 
+  std::unordered_map<uint32_t, tinygltf::BufferView> tempBufferView;
   for(uint32_t i = 0; i < (uint32_t)tmodel.bufferViews.size(); i++)
   {
     if(tmodel.bufferViews[i].buffer > 0)
@@ -1016,7 +1010,7 @@ void GltfScene::exportDrawableNodes(tinygltf::Model& tmodel, GltfAttributes requ
   }
   // Copy all accessors, referencing to one of the temp BufferView
   std::vector<tinygltf::Accessor> tempAccessors;
-  for(auto & accessor : tmodel.accessors)
+  for(auto& accessor : tmodel.accessors)
   {
     if(tempBufferView.find(accessor.bufferView) != tempBufferView.end())
     {
@@ -1339,12 +1333,12 @@ void GltfScene::exportDrawableNodes(tinygltf::Model& tmodel, GltfAttributes requ
   std::unordered_map<uint32_t, uint32_t> correspondance;
   for(auto& t : tempBufferView)
   {
-    correspondance[t.first] = (uint32_t)tmodel.bufferViews.size(); // remember position of buffer view
-    tmodel.bufferViews.push_back(t.second); 
+    correspondance[t.first] = (uint32_t)tmodel.bufferViews.size();  // remember position of buffer view
+    tmodel.bufferViews.push_back(t.second);
   }
   for(auto& t : tempAccessors)
   {
-    t.bufferView = correspondance[t.bufferView]; // Find from previous buffer view, the new index
+    t.bufferView = correspondance[t.bufferView];  // Find from previous buffer view, the new index
     tmodel.accessors.push_back(t);
   }
 }

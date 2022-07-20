@@ -92,6 +92,9 @@ inline VkBufferViewCreateInfo makeBufferViewCreateInfo(const VkDescriptorBufferI
 
 inline VkDeviceAddress getBufferDeviceAddressKHR(VkDevice device, VkBuffer buffer)
 {
+  if(buffer == VK_NULL_HANDLE)
+    return 0ULL;
+
   VkBufferDeviceAddressInfo info = {VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR};
   info.buffer                    = buffer;
   return vkGetBufferDeviceAddressKHR(device, &info);
@@ -99,6 +102,9 @@ inline VkDeviceAddress getBufferDeviceAddressKHR(VkDevice device, VkBuffer buffe
 
 inline VkDeviceAddress getBufferDeviceAddress(VkDevice device, VkBuffer buffer)
 {
+  if(buffer == VK_NULL_HANDLE)
+    return 0ULL;
+
   VkBufferDeviceAddressInfo info = {VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO};
   info.buffer                    = buffer;
   return vkGetBufferDeviceAddress(device, &info);

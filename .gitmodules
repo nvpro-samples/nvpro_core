@@ -50,4 +50,4 @@
 [submodule "third_party/dxh"]
 	path = third_party/dxh
 	url = https://github.com/microsoft/DirectX-Headers.git
-	branch = main
+	shallow = true

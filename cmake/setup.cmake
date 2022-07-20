@@ -70,7 +70,7 @@ include_directories(${BASE_DIRECTORY}/nvpro_core)
 include_directories(${BASE_DIRECTORY}/nvpro_core/nvp)
 
 # Specify the list of directories to search for cmake modules.
-set(CMAKE_MODULE_PATH ${BASE_DIRECTORY}/nvpro_core/cmake ${BASE_DIRECTORY}/nvpro_core/cmake/find)
+list(APPEND CMAKE_MODULE_PATH ${BASE_DIRECTORY}/nvpro_core/cmake ${BASE_DIRECTORY}/nvpro_core/cmake/find)
 set(CMAKE_FIND_ROOT_PATH "")
 
 message(STATUS "BASE_DIRECTORY = ${BASE_DIRECTORY}")
@@ -824,13 +824,14 @@ macro(_add_package_Omniverse)
   # On Windows, ignore a potentially preinstalled newer version of Python
   set(Python3_FIND_REGISTRY NEVER)
 
-  find_package(Python3 3.7 EXACT REQUIRED COMPONENTS Development)
+  find_package(Python3 3.7 EXACT REQUIRED COMPONENTS Development Interpreter)
   
   #message("Python3_ROOT_DIR " ${Python3_ROOT_DIR})
   
   add_compile_definitions(TBB_USE_DEBUG=0)
   
 endmacro()
+
 # this macro is needed for the samples to add this package, although not needed
 # this happens when the nvpro_core library was built with these stuff in it
 # so many samples can share the same library for many purposes

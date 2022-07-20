@@ -127,6 +127,24 @@ function(get_glsl_dependecies _SRC _FLAGS)
   get_filename_component(FILE_NAME ${_SRC} NAME)
   get_filename_component(DIR_NAME ${_SRC} DIRECTORY)
 
+  # glslc has a bug where it won't quote paths with spaces
+  # As a workaround, assume all paths are absolute and separate based on matching the root path
+  # Include any added include paths in case they are on different windows drives
+  set(INCLUDE_PATHS ${_FLAGS})
+  list(FILTER INCLUDE_PATHS INCLUDE REGEX "-I.*")
+  list(TRANSFORM INCLUDE_PATHS REPLACE "-I" "")
+  list(APPEND INCLUDE_PATHS ${DIR_NAME})
+  set(INCLUDE_ROOTS)
+  foreach(INCLUDE_PATH ${INCLUDE_PATHS})
+    if(${CMAKE_VERSION} VERSION_LESS "3.20.0")
+      string(REGEX MATCH "^([A-Za-z]:)?/" INCLUDE_ROOT ${INCLUDE_PATH})
+    else()
+      cmake_path(GET INCLUDE_PATH ROOT_PATH INCLUDE_ROOT)
+    endif()
+    list(APPEND INCLUDE_ROOTS ${INCLUDE_ROOT})
+  endforeach()
+  list(REMOVE_DUPLICATES INCLUDE_ROOTS)
+
   message(STATUS " - Find dependencies for ${FILE_NAME}")
   #message(STATUS "calling : ${GLSLC} ${_FLAGS} -M ${_SRC} OUTPUT_VARIABLE DEP RESULT_VARIABLE RES")
   separate_arguments(_FLAGS)
@@ -134,8 +152,10 @@ function(get_glsl_dependecies _SRC _FLAGS)
   if(RES EQUAL 0)
     # Removing "name.spv: "
     string(REGEX REPLACE "[^:]*: " "" DEP ${DEP})
-    # Splitting each path with a ';' 
-    string(REPLACE " ${DIR_NAME}"  ";${DIR_NAME}" DEP ${DEP})
+    # Splitting each root with a ';'. On linux this is just ' /' -> ';/'.
+    foreach(ROOT ${INCLUDE_ROOTS})
+      string(REPLACE " ${ROOT}"  ";${ROOT}" DEP ${DEP})
+    endforeach()
     set(GLSL_DEPENDENCY ${DEP} PARENT_SCOPE)
   endif()
 endfunction()
