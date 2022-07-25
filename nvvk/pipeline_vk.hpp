@@ -132,6 +132,8 @@ struct GraphicsPipelineState
     setValue(depthStencilState.back, VkStencilOpState());
     depthStencilState.minDepthBounds = {};
     depthStencilState.maxDepthBounds = {};
+
+    setValue(multisampleState.rasterizationSamples, VK_SAMPLE_COUNT_1_BIT);
   }
 
   GraphicsPipelineState(const GraphicsPipelineState& src) = default;
@@ -677,7 +679,6 @@ private:
 
   void init()
   {
-    setValue(pipelineState.multisampleState.rasterizationSamples, VK_SAMPLE_COUNT_1_BIT);
     createInfo.pRasterizationState = &pipelineState.rasterizationState;
     createInfo.pInputAssemblyState = &pipelineState.inputAssemblyState;
     createInfo.pColorBlendState    = &pipelineState.colorBlendState;
