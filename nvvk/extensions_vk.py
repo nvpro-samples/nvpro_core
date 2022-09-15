@@ -21,6 +21,7 @@
 # This will generate the entry point for all Vulkan extensions
 # Code blocks are created and will be replace between
 # 'NVVK_GENERATE_'<BLOCK_NAME>
+import argparse
 import os.path
 import sys
 import urllib
@@ -40,7 +41,7 @@ ExcludeList = ['VK_KHR_surface',
              'VK_KHR_get_display_properties2', 
              'VK_KHR_display_swapchain']
 
-# Debuggin - To be sure that the black list is excluding commands 
+# Debugging - To be sure that the exclude list is excluding commands
 # exported in vulkan-1, populate the list here. If there is a duplicate
 # the name of the command and the extension name will be printed out.
 ExportedCommands = [ # dumpbin /EXPORTS vulkan-1.lib
@@ -140,10 +141,16 @@ if __name__ == "__main__":
     specpath = "https://raw.githubusercontent.com/KhronosGroup/Vulkan-Docs/main/xml/vk.xml"
     loc_spec_path = os.path.normpath(os.getenv('VK_SDK_PATH') + '/share/vulkan/registry/vk.xml')
 
-    if len(sys.argv) > 1:
-        specpath = sys.argv[1]
-    elif os.path.isfile(loc_spec_path):
-        specpath = loc_spec_path
+    parser = argparse.ArgumentParser(description='Generates entry points for Vulkan extensions in extensions_vk.cpp.')
+    parser.add_argument('--beta', action='store_true', help='Includes provisional Vulkan extensions; these extensions are not guaranteed to be consistent across Vulkan SDK versions.')
+    parser.add_argument('spec', type=str, nargs='?', help='Optional path to a vk.xml file to use to generate extensions. Otherwise, uses the vk.xml in the Vulkan SDK distribution specified in the VK_SDK_PATH environment variable.')
+
+    if os.path.isfile(loc_spec_path):
+      specpath = loc_spec_path
+
+    args = parser.parse_args()
+    if args.spec is not None:
+      specpath = args.spec
 
     # Retriving the XML file
     spec = parse_xml(specpath)
@@ -172,6 +179,9 @@ if __name__ == "__main__":
     for ext in sorted(spec.findall('extensions/extension'), key=lambda ext: ext.get('name')):
         # Discard disabled extensions
         if ext.get('supported') == 'disabled':
+            continue
+        # Discard beta extensions
+        if ext.get('provisional') == 'true' and not args.beta:
             continue
 
         name = ext.get('name')

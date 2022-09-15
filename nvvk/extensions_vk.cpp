@@ -22,7 +22,7 @@
 #include "nvh/nvprint.hpp"
 
 /* NVVK_GENERATE_VERSION_INFO */
-// Generated using Vulkan 226
+// Generated using Vulkan 224
 /* NVVK_GENERATE_VERSION_INFO */
 
 /* clang-format off */
@@ -158,11 +158,6 @@ static PFN_vkGetImageDrmFormatModifierPropertiesEXT pfn_vkGetImageDrmFormatModif
 #ifdef VK_EXT_line_rasterization
 static PFN_vkCmdSetLineStippleEXT pfn_vkCmdSetLineStippleEXT= 0;
 #endif /* VK_EXT_line_rasterization */
-#ifdef VK_EXT_mesh_shader
-static PFN_vkCmdDrawMeshTasksEXT pfn_vkCmdDrawMeshTasksEXT= 0;
-static PFN_vkCmdDrawMeshTasksIndirectCountEXT pfn_vkCmdDrawMeshTasksIndirectCountEXT= 0;
-static PFN_vkCmdDrawMeshTasksIndirectEXT pfn_vkCmdDrawMeshTasksIndirectEXT= 0;
-#endif /* VK_EXT_mesh_shader */
 #ifdef VK_EXT_metal_objects
 static PFN_vkExportMetalObjectsEXT pfn_vkExportMetalObjectsEXT= 0;
 #endif /* VK_EXT_metal_objects */
@@ -441,26 +436,6 @@ static PFN_vkGetSemaphoreCounterValueKHR pfn_vkGetSemaphoreCounterValueKHR= 0;
 static PFN_vkSignalSemaphoreKHR pfn_vkSignalSemaphoreKHR= 0;
 static PFN_vkWaitSemaphoresKHR pfn_vkWaitSemaphoresKHR= 0;
 #endif /* VK_KHR_timeline_semaphore */
-#ifdef VK_KHR_video_decode_queue
-static PFN_vkCmdDecodeVideoKHR pfn_vkCmdDecodeVideoKHR= 0;
-#endif /* VK_KHR_video_decode_queue */
-#ifdef VK_KHR_video_encode_queue
-static PFN_vkCmdEncodeVideoKHR pfn_vkCmdEncodeVideoKHR= 0;
-#endif /* VK_KHR_video_encode_queue */
-#ifdef VK_KHR_video_queue
-static PFN_vkBindVideoSessionMemoryKHR pfn_vkBindVideoSessionMemoryKHR= 0;
-static PFN_vkCmdBeginVideoCodingKHR pfn_vkCmdBeginVideoCodingKHR= 0;
-static PFN_vkCmdControlVideoCodingKHR pfn_vkCmdControlVideoCodingKHR= 0;
-static PFN_vkCmdEndVideoCodingKHR pfn_vkCmdEndVideoCodingKHR= 0;
-static PFN_vkCreateVideoSessionKHR pfn_vkCreateVideoSessionKHR= 0;
-static PFN_vkCreateVideoSessionParametersKHR pfn_vkCreateVideoSessionParametersKHR= 0;
-static PFN_vkDestroyVideoSessionKHR pfn_vkDestroyVideoSessionKHR= 0;
-static PFN_vkDestroyVideoSessionParametersKHR pfn_vkDestroyVideoSessionParametersKHR= 0;
-static PFN_vkGetPhysicalDeviceVideoCapabilitiesKHR pfn_vkGetPhysicalDeviceVideoCapabilitiesKHR= 0;
-static PFN_vkGetPhysicalDeviceVideoFormatPropertiesKHR pfn_vkGetPhysicalDeviceVideoFormatPropertiesKHR= 0;
-static PFN_vkGetVideoSessionMemoryRequirementsKHR pfn_vkGetVideoSessionMemoryRequirementsKHR= 0;
-static PFN_vkUpdateVideoSessionParametersKHR pfn_vkUpdateVideoSessionParametersKHR= 0;
-#endif /* VK_KHR_video_queue */
 #ifdef VK_MVK_ios_surface
 static PFN_vkCreateIOSSurfaceMVK pfn_vkCreateIOSSurfaceMVK= 0;
 #endif /* VK_MVK_ios_surface */
@@ -1131,36 +1106,6 @@ VKAPI_ATTR void VKAPI_CALL vkCmdSetLineStippleEXT(
   pfn_vkCmdSetLineStippleEXT(commandBuffer, lineStippleFactor, lineStipplePattern); 
 }
 #endif /* VK_EXT_line_rasterization */
-#ifdef VK_EXT_mesh_shader
-VKAPI_ATTR void VKAPI_CALL vkCmdDrawMeshTasksEXT(
-	VkCommandBuffer commandBuffer, 
-	uint32_t groupCountX, 
-	uint32_t groupCountY, 
-	uint32_t groupCountZ) 
-{ 
-  pfn_vkCmdDrawMeshTasksEXT(commandBuffer, groupCountX, groupCountY, groupCountZ); 
-}
-VKAPI_ATTR void VKAPI_CALL vkCmdDrawMeshTasksIndirectCountEXT(
-	VkCommandBuffer commandBuffer, 
-	VkBuffer buffer, 
-	VkDeviceSize offset, 
-	VkBuffer countBuffer, 
-	VkDeviceSize countBufferOffset, 
-	uint32_t maxDrawCount, 
-	uint32_t stride) 
-{ 
-  pfn_vkCmdDrawMeshTasksIndirectCountEXT(commandBuffer, buffer, offset, countBuffer, countBufferOffset, maxDrawCount, stride); 
-}
-VKAPI_ATTR void VKAPI_CALL vkCmdDrawMeshTasksIndirectEXT(
-	VkCommandBuffer commandBuffer, 
-	VkBuffer buffer, 
-	VkDeviceSize offset, 
-	uint32_t drawCount, 
-	uint32_t stride) 
-{ 
-  pfn_vkCmdDrawMeshTasksIndirectEXT(commandBuffer, buffer, offset, drawCount, stride); 
-}
-#endif /* VK_EXT_mesh_shader */
 #ifdef VK_EXT_metal_objects
 VKAPI_ATTR void VKAPI_CALL vkExportMetalObjectsEXT(
 	VkDevice device, 
@@ -2472,110 +2417,6 @@ VKAPI_ATTR VkResult VKAPI_CALL vkWaitSemaphoresKHR(
   return pfn_vkWaitSemaphoresKHR(device, pWaitInfo, timeout); 
 }
 #endif /* VK_KHR_timeline_semaphore */
-#ifdef VK_KHR_video_decode_queue
-VKAPI_ATTR void VKAPI_CALL vkCmdDecodeVideoKHR(
-	VkCommandBuffer commandBuffer, 
-	const VkVideoDecodeInfoKHR* pFrameInfo) 
-{ 
-  pfn_vkCmdDecodeVideoKHR(commandBuffer, pFrameInfo); 
-}
-#endif /* VK_KHR_video_decode_queue */
-#ifdef VK_KHR_video_encode_queue
-VKAPI_ATTR void VKAPI_CALL vkCmdEncodeVideoKHR(
-	VkCommandBuffer commandBuffer, 
-	const VkVideoEncodeInfoKHR* pEncodeInfo) 
-{ 
-  pfn_vkCmdEncodeVideoKHR(commandBuffer, pEncodeInfo); 
-}
-#endif /* VK_KHR_video_encode_queue */
-#ifdef VK_KHR_video_queue
-VKAPI_ATTR VkResult VKAPI_CALL vkBindVideoSessionMemoryKHR(
-	VkDevice device, 
-	VkVideoSessionKHR videoSession, 
-	uint32_t bindSessionMemoryInfoCount, 
-	const VkBindVideoSessionMemoryInfoKHR* pBindSessionMemoryInfos) 
-{ 
-  return pfn_vkBindVideoSessionMemoryKHR(device, videoSession, bindSessionMemoryInfoCount, pBindSessionMemoryInfos); 
-}
-VKAPI_ATTR void VKAPI_CALL vkCmdBeginVideoCodingKHR(
-	VkCommandBuffer commandBuffer, 
-	const VkVideoBeginCodingInfoKHR* pBeginInfo) 
-{ 
-  pfn_vkCmdBeginVideoCodingKHR(commandBuffer, pBeginInfo); 
-}
-VKAPI_ATTR void VKAPI_CALL vkCmdControlVideoCodingKHR(
-	VkCommandBuffer commandBuffer, 
-	const VkVideoCodingControlInfoKHR* pCodingControlInfo) 
-{ 
-  pfn_vkCmdControlVideoCodingKHR(commandBuffer, pCodingControlInfo); 
-}
-VKAPI_ATTR void VKAPI_CALL vkCmdEndVideoCodingKHR(
-	VkCommandBuffer commandBuffer, 
-	const VkVideoEndCodingInfoKHR* pEndCodingInfo) 
-{ 
-  pfn_vkCmdEndVideoCodingKHR(commandBuffer, pEndCodingInfo); 
-}
-VKAPI_ATTR VkResult VKAPI_CALL vkCreateVideoSessionKHR(
-	VkDevice device, 
-	const VkVideoSessionCreateInfoKHR* pCreateInfo, 
-	const VkAllocationCallbacks* pAllocator, 
-	VkVideoSessionKHR* pVideoSession) 
-{ 
-  return pfn_vkCreateVideoSessionKHR(device, pCreateInfo, pAllocator, pVideoSession); 
-}
-VKAPI_ATTR VkResult VKAPI_CALL vkCreateVideoSessionParametersKHR(
-	VkDevice device, 
-	const VkVideoSessionParametersCreateInfoKHR* pCreateInfo, 
-	const VkAllocationCallbacks* pAllocator, 
-	VkVideoSessionParametersKHR* pVideoSessionParameters) 
-{ 
-  return pfn_vkCreateVideoSessionParametersKHR(device, pCreateInfo, pAllocator, pVideoSessionParameters); 
-}
-VKAPI_ATTR void VKAPI_CALL vkDestroyVideoSessionKHR(
-	VkDevice device, 
-	VkVideoSessionKHR videoSession, 
-	const VkAllocationCallbacks* pAllocator) 
-{ 
-  pfn_vkDestroyVideoSessionKHR(device, videoSession, pAllocator); 
-}
-VKAPI_ATTR void VKAPI_CALL vkDestroyVideoSessionParametersKHR(
-	VkDevice device, 
-	VkVideoSessionParametersKHR videoSessionParameters, 
-	const VkAllocationCallbacks* pAllocator) 
-{ 
-  pfn_vkDestroyVideoSessionParametersKHR(device, videoSessionParameters, pAllocator); 
-}
-VKAPI_ATTR VkResult VKAPI_CALL vkGetPhysicalDeviceVideoCapabilitiesKHR(
-	VkPhysicalDevice physicalDevice, 
-	const VkVideoProfileInfoKHR* pVideoProfile, 
-	VkVideoCapabilitiesKHR* pCapabilities) 
-{ 
-  return pfn_vkGetPhysicalDeviceVideoCapabilitiesKHR(physicalDevice, pVideoProfile, pCapabilities); 
-}
-VKAPI_ATTR VkResult VKAPI_CALL vkGetPhysicalDeviceVideoFormatPropertiesKHR(
-	VkPhysicalDevice physicalDevice, 
-	const VkPhysicalDeviceVideoFormatInfoKHR* pVideoFormatInfo, 
-	uint32_t* pVideoFormatPropertyCount, 
-	VkVideoFormatPropertiesKHR* pVideoFormatProperties) 
-{ 
-  return pfn_vkGetPhysicalDeviceVideoFormatPropertiesKHR(physicalDevice, pVideoFormatInfo, pVideoFormatPropertyCount, pVideoFormatProperties); 
-}
-VKAPI_ATTR VkResult VKAPI_CALL vkGetVideoSessionMemoryRequirementsKHR(
-	VkDevice device, 
-	VkVideoSessionKHR videoSession, 
-	uint32_t* pMemoryRequirementsCount, 
-	VkVideoSessionMemoryRequirementsKHR* pMemoryRequirements) 
-{ 
-  return pfn_vkGetVideoSessionMemoryRequirementsKHR(device, videoSession, pMemoryRequirementsCount, pMemoryRequirements); 
-}
-VKAPI_ATTR VkResult VKAPI_CALL vkUpdateVideoSessionParametersKHR(
-	VkDevice device, 
-	VkVideoSessionParametersKHR videoSessionParameters, 
-	const VkVideoSessionParametersUpdateInfoKHR* pUpdateInfo) 
-{ 
-  return pfn_vkUpdateVideoSessionParametersKHR(device, videoSessionParameters, pUpdateInfo); 
-}
-#endif /* VK_KHR_video_queue */
 #ifdef VK_MVK_ios_surface
 VKAPI_ATTR VkResult VKAPI_CALL vkCreateIOSSurfaceMVK(
 	VkInstance instance, 
@@ -3170,11 +3011,6 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #ifdef VK_EXT_line_rasterization
   pfn_vkCmdSetLineStippleEXT = (PFN_vkCmdSetLineStippleEXT)getDeviceProcAddr(device, "vkCmdSetLineStippleEXT");
 #endif /* VK_EXT_line_rasterization */
-#ifdef VK_EXT_mesh_shader
-  pfn_vkCmdDrawMeshTasksEXT = (PFN_vkCmdDrawMeshTasksEXT)getDeviceProcAddr(device, "vkCmdDrawMeshTasksEXT");
-  pfn_vkCmdDrawMeshTasksIndirectCountEXT = (PFN_vkCmdDrawMeshTasksIndirectCountEXT)getDeviceProcAddr(device, "vkCmdDrawMeshTasksIndirectCountEXT");
-  pfn_vkCmdDrawMeshTasksIndirectEXT = (PFN_vkCmdDrawMeshTasksIndirectEXT)getDeviceProcAddr(device, "vkCmdDrawMeshTasksIndirectEXT");
-#endif /* VK_EXT_mesh_shader */
 #ifdef VK_EXT_metal_objects
   pfn_vkExportMetalObjectsEXT = (PFN_vkExportMetalObjectsEXT)getDeviceProcAddr(device, "vkExportMetalObjectsEXT");
 #endif /* VK_EXT_metal_objects */
@@ -3453,26 +3289,6 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
   pfn_vkSignalSemaphoreKHR = (PFN_vkSignalSemaphoreKHR)getDeviceProcAddr(device, "vkSignalSemaphoreKHR");
   pfn_vkWaitSemaphoresKHR = (PFN_vkWaitSemaphoresKHR)getDeviceProcAddr(device, "vkWaitSemaphoresKHR");
 #endif /* VK_KHR_timeline_semaphore */
-#ifdef VK_KHR_video_decode_queue
-  pfn_vkCmdDecodeVideoKHR = (PFN_vkCmdDecodeVideoKHR)getDeviceProcAddr(device, "vkCmdDecodeVideoKHR");
-#endif /* VK_KHR_video_decode_queue */
-#ifdef VK_KHR_video_encode_queue
-  pfn_vkCmdEncodeVideoKHR = (PFN_vkCmdEncodeVideoKHR)getDeviceProcAddr(device, "vkCmdEncodeVideoKHR");
-#endif /* VK_KHR_video_encode_queue */
-#ifdef VK_KHR_video_queue
-  pfn_vkBindVideoSessionMemoryKHR = (PFN_vkBindVideoSessionMemoryKHR)getDeviceProcAddr(device, "vkBindVideoSessionMemoryKHR");
-  pfn_vkCmdBeginVideoCodingKHR = (PFN_vkCmdBeginVideoCodingKHR)getDeviceProcAddr(device, "vkCmdBeginVideoCodingKHR");
-  pfn_vkCmdControlVideoCodingKHR = (PFN_vkCmdControlVideoCodingKHR)getDeviceProcAddr(device, "vkCmdControlVideoCodingKHR");
-  pfn_vkCmdEndVideoCodingKHR = (PFN_vkCmdEndVideoCodingKHR)getDeviceProcAddr(device, "vkCmdEndVideoCodingKHR");
-  pfn_vkCreateVideoSessionKHR = (PFN_vkCreateVideoSessionKHR)getDeviceProcAddr(device, "vkCreateVideoSessionKHR");
-  pfn_vkCreateVideoSessionParametersKHR = (PFN_vkCreateVideoSessionParametersKHR)getDeviceProcAddr(device, "vkCreateVideoSessionParametersKHR");
-  pfn_vkDestroyVideoSessionKHR = (PFN_vkDestroyVideoSessionKHR)getDeviceProcAddr(device, "vkDestroyVideoSessionKHR");
-  pfn_vkDestroyVideoSessionParametersKHR = (PFN_vkDestroyVideoSessionParametersKHR)getDeviceProcAddr(device, "vkDestroyVideoSessionParametersKHR");
-  pfn_vkGetPhysicalDeviceVideoCapabilitiesKHR = (PFN_vkGetPhysicalDeviceVideoCapabilitiesKHR)getInstanceProcAddr(instance, "vkGetPhysicalDeviceVideoCapabilitiesKHR");
-  pfn_vkGetPhysicalDeviceVideoFormatPropertiesKHR = (PFN_vkGetPhysicalDeviceVideoFormatPropertiesKHR)getInstanceProcAddr(instance, "vkGetPhysicalDeviceVideoFormatPropertiesKHR");
-  pfn_vkGetVideoSessionMemoryRequirementsKHR = (PFN_vkGetVideoSessionMemoryRequirementsKHR)getDeviceProcAddr(device, "vkGetVideoSessionMemoryRequirementsKHR");
-  pfn_vkUpdateVideoSessionParametersKHR = (PFN_vkUpdateVideoSessionParametersKHR)getDeviceProcAddr(device, "vkUpdateVideoSessionParametersKHR");
-#endif /* VK_KHR_video_queue */
 #ifdef VK_MVK_ios_surface
   pfn_vkCreateIOSSurfaceMVK = (PFN_vkCreateIOSSurfaceMVK)getInstanceProcAddr(instance, "vkCreateIOSSurfaceMVK");
 #endif /* VK_MVK_ios_surface */
