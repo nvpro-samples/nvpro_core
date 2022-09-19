@@ -25,9 +25,11 @@
 //-----------------------------------------------------------------------------
 struct TimeSampler
 {
+  using Clock     = std::chrono::steady_clock;
+  using TimePoint = typename Clock::time_point;
   bool   bNonStopRendering;
   int    renderCnt;
-  double start_time, end_time;
+  TimePoint start_time, end_time;
   int    timing_counter;
   int    maxTimeSamples;
   int    frameFPS;
@@ -40,13 +42,7 @@ struct TimeSampler
     maxTimeSamples    = 60;
     frameDT           = 1.0 / 60.0;
     frameFPS          = 0;
-    start_time = end_time = getTime();
-  }
-  inline double getTime()
-  {
-    auto now(std::chrono::system_clock::now());
-    auto duration = now.time_since_epoch();
-    return std::chrono::duration_cast<std::chrono::microseconds>(duration).count() / 1000.0;
+    start_time = end_time = Clock::now();
   }
   inline double getFrameDT() { return frameDT; }
   inline int    getFPS() { return frameFPS; }
@@ -61,8 +57,11 @@ struct TimeSampler
     if((timing_counter >= maxTimeSamples) && (maxTimeSamples > 0))
     {
       timing_counter = 0;
-      end_time       = getTime();
-      frameDT        = (end_time - start_time) / 1000.0;
+      end_time       = Clock::now();
+
+      // Get delta in seconds
+      frameDT = std::chrono::duration_cast<std::chrono::duration<double>>(end_time - start_time).count();
+
       // Linux/OSX etc. TODO
       frameDT /= maxTimeSamples;
 #define MAXDT (1.0 / 40.0)
@@ -87,7 +86,7 @@ struct TimeSampler
     if(bContinueToRender || bNonStopRendering)
     {
       if(timing_counter == 0)
-        start_time = getTime();
+        start_time = Clock::now();
       timing_counter++;
     }
     return updated;

@@ -32,6 +32,15 @@
 #include <limits.h>
 #include <string>
 #include <assert.h>
+#include <memory>
+#include <sys/shm.h>
+#include <X11/extensions/XShm.h>
+
+// Samples include their own definitions of stb_image. Use STB_IMAGE_WRITE_STATIC to avoid issues with multiple
+// definitions in the nvpro_core static lib at the cost of having the code exist multiple times.
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#define STB_IMAGE_WRITE_STATIC
+#include <stb_image_write.h>
 
 #ifdef NVP_SUPPORTS_SOCKETS
 #include "socketSampleMessages.h"
@@ -39,13 +48,179 @@
 
 #include "linux_file_dialog.h"
 
-// from https://docs.microsoft.com/en-us/windows/desktop/gdi/capturing-an-image
+union Pixel
+{
+  uint32_t data;
+  struct
+  {
+    uint8_t r, g, b, a;
+  } channels;
+};
 
+// Object to allocate and hold a shared memory XImage and a shared memory segment
+// This allows reading/writing an XImage in one IPC call
+// Check XShmQueryExtension() before using
+class XShmImage
+{
+public:
+  XShmImage(Display* display, int width, int height)
+      : m_display{display}
+  {
+    // Allocate a shared XImage
+    int     screen = XDefaultScreen(m_display);
+    Visual* visual = XDefaultVisual(m_display, screen);
+    int     depth  = DefaultDepth(m_display, screen);
+    m_image        = XShmCreateImage(m_display, visual, depth, ZPixmap, nullptr, &m_shmSegmentInfo, width, height);
+    if(!m_image)
+    {
+      LOGE("Error: XShmCreateImage() failed\n");
+      return;
+    }
+
+    // Create the shared memory, used by XShmGetImage()
+    int permissions = 0600;
+    m_shmID         = shmget(IPC_PRIVATE, height * m_image->bytes_per_line, IPC_CREAT | permissions);
+    if(m_shmID == -1)
+    {
+      LOGE("Error: shmget() failed\n");
+      return;
+    }
+
+    // Map the shared memory segment into the address space of this process
+    m_shmAddr = shmat(m_shmID, 0, 0);
+    if(reinterpret_cast<intptr_t>(m_shmAddr) == -1)
+    {
+      LOGE("Error: shmat() failed\n");
+      return;
+    }
+
+    // Use the allocated shared memory for the XImage
+    m_shmSegmentInfo.shmid    = m_shmID;
+    m_shmSegmentInfo.shmaddr  = reinterpret_cast<char*>(m_shmAddr);
+    m_shmSegmentInfo.readOnly = false;
+    m_image->data             = m_shmSegmentInfo.shmaddr;
+
+    // Get the X server to attach the shared memory segment on its side and sync
+    if(!XShmAttach(m_display, &m_shmSegmentInfo))
+      LOGE("Error: XShmAttach() failed\n");
+    if(!XSync(m_display, false))
+      LOGE("Error: XSync() failed\n");
+    return;
+  }
+  ~XShmImage()
+  {
+    if(m_image)
+    {
+      if(!XShmDetach(m_display, &m_shmSegmentInfo))
+        LOGE("Error: XShmDetach() failed\n");
+      if(!XDestroyImage(m_image))
+        LOGE("Error: XDestroyImage() failed\n");
+    }
+    if(reinterpret_cast<intptr_t>(m_shmAddr) != -1 && shmdt(m_shmAddr) == -1)
+      LOGE("Error: shmdt() failed\n");
+    if(m_shmID != -1 && shmctl(m_shmID, IPC_RMID, nullptr) == -1)
+      LOGE("Error: shmctl(IPC_RMID) failed\n");
+  }
+
+  // Get the X server to copy the window contents into the shared memory
+  bool read(Window window) { return XShmGetImage(m_display, window, m_image, 0, 0, AllPlanes); }
+
+  // In lieu of exceptions, call this after constructing to see if the constructor failed
+  bool valid() const { return m_shmID != -1 && reinterpret_cast<intptr_t>(m_shmAddr) != -1; }
+
+  // Returns the XImage object to be accessed after calling read()
+  XImage* image() const { return m_image; }
+
+private:
+  int             m_shmID{-1};
+  void*           m_shmAddr{reinterpret_cast<void*>(-1)};
+  XShmSegmentInfo m_shmSegmentInfo{};
+  Display*        m_display{};
+  XImage*         m_image{};
+};
 
 void NVPSystem::windowScreenshot(struct GLFWwindow* glfwin, const char* filename)
 {
-  Window hwnd = glfwGetX11Window(glfwin);
-  assert(0 && "not yet implemented");
+  const int                  bytesPerPixel = sizeof(Pixel);
+  int                        width{};
+  int                        height{};
+  std::unique_ptr<XShmImage> shmImage;
+  std::vector<Pixel>         imageData;
+  XImage*                    fallbackXImage{};
+
+  Display* display = glfwGetX11Display();
+  Window   window  = glfwGetX11Window(glfwin);
+  glfwGetWindowSize(glfwin, &width, &height);
+
+  if(XShmQueryExtension(display))
+  {
+    // Use the shared memory extension if it is supported to avoid expensive XGetPixel calls
+    // Shared memory allows X11 to copy all the image data at once
+    shmImage = std::make_unique<XShmImage>(display, width, height);
+    if(shmImage->valid() && bytesPerPixel * 8 == shmImage->image()->bits_per_pixel)
+    {
+      if(shmImage->read(window))
+      {
+        XImage* ximg = shmImage->image();
+        imageData.reserve(width * height);
+        for(int y = 0; y < ximg->height; ++y)
+        {
+          Pixel* ximgData = reinterpret_cast<Pixel*>(ximg->data + ximg->bytes_per_line * y);
+          imageData.insert(imageData.end(), ximgData, ximgData + ximg->width);
+        }
+
+        // bgr to rgb
+        for(Pixel& pixel : imageData)
+        {
+          std::swap(pixel.channels.r, pixel.channels.b);
+        }
+      }
+      else
+      {
+        LOGE("Error: Failed to get window contents for screenshot. Falling back to XGetPixel()\n");
+      }
+    }
+    else
+    {
+      LOGE("Error: Failed to create XShm Image for screenshot. Falling back to XGetPixel()\n");
+    }
+  }
+
+  if(imageData.empty())
+  {
+    fallbackXImage = XGetImage(display, window, 0, 0, width, height, AllPlanes, ZPixmap);
+    if(!fallbackXImage)
+    {
+      LOGE("Error: XGetImage() failed to get window contents for screenshot\n");
+      return;
+    }
+    if(bytesPerPixel * 8 != fallbackXImage->bits_per_pixel)
+    {
+      LOGE("Error: XGetImage() returned an image with %i bits per pixel but only %i is supported\n",
+           fallbackXImage->bits_per_pixel, bytesPerPixel * 8);
+      return;
+    }
+    imageData.reserve(width * height);
+    for(int y = 0; y < height; ++y)
+    {
+      for(int x = 0; x < width; ++x)
+      {
+        Pixel pixel;
+        pixel.data = static_cast<uint32_t>(XGetPixel(fallbackXImage, x, y));
+        std::swap(pixel.channels.r, pixel.channels.b);  // bgr to rgb
+        pixel.channels.a = 0xff;                        // set full alpha
+        imageData.push_back(pixel);
+      }
+    }
+  }
+
+  if(!stbi_write_png(filename, width, height, 4, imageData.data(), width * bytesPerPixel))
+  {
+    LOGE("Error: Writing %s failed\n", filename);
+  }
+
+  if(fallbackXImage && !XDestroyImage(fallbackXImage))
+    LOGE("Error: XDestroyImage() failed\n");
 }
 
 void NVPSystem::windowClear(struct GLFWwindow* glfwin, uint32_t r, uint32_t g, uint32_t b)

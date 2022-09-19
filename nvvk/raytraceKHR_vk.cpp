@@ -18,6 +18,7 @@
  */
 
 #include "raytraceKHR_vk.hpp"
+#include <cinttypes>
 #include <numeric>
 
 //--------------------------------------------------------------------------------------------------
@@ -165,8 +166,8 @@ void nvvk::RaytracingBuilderKHR::buildBlas(const std::vector<BlasInput>& input, 
     VkDeviceSize compactSize = std::accumulate(buildAs.begin(), buildAs.end(), 0ULL, [](const auto& a, const auto& b) {
       return a + b.sizeInfo.accelerationStructureSize;
     });
-    LOGI(" RT BLAS: reducing from: %u to: %u = %u (%2.2f%s smaller) \n", asTotalSize, compactSize,
-         asTotalSize - compactSize, (asTotalSize - compactSize) / float(asTotalSize) * 100.f, "%");
+    LOGI(" RT BLAS: reducing from: %" PRIu64 " to: %" PRIu64 " = %" PRIu64 " (%2.2f%s smaller) \n", asTotalSize,
+         compactSize, asTotalSize - compactSize, (asTotalSize - compactSize) / float(asTotalSize) * 100.f, "%");
   }
 
   // Keeping all the created acceleration structures

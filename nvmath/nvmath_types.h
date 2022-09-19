@@ -111,11 +111,7 @@ struct vector2
       , y(xy[1])
   {
   }
-  vector2(const vector2& u)
-      : x(u.x)
-      , y(u.y)
-  {
-  }
+  vector2(const vector2& u) = default;
   vector2(const vector3<T>&);
   vector2(const vector4<T>&);
 
@@ -220,12 +216,7 @@ struct vector3
       , z(v)
   {
   }
-  vector3(const vector3<T>& u)
-      : x(u.x)
-      , y(u.y)
-      , z(u.z)
-  {
-  }
+  vector3(const vector3<T>& u) = default;
 
   template <typename T2>
   explicit vector3(const vector3<T2>& u)
@@ -339,7 +330,7 @@ struct vector3
   const T* get_value() const { return vec_array; }
 
 #ifdef NVMATH_SUPPORTS_GLM
-vector3(const glm::vec3& f)
+  vector3(const glm::vec3& f)
   {
     x = f.x;
     y = f.y;
@@ -423,13 +414,7 @@ struct vector4
       , w(w)
   {
   }
-  vector4(const vector4<T>& u)
-      : x(u.x)
-      , y(u.y)
-      , z(u.z)
-      , w(u.w)
-  {
-  }
+  vector4(const vector4<T>& u) = default;
 
   bool operator==(const vector4<T>& u) const { return (u.x == x && u.y == y && u.z == z && u.w == w) ? true : false; }
 
@@ -562,7 +547,7 @@ struct matrix3
   }
   matrix3(int one) { identity(); }
   matrix3(const T* array) { memcpy(mat_array, array, sizeof(T) * 9); }
-  matrix3(const matrix3<T>& M) { memcpy(mat_array, M.mat_array, sizeof(T) * 9); }
+  matrix3(const matrix3<T>& M) = default;
   matrix3(const T& f0, const T& f1, const T& f2, const T& f3, const T& f4, const T& f5, const T& f6, const T& f7, const T& f8)
       : a00(f0)
       , a10(f1)
@@ -677,8 +662,8 @@ struct matrix3
     mat_array[4] = f[1].y;
     mat_array[5] = f[1].z;
     mat_array[6] = f[2].x;
-    mat_array[7] = f[3].y;
-    mat_array[8] = f[3].z;
+    mat_array[7] = f[2].y;
+    mat_array[8] = f[2].z;
   }
   operator glm::mat3() const
   {
@@ -721,7 +706,7 @@ struct matrix4
     mat_array[14] = 0.0f;
     mat_array[15] = 1.0f;
   }
-  matrix4(const matrix4<T>& M) { memcpy(mat_array, M.mat_array, sizeof(T) * 16); }
+  matrix4(const matrix4<T>& M) = default;
 
   matrix4(const T& f0,
           const T& f1,
@@ -985,13 +970,7 @@ public:
       , w(T(w))
   {
   }
-  quaternion(const quaternion<T>& quaternion)
-  {
-    x = quaternion.x;
-    y = quaternion.y;
-    z = quaternion.z;
-    w = quaternion.w;
-  }
+  quaternion(const quaternion<T>& quaternion) = default;
   quaternion(const vector3<T>& axis, T angle);
   quaternion(const vector3<T>& eulerXYZ);  // From Euler
   quaternion(const matrix3<T>& rot);

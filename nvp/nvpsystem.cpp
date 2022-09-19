@@ -33,8 +33,7 @@ static bool s_sysInit = false;
 
 static void cb_errorfun(int, const char* str)
 {
-  LOGE(str);
-  LOGE("\n");
+  LOGE("%s\n", str);
 }
 
 //---------------------------------------------------------------------------

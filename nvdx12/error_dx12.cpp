@@ -57,11 +57,11 @@ bool checkResult(HRESULT hr, const char* message)
 
   if(message)
   {
-    LOGE("HRESULT %l - %s - %s\n", hr, getResultString(hr), message);
+    LOGE("HRESULT %li - %s - %s\n", hr, getResultString(hr), message);
   }
   else
   {
-    LOGE("HRESULT %l - %s\n", hr, getResultString(hr));
+    LOGE("HRESULT %li - %s\n", hr, getResultString(hr));
   }
   assert(!"Critical DX12 Error");
   return true;
@@ -74,7 +74,7 @@ bool checkResult(HRESULT hr, const char* file, int line)
     return false;
   }
 
-  LOGE("%s(%l): DX12 Error : %s\n", file, line, getResultString(hr));
+  LOGE("%s(%i): DX12 Error : %s\n", file, line, getResultString(hr));
   assert(!"Critical DX12 Error");
 
   return true;

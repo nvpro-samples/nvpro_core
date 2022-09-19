@@ -723,8 +723,7 @@ uint32_t nvvk::AppBase::getMemoryType(uint32_t typeBits, const vk::MemoryPropert
       return i;
     }
   }
-  std::string err = "Unable to find memory type " + vk::to_string(properties);
-  LOGE(err.c_str());
+  LOGE("Unable to find memory type %u\n", static_cast<unsigned int>(properties));
   assert(0);
   return ~0u;
 }

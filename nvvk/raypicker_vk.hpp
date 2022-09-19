@@ -61,6 +61,7 @@
 #include "nvvk/descriptorsets_vk.hpp"
 #include "nvvk/resourceallocator_vk.hpp"
 #include "nvvk/shaders_vk.hpp"
+#include "nvvk/context_vk.hpp"
 
 namespace nvvk {
 
@@ -85,6 +86,12 @@ public:
     int           instanceCustomIndex{0};
     nvmath::vec3f baryCoord{0, 0, 0};
   };
+
+  RayPickerKHR() = default;
+  RayPickerKHR(nvvk::Context* ctx, nvvk::ResourceAllocator* allocator)
+  {
+    setup(ctx->m_device, ctx->m_physicalDevice, ctx->m_queueGCT.familyIndex, allocator);
+  }
 
   void setup(const VkDevice& device, const VkPhysicalDevice& physicalDevice, uint32_t queueFamilyIndex, nvvk::ResourceAllocator* allocator)
   {
@@ -409,5 +416,6 @@ void main()
 )";
   }
 };
+
 
 }  // namespace nvvk

@@ -673,36 +673,16 @@ endmacro()
 macro(_add_package_NsightAftermath)
   if(SUPPORT_AFTERMATH)
      message(STATUS "--> using package Aftermmath")
-    if (NOT DEFINED $ENV{NSIGHT_AFTERMATH_SDK})
-      if(UNIX)
-        set(AFTERMATH_URL "https://developer.nvidia.com/rdp/assets/nsight-aftermath-sdk-2021_1-linux-package")
-        set(AFTERMATH_FILE "${DOWNLOAD_TARGET_DIR}/aftermath.tgz")
-      else()
-        set(AFTERMATH_URL "https://developer.nvidia.com/rdp/assets/nsight-aftermath-sdk-2021_1-windows-package")
-        set(AFTERMATH_FILE "${DOWNLOAD_TARGET_DIR}/aftermath.zip")
-      endif()
+	if (NOT DEFINED NSIGHT_AFTERMATH_SDK)
+		if (DEFINED ENV{NSIGHT_AFTERMATH_SDK})
+		  set(NSIGHT_AFTERMATH_SDK  $ENV{NSIGHT_AFTERMATH_SDK} CACHE STRING "Path to the Aftermath SDK")
+		else()
+		  message("Download nSight Aftermath from from https://developer.nvidia.com/nsight-aftermath")
+		  message("Unzip it to a folder. Then set NSIGHT_AFTERMATH_SDK env. variable to the top of the unpacked aftermath directory before running CMake.")
+		endif()
+	endif()
 
-      set(AFTERMATH_DIR "${DOWNLOAD_TARGET_DIR}/aftermath")
-
-      if (NOT EXISTS ${AFTERMATH_DIR})
-        if (NOT EXISTS ${AFTERMATH_FILE})
-          message(STATUS "Downloading Aftermath SDK...")
-          file(DOWNLOAD ${AFTERMATH_URL}
-              ${AFTERMATH_FILE}
-              SHOW_PROGRESS
-              STATUS STAT
-              LOG  log)
-    #     message(STATUS "Status: ${STAT}
-    #                    Log: ${log}")
-        endif()
-        file(MAKE_DIRECTORY ${AFTERMATH_DIR})
-        execute_process(COMMAND ${CMAKE_COMMAND} -E tar xzf ${AFTERMATH_FILE}
-                        WORKING_DIRECTORY ${AFTERMATH_DIR})
-      endif()
-      set(NSIGHT_AFTERMATH_SDK ${AFTERMATH_DIR})
-    else()
-      set(NSIGHT_AFTERMATH_SDK  $ENV{NSIGHT_AFTERMATH_SDK} CACHE STRING "Path to the Aftermath SDK")
-    endif()
+	message("Looking for nSight Aftermath at: ${NSIGHT_AFTERMATH_SDK}")
 
     find_package(NsightAftermath)
 
@@ -713,7 +693,6 @@ macro(_add_package_NsightAftermath)
         LIST(APPEND LIBRARIES_OPTIMIZED ${NsightAftermath_LIBRARIES})
         LIST(APPEND LIBRARIES_DEBUG ${NsightAftermath_LIBRARIES})
     endif(NsightAftermath_FOUND)
-
   endif(SUPPORT_AFTERMATH)
 
   list(APPEND COMMON_SOURCE_FILES "${BASE_DIRECTORY}/nvpro_core/nvvk/nsight_aftermath_vk.cpp")

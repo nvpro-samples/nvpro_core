@@ -101,8 +101,28 @@
 
 typedef void (*PFN_NVPRINTCALLBACK)(int level, const char* fmt);
 
-void nvprintf(const char* fmt, ...);
-void nvprintfLevel(int level, const char* fmt, ...);
+void nvprintf(
+#ifdef _MSC_VER
+    _Printf_format_string_
+#endif
+    const char* fmt,
+    ...)
+#if defined(__GNUC__) || defined(__clang__)
+    __attribute__((format(printf, 1, 2)));
+#endif
+;
+
+void nvprintfLevel(int level,
+#ifdef _MSC_VER
+                   _Printf_format_string_
+#endif
+                   const char* fmt,
+                   ...)
+#if defined(__GNUC__) || defined(__clang__)
+    __attribute__((format(printf, 2, 3)));
+#endif
+;
+
 void nvprintSetLevel(int l);
 int  nvprintGetLevel();
 void nvprintSetLogFileName(const char* name);

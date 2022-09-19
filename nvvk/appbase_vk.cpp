@@ -805,8 +805,7 @@ uint32_t nvvk::AppBaseVk::getMemoryType(uint32_t typeBits, const VkMemoryPropert
     if(((typeBits & (1 << i)) > 0) && (memoryProperties.memoryTypes[i].propertyFlags & properties) == properties)
       return i;
   }
-  std::string err = "Unable to find memory type " + std::to_string(properties);
-  LOGE(err.c_str());
+  LOGE("Unable to find memory type %u\n", static_cast<unsigned int>(properties));
   assert(0);
   return ~0u;
 }

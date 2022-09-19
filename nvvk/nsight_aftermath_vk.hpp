@@ -18,8 +18,6 @@
  */
 #pragma once
 
-#include <memory>
-
 namespace nvvk {
 
 class GpuCrashTracker
@@ -28,7 +26,7 @@ public:
   GpuCrashTracker();
   ~GpuCrashTracker();
 
-  void Initialize();  // Initialize the GPU crash dump tracker.
+  void initialize();  // Initialize the GPU crash dump tracker.
 
 private:
   class GpuCrashTrackerImpl *m_pimpl;

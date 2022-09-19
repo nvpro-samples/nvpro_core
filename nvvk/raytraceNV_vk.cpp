@@ -1,4 +1,5 @@
 #include "raytraceNV_vk.hpp"
+#include <cinttypes>
 
 void nvvk::RaytracingBuilderNV::setup(VkDevice device, nvvk::ResourceAllocator* allocator, uint32_t queueIndex)
 {
@@ -132,7 +133,7 @@ void nvvk::RaytracingBuilderNV::buildBlas(const std::vector<std::vector<VkGeomet
     uint32_t                   totOriginalSize{0}, totCompactSize{0};
     for(int i = 0; i < m_blas.size(); i++)
     {
-      LOGI("Reducing %i, from %d to %d \n", i, originalSizes[i], compactSizes[i]);
+      LOGI("Reducing %i, from %" PRIu64 " to %" PRIu64 " \n", i, originalSizes[i], compactSizes[i]);
       totOriginalSize += (uint32_t)originalSizes[i];
       totCompactSize += (uint32_t)compactSizes[i];
 

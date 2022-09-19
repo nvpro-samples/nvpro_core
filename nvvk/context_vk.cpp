@@ -216,7 +216,7 @@ bool Context::initInstance(const ContextCreateInfo& info)
   // #Aftermath - Initialization
   if(::isAftermathAvailable() && info.enableAftermath)
   {
-    m_gpuCrashTracker.Initialize();
+    m_gpuCrashTracker.initialize();
   }
 
   VkApplicationInfo applicationInfo{VK_STRUCTURE_TYPE_APPLICATION_INFO};
@@ -1064,14 +1064,14 @@ std::vector<uint32_t> Context::getCompatibleDevices(const ContextCreateInfo& inf
   }
   if(info.verboseCompatibleDevices)
   {
-    LOGI("Physical devices found : ", compatible);
+    LOGI("Physical devices found : ");
     if(compatible > 0)
     {
       LOGI("%d\n", compatible);
     }
     else
     {
-      LOGI("OMG... NONE !!\n", compatible);
+      LOGI("OMG... NONE !!\n");
     }
   }
 

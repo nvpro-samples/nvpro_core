@@ -372,10 +372,10 @@ const char* ParameterList::toString(Type typ)
 void ParameterList::print() const
 {
   // Get maximum parameter name length
-  size_t maxParamNameLength = 0;
+  uint32_t maxParamNameLength = 0;
   for(const auto& it : m_parameters)
   {
-    maxParamNameLength = std::max(it.name.size(), maxParamNameLength);
+    maxParamNameLength = std::max(uint32_t(it.name.size()), maxParamNameLength);
   }
 
   // Print header

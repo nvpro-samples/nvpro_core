@@ -139,7 +139,12 @@ void nvprintf2(va_list& vlist, const char* fmt, int level)
   }
   ::printf("%s", s_strBuffer);
 }
-void nvprintf(const char* fmt, ...)
+void nvprintf(
+#ifdef _MSC_VER
+    _Printf_format_string_
+#endif
+    const char* fmt,
+    ...)
 {
   //    int r = 0;
   va_list vlist;
@@ -147,7 +152,12 @@ void nvprintf(const char* fmt, ...)
   nvprintf2(vlist, fmt, s_printLevel);
   va_end(vlist);
 }
-void nvprintfLevel(int level, const char* fmt, ...)
+void nvprintfLevel(int level,
+#ifdef _MSC_VER
+                   _Printf_format_string_
+#endif
+                   const char* fmt,
+                   ...)
 {
   va_list vlist;
   va_start(vlist, fmt);

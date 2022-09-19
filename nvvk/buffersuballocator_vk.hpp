@@ -108,18 +108,20 @@ public:
 
     bool setup(uint32_t blockIndex_, uint64_t offset_, uint64_t size_, bool dedicated_)
     {
-      blockIndex = blockIndex_;
+      const uint64_t blockBitsMask = ((1ULL << BLOCKBITS) - 1);
+      assert((blockIndex_ & ~((1ULL << 11) - 1)) == 0);
+      blockIndex = blockIndex_ & ((1ULL << 11) - 1);
       if(dedicated_)
       {
         dedicated = 1;
-        offset    = size_ & ((uint64_t(1) << BLOCKBITS) - 1);
-        size      = size_ >> BLOCKBITS;
+        offset    = size_ & blockBitsMask;
+        size      = (size_ >> BLOCKBITS) & blockBitsMask;
       }
       else
       {
         dedicated = 0;
-        offset    = offset_ / uint64_t(BASE_ALIGNMENT);
-        size      = size_ / uint64_t(BASE_ALIGNMENT);
+        offset    = (offset_ / uint64_t(BASE_ALIGNMENT)) & blockBitsMask;
+        size      = (size_ / uint64_t(BASE_ALIGNMENT)) & blockBitsMask;
       }
 
       return (getBlockIndex() == blockIndex_ && getOffset() == offset_ && getSize() == size_);

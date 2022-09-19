@@ -195,5 +195,18 @@ inline const char* upToLastSpace(const char* n) { return std::max<const char*>(n
   auto _scopeLabel =  m_debug.scopeLabel(_cmd, std::string(CLASS_NAME) + std::string("::") + std::string(__func__) + std::string(", in ")   \
                                    + std::string(nvvk::fileNameSplitter(__FILE__)) + std::string(":" S__LINE__ ")"))
 
+
+// Non-defined named variable of the above macros (Ex: m_myDbg->DBG_NAME(vulan_obj); )
+#define DBG_NAME(_x)                                                                                                   \
+  setObjectName(_x, (std::string(CLASS_NAME) + std::string("::") + std::string(#_x " (") + NAME_FILE_LOCATION).c_str())
+#define DBG_NAME_IDX(_x, _i)                                                                                           \
+  setObjectName(_x, (std::string(CLASS_NAME) + std::string("::") + std::string(#_x " (" #_i "=") + std::to_string(_i)  \
+                     + std::string(", ") + NAME_FILE_LOCATION)                                                         \
+                        .c_str())
+#define DBG_SCOPE(_cmd)                                                                                                \
+  scopeLabel(_cmd, std::string(CLASS_NAME) + std::string("::") + std::string(__func__) + std::string(", in ")          \
+                       + std::string(nvvk::fileNameSplitter(__FILE__)) + std::string(":" S__LINE__ ")"))
+
+
 // clang-format on
 }  // namespace nvvk
