@@ -497,6 +497,7 @@ AllocationID DeviceMemoryAllocator::allocInternal(const VkMemoryRequirements&   
 
   float priority = m_supportsPriority ? state.priority : DEFAULT_PRIORITY;
   bool  isFirst  = !dedicated;
+  bool  mappable = (memProps & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0;
 
   if(!dedicated)
   {
@@ -508,7 +509,8 @@ AllocationID DeviceMemoryAllocator::allocInternal(const VkMemoryRequirements&   
 
       // Ignore invalid or blocks with the wrong memory type
       if(!block.mem || block.memoryTypeIndex != memInfo.memoryTypeIndex || isLinear != block.isLinear || block.priority != priority
-         || block.allocateFlags != state.allocateFlags || block.allocateDeviceMask != state.allocateDeviceMask)
+         || block.allocateFlags != state.allocateFlags || block.allocateDeviceMask != state.allocateDeviceMask
+         || (!block.mappable && mappable))
       {
         continue;
       }
@@ -623,7 +625,7 @@ AllocationID DeviceMemoryAllocator::allocInternal(const VkMemoryRequirements&   
     block.usedSize        = blockSize;
     block.mapCount        = 0;
     block.mapped          = nullptr;
-    block.mappable        = (memProps & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0;
+    block.mappable        = mappable;
 
     Allocation allocation;
     allocation.mem    = block.mem;
