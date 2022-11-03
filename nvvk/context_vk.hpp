@@ -114,7 +114,7 @@ struct ContextCreateInfo
 {
   // aftermathFlags != 0 will enable GPU crash dumps when Aftermath is available via SUPPORT_AFTERMATH
   // No-op when Aftermath is not available.
-  ContextCreateInfo(bool bUseValidation = true, VkDeviceDiagnosticsConfigFlagsNV aftermathFlags = defaultAftermathFlags);
+  ContextCreateInfo(bool bUseValidation = true, VkDeviceDiagnosticsConfigFlagsNV aftermathFlags = defaultAftermathFlags, bool requestDefQueues = true);
 
   void setVersion(uint32_t major, uint32_t minor);
 
@@ -142,6 +142,8 @@ struct ContextCreateInfo
   // if you want more/different setups manipulate the requestedQueues vector
   // or use this function.
   void addRequestedQueue(VkQueueFlags flags, uint32_t count = 1, float priority = 1.0f);
+
+  void requestDefaultQueues();
 
   // this callback is run after extension and version related feature structs were queried for their support 
   // from the physical device and prior using them for device creation. It allows custom logic for disabling

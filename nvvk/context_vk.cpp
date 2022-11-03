@@ -765,11 +765,7 @@ bool Context::hasInstanceExtension(const char* name) const
   return false;
 }
 
-
-//--------------------------------------------------------------------------------------------------
-//
-//
-ContextCreateInfo::ContextCreateInfo(bool bUseValidation, VkDeviceDiagnosticsConfigFlagsNV aftermathFlags)
+void ContextCreateInfo::requestDefaultQueues()
 {
   if(defaultQueueGCT)
   {
@@ -783,6 +779,15 @@ ContextCreateInfo::ContextCreateInfo(bool bUseValidation, VkDeviceDiagnosticsCon
   {
     requestedQueues.push_back({defaultQueueC, 1, defaultPriorityC});
   }
+}
+
+//--------------------------------------------------------------------------------------------------
+//
+//
+ContextCreateInfo::ContextCreateInfo(bool bUseValidation, VkDeviceDiagnosticsConfigFlagsNV aftermathFlags, bool requestDefQueues)
+{
+  if(requestDefQueues)
+    requestDefaultQueues();
 
 #ifdef _DEBUG
   instanceExtensions.push_back({VK_EXT_DEBUG_UTILS_EXTENSION_NAME, true});

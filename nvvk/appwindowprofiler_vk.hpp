@@ -53,14 +53,15 @@ namespace nvvk {
 class AppWindowProfilerVK : public nvh::AppWindowProfiler
 {
 public:
-  AppWindowProfilerVK(bool singleThreaded = true)
+  AppWindowProfilerVK(bool singleThreaded = true, bool requestDefQueues = true)
       : nvh::AppWindowProfiler(singleThreaded)
+      , m_contextInfo(true, defaultAftermathFlags, requestDefQueues)
       , m_profilerVK(&m_profiler)
   {
   }
 
   bool              m_swapVsync = false;
-  ContextCreateInfo m_contextInfo{};
+  ContextCreateInfo m_contextInfo;
   Context           m_context{};
   SwapChain         m_swapChain{};
   VkSurfaceKHR      m_surface{};
