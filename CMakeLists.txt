@@ -200,7 +200,11 @@ if((${CMAKE_VERSION} VERSION_GREATER "3.16.0") OR (${CMAKE_VERSION} VERSION_EQUA
   )
 endif()
 
-
+# Add X11 for screenshot support on linux
+if(UNIX)
+  find_package(X11 REQUIRED)
+  LIST(APPEND PLATFORM_LIBRARIES ${X11_LIBRARIES})
+endif()
 
 target_link_libraries(nvpro_core
   ${PLATFORM_LIBRARIES} 
