@@ -19,6 +19,9 @@
 //--------------------------------------------------------------------
 #pragma once
 #include <chrono>
+#include <string>
+#include "nvprint.hpp"
+
 //-----------------------------------------------------------------------------
 /// \struct TimeSampler
 /// TimeSampler does time sampling work
@@ -27,13 +30,13 @@ struct TimeSampler
 {
   using Clock     = std::chrono::steady_clock;
   using TimePoint = typename Clock::time_point;
-  bool   bNonStopRendering;
-  int    renderCnt;
+  bool      bNonStopRendering;
+  int       renderCnt;
   TimePoint start_time, end_time;
-  int    timing_counter;
-  int    maxTimeSamples;
-  int    frameFPS;
-  double frameDT;
+  int       timing_counter;
+  int       maxTimeSamples;
+  int       frameFPS;
+  double    frameDT;
   TimeSampler()
   {
     bNonStopRendering = true;
@@ -113,8 +116,22 @@ namespace nvh {
 struct Stopwatch
 {
   Stopwatch() { reset(); }
-  void reset() { startTime = std::chrono::steady_clock::now(); }
-  auto elapsed() { return std::chrono::duration<double>(std::chrono::steady_clock::now() - startTime) * 1000.; }
+  void   reset() { startTime = std::chrono::steady_clock::now(); }
+  double elapsed()
+  {
+    return std::chrono::duration<double>(std::chrono::steady_clock::now() - startTime).count() * 1000.;
+  }
   std::chrono::time_point<std::chrono::steady_clock> startTime;
 };
+
+// Logging the time spent while alive in a scope.
+// Usage: at beginning of a function:
+//   auto stimer = ScopedTimer("Time for doing X");
+struct ScopedTimer
+{
+  ScopedTimer(const std::string& str) { LOGI("%s", str.c_str()); }
+  ~ScopedTimer() { LOGI(" %.3f ms\n", sw_.elapsed()); }
+  nvh::Stopwatch sw_;
+};
+
 }  // namespace nvh

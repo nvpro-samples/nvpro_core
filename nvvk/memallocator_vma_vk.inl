@@ -20,6 +20,10 @@
 #include "vk_mem_alloc.h"
 #include "error_vk.hpp"
 
+#if defined(LINUX)
+#include <signal.h> // LINUX SIGTRAP
+#endif
+
 namespace nvvk {
 
 //--------------------------------------------------------------------------------------------------
@@ -112,6 +116,26 @@ inline MemHandle VMAMemoryAllocator::allocMemory(const MemAllocateInfo& allocInf
   VmaAllocation     allocation = nullptr;
 
   VkResult result = vmaAllocateMemory(m_vma, &allocInfo.getMemoryRequirements(), &vmaAllocInfo, &allocation, &allocationDetail);
+
+#ifdef _DEBUG
+  // !! VMA leaks finder!!
+  // Call findLeak with the value showing in the leak report.
+  // Add : #define VMA_DEBUG_LOG(format, ...) do { printf(format, __VA_ARGS__); printf("\n"); } while(false)
+  //  - in the app where VMA_IMPLEMENTATION is defined, to have a leak report
+  static uint64_t counter{0};
+  if(counter == m_leakID)
+  {
+    bool stop_here = true;
+#if defined(_MSVC_LANG)
+    __debugbreak();
+#elif defined(LINUX)
+    raise(SIGTRAP);
+#endif
+  }
+  std::string allocID = std::to_string(counter++);
+  vmaSetAllocationName(m_vma, allocation, allocID.c_str());
+#endif  // _DEBUG
+
   NVVK_CHECK(result);
   if(pResult)
   {

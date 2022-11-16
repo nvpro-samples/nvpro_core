@@ -159,7 +159,7 @@ if __name__ == "__main__":
     blocks = {}
 
     # CODE BLOCS for generated code
-    block_keys = ('STATIC_PFN', 'LOAD_PROC',  'DECLARE')
+    block_keys = ('STATIC_PFN', 'LOAD_PROC',  'DECLARE', 'DEFINE')
 
     for key in block_keys:
         blocks[key] = ''
@@ -238,6 +238,8 @@ if __name__ == "__main__":
         ifdef = '#ifdef ' + group + '\n'
         for key in block_keys:
             blocks[key] += ifdef
+
+        blocks['DEFINE'] += '#define NVVK_HAS_' + group + '\n'
 
         # Getting all commands within the group
         for name in sorted(cmdnames):

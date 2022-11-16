@@ -112,8 +112,8 @@ struct vector2
   {
   }
   vector2(const vector2& u) = default;
-  vector2(const vector3<T>&);
-  vector2(const vector4<T>&);
+  explicit vector2(const vector3<T>&);
+  explicit vector2(const vector4<T>&);
 
   bool operator==(const vector2& u) const { return (u.x == x && u.y == y) ? true : false; }
 
@@ -204,7 +204,7 @@ struct vector3
       , z(xyz[2])
   {
   }
-  vector3(const vector2<T>& u)
+  explicit vector3(const vector2<T>& u)
       : x(u.x)
       , y(u.y)
       , z(1.0f)
@@ -226,7 +226,7 @@ struct vector3
   {
   }
 
-  vector3(const vector4<T>&);
+  explicit vector3(const vector4<T>&);
 
   bool operator==(const vector3<T>& u) const { return (u.x == x && u.y == y && u.z == z) ? true : false; }
 
@@ -379,14 +379,14 @@ struct vector4
       , w(xyzw[3])
   {
   }
-  vector4(const vector2<T>& u)
+  explicit vector4(const vector2<T>& u)
       : x(u.x)
       , y(u.y)
       , z(0.0f)
       , w(1.0f)
   {
   }
-  vector4(const vector2<T>& u, const T zz)
+  explicit vector4(const vector2<T>& u, const T zz)
       : x(u.x)
       , y(u.y)
       , z(zz)
@@ -400,7 +400,7 @@ struct vector4
       , w(ww)
   {
   }
-  vector4(const vector3<T>& u)
+  explicit vector4(const vector3<T>& u)
       : x(u.x)
       , y(u.y)
       , z(u.z)
@@ -693,7 +693,7 @@ struct matrix4
   matrix4(int one) { identity(); }
 
   matrix4(const T* array) { memcpy(mat_array, array, sizeof(T) * 16); }
-  matrix4(const matrix3<T>& M)
+  explicit matrix4(const matrix3<T>& M)
   {
     memcpy(mat_array, M.mat_array, sizeof(T) * 3);
     mat_array[3] = 0.0;
@@ -955,7 +955,7 @@ public:
       : quaternion(0, 0, 0, 0)
   {
   }
-  quaternion(T* q)
+  explicit quaternion(T* q)
   {
     x = q[0];
     y = q[1];
@@ -972,9 +972,9 @@ public:
   }
   quaternion(const quaternion<T>& quaternion) = default;
   quaternion(const vector3<T>& axis, T angle);
-  quaternion(const vector3<T>& eulerXYZ);  // From Euler
-  quaternion(const matrix3<T>& rot);
-  quaternion(const matrix4<T>& rot);
+  explicit quaternion(const vector3<T>& eulerXYZ);  // From Euler
+  explicit quaternion(const matrix3<T>& rot);
+  explicit quaternion(const matrix4<T>& rot);
   quaternion<T>& operator=(const quaternion<T>& quaternion);
   quaternion<T>  operator-() { return quaternion<T>(-x, -y, -z, -w); }
   quaternion<T>  inverse();
@@ -1079,7 +1079,7 @@ struct plane : public vector4<T>
   //define plane from 3 coefficients: x*a + y*b + z*c + d = 0
   inline explicit plane(T a, T b, T c, T d, NormalizeInConstruction normalizePlane = yes);
 
-  vector3<T> normal() const { return *this; }
+  vector3<T> normal() const { return vector3<T>(this->x, this->y, this->z); }
   T          distanceFromOrigin() const { return -this->w; }
 
   plane operator-();

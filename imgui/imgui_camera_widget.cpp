@@ -238,37 +238,50 @@ static CameraManager sCamMgr;
 void CurrentCameraTab(nvh::CameraManipulator& cameraM, nvh::CameraManipulator::Camera& camera, bool& changed, bool& instantSet)
 {
 
-  bool           y_is_up = camera.up.y == 1;
-  Control::Flags flag    = Control::Flags::Normal;
+  bool y_is_up = camera.up.y == 1;
 
-  // Using IsItemDeactivatedAfterEdit to avoid the value to change while typing
-  Gui::Custom("Eye", "Position of the Camera", [&] { return ImGui::InputFloat3("##Eye", &camera.eye.x, "%.5f"); });
+  PropertyEditor::begin();
+  PropertyEditor::entry(
+      "Eye", [&] { return ImGui::InputFloat3("##Eye", &camera.eye.x, "%.5f"); }, "Position of the Camera");
   changed |= ImGui::IsItemDeactivatedAfterEdit();
-
-  Gui::Custom("Center", "Center of camera interest", [&] { return ImGui::InputFloat3("##Ctr", &camera.ctr.x, "%.5f"); });
+  PropertyEditor::entry(
+      "Center", [&] { return ImGui::InputFloat3("##Ctr", &camera.ctr.x, "%.5f"); }, "Center of camera interest");
   changed |= ImGui::IsItemDeactivatedAfterEdit();
-
-  changed |= Gui::Checkbox("Y is UP", "Is Y pointing up or Z?", &y_is_up);
-  if(Gui::Drag("FOV", "Field of view in degrees", &camera.fov, &sCamMgr.cameras[0].fov, flag, 1.0f, 179.0f, 0.1f, "%.2f deg"))
+  changed |= PropertyEditor::entry(
+      "Y is UP", [&] { return ImGui::Checkbox("##Y", &y_is_up); }, "Is Y pointing up or Z?");
+  if(PropertyEditor::entry(
+         "FOV", [&] { return ImGui::DragFloat("##Y", &camera.fov); }, "Field of view in degrees?"))
   {
-    // Need to instantly set the camera, otherwise the transition to the new camera will have
-    // a different value as the one currently set the next time it comes here and will be impossible
-    // to set the value.
     instantSet = true;
     changed    = true;
   }
+
+  if(PropertyEditor::treeNode("Clip planes"))
+  {
+    nvmath::vec2f clip = cameraM.getClipPlanes();
+    PropertyEditor::entry("Near", [&] { return ImGui::InputFloat("##CN", &clip.x); });
+    changed |= ImGui::IsItemDeactivatedAfterEdit();
+    PropertyEditor::entry("Far", [&] { return ImGui::InputFloat("##CF", &clip.y); });
+    changed |= ImGui::IsItemDeactivatedAfterEdit();
+    PropertyEditor::treePop();
+    cameraM.setClipPlanes(clip);
+  }
+
   camera.up = y_is_up ? nvmath::vec3f(0, 1, 0) : nvmath::vec3f(0, 0, 1);
 
   if(cameraM.isAnimated())
   {
-    // Ignoring any changes while the camera is moving to the goal. The camera has to be in the
-    // new position before setting a new value.
+    // Ignoring any changes while the camera is moving to the goal.
+    // The camera has to be in the new position before setting a new value.
     changed = false;
   }
 
+  ImGui::TableNextRow();
+  ImGui::TableNextColumn();
+
   ImGui::TextDisabled("(?)");
   ImGuiH::tooltip(cameraM.getHelp().c_str(), false, 0.0f);
-  ImGui::SameLine();
+  ImGui::TableNextColumn();
   if(ImGui::SmallButton("Copy"))
   {
     std::string text = nvh::stringFormat("{%.5f, %.5f, %.5f}, {%.5f, %.5f, %.5f}, {%.5f, %.5f, %.5f}",  //
@@ -284,7 +297,7 @@ void CurrentCameraTab(nvh::CameraManipulator& cameraM, nvh::CameraManipulator::C
   {
     float val[9];
     int   result = sscanf(pPastedString, "{%f, %f, %f}, {%f, %f, %f}, {%f, %f, %f}", &val[0], &val[1], &val[2], &val[3],
-                        &val[4], &val[5], &val[6], &val[7], &val[8]);
+                          &val[4], &val[5], &val[6], &val[7], &val[8]);
     if(result == 9)  // 9 value properly scanned
     {
       camera.eye = nvmath::vec3f{val[0], val[1], val[2]};
@@ -294,6 +307,7 @@ void CurrentCameraTab(nvh::CameraManipulator& cameraM, nvh::CameraManipulator::C
     }
   }
   ImGuiH::tooltip("Paste from the clipboard the current camera: {eye}, {ctr}, {up}");
+  PropertyEditor::end();
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -371,43 +385,35 @@ void SavedCameraTab(nvh::CameraManipulator& cameraM, nvh::CameraManipulator::Cam
 void CameraExtraTab(nvh::CameraManipulator& cameraM, bool& changed)
 {
   // Navigation Mode
-  auto mode = cameraM.getMode();
-  changed |= Gui::Custom("Navigation", "Camera Navigation Mode", [&] {
-    int   rmode  = static_cast<int>(mode);
-    float indent = ImGui::GetCursorPos().x;
-    changed |= ImGui::RadioButton("Examine", &rmode, nvh::CameraManipulator::Examine);
-    ImGuiH::tooltip("The camera orbit around a point of interest");
-    ImGui::NewLine();
-    ImGui::SameLine(indent);
-    changed |= ImGui::RadioButton("Fly", &rmode, nvh::CameraManipulator::Fly);
-    ImGuiH::tooltip("The camera is free and move toward the looking direction");
-    ImGui::NewLine();
-    ImGui::SameLine(indent);
-    changed |= ImGui::RadioButton("Walk", &rmode, nvh::CameraManipulator::Walk);
-    ImGuiH::tooltip("The camera is free but stay on a plane");
-    cameraM.setMode(static_cast<nvh::CameraManipulator::Modes>(rmode));
-    return changed;
-  });
+  PropertyEditor::begin();
+  auto  mode     = cameraM.getMode();
+  auto  speed    = cameraM.getSpeed();
+  auto  duration = static_cast<float>(cameraM.getAnimationDuration());
 
-  // Clip near/far
-  nvmath::vec2f clip = cameraM.getClipPlanes();
-  Gui::Custom("Near / Far", "Clip Planes", [&] { return ImGui::InputFloat2("##Clip", &clip.x); });
-  changed |= ImGui::IsItemDeactivatedAfterEdit();
-  cameraM.setClipPlanes(clip);
+  changed |= PropertyEditor::entry(
+      "Navigation",
+      [&] {
+        int rmode = static_cast<int>(mode);
+        changed |= ImGui::RadioButton("Examine", &rmode, nvh::CameraManipulator::Examine);
+        ImGuiH::tooltip("The camera orbit around a point of interest");
+        changed |= ImGui::RadioButton("Fly", &rmode, nvh::CameraManipulator::Fly);
+        ImGuiH::tooltip("The camera is free and move toward the looking direction");
+        changed |= ImGui::RadioButton("Walk", &rmode, nvh::CameraManipulator::Walk);
+        ImGuiH::tooltip("The camera is free but stay on a plane");
+        cameraM.setMode(static_cast<nvh::CameraManipulator::Modes>(rmode));
+        return changed;
+      },
+      "Camera Navigation Mode");
 
-  // Speed
-  auto  speed = cameraM.getSpeed();
-  float def_speed{3.0f};
-  changed |= ImGuiH::Control::Slider("Speed", "Changing the default speed movement", &speed, &def_speed,
-                                     Control::Flags::Normal, 0.01f, 10.f);
+  changed |= PropertyEditor::entry(
+      "Speed", [&] { return ImGui::SliderFloat("##S", &speed, 0.01F, 10.0F); }, "Changing the default speed movement");
+  changed |= PropertyEditor::entry(
+      "Transition", [&] { return ImGui::SliderFloat("##S", &duration, 0.0F, 2.0F); }, "Nb seconds to move to new position");
+
   cameraM.setSpeed(speed);
-
-  // Animation
-  float duration = (float)cameraM.getAnimationDuration();
-  float def_duration{0.5f};
-  changed |= ImGuiH::Control::Slider("Transition", "Nb seconds to move to new position", &duration, &def_duration,
-                                     Control::Flags::Normal, 0.0f, 2.f);
   cameraM.setAnimationDuration(duration);
+
+  PropertyEditor::end();
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -453,6 +459,7 @@ bool CameraWidget(nvh::CameraManipulator& cameraM /*= nvh::CameraManipulator::Si
     cameraM.setCamera(camera, instantSet);
     sCamMgr.markIniSettingsDirty();
   }
+  ImGui::Separator();
 
   return changed;
 }

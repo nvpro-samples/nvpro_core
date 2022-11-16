@@ -166,6 +166,41 @@ template<class T>  T dot(const vector3<T> & v, const vector4<T> & w);
 template<class T>  T dot(const vector4<T> & v, const vector3<T> & w);
 template<class T>  T dot(const vector2<T> & v, const vector2<T> & w);
 
+// clamp
+template<class T> T clamp(T x, T minVal, T maxVal);
+template<class T> vector3<T> clamp(const vector3<T>& x, const vector3<T>& minVal, const vector3<T>& maxVal);
+
+// min / max
+template<class T> T min(T minVal, T maxVal);
+template<class T> T max(T minVal, T maxVal);
+template<class T> vector3<T> max(const vector3<T>& minVal, const vector3<T>& maxVal);
+
+// mix
+template<class T> T mix(T x, T y, T a);
+template<class T> vector3<T> mix(const vector3<T>& x, const vector3<T>& y, T a);
+template<class T> vector3<T> mix(const vector3<T>& x, const vector3<T>& y, const vector3<T>& a);
+
+// Pow
+template<class T> vector3<T> pow(const vector3<T>& base, const vector3<T>& exponent);
+
+// sqrt
+template<class T> vector3<T> sqrt(const vector3<T>& x);
+
+// radians 
+template<class T> T radians(T x);
+
+// sin
+template<class T> vector3<T> sin(const vector3<T>& x);
+
+// mod 
+template<class T> T mod(T a, T b);
+template<class T> vector2<T> mod(const vector2<T>& a, T b);
+
+// fract 
+template<class T> T fract(T x);
+
+
+
 // compute the reflected vector R of L w.r.t N - vectors need to be 
 // normalized
 //
@@ -243,6 +278,8 @@ template<class T>  matrix4<T> transpose(const matrix4<T> & A);
 template<class T>  matrix4<T> invert(const matrix4<T> & A, bool& valid);
 template<class T>  matrix4<T> invert(const matrix4<T> & A);
 template<class T>  matrix3<T> invert(const matrix3<T> & A);
+template<class T>  matrix4<T> inverse(const matrix4<T>& A);
+template<class T>  matrix3<T> inverse(const matrix3<T>& A);
 
 // Computes B = inverse(A)
 //                                       T  T

@@ -491,13 +491,12 @@ public:
   void deinit();
 
   //////////////////////////////////////////////////////////////////////////
-
-  VkDescriptorSet        getSet(uint32_t dstSetIdx = 0) const { return m_descriptorSets[dstSetIdx]; }
+  VkDescriptorSet        getSet(uint32_t dstSetIdx = 0) const;
   const VkDescriptorSet* getSets(uint32_t dstSetIdx = 0) const { return m_descriptorSets.data() + dstSetIdx; }
   uint32_t               getSetsCount() const { return static_cast<uint32_t>(m_descriptorSets.size()); }
 
-  VkDescriptorSetLayout        getLayout() const { return m_layout; }
-  VkPipelineLayout             getPipeLayout() const { return m_pipelineLayout; }
+  const VkDescriptorSetLayout& getLayout() const { return m_layout; }
+  const VkPipelineLayout&      getPipeLayout() const { return m_pipelineLayout; }
   const DescriptorSetBindings& getBindings() const { return m_bindings; }
   VkDevice                     getDevice() const { return m_device; }
 

@@ -126,7 +126,10 @@ public:
   void   setCamera(Camera camera, bool instantSet = true);
 
   // Retrieve the position, interest and up vector of the camera
-  void getLookat(nvmath::vec3f& eye, nvmath::vec3f& center, nvmath::vec3f& up) const;
+  void          getLookat(nvmath::vec3f& eye, nvmath::vec3f& center, nvmath::vec3f& up) const;
+  nvmath::vec3f getEye() const { return m_current.eye; }
+  nvmath::vec3f getCenter() const { return m_current.ctr; }
+  nvmath::vec3f getUp() const { return m_current.up; }
 
   // Set the manipulator mode, from Examiner, to walk, to fly, ...
   void setMode(Modes mode) { m_mode = mode; }

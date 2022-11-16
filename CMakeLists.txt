@@ -80,12 +80,37 @@ if(USING_VULKANSDK)
   # nsight_aftermath_vk.cpp into the projects automatically
   list(REMOVE_ITEM NVHELPERSVK_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/nvvk/nsight_aftermath_vk.cpp)
 
+  # Adding compile_glsl 
+  if(EXISTS ${BASE_DIRECTORY}/nvpro_core/cmake/utilities.cmake)
+    include(${BASE_DIRECTORY}/nvpro_core/cmake/utilities.cmake)
+  endif()
+
+  # Vulkan-high-level helpers
+  file(GLOB NVVKHL_SOURCE nvvkhl/*.cpp nvvkhl/*.hpp nvvkl/*.inl nvvkh;/*.h)
+  set(SHD_DIR nvvkhl/shaders)
+  file(GLOB SHD_HDR  ${SHD_DIR}/*.glsl ${SHD_DIR}/*.h)
+  file(GLOB SHD_SRC ${SHD_DIR}/*.vert ${SHD_DIR}/*.frag ${SHD_DIR}/*.comp ${SHD_DIR}/*.rgen ${SHD_DIR}/*.rchit ${SHD_DIR}/*.rmiss)
+  # Compiling shaders to Spir-V header
+  compile_glsl(
+      SOURCE_FILES ${SHD_SRC}
+      HEADER_FILES ${SHD_HDR}
+      DST "${CMAKE_CURRENT_SOURCE_DIR}/_autogen" 
+      VULKAN_TARGET "vulkan1.2"
+      HEADER ON
+      DEPENDENCY ${VULKAN_BUILD_DEPENDENCIES}
+      FLAGS "-I${SHD_DIR}  -I${CMAKE_CURRENT_SOURCE_DIR} -g"
+      )
+
   if (NOT TARGET vma)
     list(REMOVE_ITEM NVHELPERSVK_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/nvvk/memallocator_vma_vk.hpp)
     list(REMOVE_ITEM NVHELPERSVK_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/nvvk/memallocator_vma_vk.inl)
+    list(REMOVE_ITEM NVVKHL_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/nvvkhl/alloc_vma.hpp)
   endif()
   
   source_group("nvvk" FILES ${NVHELPERSVK_SOURCE})
+  source_group("nvvkhl" FILES ${NVVKHL_SOURCE})
+  source_group("nvvkhl/shaders" FILES ${GLSL_SOURCES} ${GLSL_HEADERS})
+  set(NVVKHL_SHADERS ${GLSL_SOURCES} ${GLSL_HEADERS})
 
   string(CONCAT library_name ${library_name} "_vk")
   
@@ -186,6 +211,8 @@ add_library(nvpro_core STATIC
   ${NVPWINDOW_SOURCE}
   ${OPENGL_FILES}
   ${NVHELPERSVK_SOURCE}
+  ${NVVKHL_SOURCE}
+  ${NVVKHL_SHADERS}
   ${NVHELPERSGL_SOURCE}
   ${NVHELPERSDX12_SOURCE}
   ${PACKAGE_SOURCE_FILES}

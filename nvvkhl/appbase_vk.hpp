@@ -29,7 +29,7 @@
 
 // Utilities
 #include "nvh/cameramanipulator.hpp"
-#include "swapchain_vk.hpp"
+#include "nvvk/swapchain_vk.hpp"
 
 #ifdef LINUX
 #include <unistd.h>
@@ -46,19 +46,19 @@
 #include <set>
 #include <vector>
 
-namespace nvvk {
+namespace nvvkhl {
 
 
 //--------------------------------------------------------------------------------------------------
 /**
 
-# class nvvk::AppBaseVk
+# class nvvkhl::AppBaseVk
 
-nvvk::AppBaseVk is used in a few samples, can serve as base class for various needs.
+nvvkhl::AppBaseVk is used in a few samples, can serve as base class for various needs.
 They might differ a bit in setup and functionality, but in principle aid the setup of context and window,
 as well as some common event processing.
 
-The nvvk::AppBaseVk serves as the base class for many ray tracing examples and makes use of the Vulkan C API.
+The nvvkhl::AppBaseVk serves as the base class for many ray tracing examples and makes use of the Vulkan C API.
 It does the basics for Vulkan, by holding a reference to the instance and device, but also comes with optional default setups 
 for the render passes and the swapchain.
 

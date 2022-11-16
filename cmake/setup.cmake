@@ -82,7 +82,9 @@ else ()
   set(ARCH "x86" CACHE STRING "CPU Architecture")
 endif()
 
-set(OUTPUT_PATH ${BASE_DIRECTORY}/bin_${ARCH} CACHE PATH "Directory where outputs will be stored")
+if(NOT OUTPUT_PATH)
+  set(OUTPUT_PATH ${BASE_DIRECTORY}/bin_${ARCH} CACHE PATH "Directory where outputs will be stored")
+endif()
 
 # Set the default build to Release.  Note this doesn't do anything for the VS
 # default build target.
@@ -543,24 +545,18 @@ endmacro(_optional_package_DirectX11)
 # Optional DirectX12 package
 #
 macro(_add_package_DirectX12)
-  find_package(DX12SDK REQUIRED)
-  if(DX12SDK_FOUND)
-      Message(STATUS "--> using package DirectX 12")
-      get_directory_property(hasParent PARENT_DIRECTORY)
-      if(hasParent)
-        set( USING_DIRECTX12 "YES" PARENT_SCOPE) # PARENT_SCOPE important to have this variable passed to parent. Here we want to notify that something used the DX12 package
-      else()
-        set( USING_DIRECTX12 "YES")
-      endif()
-      add_definitions(-DNVP_SUPPORTS_DIRECTX12)
-      include_directories(${DX12SDK_INCLUDE_DIR})
-      include_directories(${BASE_DIRECTORY}/nvpro_core/third_party/dxc/Include)
-      include_directories(${BASE_DIRECTORY}/nvpro_core/third_party/dxh/include/directx)
-      LIST(APPEND LIBRARIES_OPTIMIZED ${DX12SDK_D3D_LIBRARIES})
-      LIST(APPEND LIBRARIES_DEBUG ${DX12SDK_D3D_LIBRARIES})
- else()
-     Message(STATUS "--> NOT using package DirectX12")
- endif()
+  Message(STATUS "--> using package DirectX 12")
+  get_directory_property(hasParent PARENT_DIRECTORY)
+  if(hasParent)
+    set( USING_DIRECTX12 "YES" PARENT_SCOPE) # PARENT_SCOPE important to have this variable passed to parent. Here we want to notify that something used the DX12 package
+  else()
+    set( USING_DIRECTX12 "YES")
+  endif()
+  add_definitions(-DNVP_SUPPORTS_DIRECTX12)
+  include_directories(${BASE_DIRECTORY}/nvpro_core/third_party/dxc/Include)
+  include_directories(${BASE_DIRECTORY}/nvpro_core/third_party/dxh/include/directx)
+  LIST(APPEND LIBRARIES_OPTIMIZED dxgi.lib d3d12.lib)
+  LIST(APPEND LIBRARIES_DEBUG dxgi.lib d3d12.lib)
 endmacro()
 # this macro is needed for the samples to add this package, although not needed
 # this happens when the nvpro_core library was built with these stuff in it

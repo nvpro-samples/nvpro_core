@@ -391,7 +391,7 @@ nvvk::Context::QueueScore Context::removeQueueListItem(QueueScoreList& list, VkQ
     }
   }
 
-  return QueueScore();
+  return {};
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -557,7 +557,7 @@ bool Context::initDevice(uint32_t deviceIndex, const ContextCreateInfo& info)
       header->pNext = i < featureStructs.size() - 1 ? featureStructs[i + 1] : nullptr;
     }
 
-    // append to the end of current feature2 struct
+    // append to the end of current feature2 struct chain
     ExtensionHeader* lastCoreFeature = (ExtensionHeader*)&features2;
     while(lastCoreFeature->pNext != nullptr)
     {
@@ -569,7 +569,18 @@ bool Context::initDevice(uint32_t deviceIndex, const ContextCreateInfo& info)
     vkGetPhysicalDeviceFeatures2(m_physicalDevice, &features2);
   }
 
-  // disable some features
+  // run user callback to disable features 
+  if(info.fnDisableFeatures)
+  {
+    ExtensionHeader* featurePtr = (ExtensionHeader*)&features2;
+    while(featurePtr)
+    {
+      info.fnDisableFeatures(featurePtr->sType, featurePtr);
+      featurePtr = (ExtensionHeader*)featurePtr->pNext;
+    }
+  }
+
+  // disable this feature through info directly
   if(info.disableRobustBufferAccess)
   {
     features2.features.robustBufferAccess = VK_FALSE;

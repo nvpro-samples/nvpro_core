@@ -47,19 +47,22 @@ public:
   inline bool init(VkDevice device, VkPhysicalDevice physicalDevice, VmaAllocator vma);
   inline void deinit();
 
-  inline virtual MemHandle allocMemory(const MemAllocateInfo& allocInfo, VkResult* pResult = nullptr) override;
-  inline virtual void      freeMemory(MemHandle memHandle) override;
-  inline virtual MemInfo   getMemoryInfo(MemHandle memHandle) const override;
-  inline virtual void* map(MemHandle memHandle, VkDeviceSize offset = 0, VkDeviceSize size = VK_WHOLE_SIZE, VkResult* pResult = nullptr) override;
-  inline virtual void  unmap(MemHandle memHandle) override;
+  inline MemHandle allocMemory(const MemAllocateInfo& allocInfo, VkResult* pResult = nullptr) override;
+  inline void      freeMemory(MemHandle memHandle) override;
+  inline MemInfo   getMemoryInfo(MemHandle memHandle) const override;
+  inline void*     map(MemHandle memHandle, VkDeviceSize offset = 0, VkDeviceSize size = VK_WHOLE_SIZE, VkResult* pResult = nullptr) override;
+  inline void      unmap(MemHandle memHandle) override;
 
-  inline virtual VkDevice         getDevice() const override;
-  inline virtual VkPhysicalDevice getPhysicalDevice() const override;
+  inline VkDevice         getDevice() const override;
+  inline VkPhysicalDevice getPhysicalDevice() const override;
+
+  inline void findLeak(uint64_t leakID) { m_leakID = leakID; }
 
 private:
   VmaAllocator     m_vma{0};
   VkDevice         m_device{nullptr};
   VkPhysicalDevice m_physicalDevice{nullptr};
+  uint64_t         m_leakID{~0U};
 };
 
 

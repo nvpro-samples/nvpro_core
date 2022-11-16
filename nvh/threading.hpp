@@ -25,7 +25,7 @@
 
 namespace nvh {
 
-using DefaultDelayClock = std::chrono::steady_clock;
+using DefaultDelayClock    = std::chrono::steady_clock;
 using DefaultDelayDuration = std::chrono::nanoseconds;
 
 /**
@@ -144,7 +144,9 @@ private:
       : m_delay(std::make_unique<DelayData>())
   {
     m_delay->until = Clock::now() + sleep_duration;
-    m_delay->thread = std::thread(delayed_call<Clock, Duration>::delayEntry<std::remove_reference_t<Function>&&, std::remove_reference_t<Args>&&...>, m_delay.get(), std::forward<Function>(f), std::forward<Args>(args)...);
+    m_delay->thread =
+        std::thread(delayed_call::delayEntry<std::remove_reference_t<Function>&&, std::remove_reference_t<Args>&&...>,
+                    m_delay.get(), std::forward<Function>(f), std::forward<Args>(args)...);
   }
 };
 

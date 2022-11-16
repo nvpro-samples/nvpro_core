@@ -20,7 +20,6 @@
 #define GLFW_INCLUDE_NONE
 #include "imgui_helper.h"
 #include "backends/imgui_impl_glfw.h"
-#include "nvmath/nvmath.h"
 #include <GLFW/glfw3.h>
 #include <math.h>
 
@@ -49,35 +48,6 @@ void Deinit()
   ImGui::DestroyContext(nullptr);
 }
 
-void InitGLFW(GLFWwindow* window, int width, int height, void* userData, FontMode fontmode)
-{
-  ImGui::CreateContext();
-  setFonts(fontmode);
-  auto& imgui_io       = ImGui::GetIO();
-  imgui_io.IniFilename = nullptr;  // Avoiding the INI file
-  imgui_io.LogFilename = nullptr;
-  imgui_io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
-  imgui_io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;      // Enable Docking
-  imgui_io.DisplaySize = ImVec2(float(width), float(height));
-
-  // Scale style sizes for high-DPI monitors
-  ImGuiStyle& imgui_style = ImGui::GetStyle();
-  imgui_style.ScaleAllSizes(getDPIScale());
-
-  ImGui_ImplGlfw_InitForOther(window, true);
-}
-
-void NewFrameGLFW()
-{
-  ImGui_ImplGlfw_NewFrame();
-  ImGui::NewFrame();
-}
-
-void DeinitGLFW()
-{
-  ImGui::DestroyContext(nullptr);
-  ImGui_ImplGlfw_Shutdown();
-}
 
 bool Combo(const char* label, size_t numEnums, const Enum* enums, void* valuePtr, ImGuiComboFlags flags, ValueType valueType, bool* valueChanged)
 {
@@ -610,7 +580,7 @@ void Panel::Begin(Side side /*= Side::Right*/, float alpha /*= 0.5f*/, char* nam
     // Slitting all 4 directions, targetting (320 pixel * DPI) panel width, (180 pixel * DPI) panel height.
     const float xRatio = nvmath::nv_clamp<float>(320.0f * getDPIScale() / viewport->WorkSize[0], 0.01f, 0.499f);
     const float yRatio = nvmath::nv_clamp<float>(180.0f * getDPIScale() / viewport->WorkSize[1], 0.01f, 0.499f);
-    ImGuiID id_left, id_right, id_up, id_down;
+    ImGuiID     id_left, id_right, id_up, id_down;
 
     // Note, for right, down panels, we use the n / (1 - n) formula to correctly split the space remaining from the left, up panels.
     id_left  = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Left, xRatio, nullptr, &dock_main_id);
@@ -789,4 +759,49 @@ void ImGui::PlotMultiEx(const char* label, int num_datas, ImPlotMulti* datas, co
 
   if(label_size.x > 0.0f)
     RenderText(ImVec2(frame_bb.Max.x + style.ItemInnerSpacing.x, inner_bb.Min.y), label);
+}
+
+
+bool ImGuiH::azimuthElevationSliders(nvmath::vec3f& direction, bool negative)
+{
+  nvmath::vec3f normalized_dir = normalize(direction);
+  if(negative)
+  {
+    normalized_dir = -normalized_dir;
+  }
+
+  double       azimuth       = nv_to_deg * (atan2(normalized_dir.z, normalized_dir.x));
+  double       elevation     = nv_to_deg * (asin(normalized_dir.y));
+  const double min_azimuth   = -180.0;
+  const double max_azimuth   = 180.0;
+  const double min_elevation = -90.0;
+  const double max_elevation = 90.0;
+
+  bool changed = false;
+  changed |= PropertyEditor::entry("Azimuth", [&]() {
+    return ImGui::SliderScalar("Azimuth", ImGuiDataType_Double, &azimuth, &min_azimuth, &max_azimuth, "%.1f deg",
+                               ImGuiSliderFlags_NoRoundToFormat);
+  });
+  changed |= PropertyEditor::entry("Elevation", [&]() {
+    return ImGui::SliderScalar("Elevation", ImGuiDataType_Double, &elevation, &min_elevation, &max_elevation,
+                               "%.1f deg", ImGuiSliderFlags_NoRoundToFormat);
+  });
+
+  if(changed)
+  {
+    azimuth              = nv_to_rad * (azimuth);
+    elevation            = nv_to_rad * (elevation);
+    double cos_elevation = cos(elevation);
+
+    direction.y = static_cast<float>(sin(elevation));
+    direction.x = static_cast<float>(cos(azimuth) * cos_elevation);
+    direction.z = static_cast<float>(sin(azimuth) * cos_elevation);
+
+    if(negative)
+    {
+      direction = -direction;
+    }
+  }
+
+  return changed;
 }

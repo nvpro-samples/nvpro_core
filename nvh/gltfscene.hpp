@@ -74,6 +74,16 @@ struct KHR_materials_pbrSpecularGlossiness
   int           specularGlossinessTexture{-1};
 };
 
+// https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_materials_specular/README.md
+#define KHR_MATERIALS_SPECULAR_EXTENSION_NAME "KHR_materials_specular"
+struct KHR_materials_specular
+{
+  float         specularFactor{1.f};
+  int           specularTexture{-1};
+  nvmath::vec3f specularColorFactor{1.f, 1.f, 1.f};
+  int           specularColorTexture{-1};
+};
+
 // https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_texture_transform
 #define KHR_TEXTURE_TRANSFORM_EXTENSION_NAME "KHR_texture_transform"
 struct KHR_texture_transform
@@ -191,6 +201,7 @@ struct GltfMaterial
 
   // Extensions
   KHR_materials_pbrSpecularGlossiness specularGlossiness;
+  KHR_materials_specular              specular;
   KHR_texture_transform               textureTransform;
   KHR_materials_clearcoat             clearcoat;
   KHR_materials_sheen                 sheen;

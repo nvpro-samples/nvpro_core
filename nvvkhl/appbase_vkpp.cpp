@@ -17,7 +17,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "nvvk/appbase_vkpp.hpp"
+#include "nvvkhl/appbase_vkpp.hpp"
 #include "nvp/perproject_globals.hpp"
 
 #ifdef LINUX
@@ -26,9 +26,9 @@
 
 #include <cmath>
 
-void nvvk::AppBase::onResize(int, int) {}
+void nvvkhl::AppBase::onResize(int, int) {}
 
-void nvvk::AppBase::setup(const vk::Instance& instance, const vk::Device& device, const vk::PhysicalDevice& physicalDevice, uint32_t graphicsQueueIndex)
+void nvvkhl::AppBase::setup(const vk::Instance& instance, const vk::Device& device, const vk::PhysicalDevice& physicalDevice, uint32_t graphicsQueueIndex)
 {
   // Initialize function pointers
   vk::DynamicLoader         dl;
@@ -48,7 +48,7 @@ void nvvk::AppBase::setup(const vk::Instance& instance, const vk::Device& device
   ImGuiH::SetCameraJsonFile(getProjectName());
 }
 
-void nvvk::AppBase::destroy()
+void nvvkhl::AppBase::destroy()
 {
   m_device.waitIdle();
 
@@ -79,7 +79,7 @@ void nvvk::AppBase::destroy()
     m_instance.destroySurfaceKHR(m_surface);
 }
 
-VkSurfaceKHR nvvk::AppBase::getVkSurface(const vk::Instance& instance, GLFWwindow* window)
+VkSurfaceKHR nvvkhl::AppBase::getVkSurface(const vk::Instance& instance, GLFWwindow* window)
 {
   assert(instance);
   m_window = window;
@@ -95,7 +95,7 @@ VkSurfaceKHR nvvk::AppBase::getVkSurface(const vk::Instance& instance, GLFWwindo
   return surface;
 }
 
-void nvvk::AppBase::createSwapchain(const vk::SurfaceKHR& surface, uint32_t width, uint32_t height, vk::Format colorFormat, vk::Format depthFormat, bool vsync)
+void nvvkhl::AppBase::createSwapchain(const vk::SurfaceKHR& surface, uint32_t width, uint32_t height, vk::Format colorFormat, vk::Format depthFormat, bool vsync)
 {
   m_size        = vk::Extent2D(width, height);
   m_colorFormat = colorFormat;
@@ -145,7 +145,7 @@ void nvvk::AppBase::createSwapchain(const vk::SurfaceKHR& surface, uint32_t widt
   CameraManip.setWindowSize(m_size.width, m_size.height);
 }
 
-void nvvk::AppBase::createFrameBuffers()
+void nvvkhl::AppBase::createFrameBuffers()
 {
   // Recreate the frame buffers
   for(auto framebuffer : m_framebuffers)
@@ -185,7 +185,7 @@ void nvvk::AppBase::createFrameBuffers()
 #endif  // _DEBUG
 }
 
-void nvvk::AppBase::createRenderPass()
+void nvvkhl::AppBase::createRenderPass()
 {
   if(m_renderPass)
   {
@@ -240,7 +240,7 @@ void nvvk::AppBase::createRenderPass()
 #endif  // _DEBUG
 }
 
-void nvvk::AppBase::createDepthBuffer()
+void nvvkhl::AppBase::createDepthBuffer()
 {
   if(m_depthView)
     m_device.destroy(m_depthView);
@@ -305,7 +305,7 @@ void nvvk::AppBase::createDepthBuffer()
   m_depthView = m_device.createImageView(depthStencilView);
 }
 
-void nvvk::AppBase::prepareFrame()
+void nvvkhl::AppBase::prepareFrame()
 {
   // Resize protection - should be cached by the glFW callback
   int w, h;
@@ -331,7 +331,7 @@ void nvvk::AppBase::prepareFrame()
   updateCamera();
 }
 
-void nvvk::AppBase::submitFrame()
+void nvvkhl::AppBase::submitFrame()
 {
   uint32_t imageIndex = m_swapChain.getActiveImageIndex();
   m_device.resetFences(m_waitFences[imageIndex]);
@@ -371,13 +371,13 @@ void nvvk::AppBase::submitFrame()
   m_swapChain.present(m_queue);
 }
 
-void nvvk::AppBase::setViewport(const vk::CommandBuffer& cmdBuf)
+void nvvkhl::AppBase::setViewport(const vk::CommandBuffer& cmdBuf)
 {
   cmdBuf.setViewport(0, {vk::Viewport(0.0f, 0.0f, static_cast<float>(m_size.width), static_cast<float>(m_size.height), 0.0f, 1.0f)});
   cmdBuf.setScissor(0, {{{0, 0}, {m_size.width, m_size.height}}});
 }
 
-void nvvk::AppBase::onFramebufferSize(int w, int h)
+void nvvkhl::AppBase::onFramebufferSize(int w, int h)
 {
   if(w == 0 || h == 0)
   {
@@ -410,7 +410,7 @@ void nvvk::AppBase::onFramebufferSize(int w, int h)
   createFrameBuffers();
 }
 
-void nvvk::AppBase::onMouseMotion(int x, int y)
+void nvvkhl::AppBase::onMouseMotion(int x, int y)
 {
   if(ImGui::GetCurrentContext() != nullptr && ImGui::GetIO().WantCaptureMouse)
   {
@@ -423,7 +423,7 @@ void nvvk::AppBase::onMouseMotion(int x, int y)
   }
 }
 
-void nvvk::AppBase::onKeyboard(int key, int, int action, int mods)
+void nvvkhl::AppBase::onKeyboard(int key, int, int action, int mods)
 {
   const bool pressed = action != GLFW_RELEASE;
 
@@ -452,7 +452,7 @@ void nvvk::AppBase::onKeyboard(int key, int, int action, int mods)
   m_inputs.alt   = mods & GLFW_MOD_ALT;
 }
 
-void nvvk::AppBase::onKeyboardChar(unsigned char key)
+void nvvkhl::AppBase::onKeyboardChar(unsigned char key)
 {
   if(ImGui::GetCurrentContext() != nullptr && ImGui::GetIO().WantCaptureKeyboard)
   {
@@ -473,7 +473,7 @@ void nvvk::AppBase::onKeyboardChar(unsigned char key)
     m_showHelp = !m_showHelp;
 }
 
-void nvvk::AppBase::onMouseButton(int button, int action, int mods)
+void nvvkhl::AppBase::onMouseButton(int button, int action, int mods)
 {
   (void)mods;
 
@@ -486,7 +486,7 @@ void nvvk::AppBase::onMouseButton(int button, int action, int mods)
   m_inputs.rmb = (button == GLFW_MOUSE_BUTTON_RIGHT) && (action == GLFW_PRESS);
 }
 
-void nvvk::AppBase::onMouseWheel(int delta)
+void nvvkhl::AppBase::onMouseWheel(int delta)
 {
   if(ImGui::GetCurrentContext() != nullptr && ImGui::GetIO().WantCaptureMouse)
   {
@@ -496,9 +496,9 @@ void nvvk::AppBase::onMouseWheel(int delta)
   CameraManip.wheel(delta > 0 ? 1 : -1, m_inputs);
 }
 
-void nvvk::AppBase::onFileDrop(const char* filename) {}
+void nvvkhl::AppBase::onFileDrop(const char* filename) {}
 
-void nvvk::AppBase::initGUI(uint32_t subpassID)
+void nvvkhl::AppBase::initGUI(uint32_t subpassID)
 {
   assert(m_renderPass && "Render Pass must be set");
 
@@ -545,12 +545,12 @@ void nvvk::AppBase::initGUI(uint32_t subpassID)
   m_device.waitIdle();
 }
 
-void nvvk::AppBase::fitCamera(const nvmath::vec3f& boxMin, const nvmath::vec3f& boxMax, bool instantFit)
+void nvvkhl::AppBase::fitCamera(const nvmath::vec3f& boxMin, const nvmath::vec3f& boxMax, bool instantFit)
 {
   CameraManip.fit(boxMin, boxMax, instantFit, false, m_size.width / static_cast<float>(m_size.height));
 }
 
-bool nvvk::AppBase::isMinimized(bool doSleeping)
+bool nvvkhl::AppBase::isMinimized(bool doSleeping)
 {
   int w, h;
   glfwGetWindowSize(m_window, &w, &h);
@@ -566,12 +566,12 @@ bool nvvk::AppBase::isMinimized(bool doSleeping)
   return minimized;
 }
 
-void nvvk::AppBase::setTitle(const std::string& title)
+void nvvkhl::AppBase::setTitle(const std::string& title)
 {
   glfwSetWindowTitle(m_window, title.c_str());
 }
 
-void nvvk::AppBase::setupGlfwCallbacks(GLFWwindow* window)
+void nvvkhl::AppBase::setupGlfwCallbacks(GLFWwindow* window)
 {
   m_window = window;
   glfwSetWindowUserPointer(window, this);
@@ -584,43 +584,43 @@ void nvvk::AppBase::setupGlfwCallbacks(GLFWwindow* window)
   glfwSetDropCallback(window, &drop_cb);
 }
 
-void nvvk::AppBase::framebuffersize_cb(GLFWwindow* window, int w, int h)
+void nvvkhl::AppBase::framebuffersize_cb(GLFWwindow* window, int w, int h)
 {
   auto app = reinterpret_cast<AppBase*>(glfwGetWindowUserPointer(window));
   app->onFramebufferSize(w, h);
 }
 
-void nvvk::AppBase::mousebutton_cb(GLFWwindow* window, int button, int action, int mods)
+void nvvkhl::AppBase::mousebutton_cb(GLFWwindow* window, int button, int action, int mods)
 {
   auto app = reinterpret_cast<AppBase*>(glfwGetWindowUserPointer(window));
   app->onMouseButton(button, action, mods);
 }
 
-void nvvk::AppBase::cursorpos_cb(GLFWwindow* window, double x, double y)
+void nvvkhl::AppBase::cursorpos_cb(GLFWwindow* window, double x, double y)
 {
   auto app = reinterpret_cast<AppBase*>(glfwGetWindowUserPointer(window));
   app->onMouseMotion(static_cast<int>(x), static_cast<int>(y));
 }
 
-void nvvk::AppBase::scroll_cb(GLFWwindow* window, double x, double y)
+void nvvkhl::AppBase::scroll_cb(GLFWwindow* window, double x, double y)
 {
   auto app = reinterpret_cast<AppBase*>(glfwGetWindowUserPointer(window));
   app->onMouseWheel(static_cast<int>(y));
 }
 
-void nvvk::AppBase::key_cb(GLFWwindow* window, int key, int scancode, int action, int mods)
+void nvvkhl::AppBase::key_cb(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
   auto app = reinterpret_cast<AppBase*>(glfwGetWindowUserPointer(window));
   app->onKeyboard(key, scancode, action, mods);
 }
 
-void nvvk::AppBase::char_cb(GLFWwindow* window, unsigned int key)
+void nvvkhl::AppBase::char_cb(GLFWwindow* window, unsigned int key)
 {
   auto app = reinterpret_cast<AppBase*>(glfwGetWindowUserPointer(window));
   app->onKeyboardChar(key);
 }
 
-void nvvk::AppBase::drop_cb(GLFWwindow* window, int count, const char** paths)
+void nvvkhl::AppBase::drop_cb(GLFWwindow* window, int count, const char** paths)
 {
   auto app = reinterpret_cast<AppBase*>(glfwGetWindowUserPointer(window));
   int  i;
@@ -628,92 +628,92 @@ void nvvk::AppBase::drop_cb(GLFWwindow* window, int count, const char** paths)
     app->onFileDrop(paths[i]);
 }
 
-void nvvk::AppBase::useNvlink(bool useNvlink)
+void nvvkhl::AppBase::useNvlink(bool useNvlink)
 {
   m_useNvlink = useNvlink;
 }
 
-vk::Instance nvvk::AppBase::getInstance()
+vk::Instance nvvkhl::AppBase::getInstance()
 {
   return m_instance;
 }
 
-vk::Device nvvk::AppBase::getDevice()
+vk::Device nvvkhl::AppBase::getDevice()
 {
   return m_device;
 }
 
-vk::PhysicalDevice nvvk::AppBase::getPhysicalDevice()
+vk::PhysicalDevice nvvkhl::AppBase::getPhysicalDevice()
 {
   return m_physicalDevice;
 }
 
-vk::Queue nvvk::AppBase::getQueue()
+vk::Queue nvvkhl::AppBase::getQueue()
 {
   return m_queue;
 }
 
-uint32_t nvvk::AppBase::getQueueFamily()
+uint32_t nvvkhl::AppBase::getQueueFamily()
 {
   return m_graphicsQueueIndex;
 }
 
-vk::CommandPool nvvk::AppBase::getCommandPool()
+vk::CommandPool nvvkhl::AppBase::getCommandPool()
 {
   return m_cmdPool;
 }
 
-vk::RenderPass nvvk::AppBase::getRenderPass()
+vk::RenderPass nvvkhl::AppBase::getRenderPass()
 {
   return m_renderPass;
 }
 
-vk::Extent2D nvvk::AppBase::getSize()
+vk::Extent2D nvvkhl::AppBase::getSize()
 {
   return m_size;
 }
 
-vk::PipelineCache nvvk::AppBase::getPipelineCache()
+vk::PipelineCache nvvkhl::AppBase::getPipelineCache()
 {
   return m_pipelineCache;
 }
 
-vk::SurfaceKHR nvvk::AppBase::getSurface()
+vk::SurfaceKHR nvvkhl::AppBase::getSurface()
 {
   return m_surface;
 }
 
-const std::vector<vk::Framebuffer>& nvvk::AppBase::getFramebuffers()
+const std::vector<vk::Framebuffer>& nvvkhl::AppBase::getFramebuffers()
 {
   return m_framebuffers;
 }
 
-const std::vector<vk::CommandBuffer>& nvvk::AppBase::getCommandBuffers()
+const std::vector<vk::CommandBuffer>& nvvkhl::AppBase::getCommandBuffers()
 {
   return m_commandBuffers;
 }
 
-uint32_t nvvk::AppBase::getCurFrame() const
+uint32_t nvvkhl::AppBase::getCurFrame() const
 {
   return m_swapChain.getActiveImageIndex();
 }
 
-vk::Format nvvk::AppBase::getColorFormat() const
+vk::Format nvvkhl::AppBase::getColorFormat() const
 {
   return m_colorFormat;
 }
 
-vk::Format nvvk::AppBase::getDepthFormat() const
+vk::Format nvvkhl::AppBase::getDepthFormat() const
 {
   return m_depthFormat;
 }
 
-bool nvvk::AppBase::showGui()
+bool nvvkhl::AppBase::showGui()
 {
   return m_show_gui;
 }
 
-uint32_t nvvk::AppBase::getMemoryType(uint32_t typeBits, const vk::MemoryPropertyFlags& properties) const
+uint32_t nvvkhl::AppBase::getMemoryType(uint32_t typeBits, const vk::MemoryPropertyFlags& properties) const
 {
   auto deviceMemoryProperties = m_physicalDevice.getMemoryProperties();
   for(uint32_t i = 0; i < deviceMemoryProperties.memoryTypeCount; i++)
@@ -728,7 +728,7 @@ uint32_t nvvk::AppBase::getMemoryType(uint32_t typeBits, const vk::MemoryPropert
   return ~0u;
 }
 
-void nvvk::AppBase::uiDisplayHelp()
+void nvvkhl::AppBase::uiDisplayHelp()
 {
   if(m_showHelp)
   {
@@ -738,10 +738,10 @@ void nvvk::AppBase::uiDisplayHelp()
   }
 }
 
-void nvvk::AppBase::updateCamera()
+void nvvkhl::AppBase::updateCamera()
 {
   // measure one frame at a time
-  float factor = static_cast<float>(m_timer.elapsed().count());
+  float factor = static_cast<float>(m_timer.elapsed());
   m_timer.reset();
 
   // Allow camera movement only when not editing

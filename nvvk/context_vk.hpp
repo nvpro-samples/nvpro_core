@@ -25,6 +25,7 @@
 #include <string.h>  // memcpy
 #include <unordered_set>
 #include <vector>
+#include <functional>
 #include <vulkan/vulkan_core.h>
 
 #include "nsight_aftermath_vk.hpp"
@@ -58,10 +59,43 @@ Example on how to populate information in it :
 
 \code{.cpp}
     nvvk::ContextCreateInfo ctxInfo;
-    ctxInfo.setVersion(1, 1);
+    ctxInfo.setVersion(1, 2);
     ctxInfo.addInstanceExtension(VK_KHR_SURFACE_EXTENSION_NAME, false);
     ctxInfo.addInstanceExtension(VK_KHR_WIN32_SURFACE_EXTENSION_NAME, false);
     ctxInfo.addDeviceExtension(VK_KHR_SWAPCHAIN_EXTENSION_NAME, false);
+
+    // adding an extension with a feature struct:
+    //
+    VkPhysicalDevicePipelineExecutablePropertiesFeaturesKHR pipePropFeatures = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PIPELINE_EXECUTABLE_PROPERTIES_FEATURES_KHR};
+    // Be aware of the lifetime of the pointer of the feature struct.
+    // ctxInfo stores the pointer directly and context init functions use it for read & write access.
+    ctxInfo.addDeviceExtension(VK_KHR_PIPELINE_EXECUTABLE_PROPERTIES_EXTENSION_NAME, true, &pipePropFeatures);
+
+    // disabling a feature:
+    //
+    // This callback is called after the feature structs were filled with physical device information
+    // and prior logical device creation.
+    // The callback iterates over all feature structs, including those from
+    // the vulkan versions.
+    ctxInfo.fnDisableFeatures = [](VkStructureType sType, void *pFeatureStruct)
+    {
+      switch(sType){
+      case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES:
+        {
+          auto* features11 = reinterpret_cast<VkPhysicalDeviceVulkan11Features>(pFeatureStruct);
+          // at this point the struct is populated with what the device supports
+          // and therefore it is only legal to disable features, not enable them.
+          
+          // let's say we wanted to disable multiview
+          features11->multiView = VK_FALSE;
+        }
+        break;
+      default:
+        break;
+      }
+    };
+
 \endcode
 
 then you are ready to create initialize `nvvk::Context`
@@ -108,6 +142,12 @@ struct ContextCreateInfo
   // if you want more/different setups manipulate the requestedQueues vector
   // or use this function.
   void addRequestedQueue(VkQueueFlags flags, uint32_t count = 1, float priority = 1.0f);
+
+  // this callback is run after extension and version related feature structs were queried for their support 
+  // from the physical device and prior using them for device creation. It allows custom logic for disabling
+  // certain features.
+  // Be aware that enabling a feature is not legal within this function, only disabling.
+  std::function<void(VkStructureType sType, void* pFeatureStruct)> fnDisableFeatures = nullptr;
 
   // Configure additional device creation with these variables and functions
 
@@ -361,8 +401,8 @@ public:
   struct Queue
   {
     VkQueue  queue       = VK_NULL_HANDLE;
-    uint32_t familyIndex = ~0;
-    uint32_t queueIndex  = ~0;
+    uint32_t familyIndex = ~0U;
+    uint32_t queueIndex  = ~0U;
     float    priority    = 1.0f;
 
     operator VkQueue() const { return queue; }
@@ -422,8 +462,8 @@ private:
   struct QueueScore
   {
     uint32_t score       = 0;  // the lower the score, the more 'specialized' it is
-    uint32_t familyIndex = ~0;
-    uint32_t queueIndex  = ~0;
+    uint32_t familyIndex = ~0U;
+    uint32_t queueIndex  = ~0U;
     float    priority    = 1.0f;
   };
   using QueueScoreList = std::vector<QueueScore>;

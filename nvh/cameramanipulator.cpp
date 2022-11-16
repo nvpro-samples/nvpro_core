@@ -557,7 +557,7 @@ void CameraManipulator::fit(const nvmath::vec3f& boxMin, const nvmath::vec3f& bo
     {
       nvmath::vec3f vct(i & 1 ? boxHalfSize.x : -boxHalfSize.x, i & 2 ? boxHalfSize.y : -boxHalfSize.y,
                         i & 4 ? boxHalfSize.z : -boxHalfSize.z);
-      vct = mView * vct;
+      vct = nvmath::vec3f(mView * vct);
 
       if(vct.z < 0)  // Take only points in front of the center
       {

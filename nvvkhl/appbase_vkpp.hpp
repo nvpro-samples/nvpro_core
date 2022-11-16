@@ -24,7 +24,7 @@
 #include "nvh/timesampler.hpp"
 #include "nvh/cameramanipulator.hpp"
 
-#include "swapchain_vk.hpp"
+#include "nvvk/swapchain_vk.hpp"
 #include "imgui/backends/imgui_impl_vulkan.h"
 
 // Not strictly needed for this header, but some samples got used to having
@@ -38,12 +38,12 @@
 #include <set>
 #include <vector>
 
-namespace nvvk {
+namespace nvvkhl {
 
 /**
-\class nvvk::AppBase
+\class nvvkhl::AppBase
 
-nvvk::AppBaseVk is the same as nvvk::AppBaseVk but makes use of the Vulkan C++ API (`vulkan.hpp`).
+nvvkhl::AppBaseVk is the same as nvvkhl::AppBaseVk but makes use of the Vulkan C++ API (`vulkan.hpp`).
 
 */
 

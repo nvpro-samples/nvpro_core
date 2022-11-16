@@ -31,6 +31,7 @@
 #include <string.h>
 #include <string>
 #include <vulkan/vulkan_core.h>
+#include "nvh/nvprint.hpp"
 
 namespace nvvk {
 

@@ -282,6 +282,100 @@ inline T dot(const vector4<T>& v, const vector3<T>& w)
   return v.x * w.x + v.y * w.y + v.z * w.z;
 }
 
+
+template <class T>
+inline T clamp(T x, T minVal, T maxVal)
+{
+  return std::min(std::max(x, minVal), maxVal);
+}
+
+template <class T>
+inline vector3<T> clamp(const vector3<T>& x, const vector3<T>& minVal, const vector3<T>& maxVal)
+{
+  return vector3<T>(clamp(x.x, minVal.x, maxVal.x), clamp(x.y, minVal.y, maxVal.y), clamp(x.z, minVal.z, maxVal.z));
+}
+
+
+template <class T>
+inline T min(T minVal, T maxVal)
+{
+  return std::min(minVal, maxVal);
+}
+
+template <class T>
+inline T max(T minVal, T maxVal)
+{
+  return std::max(minVal, maxVal);
+}
+
+template <class T>
+inline vector3<T> max(const vector3<T>& minVal, const vector3<T>& maxVal)
+{
+  return vector3<T>(max(minVal.x, maxVal.x), max(minVal.y, maxVal.y), max(minVal.z, maxVal.z));
+}
+
+template <class T>
+inline T mix(T x, T y, T a)
+{
+  return x * (T(1) - a) + y * a;
+}
+
+template <class T>
+inline vector3<T> mix(const vector3<T>& x, const vector3<T>& y, T a)
+{
+  return vector3<T>(mix(x.x, y.x, a), mix(x.y, y.y, a), mix(x.z, y.z, a));
+}
+
+template <class T>
+inline vector3<T> mix(const vector3<T>& x, const vector3<T>& y, const vector3<T>& a)
+{
+  return vector3<T>(mix(x.x, y.x, a.x), mix(x.y, y.y, a.y), mix(x.z, y.z, a.z));
+}
+
+
+template <class T>
+vector3<T> pow(const vector3<T>& base, const vector3<T>& exponent)
+{
+  return vector3<T>(::pow(base.x, exponent.x), ::pow(base.y, exponent.y), ::pow(base.z, exponent.z));
+}
+
+template <class T>
+vector3<T> sqrt(const vector3<T>& x)
+{
+  return vector3<T>(sqrtf(x.x), sqrtf(x.y), sqrtf(x.z));
+}
+
+template <class T>
+T radians(T x)
+{
+  return nv_to_rad * T(x);
+}
+
+template <class T>
+vector3<T> sin(const vector3<T>& x)
+{
+  return vector3<T>(sinf(x.x), sinf(x.y), sinf(x.z));
+}
+
+template <class T>
+T mod(T a, T b)
+{
+  return a - b * floor(a / b);
+}
+
+template <class T>
+vector2<T> mod(const vector2<T>& a, T b)
+{
+  return { mod(a.x, b), mod(a.y, b) };
+}
+
+template <class T>
+T fract(T x)
+{
+  return x - floor(x);
+}
+
+
 template <class T>
 inline vector3<T> reflect(const vector3<T>& n, const vector3<T>& l)
 {
@@ -850,6 +944,13 @@ inline matrix4<T> invert(const matrix4<T>& A)
 }
 
 template <class T>
+inline matrix4<T> inverse(const matrix4<T>& A)
+{
+  return invert(A);
+}
+
+
+template <class T>
 inline matrix4<T> invert(const matrix4<T>& A, bool& valid)
 {
   matrix4<T> B;
@@ -974,6 +1075,11 @@ inline matrix3<T> invert(const matrix3<T>& A)
   return B;
 }
 
+template <class T>
+inline matrix3<T> inverse(const matrix3<T>& A)
+{
+  return invert(A);
+}
 
 template <class T>
 inline matrix4<T> look_at(const vector3<T>& eye, const vector3<T>& center, const vector3<T>& up)
@@ -1590,8 +1696,8 @@ inline T nv_random()
 template <class T>
 inline matrix3<T>& matrix3<T>::set_rot(const T& theta, const vector3<T>& v)
 {
-  T ct = T(cos(theta));
-  T st = T(sin(theta));
+  T ct = T(::cos(theta));
+  T st = T(::sin(theta));
 
   T xx = v.x * v.x;
   T yy = v.y * v.y;
@@ -1694,8 +1800,8 @@ inline matrix4<T>& matrix4<T>::set_rot(const quaternion<T>& q)
 template <class T>
 inline matrix4<T>& matrix4<T>::set_rot(const T& theta, const vector3<T>& v)
 {
-  T ct = T(cos(theta));
-  T st = T(sin(theta));
+  T ct = T(::cos(theta));
+  T st = T(::sin(theta));
 
   T xx = v.x * v.x;
   T yy = v.y * v.y;

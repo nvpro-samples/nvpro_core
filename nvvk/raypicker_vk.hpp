@@ -88,9 +88,9 @@ public:
   };
 
   RayPickerKHR() = default;
-  RayPickerKHR(nvvk::Context* ctx, nvvk::ResourceAllocator* allocator)
+  RayPickerKHR(nvvk::Context* ctx, nvvk::ResourceAllocator* allocator, uint32_t queueFamilyIndex = 0)
   {
-    setup(ctx->m_device, ctx->m_physicalDevice, ctx->m_queueGCT.familyIndex, allocator);
+    setup(ctx->m_device, ctx->m_physicalDevice, queueFamilyIndex, allocator);
   }
 
   void setup(const VkDevice& device, const VkPhysicalDevice& physicalDevice, uint32_t queueFamilyIndex, nvvk::ResourceAllocator* allocator)
@@ -100,15 +100,24 @@ public:
     m_queueFamilyIndex = queueFamilyIndex;
     m_debug.setup(device);
     m_alloc = allocator;
+
+    createOutputResult();
+    createDescriptorSet();
+    createPipeline();
   }
 
   // tlas : top acceleration structure
   void setTlas(const VkAccelerationStructureKHR& tlas)
   {
-    m_tlas = tlas;
-    createOutputResult();
-    createDescriptorSet();
-    createPipeline();
+    VkWriteDescriptorSetAccelerationStructureKHR descAsInfo{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR};
+    descAsInfo.accelerationStructureCount = 1;
+    descAsInfo.pAccelerationStructures    = &tlas;
+
+    VkDescriptorBufferInfo            pickDesc{m_pickResult.buffer, 0, VK_WHOLE_SIZE};
+    std::vector<VkWriteDescriptorSet> writes;
+    writes.emplace_back(m_binding.makeWrite(m_descSet, 0, &descAsInfo));
+    writes.emplace_back(m_binding.makeWrite(m_descSet, 1, &pickDesc));
+    vkUpdateDescriptorSets(m_device, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
   }
 
   bool isValid() { return m_pipeline != VK_NULL_HANDLE; }
@@ -172,7 +181,6 @@ private:
   VkDescriptorSet             m_descSet{VK_NULL_HANDLE};
   VkPipelineLayout            m_pipelineLayout{VK_NULL_HANDLE};
   VkPipeline                  m_pipeline{VK_NULL_HANDLE};
-  VkAccelerationStructureKHR  m_tlas{VK_NULL_HANDLE};
   VkPhysicalDevice            m_physicalDevice{VK_NULL_HANDLE};
   VkDevice                    m_device{VK_NULL_HANDLE};
   uint32_t                    m_queueFamilyIndex{0};
@@ -182,7 +190,6 @@ private:
 
   void createOutputResult()
   {
-    m_alloc->destroy(m_pickResult);
     nvvk::CommandPool sCmd(m_device, m_queueFamilyIndex);
     VkCommandBuffer   cmdBuf = sCmd.createCommandBuffer();
     PickResult        presult{};
@@ -213,17 +220,6 @@ private:
     allocateInfo.pSetLayouts        = &m_descSetLayout;
 
     vkAllocateDescriptorSets(m_device, &allocateInfo, &m_descSet);
-
-
-    VkWriteDescriptorSetAccelerationStructureKHR descAsInfo{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR};
-    descAsInfo.accelerationStructureCount = 1;
-    descAsInfo.pAccelerationStructures    = &m_tlas;
-
-    VkDescriptorBufferInfo            pickDesc{m_pickResult.buffer, 0, VK_WHOLE_SIZE};
-    std::vector<VkWriteDescriptorSet> writes;
-    writes.emplace_back(m_binding.makeWrite(m_descSet, 0, &descAsInfo));
-    writes.emplace_back(m_binding.makeWrite(m_descSet, 1, &pickDesc));
-    vkUpdateDescriptorSets(m_device, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
   }
 
   void createPipeline()

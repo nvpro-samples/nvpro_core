@@ -42,4 +42,6 @@ load_VK_EXTENSIONS(instance, vkGetInstanceProcAddr, device, vkGetDeviceProcAddr)
 /* Load all avaiable extensions */
 void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstanceProcAddr, VkDevice device, PFN_vkGetDeviceProcAddr getDeviceProcAddr);
 
+/* NVVK_GENERATE_DEFINE */
 
+/* NVVK_GENERATE_DEFINE */

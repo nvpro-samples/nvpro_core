@@ -384,7 +384,7 @@ void ParameterList::print() const
 
   // Print underline. Format: -----
   LOGI(" ");
-  for(int i = 0; i < maxParamNameLength + 23; i++)
+  for(uint32_t i = 0; i < maxParamNameLength + 23; i++)
   {
     LOGI("-");
   }

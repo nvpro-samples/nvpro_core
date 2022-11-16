@@ -152,6 +152,9 @@ function(get_glsl_dependecies _SRC _FLAGS)
   if(RES EQUAL 0)
     # Removing "name.spv: "
     string(REGEX REPLACE "[^:]*: " "" DEP ${DEP})
+    # The command line may end with newlines. This breaks the Ninja generator on
+    # CMake 3.16.2 (fixed as of 3.24.1). As a workaround, remove trailing newlines.
+    string(REGEX REPLACE "[\r\n]+$" "" DEP ${DEP})
     # Splitting each root with a ';'. On linux this is just ' /' -> ';/'.
     foreach(ROOT ${INCLUDE_ROOTS})
       string(REPLACE " ${ROOT}"  ";${ROOT}" DEP ${DEP})
