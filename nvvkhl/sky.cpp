@@ -191,7 +191,7 @@ bool SkyDome::onUI()
   bool changed{false};
 
   nvmath::vec3f dir = m_skyParams.direction;
-  changed |= ImGuiH::azimuthElevationSliders(dir, true);
+  changed |= ImGuiH::azimuthElevationSliders(dir, true, m_skyParams.directionUp.y == 1.0F);
   m_skyParams.direction = dir;
   // clang-format off
     changed |= PE::entry("Color", [&]() { return ImGui::ColorEdit3("##1", &m_skyParams.color.x, ImGuiColorEditFlags_Float);                                   });

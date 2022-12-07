@@ -159,8 +159,9 @@ void nvvk::RaytracingBuilderNV::buildBlas(const std::vector<std::vector<VkGeomet
       m_alloc->destroy(as);
 
     LOGI("------------------\n");
+    const float fractionSmaller = (totOriginalSize == 0) ? 0 : (totOriginalSize - totCompactSize) / float(totOriginalSize);
     LOGI("Total: %d -> %d = %d (%2.2f%s smaller) \n", totOriginalSize, totCompactSize, totOriginalSize - totCompactSize,
-         (totOriginalSize - totCompactSize) / float(totOriginalSize) * 100.f, "%%");
+         fractionSmaller * 100.f, "%%");
   }
 
   vkDestroyQueryPool(m_device, queryPool, nullptr);

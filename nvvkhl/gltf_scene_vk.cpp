@@ -19,7 +19,7 @@
 
 #include "gltf_scene_vk.hpp"
 
-
+#include <inttypes.h>
 #include <mutex>
 #include <sstream>
 #include "stb_image.h"
@@ -58,7 +58,7 @@ void nvvkhl::SceneVk::create(VkCommandBuffer cmd, const nvvkhl::Scene& scn)
   scene_desc.primInfoAddress = nvvk::getBufferDeviceAddress(m_ctx->m_device, m_bPrimInfo.buffer);
   scene_desc.instInfoAddress = nvvk::getBufferDeviceAddress(m_ctx->m_device, m_bInstances.buffer);
   m_bSceneDesc               = m_alloc->createBuffer(cmd, sizeof(SceneDescription), &scene_desc,
-                                                     VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);
+                                       VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);
   m_dutil->DBG_NAME(m_bSceneDesc.buffer);
 }
 
@@ -136,8 +136,6 @@ void nvvkhl::SceneVk::createVertexBuffer(VkCommandBuffer cmd, const nvh::GltfSce
   // Primitives in glTF can be reused, this allow to retrieve them
   std::unordered_map<std::string, nvvk::Buffer> cache_primitive;
 
-  auto num_thread = std::thread::hardware_concurrency();
-
   prim_info.resize(scn.m_primMeshes.size());
   m_bVertices.resize(scn.m_primMeshes.size());
   m_bIndices.resize(scn.m_primMeshes.size());
@@ -211,8 +209,6 @@ void nvvkhl::SceneVk::createTextureImages(VkCommandBuffer cmd, const tinygltf::M
   sampler_create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
   sampler_create_info.maxLod     = FLT_MAX;
 
-  VkFormat format = VK_FORMAT_R8G8B8A8_UNORM;
-
   // Make dummy image(1,1), needed as we cannot have an empty array
   auto addDefaultImage = [&](uint32_t idx, const std::array<uint8_t, 4>& color) {
     VkImageCreateInfo image_create_info = nvvk::makeImage2DCreateInfo(VkExtent2D{1, 1});
@@ -237,7 +233,7 @@ void nvvkhl::SceneVk::createTextureImages(VkCommandBuffer cmd, const tinygltf::M
       tiny.images.size(),
       [&](uint64_t i) {
         const auto& image = tiny.images[i];
-        LOGI("  - (%ld) %s \n", i, image.uri.c_str());
+        LOGI("  - (%" PRIu64 ") %s \n", i, image.uri.c_str());
         loadImage(basedir, image, m_images[i]);
       },
       num_threads);
@@ -428,14 +424,21 @@ bool nvvkhl::SceneVk::createImage(const VkCommandBuffer& cmd, SceneImage& image)
 
 void nvvkhl::SceneVk::destroy()
 {
-  std::set<VkBuffer> v_set;  // Vertex buffer can be shared
-  for(auto& v : m_bVertices)
+  try
   {
-    if(v_set.find(v.buffer) == v_set.end())
+    std::set<VkBuffer> v_set;  // Vertex buffer can be shared
+    for(auto& v : m_bVertices)
     {
-      v_set.insert(v.buffer);
-      m_alloc->destroy(v);  // delete only the one that was not deleted
+      if(v_set.find(v.buffer) == v_set.end())
+      {
+        v_set.insert(v.buffer);
+        m_alloc->destroy(v);  // delete only the one that was not deleted
+      }
     }
+  }
+  catch(const std::bad_alloc& /* e */)
+  {
+    assert(!"Failed to allocate memory to identify which vertex buffers to destroy!");
   }
   m_bVertices.clear();
 

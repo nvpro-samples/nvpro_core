@@ -31,6 +31,8 @@
 
 namespace nvvk {
 
+// Would be used in Context::debugMessengerCallback.
+#if 0
 static std::string ObjectTypeToString(VkObjectType value)
 {
   switch(value)
@@ -117,6 +119,7 @@ static std::string ObjectTypeToString(VkObjectType value)
       return "invalid";
   }
 }
+#endif
 
 // Define a callback to capture the messages
 VKAPI_ATTR VkBool32 VKAPI_CALL Context::debugMessengerCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -226,8 +229,6 @@ bool Context::initInstance(const ContextCreateInfo& info)
 
   m_apiMajor = info.apiMajor;
   m_apiMinor = info.apiMinor;
-
-  uint32_t count = 0;
 
   if(info.verboseUsed)
   {
@@ -498,14 +499,14 @@ bool Context::initDevice(uint32_t deviceIndex, const ContextCreateInfo& info)
   {
     features2.pNext = &features11old.multiview;
   }
-  
+
   if(info.apiMajor == 1 && info.apiMinor >= 2)
   {
     features2.pNext                 = &m_physicalInfo.features11;
     m_physicalInfo.features11.pNext = &m_physicalInfo.features12;
     m_physicalInfo.features12.pNext = nullptr;
   }
-  
+
   if(info.apiMajor == 1 && info.apiMinor >= 3)
   {
     m_physicalInfo.features12.pNext = &m_physicalInfo.features13;
@@ -569,7 +570,7 @@ bool Context::initDevice(uint32_t deviceIndex, const ContextCreateInfo& info)
     vkGetPhysicalDeviceFeatures2(m_physicalDevice, &features2);
   }
 
-  // run user callback to disable features 
+  // run user callback to disable features
   if(info.fnDisableFeatures)
   {
     ExtensionHeader* featurePtr = (ExtensionHeader*)&features2;
@@ -973,8 +974,8 @@ void Context::initPhysicalInfo(PhysicalDeviceInfo& info, VkPhysicalDevice physic
 
   if(versionMajor == 1 && versionMinor >= 3)
   {
-    info.features12.pNext = &info.features13;
-    info.features13.pNext = nullptr;
+    info.features12.pNext   = &info.features13;
+    info.features13.pNext   = nullptr;
     info.properties12.pNext = &info.properties13;
     info.properties13.pNext = nullptr;
   }
@@ -1013,7 +1014,7 @@ void Context::initDebugUtils()
                                             | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;     // Non-optimal use
     dbg_messenger_create_info.pfnUserCallback = debugMessengerCallback;
     dbg_messenger_create_info.pUserData       = this;
-    VkResult result = m_createDebugUtilsMessengerEXT(m_instance, &dbg_messenger_create_info, nullptr, &m_dbgMessenger);
+    NVVK_CHECK(m_createDebugUtilsMessengerEXT(m_instance, &dbg_messenger_create_info, nullptr, &m_dbgMessenger));
   }
 }
 

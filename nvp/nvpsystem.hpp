@@ -20,8 +20,6 @@
 
 #ifndef __NVPSYSTEM_H__
 #define __NVPSYSTEM_H__
-#pragma warning(disable : 4996)  // preventing snprintf >> _snprintf_s
-//#pragma message("---------- >including nvpwindow.hpp")
 
 #include "platform.h"
 #include <stdio.h>
@@ -66,7 +64,6 @@ inline void __cdecl operator delete(void* ptr, const char* file, int line)
 /// init
 /// - calls glfwInit and registers the error callback for it
 /// - sets up and log filename based on projectName via nvprintSetLogFileName
-/// - if NVP_SUPPORTS_SOCKETS is set, starts socket server as well
 class NVPSystem
 {
 public:

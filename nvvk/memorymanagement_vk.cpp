@@ -27,9 +27,6 @@
 #include "nvh/nvprint.hpp"
 
 namespace nvvk {
-static VkExportMemoryAllocateInfo memoryHandleEx{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO, nullptr,
-                                                 VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT};  // #VKGL Special for Interop
-
 bool getMemoryInfo(const VkPhysicalDeviceMemoryProperties& memoryProperties,
                    const VkMemoryRequirements&             memReqs,
                    VkMemoryPropertyFlags                   properties,

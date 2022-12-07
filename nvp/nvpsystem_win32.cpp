@@ -37,10 +37,6 @@
 #include <string>
 #include <vector>
 
-#ifdef NVP_SUPPORTS_SOCKETS
-#include "socketSampleMessages.h"
-#endif
-
 // Executables (but not DLLs) exporting this symbol with this value will be
 // automatically directed to the high-performance GPU on Nvidia Optimus systems
 // with up-to-date drivers
@@ -98,7 +94,7 @@ static int CaptureAnImage(HWND hWnd, const char* filename)
     // Get the BITMAP from the HBITMAP
     GetObject(hbmScreen, sizeof(BITMAP), &bmpScreen);
 
-    BITMAPFILEHEADER bmfHeader;
+    BITMAPFILEHEADER bmfHeader{};
     BITMAPINFOHEADER bi;
 
     bi.biSize          = sizeof(BITMAPINFOHEADER);
@@ -149,13 +145,6 @@ static int CaptureAnImage(HWND hWnd, const char* filename)
     WriteFile(hFile, (LPSTR)&bmfHeader, sizeof(BITMAPFILEHEADER), &dwBytesWritten, NULL);
     WriteFile(hFile, (LPSTR)&bi, sizeof(BITMAPINFOHEADER), &dwBytesWritten, NULL);
     WriteFile(hFile, (LPSTR)lpbitmap, dwBmpSize, &dwBytesWritten, NULL);
-#ifdef NVP_SUPPORTS_SOCKETS
-    // TODO!!
-    unsigned char* data = NULL;
-    size_t         sz   = 0;
-    int            w = 0, h = 0;
-    ::postScreenshot(data, sz, w, h);
-#endif
 
     //Unlock and Free the DIB from the heap
     GlobalUnlock(hDIB);
@@ -182,11 +171,21 @@ done:
 
 void NVPSystem::windowScreenshot(struct GLFWwindow* glfwin, const char* filename)
 {
+  if(!glfwin)
+  {
+    assert(!"Attempted to fall windowScreenshot() on null window!");
+    return;
+  }
   CaptureAnImage(glfwGetWin32Window(glfwin), filename);
 }
 
 void NVPSystem::windowClear(struct GLFWwindow* glfwin, uint32_t r, uint32_t g, uint32_t b)
 {
+  if(!glfwin)
+  {
+    assert(!"Attempted to fall windowClear() on null window!");
+    return;
+  }
   HWND hwnd = glfwGetWin32Window(glfwin);
 
   HDC hdcWindow = GetDC(hwnd);
@@ -203,6 +202,11 @@ void NVPSystem::windowClear(struct GLFWwindow* glfwin, uint32_t r, uint32_t g, u
 
 static std::string fileDialog(struct GLFWwindow* glfwin, const char* title, const char* exts, bool openToLoad)
 {
+  if(!glfwin)
+  {
+    assert(!"Attempted to fall fileDialog() on null window!");
+    return std::string();
+  }
   HWND hwnd = glfwGetWin32Window(glfwin);
 
   std::vector<char> extsfixed;

@@ -61,7 +61,6 @@ void BitArray::resize(size_t newSize, bool defaultValue)
   }
 
   size_t oldNumberOfElements = determineNumberOfElements();
-  size_t oldSize             = m_size;
   m_size                     = newSize;
   size_t newNumberOfElements = determineNumberOfElements();
 

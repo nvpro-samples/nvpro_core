@@ -27,7 +27,7 @@
 #include "light_contrib.glsl"     // light contribution
 
 
-VisibilityContribution directLight(PbrMaterial matEval, HitState hit, sampler2D hdrTexture, bool useSky)
+VisibilityContribution lightsContribution(in PbrMaterial pbrMat, in vec3 to_eye, in vec3 pos, in vec3 nrm, int nbLights, inout uint seed)
 {
   VisibilityContribution contrib;
   contrib.radiance = vec3(0.0F);
@@ -38,21 +38,19 @@ VisibilityContribution directLight(PbrMaterial matEval, HitState hit, sampler2D 
   float light_dist = 1e32F;
   bool  is_light   = false;
 
-  if(useSky || (frameInfo.nbLights != 0 && rand(payload.seed) <= 0.5F))
   {
     // randomly select one of the lights
-    int   light_index = int(min(rand(payload.seed) * frameInfo.nbLights, frameInfo.nbLights));
+    int   light_index = int(min(rand(seed) * frameInfo.nbLights, frameInfo.nbLights));
     Light light       = frameInfo.light[light_index];
 
-    vec3         to_eye  = -gl_WorldRayDirectionEXT;
-    LightContrib contrib = lightContribution(light, hit.pos, hit.nrm, to_eye);
+    LightContrib contrib = singleLightContribution(light, pos, nrm, to_eye);
 
     light_contrib = contrib.intensity;
     light_dir     = normalize(-contrib.incidentVector);
 
     if(contrib.halfAngularSize > 0.0F)
     {  // <----- Sampling area lights
-      vec2  rand_val     = vec2(rand(payload.seed), rand(payload.seed));
+      vec2  rand_val     = vec2(rand(seed), rand(seed));
       float angular_size = contrib.halfAngularSize;
 
       // section 34  https://people.cs.kuleuven.be/~philip.dutre/GI/TotalCompendium.pdf
@@ -70,27 +68,15 @@ VisibilityContribution directLight(PbrMaterial matEval, HitState hit, sampler2D 
       light_dir = normalize(tbn * dir);
     }
 
-    //light_contrib = lightContribution(light, hit.pos, hit.nrm, light_dir);
-    light_dist = (light.type == eLightTypeDirectional) ? 1e37F : length(hit.pos - light.position);
-    is_light   = true;
-  }
-  else
-  {  // <------ Adding HDR sampling
-    vec3 rand_val     = vec3(rand(payload.seed), rand(payload.seed), rand(payload.seed));
-    vec4 radiance_pdf = environmentSample(hdrTexture, rand_val, light_dir);
-    light_dir         = rotate(light_dir, vec3(0.0F, 1.0F, 0.0F), frameInfo.envRotation);
-    light_contrib     = radiance_pdf.xyz * frameInfo.clearColor.xyz;
-    light_pdf         = radiance_pdf.w;
+    light_dist = (light.type == eLightTypeDirectional) ? 1e37F : length(pos - light.position);
   }
 
-
-  float dotNL = dot(light_dir, hit.nrm);
-  if(dotNL > 0.0)
+  float dotNL = dot(light_dir, nrm);
+  if(dotNL > 0.0F)
   {
-    float pdf        = 0.0F;
-    vec3  brdf       = pbrEval(matEval, -gl_WorldRayDirectionEXT, light_dir, pdf);
-    float mis_weight = is_light ? 1.0F : max(0.0F, powerHeuristic(light_pdf, pdf));
-    vec3  radiance   = mis_weight * brdf * light_contrib / light_pdf;
+    float pdf      = 0.0F;
+    vec3  brdf     = pbrEval(pbrMat, to_eye, light_dir, pdf);
+    vec3  radiance = brdf * light_contrib / light_pdf;
 
     contrib.visible   = true;
     contrib.lightDir  = light_dir;
@@ -100,5 +86,41 @@ VisibilityContribution directLight(PbrMaterial matEval, HitState hit, sampler2D 
 
   return contrib;
 }
+
+
+VisibilityContribution environmentLightingContribution(in PbrMaterial pbrMat, in vec3 to_eye, in vec3 nrm, in vec3 envColor, in float envRotation, inout uint seed)
+{
+  VisibilityContribution contrib;
+  contrib.radiance  = vec3(0.0F);
+  contrib.visible   = false;
+  contrib.lightDist = INFINITE;
+  vec3  light_dir;
+  vec3  light_contrib = vec3(0.0F);
+  float light_pdf;
+
+  {  // <------ Adding HDR sampling
+    vec3 rand_val     = vec3(rand(seed), rand(seed), rand(seed));
+    vec4 radiance_pdf = environmentSample(hdrTexture, rand_val, light_dir);
+    light_dir         = rotate(light_dir, vec3(0.0F, 1.0F, 0.0F), envRotation);
+    light_contrib     = radiance_pdf.xyz * envColor.xyz;
+    light_pdf         = radiance_pdf.w;
+  }
+
+  float dotNL = dot(light_dir, nrm);
+  if(dotNL > 0.0)
+  {
+    float pdf        = 0.0F;
+    vec3  brdf       = pbrEval(pbrMat, to_eye, light_dir, pdf);
+    float mis_weight = max(0.0F, powerHeuristic(light_pdf, pdf));
+    vec3  radiance   = mis_weight * brdf * light_contrib / light_pdf;
+
+    contrib.visible  = true;
+    contrib.lightDir = light_dir;
+    contrib.radiance = radiance;
+  }
+
+  return contrib;
+}
+
 
 #endif

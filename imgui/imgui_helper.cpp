@@ -80,6 +80,12 @@ bool Combo(const char* label, size_t numEnums, const Enum* enums, void* valuePtr
     }
   }
 
+  if(!found)
+  {
+    assert(!"No such value in combo!");
+    return false;
+  }
+
   if(ImGui::BeginCombo(label, enums[idx].name.c_str(), flags))  // The second parameter is the label previewed before opening the combo.
   {
     for(size_t i = 0; i < numEnums; i++)
@@ -179,7 +185,7 @@ void setStyle(bool useLinearColor)
   ImGuiStyle& style                  = ImGui::GetStyle();
   style.WindowRounding               = 0.0f;
   style.WindowBorderSize             = 0.0f;
-  style.ColorButtonPosition          = ImGuiDir_Left;
+  style.ColorButtonPosition          = ImGuiDir_Right;
   style.FrameRounding                = 2.0f;
   style.FrameBorderSize              = 1.0f;
   style.GrabRounding                 = 4.0f;
@@ -675,7 +681,6 @@ void ImGui::PlotMultiEx(const char* label, int num_datas, ImPlotMulti* datas, co
 
       bool type_line = (cur_data.plot_type == ImGuiPlotType_Lines) || (cur_data.plot_type == (ImGuiPlotType)ImGuiPlotType_Area);
 
-      int res_w      = ImMin((int)frame_size.x, cur_data.values_count) + (type_line ? -1 : 0);
       int item_count = cur_data.values_count + (type_line ? -1 : 0);
 
       // Tooltip on hover
@@ -706,12 +711,12 @@ void ImGui::PlotMultiEx(const char* label, int num_datas, ImPlotMulti* datas, co
     const float inv_scale =
         (cur_data.scale_min == cur_data.scale_max) ? 0.0f : (1.0f / (cur_data.scale_max - cur_data.scale_min));
 
-    float  v0                    = cur_data.data[(0 + cur_data.values_offset) % cur_data.values_count];
-    float  t0                    = 0.0f;
-    ImVec2 tp0                   = ImVec2(t0, 1.0f - ImSaturate((v0 - cur_data.scale_min) * inv_scale));  // Point in the normalized space of our target rectangle
-    float  histogram_zero_line_t = (cur_data.scale_min * cur_data.scale_max < 0.0f) ?
-                                       (-cur_data.scale_min * inv_scale) :
-                                       (cur_data.scale_min < 0.0f ? 0.0f : 1.0f);  // Where does the zero line stands
+    float v0 = cur_data.data[(0 + cur_data.values_offset) % cur_data.values_count];
+    float t0 = 0.0f;
+    ImVec2 tp0 = ImVec2(t0, 1.0f - ImSaturate((v0 - cur_data.scale_min) * inv_scale));  // Point in the normalized space of our target rectangle
+    float histogram_zero_line_t = (cur_data.scale_min * cur_data.scale_max < 0.0f) ?
+                                      (-cur_data.scale_min * inv_scale) :
+                                      (cur_data.scale_min < 0.0f ? 0.0f : 1.0f);  // Where does the zero line stands
 
     const ImU32 col_base   = ColorConvertFloat4ToU32(cur_data.color);
     const ImU32 col_base_a = ColorConvertFloat4ToU32(
@@ -762,7 +767,7 @@ void ImGui::PlotMultiEx(const char* label, int num_datas, ImPlotMulti* datas, co
 }
 
 
-bool ImGuiH::azimuthElevationSliders(nvmath::vec3f& direction, bool negative)
+bool ImGuiH::azimuthElevationSliders(nvmath::vec3f& direction, bool negative, bool yIsUp /*=true*/)
 {
   nvmath::vec3f normalized_dir = normalize(direction);
   if(negative)
@@ -770,12 +775,24 @@ bool ImGuiH::azimuthElevationSliders(nvmath::vec3f& direction, bool negative)
     normalized_dir = -normalized_dir;
   }
 
-  double       azimuth       = nv_to_deg * (atan2(normalized_dir.z, normalized_dir.x));
-  double       elevation     = nv_to_deg * (asin(normalized_dir.y));
+  double       azimuth;
+  double       elevation;
   const double min_azimuth   = -180.0;
   const double max_azimuth   = 180.0;
   const double min_elevation = -90.0;
   const double max_elevation = 90.0;
+
+  if(yIsUp)
+  {
+    azimuth   = nv_to_deg * (atan2(normalized_dir.z, normalized_dir.x));
+    elevation = nv_to_deg * (asin(normalized_dir.y));
+  }
+  else
+  {
+    azimuth   = nv_to_deg * (atan2(normalized_dir.y, normalized_dir.x));
+    elevation = nv_to_deg * (asin(normalized_dir.z));
+  }
+
 
   bool changed = false;
   changed |= PropertyEditor::entry("Azimuth", [&]() {
@@ -793,9 +810,18 @@ bool ImGuiH::azimuthElevationSliders(nvmath::vec3f& direction, bool negative)
     elevation            = nv_to_rad * (elevation);
     double cos_elevation = cos(elevation);
 
-    direction.y = static_cast<float>(sin(elevation));
-    direction.x = static_cast<float>(cos(azimuth) * cos_elevation);
-    direction.z = static_cast<float>(sin(azimuth) * cos_elevation);
+    if(yIsUp)
+    {
+      direction.y = static_cast<float>(sin(elevation));
+      direction.x = static_cast<float>(cos(azimuth) * cos_elevation);
+      direction.z = static_cast<float>(sin(azimuth) * cos_elevation);
+    }
+    else
+    {
+      direction.z = static_cast<float>(sin(elevation));
+      direction.x = static_cast<float>(cos(azimuth) * cos_elevation);
+      direction.y = static_cast<float>(sin(azimuth) * cos_elevation);
+    }
 
     if(negative)
     {

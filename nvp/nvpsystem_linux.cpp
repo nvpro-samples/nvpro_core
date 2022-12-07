@@ -42,10 +42,6 @@
 #define STB_IMAGE_WRITE_STATIC
 #include <stb_image_write.h>
 
-#ifdef NVP_SUPPORTS_SOCKETS
-#include "socketSampleMessages.h"
-#endif
-
 #include "linux_file_dialog.h"
 
 union Pixel

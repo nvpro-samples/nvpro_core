@@ -1600,7 +1600,7 @@ struct BasisUSingleton
     // Initialize the ETC1S transcoder.
     if(outObjects.etc1sTranscoder)
       delete outObjects.etc1sTranscoder;
-    outObjects.etc1sTranscoder = new basist::basisu_lowlevel_etc1s_transcoder(m_codebook);
+    outObjects.etc1sTranscoder = new basist::basisu_lowlevel_etc1s_transcoder();
     outObjects.etc1sTranscoder->clear();
 
     // Decode tables and palettes.
@@ -1634,13 +1634,10 @@ struct BasisUSingleton
       std::lock_guard<std::mutex> lock(m_modificationMutex);
       basist::basisu_transcoder_init();
       basisu::basisu_encoder_init();
-      m_codebook = new basist::etc1_global_selector_codebook(basist::g_global_selector_cb_size, basist::g_global_selector_cb);
       m_initialized.store(true);
     }
     return true;
   }
-
-  const basist::etc1_global_selector_codebook* GetGlobalSelectorCodebook() { return m_codebook; }
 
 private:
   BasisUSingleton(){};
@@ -1648,18 +1645,12 @@ private:
   ~BasisUSingleton()
   {
     std::lock_guard<std::mutex> lock(m_modificationMutex);
-    if(m_codebook)
-    {
-      delete m_codebook;
-      m_codebook = nullptr;
-    }
     m_initialized.store(false);
   }
 
 private:
-  std::mutex                             m_modificationMutex;
-  std::atomic<bool>                      m_initialized = false;
-  basist::etc1_global_selector_codebook* m_codebook    = nullptr;
+  std::mutex        m_modificationMutex;
+  std::atomic<bool> m_initialized = false;
 };
 #endif
 
@@ -1877,8 +1868,6 @@ inline ErrorWithText KTXImage::readFromKTX2Stream(std::istream& input, const Rea
   uint32_t khrDfPrimaries              = KHR_DF_PRIMARIES_SRGB;
   is_premultiplied                     = false;
   is_srgb                              = true;
-  bool             isBasisUASTC        = false;
-  bool             isBasisETC1S        = false;
   size_t           basisETC1SNumSlices = 1;  // Basis ETC1S can have 1 or two slices (which occurs in RGBA and R+G)
   ETC1SCombination basisETC1SCombo{};
 #ifdef NVP_SUPPORTS_BASISU
@@ -1909,7 +1898,7 @@ inline ErrorWithText KTXImage::readFromKTX2Stream(std::istream& input, const Rea
       if(basicDFD.colorModel == KDF_DF_MODEL_UASTC)
       {
 #ifdef NVP_SUPPORTS_BASISU
-        isBasisUASTC = true;
+        input_supercompression = InputSupercompression::eBasisUASTC;
         if(readSettings.device_supports_astc)
         {
           // Prefer ASTC, since then transcoding is lossless:
@@ -1927,7 +1916,7 @@ inline ErrorWithText KTXImage::readFromKTX2Stream(std::istream& input, const Rea
       else if(basicDFD.colorModel == KHR_DF_MODEL_ETC1S)
       {
 #ifdef NVP_SUPPORTS_BASISU
-        isBasisETC1S = true;
+        input_supercompression = InputSupercompression::eBasisETC1S;
         // There are four ETC1S channel possibilities. The final format is
         // BC4 for RRR, BC5 for RRR+GGG, and BC7 for RGB and RGB+AAA.
         basisETC1SNumSlices = dfdSamples.size();
@@ -1995,7 +1984,7 @@ inline ErrorWithText KTXImage::readFromKTX2Stream(std::istream& input, const Rea
   // Perform additional validation to rule out invalid Basis+format+supercompression
   // combinations. Not doing these checks can lead to surprising behavior!
   // Basis ETC1S must only appear with supercompression mode 1, and vice versa.
-  if(isBasisETC1S ^ (header.supercompressionScheme == 1))
+  if((input_supercompression == InputSupercompression::eBasisETC1S) != (header.supercompressionScheme == 1))
   {
     return "KTX2 file was invalid - the Basis ETC1S flag didn't match whether supercompression scheme 1 (BasisLZ) was used.";
   }
@@ -2202,13 +2191,13 @@ inline ErrorWithText KTXImage::readFromKTX2Stream(std::istream& input, const Rea
     {
       // Check for the Basis UASTC and Universal cases. I don't know if ETC1S
       // or UASTC supports depth.
-      if(isBasisUASTC)
+      if(input_supercompression == InputSupercompression::eBasisUASTC)
       {
         if(!CheckedMul4((mipWidth + 3) / 4, (mipHeight + 3) / 4, mipDepth, 16, inflatedFaceSize))  // 16 bytes per 4x4 block
           return "Invalid KTX2 file: A subresource had size " + std::to_string(mipWidth) + " x " + std::to_string(mipHeight)
                  + " x " + std::to_string(mipDepth) + ", which would require more than 2^64 - 1 bytes to store decompressed.";
       }
-      else if(isBasisETC1S)
+      else if(input_supercompression == InputSupercompression::eBasisETC1S)
       {
         if(!CheckedMul5((mipWidth + 3) / 4, (mipHeight + 3) / 4, mipDepth, basisETC1SNumSlices, 8, inflatedFaceSize))  // 8 bytes per 4x4 block per slice
           return "Invalid KTX2 file: A subresource had size " + std::to_string(mipWidth) + " x " + std::to_string(mipHeight)
@@ -2271,7 +2260,7 @@ inline ErrorWithText KTXImage::readFromKTX2Stream(std::istream& input, const Rea
     }
 
     // FAST PATH - if no supercompression and no UASTC, we can read directly:
-    if((header.supercompressionScheme == 0) && (!isBasisUASTC))
+    if((header.supercompressionScheme == 0) && (input_supercompression != InputSupercompression::eBasisUASTC))
     {
       for(uint32_t layer = 0; layer < header.layerCount; layer++)
       {
@@ -2398,7 +2387,7 @@ inline ErrorWithText KTXImage::readFromKTX2Stream(std::istream& input, const Rea
           std::vector<char>& subresource_data = subresource(mip, layer, face);
           UNWRAP_ERROR(ResizeVectorOrError(subresource_data, finalFaceSize));
 
-          if(isBasisUASTC)
+          if(input_supercompression == InputSupercompression::eBasisUASTC)
           {
 #ifdef NVP_SUPPORTS_BASISU
             BasisUSingleton::GetInstance().TranscodeUASTCToBC7OrASTC44(subresource_data.data(),
@@ -2408,7 +2397,7 @@ inline ErrorWithText KTXImage::readFromKTX2Stream(std::istream& input, const Rea
             assert(!"nv_ktx was compiled without Basis support, but the KTX stream was not rejected! This should never happen.");
 #endif
           }
-          else if(isBasisETC1S)
+          else if(input_supercompression == InputSupercompression::eBasisETC1S)
           {
 #ifdef NVP_SUPPORTS_BASISU
             // Get the ETC1S image description
@@ -2615,7 +2604,7 @@ inline ErrorWithText KTXImage::writeKTX2Stream(std::ostream& output, const Write
     params.m_write_output_basis_files = false;
     params.m_status_output = false;
     params.m_debug = false;
-    params.m_validate = false;
+    params.m_validate_etc1s = false;
     params.m_compression_level = writeSettings.etc1s_encoding_level;
     params.m_check_for_alpha = false;
     params.m_multithreading = true;
@@ -2676,7 +2665,6 @@ inline ErrorWithText KTXImage::writeKTX2Stream(std::ostream& output, const Write
     else
     {
       params.m_force_alpha = (writeSettings.encode_rgba8_to_format == EncodeRGBA8ToFormat::ETC1S_RGBA);
-      params.m_pSel_codebook = BasisUSingleton::GetInstance().GetGlobalSelectorCodebook();
       params.m_quality_level = std::max(0, std::min((writeSettings.etc1s_encoding_level * 255) / 6, 255));
       //params.m_global_sel_pal = true; // Enabling this seems to make things very slow
       params.m_uastc = false;
@@ -2884,6 +2872,18 @@ inline ErrorWithText KTXImage::writeKTX2Stream(std::ostream& output, const Write
           uint8_t(KHR_DF_CHANNEL_BC6H_COLOR) | uint8_t(KHR_DF_SAMPLE_DATATYPE_FLOAT | KHR_DF_SAMPLE_DATATYPE_SIGNED);
       dfSamples[0].lower = 0xBF800000u;  // -1.0f
       dfSamples[0].upper = 0x3F800000u;  // 1.0f
+      break;
+    case VK_FORMAT_BC6H_UFLOAT_BLOCK:
+      // BC6H unsigned
+      dfdBlock.colorModel           = KHR_DF_MODEL_BC6H;
+      dfdBlock.colorPrimaries       = KHR_DF_PRIMARIES_BT709;
+      dfdBlock.texelBlockDimension0 = 3;
+      dfdBlock.texelBlockDimension1 = 3;
+      dfdBlock.bytesPlane0          = 16;
+      dfSamples[0].bitLength        = 127;
+      dfSamples[0].channelType      = uint8_t(KHR_DF_CHANNEL_BC6H_COLOR) | uint8_t(KHR_DF_SAMPLE_DATATYPE_FLOAT);
+      dfSamples[0].lower            = 0;            // 0.0f
+      dfSamples[0].upper            = 0x3F800000u;  // 1.0f
       break;
     case VK_FORMAT_ASTC_4x4_UNORM_BLOCK:
     case VK_FORMAT_ASTC_4x4_SRGB_BLOCK:

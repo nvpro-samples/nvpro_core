@@ -166,8 +166,9 @@ void nvvk::RaytracingBuilderKHR::buildBlas(const std::vector<BlasInput>& input, 
     VkDeviceSize compactSize = std::accumulate(buildAs.begin(), buildAs.end(), 0ULL, [](const auto& a, const auto& b) {
       return a + b.sizeInfo.accelerationStructureSize;
     });
+    const float  fractionSmaller = (asTotalSize == 0) ? 0 : (asTotalSize - compactSize) / float(asTotalSize);
     LOGI(" RT BLAS: reducing from: %" PRIu64 " to: %" PRIu64 " = %" PRIu64 " (%2.2f%s smaller) \n", asTotalSize,
-         compactSize, asTotalSize - compactSize, (asTotalSize - compactSize) / float(asTotalSize) * 100.f, "%");
+         compactSize, asTotalSize - compactSize, fractionSmaller * 100.f, "%");
   }
 
   // Keeping all the created acceleration structures

@@ -20,6 +20,7 @@
 #pragma once
 #include <memory>
 #include "shaders/dh_tonemap.h"
+#include "nvvk/descriptorsets_vk.hpp"
 
 
 /*

@@ -48,7 +48,6 @@ _optional_package_Freeimage()
 _optional_package_Optix()
 _optional_package_Cuda()
 _optional_package_NVToolsExt()
-_optional_package_Sockets()
 
 # process the rest of some cmake code that needs to be done after the packages
 _process_shared_cmake_code()
@@ -140,21 +139,26 @@ if(USING_IMGUI)
     list(REMOVE_ITEM IMGUI_SOURCE imgui/imgui_camera_widget.cpp)
   endif()
 
-  include_directories(${IMGUI_DIR} ${IMGUI_DIR}/backends)
+  # pickup our own backend directory
+  include_directories(${CMAKE_CURRENT_SOURCE_DIR}/imgui ${CMAKE_CURRENT_SOURCE_DIR}/imgui/backends)
   
   if(USING_OPENGL)
     list(APPEND IMGUI_SOURCE 
-         imgui/backends/imgui_impl_gl.cpp
-         imgui/backends/imgui_impl_gl.h
+         ${CMAKE_CURRENT_SOURCE_DIR}/imgui/backends/imgui_impl_gl.cpp
+         ${CMAKE_CURRENT_SOURCE_DIR}/imgui/backends/imgui_impl_gl.h
          )
   endif() 
  
   if(USING_VULKANSDK)
+    # replaced with our own copy
+    list(REMOVE_ITEM IMGUI_SOURCE ${IMGUI_DIR}/imgui/backends/imgui_impl_vulkan.cpp)
+    list(REMOVE_ITEM IMGUI_SOURCE ${IMGUI_DIR}/imgui/backends/imgui_impl_vulkan.h)
+
     list(APPEND IMGUI_SOURCE 
-         imgui/backends/imgui_vk_extra.cpp 
-         imgui/backends/imgui_vk_extra.h
-         imgui/backends/imgui_impl_vulkan.cpp 
-         imgui/backends/imgui_impl_vulkan.h)
+         ${CMAKE_CURRENT_SOURCE_DIR}/imgui/backends/imgui_vk_extra.cpp 
+         ${CMAKE_CURRENT_SOURCE_DIR}/imgui/backends/imgui_vk_extra.h
+         ${CMAKE_CURRENT_SOURCE_DIR}/imgui/backends/imgui_impl_vulkan.cpp 
+         ${CMAKE_CURRENT_SOURCE_DIR}/imgui/backends/imgui_impl_vulkan.h)
   endif()
  
   if(USING_DIRECTX12)

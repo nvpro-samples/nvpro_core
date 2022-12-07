@@ -23,18 +23,12 @@ namespace ImGuiH {
   - AddCamera : adding a camera to the list of cameras
   */
 
-bool CameraWidget(
-    nvh::CameraManipulator& cameraM =
-        nvh::CameraManipulator::Singleton());
+bool CameraWidget(nvh::CameraManipulator& cameraM = nvh::CameraManipulator::Singleton());
 
-void SetCameraJsonFile(
-    const std::string&
-        filename);
+void SetCameraJsonFile(const std::string& filename);
 
-void SetHomeCamera(
-    const nvh::CameraManipulator::Camera& camera);
+void SetHomeCamera(const nvh::CameraManipulator::Camera& camera);
 
-void AddCamera(
-    const nvh::CameraManipulator::Camera& camera);
+void AddCamera(const nvh::CameraManipulator::Camera& camera);
 
 }  // namespace ImGuiH

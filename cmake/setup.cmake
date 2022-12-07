@@ -40,7 +40,6 @@ set_property(GLOBAL PROPERTY PREDEFINED_TARGETS_FOLDER "_cmake")
 # https://cmake.org/cmake/help/latest/policy/CMP0072.html
 set(OpenGL_GL_PREFERENCE GLVND)
 
-set(SUPPORT_SOCKETS OFF CACHE BOOL "add a socket protocol so samples can be controled remotely")
 set(SUPPORT_NVTOOLSEXT OFF CACHE BOOL "enable NVToolsExt for custom NSIGHT markers")
 set(SUPPORT_AFTERMATH OFF CACHE BOOL "enable nSight Aftermath")
 
@@ -304,55 +303,6 @@ macro(_optional_package_FreeImage)
     _add_package_FreeImage()
   endif(FREEIMAGE_FOUND)
 endmacro(_optional_package_FreeImage)
-
-
-#####################################################################################
-# package for Sockets: to allow UDP/TCP IP connections
-#
-macro(_add_package_Sockets)
-  Message(STATUS "--> using package Sockets")
-  set(SOCKETS_PATH "${BASE_DIRECTORY}/nvpro_core/nvsockets")
-  get_directory_property(hasParent PARENT_DIRECTORY)
-  if(hasParent)
-    set( USING_SOCKETS "YES" PARENT_SCOPE) # PARENT_SCOPE important to have this variable passed to parent. Here we want to notify that something used the Vulkan package
-  else()
-    set( USING_SOCKETS "YES")
-  endif()
-  add_definitions(-DNVP_SUPPORTS_SOCKETS)
-  set(SOCKETS_H
-    ${SOCKETS_PATH}/socketclient.hpp
-    ${SOCKETS_PATH}/socketsamplemessages.hpp
-    ${SOCKETS_PATH}/socketserver.hpp
-    # ${SOCKETS_PATH}/nvpwindow_socket.hpp
-    ${SOCKETS_PATH}/cthread_s.hpp
-  )
-  set(SOCKETS_CPP
-    ${SOCKETS_PATH}/socketclient.cpp
-    ${SOCKETS_PATH}/socketserver.cpp
-    ${SOCKETS_PATH}/socketsamplemessages.cpp
-    ${SOCKETS_PATH}/cthread_s.cpp
-  )
-  source_group(sockets FILES ${SOCKETS_H})
-if(WIN32)
-  LIST(APPEND LIBRARIES_OPTIMIZED ws2_32 )
-  LIST(APPEND LIBRARIES_DEBUG ws2_32 )
-  #TODO: for Linux and Android, too !
-endif()
-  LIST(APPEND PACKAGE_SOURCE_FILES ${SOCKETS_H} )
-  # source_group(Sockets FILES ${SOCKETS_CPP})
-  # LIST(APPEND PACKAGE_SOURCE_FILES ${SOCKETS_CPP} )
-  include_directories(${SOCKETS_PATH})
-endmacro(_add_package_Sockets)
-
-# for the nvpro_core library
-macro(_optional_package_Sockets)
-  if(USING_SOCKETS)
-    Message("NOTE: Package for remote control via Sockets is ON")
-    _add_package_Sockets()
-    source_group(Sockets FILES ${SOCKETS_CPP})
-    LIST(APPEND PACKAGE_SOURCE_FILES ${SOCKETS_CPP} )
-  endif(USING_SOCKETS)
-endmacro(_optional_package_Sockets)
 
 #####################################################################################
 # Optional OptiX package
@@ -1078,11 +1028,6 @@ macro(_add_nvpro_core_lib)
   endif()
   if(USING_VULKANSDK OR NOT VULKANSDK_FOUND)
     _optional_package_VulkanSDK()
-  endif()
-  # if socket system required in samples, add the package
-  if(SUPPORT_SOCKETS)
-    Message("NOTE: Package for remote control via Sockets is ON")
-    _add_package_Sockets()
   endif()
   # finish with another part (also used by cname for the nvpro_core)
   _process_shared_cmake_code()

@@ -53,8 +53,10 @@ public:
   float getAverage() const { return m_average; }
   bool  isValid() const { return m_valid; }
 
-  inline VkDescriptorSetLayout getDescriptorSetLayout() { return m_descSetLayout; }
+  inline VkDescriptorSetLayout getDescriptorSetLayout() { return m_descSetLayout; }  // HDR + importance sampling
   inline VkDescriptorSet       getDescriptorSet() { return m_descSet; }
+  const nvvk::Texture&         getHdrTexture() { return m_texHdr; }  // The loaded HDR texture
+  VkExtent2D                   getHdrImageSize() { return m_hdrImageSize; }
 
 private:
   VkDevice                 m_device{VK_NULL_HANDLE};
@@ -62,9 +64,10 @@ private:
   nvvk::ResourceAllocator* m_alloc{nullptr};
   nvvk::DebugUtil          m_debug;
 
-  float m_integral{1.F};
-  float m_average{1.F};
-  bool  m_valid{false};
+  float      m_integral{1.F};
+  float      m_average{1.F};
+  bool       m_valid{false};
+  VkExtent2D m_hdrImageSize{1,1};
 
   // Resources
   nvvk::Texture         m_texHdr;

@@ -403,7 +403,7 @@ void GltfScene::processMesh(const tinygltf::Model&     tmodel,
         break;
       }
       default:
-        std::cerr << "Index component type " << indexAccessor.componentType << " not supported!" << std::endl;
+        LOGE("Index component type %i not supported!\n", indexAccessor.componentType);
         return;
     }
   }
@@ -418,11 +418,13 @@ void GltfScene::processMesh(const tinygltf::Model&     tmodel,
 
   if(primMeshCached == false)  // Need to add this primitive
   {
-
     // POSITION
     {
-      bool result = getAttribute<nvmath::vec3f>(tmodel, tmesh, m_positions, "POSITION");
-
+      const bool hadPosition = getAttribute<nvmath::vec3f>(tmodel, tmesh, m_positions, "POSITION");
+      if (!hadPosition) {
+        LOGE("This glTF file is invalid: it had a primitive with no POSITION attribute.\n");
+        return;
+      }
       // Keeping the size of this primitive (Spec says this is required information)
       const auto& accessor   = tmodel.accessors[tmesh.attributes.find("POSITION")->second];
       resultMesh.vertexCount = static_cast<uint32_t>(accessor.count);
@@ -546,7 +548,7 @@ void GltfScene::createTexcoords(GltfPrimMesh& resultMesh)
     int isYPositive = pos.y > 0 ? 1 : 0;
     int isZPositive = pos.z > 0 ? 1 : 0;
 
-    float maxAxis, uc, vc;
+    float maxAxis{}, uc{}, vc{};  // Zero-initialize in case pos = {NaN, NaN, NaN}
 
     // POSITIVE X
     if(isXPositive && absX >= absY && absX >= absZ)
@@ -1066,7 +1068,7 @@ void GltfScene::exportDrawableNodes(tinygltf::Model& tmodel, GltfAttributes requ
     vattrib.emplace_back(fct("iview:up", m_cameras[0].up));
     tinygltf::Value::Object oattrib;
     oattrib["attributes"]                  = tinygltf::Value(vattrib);
-    node.extensions[EXTENSION_ATTRIB_IRAY] = std::move(tinygltf::Value(oattrib));
+    node.extensions[EXTENSION_ATTRIB_IRAY] = tinygltf::Value(oattrib);
 
     // Add camera to scene
     tmodel.scenes[0].nodes.push_back((int)tnodes.size() - 1);

@@ -88,7 +88,6 @@ void HdrEnv::loadEnvironment(const std::string& hrdImage)
     int32_t height{0};
     int32_t component{0};
     float*  pixels = nullptr;
-    bool    is_exr = false;
 
     if(stbi_is_hdr(hrdImage.c_str()) != 0)
     {
@@ -101,6 +100,8 @@ void HdrEnv::loadEnvironment(const std::string& hrdImage)
       VkDeviceSize buffer_size = width * height * 4 * sizeof(float);
       VkExtent2D   img_size{static_cast<uint32_t>(width), static_cast<uint32_t>(height)};
 
+      m_hdrImageSize = img_size;
+
       VkSamplerCreateInfo sampler_create_info{VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
       sampler_create_info.minFilter  = VK_FILTER_LINEAR;
       sampler_create_info.magFilter  = VK_FILTER_LINEAR;
@@ -110,7 +111,8 @@ void HdrEnv::loadEnvironment(const std::string& hrdImage)
       // CLAMP_TO_EDGE to avoid having light leaking from one pole to another.
       sampler_create_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
       VkFormat          format         = VK_FORMAT_R32G32B32A32_SFLOAT;
-      VkImageCreateInfo ic_info        = nvvk::makeImage2DCreateInfo(img_size, format);
+      VkImageCreateInfo ic_info =
+          nvvk::makeImage2DCreateInfo(img_size, format, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT);
 
       // We can use a different family index (1 - transfer), to allow loading in a different queue/thread than the display (0)
       VkQueue queue = nullptr;
@@ -136,10 +138,7 @@ void HdrEnv::loadEnvironment(const std::string& hrdImage)
       auto t_diff = std::chrono::duration<double, std::milli>(t_end - t_start).count();
       LOGI(" - Generating Acceleration structure: %f ms \n", t_diff);
 
-      if(is_exr)
-        free(pixels);
-      else
-        stbi_image_free(pixels);
+      stbi_image_free(pixels);
 
       m_valid = true;
     }
@@ -151,11 +150,12 @@ void HdrEnv::loadEnvironment(const std::string& hrdImage)
     vkGetDeviceQueue(m_device, m_familyIndex, 0, &queue);
     {
       nvvk::ScopeCommandBuffer cmd_buf(m_device, m_familyIndex, queue);
-      VkImageCreateInfo        image_create_info = nvvk::makeImage2DCreateInfo(VkExtent2D{1, 1});
-      std::vector<uint8_t>     color{255, 255, 255, 255};
-      nvvk::Image              image   = m_alloc->createImage(cmd_buf, 4, color.data(), image_create_info);
-      VkImageViewCreateInfo    iv_info = nvvk::makeImageViewCreateInfo(image.image, image_create_info);
-      VkSamplerCreateInfo      sampler_create_info{VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
+      VkImageCreateInfo     image_create_info = nvvk::makeImage2DCreateInfo(VkExtent2D{1, 1}, VK_FORMAT_R8G8B8A8_UNORM,
+                                                                            VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT);
+      std::vector<uint8_t>  color{255, 255, 255, 255};
+      nvvk::Image           image   = m_alloc->createImage(cmd_buf, 4, color.data(), image_create_info);
+      VkImageViewCreateInfo iv_info = nvvk::makeImageViewCreateInfo(image.image, image_create_info);
+      VkSamplerCreateInfo   sampler_create_info{VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
       m_texHdr       = m_alloc->createTexture(image, iv_info, sampler_create_info);
       m_accelImpSmpl = m_alloc->createBuffer(cmd_buf, color, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
     }

@@ -35,6 +35,10 @@ using Gui = ImGuiH::Control;
 //
 struct CameraManager
 {
+  CameraManager()  = default;
+  ~CameraManager() { saveSetting(nvh::CameraManipulator::Singleton()); };
+
+
   // update setting, load or save
   void update(nvh::CameraManipulator& cameraM)
   {
@@ -68,7 +72,7 @@ struct CameraManager
 
   void setCameraJsonFile(const std::string& filename)
   {
-    jsonFilename  = filename + ".json";
+    jsonFilename = NVPSystem::exePath() + filename + ".json";
     doLoadSetting = true;
     removedSavedCameras();
   }
@@ -146,7 +150,7 @@ struct CameraManager
       // Clear all cameras except the HOME
       removedSavedCameras();
 
-      std::ifstream i(NVPSystem::exePath() + jsonFilename);
+      std::ifstream i(jsonFilename);
       if(!i.is_open())
         return;
 
@@ -183,6 +187,7 @@ struct CameraManager
           camera.fov = fVal;
         cameras.emplace_back(camera);
       }
+      i.close();
     }
     catch(...)
     {
@@ -214,9 +219,12 @@ struct CameraManager
     }
     j["cameras"] = cc;
 
-    std::ofstream o(NVPSystem::exePath() + jsonFilename);
-    o << j.dump(2) << std::endl;
-    o.close();
+    std::ofstream o(jsonFilename);
+    if(o.is_open())
+    {
+      o << j.dump(2) << std::endl;
+      o.close();
+    }
   }
 
   // Holds all cameras. [0] == HOME
@@ -224,12 +232,9 @@ struct CameraManager
   float                                       settingsDirtyTimer{0};
   std::string                                 jsonFilename;
   bool                                        doLoadSetting{true};
-
-  ~CameraManager()
-  { /*saveSetting();*/
-  }
 };
-static CameraManager sCamMgr;
+
+static std::unique_ptr<CameraManager> sCamMgr;
 
 
 //--------------------------------------------------------------------------------------------------
@@ -319,13 +324,13 @@ void SavedCameraTab(nvh::CameraManipulator& cameraM, nvh::CameraManipulator::Cam
   ImVec2      button_sz(50, 30);
   char        label[128];
   ImGuiStyle& style             = ImGui::GetStyle();
-  int         buttons_count     = (int)sCamMgr.cameras.size();
+  int         buttons_count     = (int)sCamMgr->cameras.size();
   float       window_visible_x2 = ImGui::GetWindowPos().x + ImGui::GetWindowContentRegionMax().x;
 
   // The HOME camera button, different from the other ones
   if(ImGui::Button("Home", ImVec2(ImGui::GetWindowContentRegionMax().x, 50)))
   {
-    camera  = sCamMgr.cameras[0];
+    camera  = sCamMgr->cameras[0];
     changed = true;
   }
   ImGuiH::tooltip("Reset the camera to its origin");
@@ -338,7 +343,7 @@ void SavedCameraTab(nvh::CameraManipulator& cameraM, nvh::CameraManipulator::Cam
     sprintf(label, "# %d", n);
     if(ImGui::Button(label, button_sz))
     {
-      camera  = sCamMgr.cameras[n];
+      camera  = sCamMgr->cameras[n];
       changed = true;
     }
 
@@ -347,8 +352,8 @@ void SavedCameraTab(nvh::CameraManipulator& cameraM, nvh::CameraManipulator::Cam
       delete_item = n;
 
     // Displaying the position of the camera when hovering the button
-    sprintf(label, "Pos: %3.5f, %3.5f, %3.5f", sCamMgr.cameras[n].eye.x, sCamMgr.cameras[n].eye.y,
-            sCamMgr.cameras[n].eye.z);
+    sprintf(label, "Pos: %3.5f, %3.5f, %3.5f", sCamMgr->cameras[n].eye.x, sCamMgr->cameras[n].eye.y,
+            sCamMgr->cameras[n].eye.z);
     ImGuiH::tooltip(label);
 
     // Wrapping all buttons (see ImGUI Demo)
@@ -363,8 +368,8 @@ void SavedCameraTab(nvh::CameraManipulator& cameraM, nvh::CameraManipulator::Cam
   // Adding a camera button
   if(ImGui::Button("+"))
   {
-    sCamMgr.addCamera(cameraM.getCamera());
-    sCamMgr.markIniSettingsDirty();
+    sCamMgr->addCamera(cameraM.getCamera());
+    sCamMgr->markIniSettingsDirty();
   }
   ImGuiH::tooltip("Add a new saved camera");
   ImGui::SameLine();
@@ -374,8 +379,8 @@ void SavedCameraTab(nvh::CameraManipulator& cameraM, nvh::CameraManipulator::Cam
   // Remove element
   if(delete_item > 0)
   {
-    sCamMgr.cameras.erase(sCamMgr.cameras.begin() + delete_item);
-    sCamMgr.markIniSettingsDirty();
+    sCamMgr->cameras.erase(sCamMgr->cameras.begin() + delete_item);
+    sCamMgr->markIniSettingsDirty();
   }
 }
 
@@ -386,9 +391,9 @@ void CameraExtraTab(nvh::CameraManipulator& cameraM, bool& changed)
 {
   // Navigation Mode
   PropertyEditor::begin();
-  auto  mode     = cameraM.getMode();
-  auto  speed    = cameraM.getSpeed();
-  auto  duration = static_cast<float>(cameraM.getAnimationDuration());
+  auto mode     = cameraM.getMode();
+  auto speed    = cameraM.getSpeed();
+  auto duration = static_cast<float>(cameraM.getAnimationDuration());
 
   changed |= PropertyEditor::entry(
       "Navigation",
@@ -422,13 +427,15 @@ void CameraExtraTab(nvh::CameraManipulator& cameraM, bool& changed)
 // And basic control information is displayed
 bool CameraWidget(nvh::CameraManipulator& cameraM /*= nvh::CameraManipulator::Singleton()*/)
 {
+  if(!sCamMgr)
+    sCamMgr = std::make_unique<CameraManager>();
 
   bool changed{false};
   bool instantSet{false};
   auto camera = cameraM.getCamera();
 
   // Updating the camera manager
-  sCamMgr.update(cameraM);
+  sCamMgr->update(cameraM);
 
   // Starting UI
   if(ImGui::BeginTabBar("Hello"))
@@ -457,28 +464,32 @@ bool CameraWidget(nvh::CameraManipulator& cameraM /*= nvh::CameraManipulator::Si
   if(changed)
   {
     cameraM.setCamera(camera, instantSet);
-    sCamMgr.markIniSettingsDirty();
+    sCamMgr->markIniSettingsDirty();
   }
   ImGui::Separator();
 
   return changed;
 }
 
-
 void SetCameraJsonFile(const std::string& filename)
 {
-  sCamMgr.jsonFilename  = filename + ".json";
-  sCamMgr.doLoadSetting = true;
+  if(!sCamMgr)
+    sCamMgr = std::make_unique<CameraManager>();
+  sCamMgr->setCameraJsonFile(filename);
 }
 
 void SetHomeCamera(const nvh::CameraManipulator::Camera& camera)
 {
-  sCamMgr.setHomeCamera(camera);
+  if(!sCamMgr)
+    sCamMgr = std::make_unique<CameraManager>();
+  sCamMgr->setHomeCamera(camera);
 }
 
 void AddCamera(const nvh::CameraManipulator::Camera& camera)
 {
-  sCamMgr.addCamera(camera);
+  if(!sCamMgr)
+    sCamMgr = std::make_unique<CameraManager>();
+  sCamMgr->addCamera(camera);
 }
 
 }  // namespace ImGuiH

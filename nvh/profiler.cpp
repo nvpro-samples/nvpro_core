@@ -267,7 +267,6 @@ bool Profiler::getTimerInfo(const char* name, TimerInfo& info)
     if(strcmp(name, entry.name))
       continue;
 
-    bool accumulated = false;
     return getTimerInfo(i, info);
   }
 
@@ -277,8 +276,6 @@ bool Profiler::getTimerInfo(const char* name, TimerInfo& info)
 void Profiler::print(std::string& stats)
 {
   stats.clear();
-
-  bool hadtimers = false;
 
   for(uint32_t i = 0; i < m_data->numLastSections; i++)
   {
@@ -301,8 +298,6 @@ void Profiler::print(std::string& stats)
     TimerInfo info;
     if(!getTimerInfo(i, info))
       continue;
-
-    hadtimers = true;
 
     const char* gpuname = entry.api ? entry.api : "N/A";
 

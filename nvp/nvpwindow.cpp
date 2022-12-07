@@ -23,10 +23,6 @@
 
 #include "nvpwindow.hpp"
 
-#ifdef NVP_SUPPORTS_SOCKETS
-#include "socketSampleMessages.h"
-#endif
-
 #include <algorithm>
 #include <stdio.h>
 #include <string>
@@ -287,7 +283,11 @@ bool NVPWindow::open(int posX, int posY, int width, int height, const char* titl
     // Some samples make use of compatibility profile features
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_COMPAT_PROFILE);
 #ifdef _DEBUG
+#ifdef GLFW_CONTEXT_DEBUG  // Since GLFW_CONTEXT_DEBUG is new in GLFW 3.4
     glfwWindowHint(GLFW_CONTEXT_DEBUG, 1);
+#else
+    glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, 1);
+#endif
 #endif
   }
 #endif

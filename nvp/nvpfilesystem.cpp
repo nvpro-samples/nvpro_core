@@ -28,7 +28,6 @@ using namespace nvp;
 
 #if defined(_WIN32)
 #include <locale>
-#include <codecvt>
 #include <filesystem>
 #include <Windows.h>
 
@@ -45,7 +44,7 @@ void logLastWindowError(std::string context)
 #else
 #error Not implemented
 #endif
-  LOGE("%s, error %i: %s\n", context.c_str(), dw, errorStr.c_str());
+  LOGE("%s, error %lu: %s\n", context.c_str(), dw, errorStr.c_str());
 
   LocalFree(messageBuffer);
 }
@@ -78,7 +77,47 @@ struct hash<PathKey>
 
 }  // namespace std
 
-using WstrConvert = std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>, wchar_t>;
+// Converts a UTF-8 string to a UTF-16 string. Avoids using <codecvt>, due to
+// https://github.com/microsoft/STL/issues/443.
+std::wstring utf8ToWideString(std::string utf8String)
+{
+  if(utf8String.size() > std::numeric_limits<int>::max())
+  {
+    assert(!"Too many characters for UTF8-to-UTF16 API!");
+    return L"";
+  }
+  const int utf8Bytes       = static_cast<int>(utf8String.size());
+  const int utf16Characters = MultiByteToWideChar(CP_UTF8, 0, utf8String.data(), utf8Bytes, nullptr, 0);
+  if(utf16Characters < 0)
+  {
+    assert(!"Error counting UTF-16 characters!");
+    return L"";
+  }
+  std::wstring result(utf16Characters, 0);
+  (void)MultiByteToWideChar(CP_UTF8, 0, utf8String.data(), utf8Bytes, result.data(), utf16Characters);
+  return result;
+}
+
+// Converts a UTF-16 string to a UTF-8 string. Avoids using <codecvt>, due to
+// https://github.com/microsoft/STL/issues/443.
+std::string wideToUTF8String(std::wstring utf16String)
+{
+  if(utf16String.size() > std::numeric_limits<int>::max())
+  {
+    assert(!"Too many characters for UTF16-to-UTF8 API!");
+    return "";
+  }
+  const int utf16Characters = static_cast<int>(utf16String.size());
+  const int utf8Bytes = WideCharToMultiByte(CP_UTF8, 0, utf16String.data(), utf16Characters, nullptr, 0, nullptr, nullptr);
+  if(utf8Bytes < 0)
+  {
+    assert(!"Error counting UTF-8 bytes!");
+    return "";
+  }
+  std::string result(utf8Bytes, 0);
+  (void)WideCharToMultiByte(CP_UTF8, 0, utf16String.data(), utf16Characters, result.data(), utf8Bytes, nullptr, nullptr);
+  return result;
+}
 
 struct PathInstance
 {
@@ -104,6 +143,7 @@ struct WindowsPathMonitor : PathKey
   WindowsPathMonitor(PathKey key)
       : PathKey{key}
       , m_overlapped{}
+      , m_eventsRequested{false}
   {
     // Translate the event mask
     m_winEventFilter = 0;
@@ -113,10 +153,10 @@ struct WindowsPathMonitor : PathKey
       m_winEventFilter |= FILE_NOTIFY_CHANGE_LAST_WRITE;
 
     // Open the path to receive events from it
-    auto  pathW     = m_wstrConverter.from_bytes(path);
-    DWORD shareMode = FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE;
-    DWORD flags     = FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED;
-    m_dirHandle     = CreateFileW(pathW.c_str(), GENERIC_READ, shareMode, NULL, OPEN_EXISTING, flags, NULL);
+    std::wstring pathW     = utf8ToWideString(path);
+    DWORD        shareMode = FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE;
+    DWORD        flags     = FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED;
+    m_dirHandle            = CreateFileW(pathW.c_str(), GENERIC_READ, shareMode, NULL, OPEN_EXISTING, flags, NULL);
     if(m_dirHandle == INVALID_HANDLE_VALUE)
       logLastWindowError(std::string("FileSystemMonitor: Error in CreateFileW for path ") + path);
   }
@@ -154,7 +194,6 @@ struct WindowsPathMonitor : PathKey
   DWORD                                                      m_winEventFilter;
   std::array<uint8_t, 63 * 1024>                             m_eventBuffer;
   OVERLAPPED                                                 m_overlapped;
-  WstrConvert                                                m_wstrConverter;
   bool                                                       m_eventsRequested;
   std::unordered_map<std::string, std::vector<PathInstance>> m_fileInstances;
   std::vector<PathInstance>                                  m_directoryInstances;
@@ -257,7 +296,7 @@ class FileSystemMonitorWindows : public FileSystemMonitor
   void handleEvent(WindowsPathMonitor* pathMonitor, const FILE_NOTIFY_EXTENDED_INFORMATION* notifyInfo, const Callback& callback)
   {
     std::wstring subPathW(notifyInfo->FileName, notifyInfo->FileNameLength / sizeof(WCHAR));
-    auto         subPath = m_wstrConverter.to_bytes(subPathW);
+    std::string  subPath = wideToUTF8String(subPathW);
 
     bool                       isDirMonitor = pathMonitor->m_fileInstances.empty();
     std::vector<PathInstance>* instances;
@@ -277,7 +316,7 @@ class FileSystemMonitorWindows : public FileSystemMonitor
     std::filesystem::path fullPath = pathMonitor->path;
     fullPath /= subPath;  // "/" adds the paths
 
-    LOGI("FileSystemMonitor %p event (mask %x) for '%s'\n", m_ioCompletionPort, notifyInfo->Action, fullPath.string().c_str());
+    LOGI("FileSystemMonitor %p event (mask %lx) for '%s'\n", m_ioCompletionPort, notifyInfo->Action, fullPath.string().c_str());
 
     for(auto& instance : *instances)
     {
@@ -372,8 +411,6 @@ class FileSystemMonitorWindows : public FileSystemMonitor
 
   // Reuse directory monitors that are created to monitor specific files
   std::unordered_map<PathID, WindowsPathMonitor*> m_idToMonitor;
-
-  WstrConvert m_wstrConverter;
 };
 #endif
 
@@ -499,9 +536,10 @@ class FileSystemMonitorInotify : public FileSystemMonitor
     }
     if(fds[1].revents & POLLIN)
     {
-      uint64_t val;
-      read(m_cancelFd, &val, sizeof(val));
+      uint64_t val = 0;
+      const ssize_t numBytes = read(m_cancelFd, &val, sizeof(val));
       assert(val == 1);
+      assert(numBytes == sizeof(val));
 
       // Stop checking events because cancel() was called
       return false;
@@ -564,8 +602,9 @@ class FileSystemMonitorInotify : public FileSystemMonitor
 
   virtual void cancel() override
   {
-    int64_t val = 1;
-    write(m_cancelFd, &val, sizeof(val));
+    uint64_t val = 1;
+    const ssize_t numBytes = write(m_cancelFd, &val, sizeof(val));
+    assert(numBytes == sizeof(val));
   }
 
   FileSystemMonitorInotify()

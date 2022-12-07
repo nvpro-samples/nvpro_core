@@ -54,7 +54,7 @@ private:
     VkImageCreateInfo createInfo;
 
     // Loading information
-    bool                              srgb;
+    bool                              srgb{false};
     std::string                       imgName;
     VkExtent2D                        size{0, 0};
     VkFormat                          format{VK_FORMAT_UNDEFINED};

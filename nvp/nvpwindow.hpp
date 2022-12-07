@@ -268,17 +268,6 @@ public:
   virtual void onDragDrop(int num, const char** paths) {}
   /// @}
 
-  /// derived windows/apps should override these. Essentially used for remote-control (via sockets)
-  /// the decoded remote paquets would invoke these methods. See nvpro_core\nvsockets\socketSampleMessages.cpp
-  virtual void requestTiming() {
-  }  ///< the app can override it to return requested timing information over sockets : use sysPostTiming() below
-  virtual void requestPaint() {}                       ///< the app needs to refresh once the window
-  virtual void requestContinuousRefresh(bool bYes) {}  ///< the app might swith on/off the continuous rendering
-  virtual void requestSetArg(char token, int arg0, int arg1, int arg2, int arg3) {
-  }  ///< the app receives arbitrary params from remote, free of interpretation
-  virtual void requestSetArg(char token, float arg0, float arg1, float arg2, float arg3) {
-  }  ///< the app receives arbitrary params from remote, free of interpretation
-
 private:
   int  m_mouseX               = 0;
   int  m_mouseY               = 0;

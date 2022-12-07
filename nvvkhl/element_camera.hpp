@@ -17,6 +17,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#pragma once
+
 #include "imgui.h"
 #include "nvh/cameramanipulator.hpp"
 #include "nvvkhl/application.hpp"
@@ -77,7 +79,7 @@ private:
     // For all pressed keys - apply the action
     CameraManip.keyMotion(0, 0, nvh::CameraManipulator::NoAction);
 
-    if(!(ImGui::IsKeyDown(ImGuiKey_ModAlt) || ImGui::IsKeyDown(ImGuiKey_ModCtrl) || ImGui::IsKeyDown(ImGuiKey_ModShift)))
+    if(!(ImGui::IsKeyDown(ImGuiMod_Alt) || ImGui::IsKeyDown(ImGuiMod_Ctrl) || ImGui::IsKeyDown(ImGuiMod_Shift)))
     {
       if(ImGui::IsKeyDown(ImGuiKey_W))
       {

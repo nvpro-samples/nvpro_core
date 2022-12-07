@@ -38,6 +38,7 @@ public:
   VkImageView           getDepthImageView() const { return m_res.depthView; }
   VkFormat              getColorFormat(uint32_t i = 0) const { return m_colorFormat[i]; }
   VkFormat              getDepthFormat() const { return m_depthFormat; }
+  float getAspectRatio() { return static_cast<float>(m_imageSize.width) / static_cast<float>(m_imageSize.height); }
 
 private:
   void create();

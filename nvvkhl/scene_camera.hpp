@@ -35,15 +35,15 @@ namespace nvvkhl {
 static void setCameraFromScene(const std::string& m_filename, const nvh::GltfScene& m_scene)
 {
   ImGuiH::SetCameraJsonFile(std::filesystem::path(m_filename).stem().string());
-  if(m_scene.m_cameras.empty() == false)
+  if(!m_scene.m_cameras.empty())
   {
-    auto& c = m_scene.m_cameras[0];
-    CameraManip.setCamera({c.eye, c.center, c.up, (float)rad2deg(c.cam.perspective.yfov)});
-    ImGuiH::SetHomeCamera({c.eye, c.center, c.up, (float)rad2deg(c.cam.perspective.yfov)});
+    const auto& c = m_scene.m_cameras[0];
+    CameraManip.setCamera({c.eye, c.center, c.up, static_cast<float>(rad2deg(c.cam.perspective.yfov))});
+    ImGuiH::SetHomeCamera({c.eye, c.center, c.up, static_cast<float>(rad2deg(c.cam.perspective.yfov))});
 
-    for(auto& c : m_scene.m_cameras)
+    for(const auto& cam : m_scene.m_cameras)
     {
-      ImGuiH::AddCamera({c.eye, c.center, c.up, (float)rad2deg(c.cam.perspective.yfov)});
+      ImGuiH::AddCamera({cam.eye, cam.center, cam.up, static_cast<float>(rad2deg(cam.cam.perspective.yfov))});
     }
   }
   else
@@ -53,7 +53,7 @@ static void setCameraFromScene(const std::string& m_filename, const nvh::GltfSce
     ImGuiH::SetHomeCamera(CameraManip.getCamera());
   }
 
-  CameraManip.setClipPlanes(nvmath::vec2f(0.001f * m_scene.m_dimensions.radius, 100.0f * m_scene.m_dimensions.radius));
+  CameraManip.setClipPlanes(nvmath::vec2f(0.001F * m_scene.m_dimensions.radius, 100.0F * m_scene.m_dimensions.radius));
 }
 
 }  // namespace nvvkhl

@@ -46,6 +46,7 @@
 #include "imgui/backends/imgui_impl_vulkan.h"
 #include "imgui/imgui_camera_widget.h"
 #include "imgui/imgui_helper.h"
+#include "nvp/nvpsystem.hpp"
 #include "nvp/perproject_globals.hpp"
 #include "nvvk/context_vk.hpp"
 #include "nvvk/error_vk.hpp"
@@ -111,10 +112,11 @@ nvvkhl::Application::~Application()
 
 void nvvkhl::Application::init(ApplicationCreateInfo& info)
 {
+  auto path_log = std::filesystem::path(NVPSystem::exePath()) / std::filesystem::path(std::string("log_") + getProjectName() + std::string(".txt"));
+  auto path_ini = std::filesystem::path(NVPSystem::exePath()) / std::filesystem::path(getProjectName() + std::string(".ini"));
+
   // setup some basic things for the sample, logging file for example
-  std::string logfile = std::string("log_") + std::string(info.name) + std::string(".txt");
-  std::replace(logfile.begin(), logfile.end(), ' ', '_');
-  nvprintSetLogFileName(logfile.c_str());
+  nvprintSetLogFileName(path_log.string().c_str());
 
   m_mainWindowData = std::make_unique<ImGui_ImplVulkanH_Window>();
 
@@ -184,9 +186,6 @@ void nvvkhl::Application::init(ApplicationCreateInfo& info)
   VkPipelineCacheCreateInfo pipeline_cache_info{VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO};
   vkCreatePipelineCache(m_context->m_device, &pipeline_cache_info, m_allocator, &m_pipelineCache);
 
-  ImGuiH::SetCameraJsonFile(getProjectName());
-
-
   // Create Window Surface
   VkSurfaceKHR surface = nullptr;
   NVVK_CHECK(glfwCreateWindowSurface(m_context->m_instance, m_windowHandle, m_allocator, &surface));
@@ -205,8 +204,7 @@ void nvvkhl::Application::init(ApplicationCreateInfo& info)
   ImGui::CreateContext();
   ImGuiIO& io = ImGui::GetIO();
 
-  auto cwd       = std::filesystem::current_path() / std::filesystem::path(getProjectName() + std::string(".ini"));
-  m_iniFilename  = cwd.string();
+  m_iniFilename  = path_ini.string();
   io.IniFilename = m_iniFilename.c_str();
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
   io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;      // Enable Docking
@@ -277,14 +275,14 @@ void nvvkhl::Application::shutdown()
     free_queue.clear();
   }
 
-  m_elements.clear();
-
-
   if(ImGui::GetCurrentContext() != nullptr)
   {
     ImGui_ImplVulkan_Shutdown();
     ImGui::DestroyContext();
   }
+
+  // Destroying all attached application elements
+  m_elements.clear();
 
   // Cleanup Vulkan Window
   ImGui_ImplVulkanH_DestroyWindow(m_context->m_instance, m_context->m_device, m_mainWindowData.get(), m_allocator);
@@ -407,7 +405,6 @@ void nvvkhl::Application::run()
       ImVec2 viewport_size         = ImGui::GetContentRegionAvail();
       bool   viewport_size_changed = (static_cast<uint32_t>(viewport_size.x) != m_viewportSize.width
                                     || static_cast<uint32_t>(viewport_size.y) != m_viewportSize.height);
-      bool   over_viewport         = ImGui::IsWindowHovered(ImGuiFocusedFlags_RootWindow);
       ImGui::End();
       ImGui::PopStyleVar();
       ImGui::PopStyleColor();

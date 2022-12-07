@@ -176,6 +176,7 @@ bool ProfilerVK::getSectionTime(SectionID i, uint32_t queryFrame, double& gpuTim
   bool     isRecurring = isSectionRecurring(i);
   uint32_t idxBegin    = getTimerIdx(i, queryFrame, true);
   uint32_t idxEnd      = getTimerIdx(i, queryFrame, false);
+  assert(idxEnd == idxBegin + 1);
 
   uint64_t times[2];
   VkResult result = vkGetQueryPoolResults(m_device, m_queryPool, idxBegin, 2, sizeof(uint64_t) * 2, times, sizeof(uint64_t),

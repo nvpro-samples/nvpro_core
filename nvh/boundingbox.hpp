@@ -81,7 +81,10 @@ struct Bbox
   Bbox transform(nvmath::mat4f mat)
   {
     // Make sure this is a 3D transformation + translation:
-    assert(mat.row(3) == nvmath::vec4f(0.0f, 0.0f, 0.0f, 1.0f));
+    auto r = mat.row(3);
+    const float epsilon = 1e-6f;
+    assert(fabs(r.x) <  epsilon && fabs(r.y) <  epsilon && fabs(r.z) <  epsilon && fabs(r.w - 1.0f) <  epsilon);
+
     std::vector<nvmath::vec3f> corners(8);
     corners[0] = nvmath::vec3f(mat * nvmath::vec3f(m_min.x, m_min.y, m_min.z));
     corners[1] = nvmath::vec3f(mat * nvmath::vec3f(m_min.x, m_min.y, m_max.z));

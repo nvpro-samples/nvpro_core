@@ -98,7 +98,6 @@ PrimitiveMesh icosahedron()
 {
   PrimitiveMesh mesh;
 
-  float sq3 = sqrt(3.0F);
   float sq5 = sqrt(5.0F);
   float a   = 2.0F / (1.0F + sq5);
   float b   = sqrt((3.0F + sq5) / (1.0F + sq5));
@@ -275,10 +274,10 @@ PrimitiveMesh sphere(float radius, int sectors, int stacks)
   }
 
   // indices
-  //  k1--k1+1
-  //  |  / |
-  //  | /  |
-  //  k2--k2+1
+  //  k2---k2+1
+  //  | \  |
+  //  |  \ |
+  //  k1---k1+1
   uint32_t k1{0};
   uint32_t k2{0};
   for(int i = 0; i < stacks; ++i)
@@ -291,12 +290,12 @@ PrimitiveMesh sphere(float radius, int sectors, int stacks)
       // 2 triangles per sector excluding 1st and last stacks
       if(i != 0)
       {
-        addTriangle(mesh, k1, k2, k1 + 1);  // k1---k2---k1+1
+        addTriangle(mesh, k1, k1 + 1, k2);  // k1---k2---k1+1
       }
 
       if(i != (stacks - 1))
       {
-        addTriangle(mesh, k1 + 1, k2, k2 + 1);  // k1+1---k2---k2+1
+        addTriangle(mesh, k1 + 1, k2 + 1, k2);  // k1+1---k2---k2+1
       }
     }
   }

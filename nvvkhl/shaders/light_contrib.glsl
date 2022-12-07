@@ -23,7 +23,7 @@
 #include "func.glsl"
 #include "dh_lighting.h"
 
-LightContrib lightContribution(Light light, vec3 surfacePos, vec3 surfaceNormal, vec3 view_incident)
+LightContrib singleLightContribution(Light light, vec3 surfacePos, vec3 surfaceNormal, vec3 view_incident)
 {
   LightContrib contrib;
   contrib.incidentVector  = vec3(0.0F);

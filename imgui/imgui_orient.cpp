@@ -246,8 +246,8 @@ IMGUI_API bool ImOrient::Draw(const char* label, bool show_info /*= false*/)
 
   ImVec3 ez = px.Cross(py);
 
-  // Use the handedness of the frame matrix to determine cull direction (?)
-  bool  frameRightHanded = ez.Dot(ez) >= 0;
+  // Use the handedness of the frame matrix to determine cull direction
+  bool  frameRightHanded = pz.Dot(ez) >= 0;
   float cullDir          = frameRightHanded ? 1.0f : -1.0f;
 
   // Drawing an arrow

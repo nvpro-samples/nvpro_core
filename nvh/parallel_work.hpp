@@ -31,7 +31,10 @@ namespace nvh {
 // distributes batches of loops over BATCHSIZE items across
 // multiple threads. numItems reflects the total number
 // of items to process.
-// fn (uint64_t itemIndex)
+// batches: fn (uint64_t itemIndex, uint32_t threadIndex)
+//          callback does single item
+// ranges:  fn (uint64_t itemBegin, uint64_t itemEnd, uint32_t threadIndex)
+//          callback does loop `for (uint64_t itemIndex = itemBegin; itemIndex < itemEnd; itemIndex++)`
 
 template <uint64_t BATCHSIZE = 128>
 inline void parallel_batches(uint64_t numItems, std::function<void(uint64_t)> fn, uint32_t numThreads)
@@ -95,6 +98,39 @@ inline void parallel_batches(uint64_t numItems, std::function<void(uint64_t, uin
         {
           fn(i, threadIdx);
         }
+      }
+    };
+
+    std::vector<std::thread> threads(numThreads);
+    for(uint32_t i = 0; i < numThreads; i++)
+    {
+      threads[i] = std::thread(worker, i);
+    }
+
+    for(uint32_t i = 0; i < numThreads; i++)
+    {
+      threads[i].join();
+    }
+  }
+}
+
+template <uint64_t BATCHSIZE = 128>
+inline void parallel_ranges(uint64_t numItems, std::function<void(uint64_t idxBegin, uint64_t idxEnd, uint32_t threadIdx)> fn, uint32_t numThreads)
+{
+  if(numThreads <= 1 || numItems < numThreads || numItems < BATCHSIZE)
+  {
+    fn(0, numItems, 0);
+  }
+  else
+  {
+    std::atomic_uint64_t counter = 0;
+
+    auto worker = [&](uint32_t threadIdx) {
+      uint64_t idx;
+      while((idx = counter.fetch_add(BATCHSIZE)) < numItems)
+      {
+        uint64_t last = std::min(numItems, idx + BATCHSIZE);
+        fn(idx, last, threadIdx);
       }
     };
 

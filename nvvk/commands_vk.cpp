@@ -218,8 +218,8 @@ void RingFences::init(VkDevice device, uint32_t ringSize)
   {
     VkFenceCreateInfo info = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
     info.flags             = 0;
-    VkResult result        = vkCreateFence(device, &info, nullptr, &m_fences[i].fence);
-    m_fences[i].active     = false;
+    NVVK_CHECK(vkCreateFence(device, &info, nullptr, &m_fences[i].fence));
+    m_fences[i].active = false;
   }
 }
 
@@ -280,7 +280,7 @@ void RingCommandPool::init(VkDevice device, uint32_t queueFamilyIndex, VkCommand
     info.queueFamilyIndex        = queueFamilyIndex;
     info.flags                   = flags;
 
-    VkResult result = vkCreateCommandPool(m_device, &info, nullptr, &m_pools[i].pool);
+    NVVK_CHECK(vkCreateCommandPool(m_device, &info, nullptr, &m_pools[i].pool));
   }
 }
 
@@ -374,7 +374,6 @@ void BatchSubmission::init(VkQueue queue)
 
 void BatchSubmission::enqueue(uint32_t num, const VkCommandBuffer* cmdbuffers)
 {
-  m_commands.reserve(m_commands.size() + num);
   for(uint32_t i = 0; i < num; i++)
   {
     m_commands.push_back(cmdbuffers[i]);

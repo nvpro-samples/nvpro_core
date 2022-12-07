@@ -449,13 +449,4 @@ VkWriteDescriptorSet DescriptorSetBindings::makeWriteArray(VkDescriptorSet      
 }
 #endif
 
-//////////////////////////////////////////////////////////////////////////
-
-static void s_test()
-{
-  TDescriptorSetContainer<1, 1> test;
-  test.init(0);
-  test.deinit();
-}
-
 }  // namespace nvvk

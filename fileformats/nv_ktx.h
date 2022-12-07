@@ -282,6 +282,17 @@ public:
   // ktxSwizzle key! This is to make Basis Universal usage easier in the future.
   std::array<KTX_SWIZZLE, 4> swizzle = {KTX_SWIZZLE::R, KTX_SWIZZLE::G, KTX_SWIZZLE::B, KTX_SWIZZLE::A};
 
+  // The loader will transcode supercompressed files to an appropriate format
+  // when supercompression libraries are available, so a loaded supercompressed
+  // file typically looks like a regular BC4, BC7 or ASTC file. One can read
+  // this field to determine what the original supercompressed format was.
+  enum class InputSupercompression
+  {
+    eNone,
+    eBasisUASTC,
+    eBasisETC1S
+  } input_supercompression = InputSupercompression::eNone;
+
 private:
   // Private functions used by readFromStream after it determines whether the
   // stream is a KTX1 or KTX2 stream.

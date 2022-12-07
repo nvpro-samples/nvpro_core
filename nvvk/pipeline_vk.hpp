@@ -674,7 +674,7 @@ private:
   std::vector<VkFormat>                        dynamicRenderingColorFormats;
 #endif
   GraphicsPipelineState&      pipelineState;
-  PipelineRenderingCreateInfo dynamicRenderingInfo;
+  PipelineRenderingCreateInfo dynamicRenderingInfo{VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO};
 
 
   void init()

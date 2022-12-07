@@ -24,8 +24,8 @@
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
- 
-#include <NvFoundation.h> // for NV_X86 and NV_X64
+
+#include <NvFoundation.h>  // for NV_X86 and NV_X64
 
 #if(defined(NV_X86) || defined(NV_X64)) && defined(_MSC_VER)
 #include <intrin.h>
@@ -85,7 +85,11 @@ private:
   uint32_t m_used;
 
 public:
-  TRangeAllocator() {}
+  TRangeAllocator()
+      : m_size(0)
+      , m_used(0)
+  {
+  }
   TRangeAllocator(uint32_t size) { init(size); }
 
   ~TRangeAllocator() { deinit(); }
@@ -126,6 +130,10 @@ public:
 
   bool subAllocate(uint32_t size, uint32_t align, uint32_t& outOffset, uint32_t& outAligned, uint32_t& outSize)
   {
+    if(align == 0)
+    {
+      align = 1;
+    }
     uint32_t alignRest    = align - 1;
     uint32_t sizeReserved = size;
 #if(defined(NV_X86) || defined(NV_X64)) && defined(_MSC_VER)
@@ -247,6 +255,7 @@ public:
     if(m_Ranges)
     {
       m_Ranges = static_cast<Range*>(::malloc(m_Capacity * sizeof(Range)));
+      assert(m_Ranges); // Make sure allocation succeeded
       memcpy(m_Ranges, other.m_Ranges, m_Capacity * sizeof(Range));
     }
   }
@@ -299,7 +308,8 @@ public:
   void rangeInit(const uint32_t max_id)
   {
     // Start with a single range, from 0 to max allowed ID (specified)
-    m_Ranges            = static_cast<Range*>(::malloc(sizeof(Range)));
+    m_Ranges = static_cast<Range*>(::malloc(sizeof(Range)));
+    assert(m_Ranges != nullptr);  // Make sure allocation succeeded
     m_Ranges[0].m_First = 0;
     m_Ranges[0].m_Last  = max_id;
     m_Count             = 1;
@@ -526,6 +536,7 @@ public:
     {
       m_Capacity += m_Capacity;
       m_Ranges = (Range*)realloc(m_Ranges, m_Capacity * sizeof(Range));
+      assert(m_Ranges); // Make sure reallocation succeeded
     }
 
     ::memmove(m_Ranges + index + 1, m_Ranges + index, (m_Count - index) * sizeof(Range));

@@ -21,6 +21,7 @@
 
 #include "nvvk/commands_vk.hpp"
 #include "nvvk/debug_util_vk.hpp"
+#include "nvvk/error_vk.hpp"
 #include "nvh/nvprint.hpp"
 #include "nvh/alignment.hpp"
 
@@ -155,8 +156,7 @@ void SBTWrapper::create(VkPipeline                                            rt
   uint32_t             sbtSize = totalGroupCount * m_handleSize;
   std::vector<uint8_t> shaderHandleStorage(sbtSize);
 
-  auto result =
-      vkGetRayTracingShaderGroupHandlesKHR(m_device, rtPipeline, 0, totalGroupCount, sbtSize, shaderHandleStorage.data());
+  NVVK_CHECK(vkGetRayTracingShaderGroupHandlesKHR(m_device, rtPipeline, 0, totalGroupCount, sbtSize, shaderHandleStorage.data()));
   // Find the max stride, minimum is the handle size + size of 'data (if any)' aligned to shaderGroupBaseAlignment
   auto findStride = [&](auto entry, auto& stride) {
     stride = nvh::align_up(m_handleSize, m_handleAlignment);  // minimum stride
@@ -209,8 +209,8 @@ void SBTWrapper::create(VkPipeline                                            rt
   copyHandles(stage[eCallable], m_index[eCallable], m_stride[eCallable], m_data[eCallable]);
 
   // Creating device local buffers where handles will be stored
-  auto              usage_flags = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR;
-  auto              mem_flags   = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+  auto usage_flags = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR;
+  auto mem_flags   = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
   nvvk::CommandPool genCmdBuf(m_device, m_queueIndex);
   VkCommandBuffer   cmdBuf = genCmdBuf.createCommandBuffer();
   for(uint32_t i = 0; i < 4; i++)

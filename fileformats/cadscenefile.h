@@ -1305,9 +1305,14 @@ CSFAPI int CSFile_load(CSFile** outcsf, const char* filename, CSFileMemoryPTR me
     return CADSCENEFILE_ERROR_VERSION;
   }
 
-  char* data = (char*)mem->alloc(size);
-  FREAD(data, size, size, 1, file);
+  char* data           = (char*)mem->alloc(size);
+  const size_t numRead = FREAD(data, size, size, 1, file);
   fclose(file);
+
+  if(numRead != size)
+  {
+    return CADSCENEFILE_ERROR_NOFILE;
+  }
 
   return CSFile_loadRaw(outcsf, size, data);
 }
@@ -1491,8 +1496,8 @@ struct CSFOffsetMgr
 
 
   CSFOffsetMgr(T& file)
-      : m_current(0)
-      , m_file(file)
+      : m_file(file)
+      , m_current(0)
   {
   }
 
@@ -1749,8 +1754,8 @@ CSFAPI int CSFile_save(const CSFile* csf, const char* filename)
 
 CSFAPI int CSFile_saveExt(CSFile* csf, const char* filename)
 {
-  size_t len = strlen(filename);
 #if CSF_SUPPORT_ZLIB
+  size_t len = strlen(filename);
   if(strcmp(filename + len - 3, ".gz") == 0)
   {
     return CSFile_saveInternal<OutputGZ>(csf, filename);
@@ -2549,7 +2554,7 @@ CSFAPI int CSFile_loadGTLF(CSFile** outcsf, const char* filename, CSFileMemoryPT
           }
         }
       }
-      if(found != ~0)
+      if(found != ~uint32_t(0))
       {
         meshGeometries.push_back(found);
       }

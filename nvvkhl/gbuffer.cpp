@@ -28,8 +28,8 @@
 
 nvvkhl::GBuffer::GBuffer(VkDevice device, nvvk::ResourceAllocator* alloc, const VkExtent2D& size, VkFormat color, VkFormat depth)
     : m_device(device)
-    , m_alloc(alloc)
     , m_imageSize(size)
+    , m_alloc(alloc)
     , m_colorFormat({color})  // Only one color buffer
     , m_depthFormat(depth)
 {
@@ -38,8 +38,8 @@ nvvkhl::GBuffer::GBuffer(VkDevice device, nvvk::ResourceAllocator* alloc, const 
 
 nvvkhl::GBuffer::GBuffer(VkDevice device, nvvk::ResourceAllocator* alloc, const VkExtent2D& size, std::vector<VkFormat> color, VkFormat depth)
     : m_device(device)
-    , m_alloc(alloc)
     , m_imageSize(size)
+    , m_alloc(alloc)
     , m_colorFormat(std::move(color))
     , m_depthFormat(depth)
 {
@@ -117,17 +117,26 @@ void nvvkhl::GBuffer::create()
 
 nvvkhl::GBuffer::~GBuffer()
 {
-  // Destroy the resources in next frame
-  nvvkhl::Application::submitResourceFree([r = m_res, alloc = m_alloc, d = m_device] {
-    auto bd = r.gBufferDepth;
-    for(auto bc : r.gBufferColor)
-      alloc->destroy(bc);
-    alloc->destroy(bd);
-    vkDestroyImageView(d, r.depthView, nullptr);
-    for(const auto& desc : r.descriptor)
-    {
-      vkDestroyImageView(d, desc.imageView, nullptr);
-      alloc->releaseSampler(desc.sampler);
-    }
-  });
+  // Destroy the resources in the next frame.
+  // If submitResourceFree() throws an out-of-memory exception, avoid early
+  // program termination.
+  try
+  {
+    nvvkhl::Application::submitResourceFree([r = m_res, alloc = m_alloc, d = m_device] {
+      auto bd = r.gBufferDepth;
+      for(auto bc : r.gBufferColor)
+        alloc->destroy(bc);
+      alloc->destroy(bd);
+      vkDestroyImageView(d, r.depthView, nullptr);
+      for(const auto& desc : r.descriptor)
+      {
+        vkDestroyImageView(d, desc.imageView, nullptr);
+        alloc->releaseSampler(desc.sampler);
+      }
+    });
+  }
+  catch(const std::exception& /* e */)
+  {
+    assert(!"Failed to queue resources!");
+  }
 }

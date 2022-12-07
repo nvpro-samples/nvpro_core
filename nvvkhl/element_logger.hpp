@@ -18,13 +18,20 @@
  */
 
 #include "imgui.h"
+#include "imgui_internal.h"
 
 namespace nvvkhl {
 
+//--------------------------------------------------------------------------------------------------
+// This is an element to the application that can redirect all logs to a ImGui window in the
+// application
+//
 // Usage:
-//  static ExampleAppLog my_log;
-//  my_log.AddLog("Hello %d world\n", 123);
-//  my_log.Draw("title");
+// static nvvkhl::SampleAppLog g_logger;
+// nvprintSetCallback([](int /*level*/, const char* fmt) { g_logger.addLog("%s", fmt); });
+//
+//  app->addElement(std::make_unique<nvvkhl::ElementLogger>(&g_logger, true));  // Add logger window
+//
 struct SampleAppLog
 {
 public:
@@ -174,7 +181,10 @@ struct ElementLogger : public nvvkhl::IAppElement
       : m_showLog(show)
       , m_logger(logger)
   {
+    addSettingsHandler();
   }
+
+  virtual ~ElementLogger() = default;
 
   void onUIRender() override
   {
@@ -207,6 +217,33 @@ struct ElementLogger : public nvvkhl::IAppElement
     }
   }  // This is the menubar to create
 
+  // This goes in the .ini file and remember the state of the window [open/close]
+  void addSettingsHandler()
+  {
+    // Persisting the window
+    ImGuiSettingsHandler ini_handler{};
+    ini_handler.TypeName   = "LoggerEngine";
+    ini_handler.TypeHash   = ImHashStr("LoggerEngine");
+    ini_handler.ClearAllFn = [](ImGuiContext* ctx, ImGuiSettingsHandler*) {};
+    ini_handler.ApplyAllFn = [](ImGuiContext* ctx, ImGuiSettingsHandler*) {};
+    ini_handler.ReadOpenFn = [](ImGuiContext*, ImGuiSettingsHandler*, const char* name) -> void* { return (void*)1; };
+    ini_handler.ReadLineFn = [](ImGuiContext*, ImGuiSettingsHandler* handler, void* entry, const char* line) {
+      ElementLogger* s = (ElementLogger*)handler->UserData;
+      int            x;
+      if(sscanf(line, "ShowLoader=%d", &x) == 1)
+      {
+        s->m_showLog = (x == 1);
+      }
+    };
+    ini_handler.WriteAllFn = [](ImGuiContext* ctx, ImGuiSettingsHandler* handler, ImGuiTextBuffer* buf) {
+      ElementLogger* s = (ElementLogger*)handler->UserData;
+      buf->appendf("[%s][State]\n", handler->TypeName);
+      buf->appendf("ShowLoader=%d\n", s->m_showLog ? 1 : 0);
+      buf->appendf("\n");
+    };
+    ini_handler.UserData = this;
+    ImGui::AddSettingsHandler(&ini_handler);
+  }
 
 private:
   bool          m_showLog{false};

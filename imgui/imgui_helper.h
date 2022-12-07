@@ -309,12 +309,12 @@ inline bool key_button(int button, int action, int mods)
   }
 
   auto& io = ImGui::GetIO();
-  io.AddKeyEvent(ImGuiKey_ModCtrl, (mods & NVPWindow::KMOD_CONTROL) != 0);
-  io.AddKeyEvent(ImGuiKey_ModShift, (mods & NVPWindow::KMOD_SHIFT) != 0);
-  io.AddKeyEvent(ImGuiKey_ModAlt, (mods & NVPWindow::KMOD_ALT) != 0);
-  io.AddKeyEvent(ImGuiKey_ModSuper, (mods & NVPWindow::KMOD_SUPER) != 0);
+  io.AddKeyEvent(ImGuiKey::ImGuiMod_Ctrl, (mods & NVPWindow::KMOD_CONTROL) != 0);
+  io.AddKeyEvent(ImGuiKey::ImGuiMod_Shift, (mods & NVPWindow::KMOD_SHIFT) != 0);
+  io.AddKeyEvent(ImGuiKey::ImGuiMod_Alt, (mods & NVPWindow::KMOD_ALT) != 0);
+  io.AddKeyEvent(ImGuiKey::ImGuiMod_Super, (mods & NVPWindow::KMOD_SUPER) != 0);
 
-  int keyIndex = KeyToImGuiKey(button);
+  ImGuiKey keyIndex = KeyToImGuiKey(button);
   io.AddKeyEvent(keyIndex, action == NVPWindow::BUTTON_PRESS);
   return io.WantCaptureKeyboard;
 }
@@ -1224,7 +1224,8 @@ struct PropertyEditor
   static void begin(ImGuiTableFlags flag = ImGuiTableFlags_BordersOuter | ImGuiTableFlags_Resizable)
   {
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(2, 2));
-    ImGui::BeginTable("split", 2, flag);
+    const bool table_valid = ImGui::BeginTable("split", 2, flag);
+    assert(table_valid);
   }
 
   // Generic entry, the lambda function should return true if the widget changed
@@ -1274,7 +1275,26 @@ struct PropertyEditor
 };
 
 
-bool azimuthElevationSliders(nvmath::vec3f& direction, bool negative);
+bool azimuthElevationSliders(nvmath::vec3f& direction, bool negative = true, bool yIsUp = true);
+
+// This allow to use the mouse wheel over a widget and change the "data" value by and
+// increment. The value can be clamp if min_val != max_val. 
+// Ex. ImGui::Combo("Value", &combo_item, ...);
+//     ImGuiH::hoverScrolling(combo_item, 0, 5); // Scroll the item of the combo
+template <typename T>
+bool hoverScrolling(T& data, T min_val = T(0), T max_val = T(0), float inc = 1.0F)
+{
+  ImGui::SetItemKeyOwner(ImGuiKey_MouseWheelY);
+  if(ImGui::IsItemHovered() && ImGui::GetIO().MouseWheel != 0.0F)
+  {
+    data += T(ImGui::GetIO().MouseWheel * inc);
+    if(min_val != max_val)
+      data = std::max(std::min(data, max_val), min_val);
+    return true;
+  }
+  return false;
+}
+
 
 }  // namespace ImGuiH
 

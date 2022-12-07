@@ -140,24 +140,27 @@ bool FileMapping::open(const char* fileName, MappingType mappingType, size_t fil
     if(mappingType == MAPPING_READONLY)
     {
       struct stat s;
-      fstat(m_unix.file, &s);
+      m_isValid &= (fstat(m_unix.file, &s) >= 0);
       m_mappingSize = s.st_size;
     }
     else
     {
       // make file large enough to hold the complete scene
-      lseek(m_unix.file, m_mappingSize - 1, SEEK_SET);
-      write(m_unix.file, "", 1);
-      lseek(m_unix.file, 0, SEEK_SET);
+      m_isValid &= (lseek(m_unix.file, m_mappingSize - 1, SEEK_SET) >= 0);
+      m_isValid &= (write(m_unix.file, "", 1) >= 0);
+      m_isValid &= (lseek(m_unix.file, 0, SEEK_SET) >= 0);
     }
     m_fileSize = m_mappingSize;
-    m_mappingPtr = mmap(0, m_mappingSize, mappingType == MAPPING_READONLY ? PROT_READ : (PROT_READ | PROT_WRITE),
-                        MAP_SHARED, m_unix.file, 0);
-    if(m_mappingPtr == MAP_FAILED)
+    if(m_isValid)
+    {
+      m_mappingPtr = mmap(0, m_mappingSize, mappingType == MAPPING_READONLY ? PROT_READ : (PROT_READ | PROT_WRITE),
+                          MAP_SHARED, m_unix.file, 0);
+      m_isValid = (m_mappingPtr != MAP_FAILED);
+    }
+    if(!m_isValid)
     {
       ::close(m_unix.file);
       m_unix.file = -1;
-      m_isValid = false;
     }
   }
 #endif
