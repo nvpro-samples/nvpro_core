@@ -117,6 +117,9 @@ add_library(zlibstatic STATIC ${ZLIB_SRCS} ${ZLIB_ASMS} ${ZLIB_PUBLIC_HDRS} ${ZL
 if(UNIX)
     # On unix-like platforms the library is almost always called libz
    set_target_properties(zlibstatic PROPERTIES OUTPUT_NAME z)
+
+   # Tell zlib to include unistd.h, avoiding implicit declaration of write() etc.
+   target_compile_definitions(zlibstatic PRIVATE HAVE_UNISTD_H)
 endif()
 
 
