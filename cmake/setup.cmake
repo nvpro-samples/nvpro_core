@@ -722,9 +722,17 @@ macro(_add_package_KTX)
     LIST(APPEND LIBRARIES_OPTIMIZED basisu)
     LIST(APPEND LIBRARIES_DEBUG basisu)
     set_property(TARGET basisu PROPERTY FOLDER "ThirdParty")
-    # If Zstandard isn't included, also turn off Zstd support in Basis:
-    if(NOT TARGET libzstd_static)
+    
+    # Set up linking between basisu and its dependencies, so that we always get
+    # a correct linking order on Linux:
+    if(TARGET libzstd_static)
+      target_link_libraries(basisu PUBLIC libzstd_static)
+    else()
+      # If Zstandard isn't included, also turn off Zstd support in Basis:
       target_compile_definitions(basisu PRIVATE BASISD_SUPPORT_KTX2_ZSTD=0)
+    endif()
+    if(TARGET zlibstatic)
+      target_link_libraries(basisu PUBLIC zlibstatic)
     endif()
   endif()
 endmacro()
