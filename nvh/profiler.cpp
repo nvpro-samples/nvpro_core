@@ -109,7 +109,7 @@ void Profiler::endFrame()
         continue;
 
       uint32_t queryFrame = (m_data->numFrames + 1) % FRAME_DELAY;
-      bool     available  = entry.api == nullptr || entry.gpuTimeProvider(i, queryFrame, entry.gpuTimes[queryFrame]);
+      bool     available  = entry.api.empty() || entry.gpuTimeProvider(i, queryFrame, entry.gpuTimes[queryFrame]);
 
       if(available)
       {
@@ -126,7 +126,7 @@ void Profiler::endFrame()
 
       // query once
       bool available = entry.cpuTime.numValid == 0
-                       && (entry.api == nullptr || entry.gpuTimeProvider(i, queryFrame, entry.gpuTimes[queryFrame]));
+                       && (entry.api.empty() || entry.gpuTimeProvider(i, queryFrame, entry.gpuTimes[queryFrame]));
 
       if(available)
       {
@@ -261,10 +261,10 @@ bool Profiler::getTimerInfo(const char* name, TimerInfo& info)
   {
     Entry& entry = m_data->entries[i];
 
-    if(!entry.name)
+    if(entry.name.empty())
       continue;
 
-    if(strcmp(name, entry.name))
+    if(name != entry.name)
       continue;
 
     return getTimerInfo(i, info);
@@ -299,16 +299,17 @@ void Profiler::print(std::string& stats)
     if(!getTimerInfo(i, info))
       continue;
 
-    const char* gpuname = entry.api ? entry.api : "N/A";
+    const char* gpuname   = !entry.api.empty() ? entry.api.c_str() : "N/A";
+    const char* entryname = !entry.name.empty() ? entry.name.c_str() : "N/A";
 
     if(info.accumulated)
     {
-      stats += format("%sTimer %s;\t %s %6d; CPU %6d; (microseconds, accumulated loop)\n", &spaces[level], entry.name,
+      stats += format("%sTimer %s;\t %s %6d; CPU %6d; (microseconds, accumulated loop)\n", &spaces[level], entryname,
                       gpuname, (uint32_t)(info.gpu.average), (uint32_t)(info.cpu.average));
     }
     else
     {
-      stats += format("%sTimer %s;\t %s %6d; CPU %6d; (microseconds, avg %d)\n", &spaces[level], entry.name, gpuname,
+      stats += format("%sTimer %s;\t %s %6d; CPU %6d; (microseconds, avg %d)\n", &spaces[level], entryname, gpuname,
                       (uint32_t)(info.gpu.average), (uint32_t)(info.cpu.average), (uint32_t)entry.cpuTime.numValid);
     }
   }
@@ -341,7 +342,7 @@ Profiler::SectionID Profiler::getSectionID(bool singleShot, const char* name)
     for(uint32_t i = 0; i < numEntries; i++)
     {
       Entry& entry = m_data->entries[i];
-      if(entry.name == name || entry.name == nullptr)
+      if(entry.name == name || entry.name.empty())
       {
         m_data->singleSections.push_back(i);
         return i;

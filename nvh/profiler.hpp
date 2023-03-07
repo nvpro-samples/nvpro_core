@@ -132,7 +132,7 @@ public:
   //
 
   SectionID beginSection(const char* name, const char* api = nullptr, gpuTimeProvider_fn gpuTimeProvider = nullptr, bool singleShot = false);
-  void      endSection(SectionID slot);
+  void endSection(SectionID slot);
 
   // When a section is used within a loop (same nesting level), and the the same arguments for name and api are
   // passed, we normally average the results of those sections together when printing the stats or using the
@@ -295,8 +295,8 @@ private:
 
   struct Entry
   {
-    const char*        name            = nullptr;
-    const char*        api             = nullptr;
+    std::string        name            = {};
+    std::string        api             = {};
     gpuTimeProvider_fn gpuTimeProvider = nullptr;
 
     // level == ~0 used for "singleShot"

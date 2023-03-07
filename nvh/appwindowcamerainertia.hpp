@@ -70,7 +70,7 @@ std::map<char, ToggleInfo> g_toggleMap;
 #endif
 inline void addToggleKey(char c, bool* target, const char* desc, bool addToUI = true)
 {
-  LOGI(desc);
+  LOGI("%s", desc);
   g_toggleMap[c].desc    = desc;
   g_toggleMap[c].p       = target;
   g_toggleMap[c].addToUI = addToUI;

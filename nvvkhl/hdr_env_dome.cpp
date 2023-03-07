@@ -469,7 +469,7 @@ void HdrEnvDome::renderToCube(const VkCommandBuffer& cmdBuf,
       float roughness       = static_cast<float>(mip) / static_cast<float>(numMips - 1);
       push_block.roughness  = roughness;
       push_block.mvp        = mv[f] * mat_pers;
-      push_block.size       = {extent.width, extent.height};
+      push_block.size       = vec2f(vec2ui(extent.width, extent.height));
       push_block.numSamples = 1024 / (mip + 1);
       vkCmdPushConstants(cmdBuf, pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(HdrPushBlock), &push_block);
 

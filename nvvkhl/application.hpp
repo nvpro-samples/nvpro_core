@@ -20,6 +20,7 @@
 #pragma once
 
 #include <functional>
+#include <memory>
 #include <vulkan/vulkan_core.h>
 
 #include "nvmath/nvmath.h"
@@ -70,6 +71,7 @@ struct ApplicationCreateInfo
   int32_t                 height{-1};          // Height of the window
   bool                    vSync{true};         // Is V-Sync on by default?
   bool                    useMenu{true};       // Is the application will have a menubar?
+  bool                    useDockMenu{false};  // Is there an extra menubar ?
   nvvk::ContextCreateInfo vkSetup{};           // Vulkan creation context information (see nvvk::Context)
   std::vector<int>        ignoreDbgMessages;   // Turn off debug messages
 };
@@ -100,7 +102,7 @@ public:
 
   void setVsync(bool v);  // Set V-Sync on or off
 
-  // Synch for special cases
+  // Sync for special cases
   void addWaitSemaphore(const VkSemaphoreSubmitInfoKHR& wait);
 
   VkCommandBuffer createTempCmdBuffer();
@@ -136,6 +138,7 @@ private:
 
   bool        m_running{false};           // Is currently running
   bool        m_useMenubar{true};         // Will use a menubar
+  bool        m_useDockMenubar{false};    // Will use an exta menubar
   bool        m_vsyncWanted{true};        // Wanting swapchain with vsync
   bool        m_vsyncSet{true};           // Vsync currently set
   int         m_minImageCount{2};         // Nb frames in-flight

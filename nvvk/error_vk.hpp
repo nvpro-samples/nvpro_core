@@ -29,11 +29,20 @@ Use `NVVK_CHECK(result)` to automatically log filename/linenumber.
 #pragma once
 
 #include <cassert>
+#include <functional>
 #include <vulkan/vulkan_core.h>
 
 namespace nvvk {
 bool checkResult(VkResult result, const char* message = nullptr);
 bool checkResult(VkResult result, const char* file, int32_t line);
+
+/**
+\fn nvvk::setCheckResultHook
+\brief Allow replacing nvvk::checkResult() calls. E.g. to catch
+`VK_ERROR_DEVICE_LOST` and wait for aftermath to write the crash dump.
+*/
+using CheckResultCallback = std::function<bool(VkResult, const char*, int32_t, const char*)>;
+void setCheckResultHook(const CheckResultCallback& callback);
 
 #ifndef NVVK_CHECK
 #define NVVK_CHECK(result) nvvk::checkResult(result, __FILE__, __LINE__)

@@ -96,8 +96,8 @@ struct vector2
   {
   }
   vector2(T x)
-      : x(T(x))
-      , y(T(x))
+      : x(x)
+      , y(x)
   {
   }
   template <typename T0, typename T1>
@@ -114,6 +114,13 @@ struct vector2
   vector2(const vector2& u) = default;
   explicit vector2(const vector3<T>&);
   explicit vector2(const vector4<T>&);
+
+  template <typename T2>
+  explicit vector2(const vector2<T2>& u)
+      : x(static_cast<T>(u.x))
+      , y(static_cast<T>(u.y))
+  {
+  }
 
   bool operator==(const vector2& u) const { return (u.x == x && u.y == y) ? true : false; }
 
@@ -186,9 +193,9 @@ struct vector3
   {
   }
   vector3(T x)
-      : x(T(x))
-      , y(T(x))
-      , z(T(x))
+      : x(x)
+      , y(x)
+      , z(x)
   {
   }
   template <typename T0, typename T1, typename T2>
@@ -220,9 +227,9 @@ struct vector3
 
   template <typename T2>
   explicit vector3(const vector3<T2>& u)
-      : x(u.x)
-      , y(u.y)
-      , z(u.z)
+      : x(static_cast<T>(u.x))
+      , y(static_cast<T>(u.y))
+      , z(static_cast<T>(u.z))
   {
   }
 
@@ -358,10 +365,10 @@ struct vector4
   {
   }
   vector4(T x)
-      : x(T(x))
-      , y(T(x))
-      , z(T(x))
-      , w(T(x))
+      : x(x)
+      , y(x)
+      , z(x)
+      , w(x)
   {
   }
   template <typename T0, typename T1, typename T2, typename T3>
@@ -415,6 +422,15 @@ struct vector4
   {
   }
   vector4(const vector4<T>& u) = default;
+
+  template <typename T2>
+  explicit vector4(const vector4<T2>& u)
+      : x(static_cast<T>(u.x))
+      , y(static_cast<T>(u.y))
+      , z(static_cast<T>(u.z))
+      , w(static_cast<T>(u.w))
+  {
+  }
 
   bool operator==(const vector4<T>& u) const { return (u.x == x && u.y == y && u.z == z && u.w == w) ? true : false; }
 

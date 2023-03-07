@@ -24,6 +24,13 @@
 
 namespace nvvk {
 
+CheckResultCallback g_checkResultCallback;
+
+void setCheckResultHook(const CheckResultCallback& callback)
+{
+  g_checkResultCallback = callback;
+}
+
 const char* getResultString(VkResult result)
 {
   const char* resultString = "unknown";
@@ -74,6 +81,9 @@ const char* getResultString(VkResult result)
 
 bool checkResult(VkResult result, const char* message)
 {
+  if(g_checkResultCallback)
+    return g_checkResultCallback(result, nullptr, -1, message);
+
   if(result == VK_SUCCESS)
   {
     return false;
@@ -101,6 +111,9 @@ bool checkResult(VkResult result, const char* message)
 //
 bool checkResult(VkResult result, const char* file, int32_t line)
 {
+  if(g_checkResultCallback)
+    return g_checkResultCallback(result, file, line, nullptr);
+
   if(result == VK_SUCCESS)
   {
     return false;

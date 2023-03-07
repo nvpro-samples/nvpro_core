@@ -646,14 +646,14 @@ bool Context::initDevice(uint32_t deviceIndex, const ContextCreateInfo& info)
   if(hasDeviceExtension(VK_NV_DEVICE_DIAGNOSTIC_CHECKPOINTS_EXTENSION_NAME)
      || hasDeviceExtension(VK_NV_DEVICE_DIAGNOSTICS_CONFIG_EXTENSION_NAME))
   {
-    LOGI(
+    LOGW(
         "\n-------------------------------------------------------------------"
         "\nWARNING: Aftermath extensions enabled. This may affect performance."
         "\n-------------------------------------------------------------------\n\n");
   }
   else if(isAftermathAvailable() && info.enableAftermath)
   {
-    LOGI(
+    LOGW(
         "\n--------------------------------------------------------------"
         "\nWARNING: Attempted to enable Aftermath extensions, but failed."
         "\n" VK_NV_DEVICE_DIAGNOSTIC_CHECKPOINTS_EXTENSION_NAME " or\n " VK_NV_DEVICE_DIAGNOSTICS_CONFIG_EXTENSION_NAME
@@ -1071,7 +1071,7 @@ std::vector<uint32_t> Context::getCompatibleDevices(const ContextCreateInfo& inf
     }
     else if(info.verboseCompatibleDevices)
     {
-      LOGW("Skipping physical device %s\n", props.deviceName);
+      LOGI("Skipping physical device %s\n", props.deviceName);
     }
   }
   if(info.verboseCompatibleDevices)
@@ -1083,7 +1083,7 @@ std::vector<uint32_t> Context::getCompatibleDevices(const ContextCreateInfo& inf
     }
     else
     {
-      LOGI("OMG... NONE !!\n");
+      LOGE("OMG... NONE !!\n");
     }
   }
 

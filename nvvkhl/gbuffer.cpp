@@ -26,28 +26,39 @@
 #include "nvvk/debug_util_vk.hpp"
 #include "nvvk/commands_vk.hpp"
 
+nvvkhl::GBuffer::GBuffer(VkDevice device, nvvk::ResourceAllocator* alloc)
+    : m_device(device)
+    , m_alloc(alloc)
+{
+}
+
 nvvkhl::GBuffer::GBuffer(VkDevice device, nvvk::ResourceAllocator* alloc, const VkExtent2D& size, VkFormat color, VkFormat depth)
     : m_device(device)
-    , m_imageSize(size)
     , m_alloc(alloc)
-    , m_colorFormat({color})  // Only one color buffer
-    , m_depthFormat(depth)
 {
-  create();
+  create(size, {color}, depth);
 }
 
 nvvkhl::GBuffer::GBuffer(VkDevice device, nvvk::ResourceAllocator* alloc, const VkExtent2D& size, std::vector<VkFormat> color, VkFormat depth)
     : m_device(device)
-    , m_imageSize(size)
     , m_alloc(alloc)
-    , m_colorFormat(std::move(color))
-    , m_depthFormat(depth)
 {
-  create();
+  create(size, color, depth);
 }
 
-void nvvkhl::GBuffer::create()
+nvvkhl::GBuffer::~GBuffer()
 {
+  destroy();
+}
+
+void nvvkhl::GBuffer::create(const VkExtent2D& size, std::vector<VkFormat> color, VkFormat depth)
+{
+  assert(m_colorFormat.empty());  // The buffer must be cleared before creating a new one
+
+  m_imageSize   = size;
+  m_colorFormat = std::move(color);
+  m_depthFormat = depth;
+
   nvvk::DebugUtil dutil(m_device);
 
   VkImageLayout layout{VK_IMAGE_LAYOUT_GENERAL};
@@ -73,7 +84,7 @@ void nvvkhl::GBuffer::create()
     }
 
     if(m_res.descriptor[c].sampler == VK_NULL_HANDLE)
-    {  // Image sampler
+    {  // Image sampler: nearest sampling by default
       VkSamplerCreateInfo info{VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
       m_res.descriptor[c].sampler = m_alloc->acquireSampler(info);
       dutil.setObjectName(m_res.descriptor[c].sampler, "G-Sampler");
@@ -81,8 +92,9 @@ void nvvkhl::GBuffer::create()
   }
 
   {  // Depth buffer
-    VkImageCreateInfo info = nvvk::makeImage2DCreateInfo(m_imageSize, m_depthFormat, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
-    m_res.gBufferDepth = m_alloc->createImage(info);
+    VkImageCreateInfo info = nvvk::makeImage2DCreateInfo(m_imageSize, m_depthFormat,
+                                                         VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+    m_res.gBufferDepth     = m_alloc->createImage(info);
     dutil.setObjectName(m_res.gBufferDepth.image, "G-Depth");
   }
 
@@ -96,11 +108,16 @@ void nvvkhl::GBuffer::create()
 
   {  // Change color image layout
     nvvk::CommandPool cpool(m_device, 0);
-    auto*             cmd = cpool.createCommandBuffer();
+    VkCommandBuffer   cmd = cpool.createCommandBuffer();
     for(uint32_t c = 0; c < num_color; c++)
     {
       nvvk::cmdBarrierImageLayout(cmd, m_res.gBufferColor[c].image, VK_IMAGE_LAYOUT_UNDEFINED, layout);
       m_res.descriptor[c].imageLayout = layout;
+
+      // Clear to avoid garbage data
+      VkClearColorValue       clear_value{0.F, 0.F, 0.F, 0.F};
+      VkImageSubresourceRange range{VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+      vkCmdClearColorImage(cmd, m_res.gBufferColor[c].image, layout, &clear_value, 1, &range);
     }
     cpool.submitAndWait(cmd);
   }
@@ -108,35 +125,42 @@ void nvvkhl::GBuffer::create()
   // Descriptor Set for ImGUI
   if((ImGui::GetCurrentContext() != nullptr) && ImGui::GetIO().BackendPlatformUserData != nullptr)
   {
-    for(auto& desc : m_res.descriptor)
+    VkSamplerCreateInfo info{VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
+    info.minFilter    = VK_FILTER_LINEAR;
+    info.magFilter    = VK_FILTER_LINEAR;
+    VkSampler sampler = m_alloc->acquireSampler(info);
+    for(const VkDescriptorImageInfo& desc : m_res.descriptor)
     {
-      m_descriptorSet.push_back(ImGui_ImplVulkan_AddTexture(desc.sampler, desc.imageView, layout));
+      m_descriptorSet.push_back(ImGui_ImplVulkan_AddTexture(sampler, desc.imageView, layout));
     }
   }
 }
 
-nvvkhl::GBuffer::~GBuffer()
+//-------------------------------------------
+// Destroying all allocated resources
+//
+void nvvkhl::GBuffer::destroy()
 {
-  // Destroy the resources in the next frame.
-  // If submitResourceFree() throws an out-of-memory exception, avoid early
-  // program termination.
-  try
+  vkDeviceWaitIdle(m_device);  // Avoid buffer to still be in use
+
+  for(nvvk::Image bc : m_res.gBufferColor)
   {
-    nvvkhl::Application::submitResourceFree([r = m_res, alloc = m_alloc, d = m_device] {
-      auto bd = r.gBufferDepth;
-      for(auto bc : r.gBufferColor)
-        alloc->destroy(bc);
-      alloc->destroy(bd);
-      vkDestroyImageView(d, r.depthView, nullptr);
-      for(const auto& desc : r.descriptor)
-      {
-        vkDestroyImageView(d, desc.imageView, nullptr);
-        alloc->releaseSampler(desc.sampler);
-      }
-    });
+    m_alloc->destroy(bc);
   }
-  catch(const std::exception& /* e */)
+
+  m_alloc->destroy(m_res.gBufferDepth);
+
+  vkDestroyImageView(m_device, m_res.depthView, nullptr);
+
+  for(const VkDescriptorImageInfo& desc : m_res.descriptor)
   {
-    assert(!"Failed to queue resources!");
+    vkDestroyImageView(m_device, desc.imageView, nullptr);
+    m_alloc->releaseSampler(desc.sampler);
   }
+
+  // Reset everything to zero
+  m_res       = {};
+  m_imageSize = {};
+  m_colorFormat.clear();
+  m_descriptorSet.clear();
 }

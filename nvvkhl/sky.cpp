@@ -171,6 +171,13 @@ void SkyDome::updateParameterBuffer(VkCommandBuffer cmd) const
 {
   ProceduralSkyShaderParameters output = fillShaderParameters(m_skyParams);
   vkCmdUpdateBuffer(cmd, m_skyInfoBuf.buffer, 0, sizeof(ProceduralSkyShaderParameters), &output);
+
+  // Make sure the buffer is available when using it
+  VkMemoryBarrier mb{VK_STRUCTURE_TYPE_MEMORY_BARRIER};
+  mb.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT | VK_ACCESS_MEMORY_READ_BIT;
+  mb.dstAccessMask = VK_ACCESS_MEMORY_WRITE_BIT | VK_ACCESS_MEMORY_READ_BIT;
+  vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                       VK_PIPELINE_STAGE_TRANSFER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 1, &mb, 0, nullptr, 0, nullptr);
 }
 
 Light SkyDome::getSun() const

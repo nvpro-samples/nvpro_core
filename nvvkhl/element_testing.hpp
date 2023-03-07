@@ -27,13 +27,18 @@
 
 namespace nvvkhl {
 
+//--------------------------------------------------------------------------------------------------
+// This testing element allow to
+//  - Capture Vulkan validation errors, if any return error code 1
+//  - Dump the result image to disk (CurrentPath/"name of project".bmp)
+//
+// At startup, it looks for arguments
+//  --test (bool) Enable testing
+//  --snapshot (bool) Saving or not image
+//  --frames: (int) number of iteration frame the application do before sending a close signal
+
 class ElementTesting : public nvvkhl::IAppElement
 {
-  static inline VKAPI_ATTR VkBool32 VKAPI_CALL debugMessengerCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-                                                                      VkDebugUtilsMessageTypeFlagsEXT messageType,
-                                                                      const VkDebugUtilsMessengerCallbackDataEXT* callbackData,
-                                                                      void* userData);
-
   struct Settings
   {
     bool     enabled{false};
@@ -59,17 +64,27 @@ public:
     if(m_settings.enabled)
     {
       VkDebugUtilsMessengerCreateInfoEXT dbg_messenger_create_info{VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT};
-      dbg_messenger_create_info.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT       // For debug printf
-                                                  | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT  // GPU info, bug
-                                                  | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;   // Invalid usage
-      dbg_messenger_create_info.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT            // Other
-                                              | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT    // Violation of spec
-                                              | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;  // Non-optimal use
-      dbg_messenger_create_info.pfnUserCallback = debugMessengerCallback;
-      dbg_messenger_create_info.pUserData       = this;
+      dbg_messenger_create_info.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT   // Vulkan issues
+                                                  | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;  // Invalid usage
+      dbg_messenger_create_info.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT           // Other
+                                              | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT;     // Violation of spec
+      dbg_messenger_create_info.pUserData = this;
+
+      // Trapping in the callback the validation errors that could show up. If errors are found errorCode will return 1, otherwise 0
+      dbg_messenger_create_info.pfnUserCallback = [](VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+                                                     VkDebugUtilsMessageTypeFlagsEXT        messageType,
+                                                     const VkDebugUtilsMessengerCallbackDataEXT* callbackData, void* userData) {
+        ElementTesting* testing = reinterpret_cast<ElementTesting*>(userData);
+        if(messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
+        {
+          testing->addError(callbackData->pMessage);
+        }
+        return VK_FALSE;
+      };
       NVVK_CHECK(vkCreateDebugUtilsMessengerEXT(m_app->getContext()->m_instance, &dbg_messenger_create_info, nullptr, &m_dbgMessenger));
     }
   }
+
   void onDetach() override
   {
     if(m_settings.enabled)
@@ -117,19 +132,5 @@ private:
   std::vector<std::string> m_errorMessages;
   nvh::Stopwatch           m_startTime;
 };
-
-// Define a callback to capture the messages
-inline VKAPI_ATTR VkBool32 VKAPI_CALL ElementTesting::debugMessengerCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-                                                                             VkDebugUtilsMessageTypeFlagsEXT messageType,
-                                                                             const VkDebugUtilsMessengerCallbackDataEXT* callbackData,
-                                                                             void* userData)
-{
-  ElementTesting* testing = reinterpret_cast<ElementTesting*>(userData);
-  if(messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
-  {
-    testing->addError(callbackData->pMessage);
-  }
-  return VK_FALSE;
-}
 
 }  // namespace nvvkhl

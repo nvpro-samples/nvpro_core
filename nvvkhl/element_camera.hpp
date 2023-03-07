@@ -118,8 +118,8 @@ private:
       CameraManip.setMousePosition(static_cast<int>(mouse_pos.x), static_cast<int>(mouse_pos.y));
     }
 
-    if(ImGui::IsMouseDragging(ImGuiMouseButton_Left) || ImGui::IsMouseDragging(ImGuiMouseButton_Middle)
-       || ImGui::IsMouseDragging(ImGuiMouseButton_Right))
+    if(ImGui::IsMouseDragging(ImGuiMouseButton_Left, 1.0F) || ImGui::IsMouseDragging(ImGuiMouseButton_Middle, 1.0F)
+       || ImGui::IsMouseDragging(ImGuiMouseButton_Right, 1.0F))
     {
       CameraManip.mouseMove(static_cast<int>(mouse_pos.x), static_cast<int>(mouse_pos.y), m_inputs);
     }

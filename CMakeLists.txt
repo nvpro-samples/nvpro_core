@@ -89,7 +89,7 @@ if(USING_VULKANSDK)
   set(SHD_DIR nvvkhl/shaders)
   file(GLOB SHD_HDR  ${SHD_DIR}/*.glsl ${SHD_DIR}/*.h)
   file(GLOB SHD_SRC ${SHD_DIR}/*.vert ${SHD_DIR}/*.frag ${SHD_DIR}/*.comp ${SHD_DIR}/*.rgen ${SHD_DIR}/*.rchit ${SHD_DIR}/*.rmiss)
-  # Compiling shaders to Spir-V header
+  # Compiling shaders to SPIR-V header
   compile_glsl(
       SOURCE_FILES ${SHD_SRC}
       HEADER_FILES ${SHD_HDR}
@@ -97,7 +97,7 @@ if(USING_VULKANSDK)
       VULKAN_TARGET "vulkan1.2"
       HEADER ON
       DEPENDENCY ${VULKAN_BUILD_DEPENDENCIES}
-      FLAGS "-I${SHD_DIR}  -I${CMAKE_CURRENT_SOURCE_DIR} -g"
+      FLAGS "-I${SHD_DIR}" "-I${CMAKE_CURRENT_SOURCE_DIR}" -g
       )
 
   if (NOT TARGET vma)

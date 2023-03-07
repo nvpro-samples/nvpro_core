@@ -25,9 +25,13 @@ namespace nvvkhl {
 class GBuffer
 {
 public:
+  GBuffer(VkDevice device, nvvk::ResourceAllocator* alloc);
   GBuffer(VkDevice device, nvvk::ResourceAllocator* alloc, const VkExtent2D& size, VkFormat color, VkFormat depth);
   GBuffer(VkDevice device, nvvk::ResourceAllocator* alloc, const VkExtent2D& size, std::vector<VkFormat> color, VkFormat depth);
   ~GBuffer();
+
+  void create(const VkExtent2D& size, std::vector<VkFormat> color, VkFormat depth);
+  void destroy();
 
   VkDescriptorSet       getDescriptorSet(uint32_t i = 0) const { return m_descriptorSet[i]; }
   VkExtent2D            getSize() const { return m_imageSize; }
@@ -41,8 +45,6 @@ public:
   float getAspectRatio() { return static_cast<float>(m_imageSize.width) / static_cast<float>(m_imageSize.height); }
 
 private:
-  void create();
-
   struct Resources
   {
     std::vector<nvvk::Image>           gBufferColor;                // All color image to render into
@@ -52,7 +54,7 @@ private:
   };
 
   Resources                    m_res;
-  VkExtent2D                   m_imageSize{~0U, ~0U};                         // Current image size
+  VkExtent2D                   m_imageSize{0U, 0U};                           // Current image size
   std::vector<VkFormat>        m_colorFormat;                                 // Color format of the image
   VkFormat                     m_depthFormat{VK_FORMAT_X8_D24_UNORM_PACK32};  // Depth format of the depth buffer
   std::vector<VkDescriptorSet> m_descriptorSet;                               // For displaying the image with ImGui

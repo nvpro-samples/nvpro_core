@@ -41,6 +41,8 @@ public:
   // #define VMA_DEBUG_LOG(format, ...) do { printf(format, __VA_ARGS__); printf("\n"); } while(false)
   void findLeak(uint64_t leak) { m_vma->findLeak(leak); }
 
+  VmaAllocator vma() { return m_vmaAlloc; }
+
 private:
   void init(const nvvk::Context* context)
   {

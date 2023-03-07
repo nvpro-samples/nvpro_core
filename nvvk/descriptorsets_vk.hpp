@@ -228,7 +228,7 @@ public:
   // bound resources.
   VkDescriptorSetLayout createLayout(VkDevice                         device,
                                      VkDescriptorSetLayoutCreateFlags flags        = 0,
-                                     DescriptorSupport                supportFlags = DescriptorSupport::CORE_1_0) const;
+                                     DescriptorSupport                supportFlags = DescriptorSupport::CORE_1_0);
 
   // Once the bindings have been added, this generates the descriptor pool with enough space to
   // handle all the bound resources and allocate up to maxSets descriptor sets

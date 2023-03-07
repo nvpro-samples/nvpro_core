@@ -22,7 +22,7 @@
 #include "nvh/nvprint.hpp"
 
 /* NVVK_GENERATE_VERSION_INFO */
-// Generated using Vulkan 224
+// Generated using Vulkan 236
 /* NVVK_GENERATE_VERSION_INFO */
 
 /* clang-format off */
@@ -92,6 +92,22 @@ static PFN_vkSetDebugUtilsObjectNameEXT pfn_vkSetDebugUtilsObjectNameEXT= 0;
 static PFN_vkSetDebugUtilsObjectTagEXT pfn_vkSetDebugUtilsObjectTagEXT= 0;
 static PFN_vkSubmitDebugUtilsMessageEXT pfn_vkSubmitDebugUtilsMessageEXT= 0;
 #endif /* VK_EXT_debug_utils */
+#ifdef VK_EXT_descriptor_buffer
+static PFN_vkCmdBindDescriptorBufferEmbeddedSamplersEXT pfn_vkCmdBindDescriptorBufferEmbeddedSamplersEXT= 0;
+static PFN_vkCmdBindDescriptorBuffersEXT pfn_vkCmdBindDescriptorBuffersEXT= 0;
+static PFN_vkCmdSetDescriptorBufferOffsetsEXT pfn_vkCmdSetDescriptorBufferOffsetsEXT= 0;
+static PFN_vkGetAccelerationStructureOpaqueCaptureDescriptorDataEXT pfn_vkGetAccelerationStructureOpaqueCaptureDescriptorDataEXT= 0;
+static PFN_vkGetBufferOpaqueCaptureDescriptorDataEXT pfn_vkGetBufferOpaqueCaptureDescriptorDataEXT= 0;
+static PFN_vkGetDescriptorEXT pfn_vkGetDescriptorEXT= 0;
+static PFN_vkGetDescriptorSetLayoutBindingOffsetEXT pfn_vkGetDescriptorSetLayoutBindingOffsetEXT= 0;
+static PFN_vkGetDescriptorSetLayoutSizeEXT pfn_vkGetDescriptorSetLayoutSizeEXT= 0;
+static PFN_vkGetImageOpaqueCaptureDescriptorDataEXT pfn_vkGetImageOpaqueCaptureDescriptorDataEXT= 0;
+static PFN_vkGetImageViewOpaqueCaptureDescriptorDataEXT pfn_vkGetImageViewOpaqueCaptureDescriptorDataEXT= 0;
+static PFN_vkGetSamplerOpaqueCaptureDescriptorDataEXT pfn_vkGetSamplerOpaqueCaptureDescriptorDataEXT= 0;
+#endif /* VK_EXT_descriptor_buffer */
+#ifdef VK_EXT_device_fault
+static PFN_vkGetDeviceFaultInfoEXT pfn_vkGetDeviceFaultInfoEXT= 0;
+#endif /* VK_EXT_device_fault */
 #ifdef VK_EXT_direct_mode_display
 static PFN_vkReleaseDisplayEXT pfn_vkReleaseDisplayEXT= 0;
 #endif /* VK_EXT_direct_mode_display */
@@ -132,6 +148,39 @@ static PFN_vkCmdSetPatchControlPointsEXT pfn_vkCmdSetPatchControlPointsEXT= 0;
 static PFN_vkCmdSetPrimitiveRestartEnableEXT pfn_vkCmdSetPrimitiveRestartEnableEXT= 0;
 static PFN_vkCmdSetRasterizerDiscardEnableEXT pfn_vkCmdSetRasterizerDiscardEnableEXT= 0;
 #endif /* VK_EXT_extended_dynamic_state2 */
+#ifdef VK_EXT_extended_dynamic_state3
+static PFN_vkCmdSetAlphaToCoverageEnableEXT pfn_vkCmdSetAlphaToCoverageEnableEXT= 0;
+static PFN_vkCmdSetAlphaToOneEnableEXT pfn_vkCmdSetAlphaToOneEnableEXT= 0;
+static PFN_vkCmdSetColorBlendAdvancedEXT pfn_vkCmdSetColorBlendAdvancedEXT= 0;
+static PFN_vkCmdSetColorBlendEnableEXT pfn_vkCmdSetColorBlendEnableEXT= 0;
+static PFN_vkCmdSetColorBlendEquationEXT pfn_vkCmdSetColorBlendEquationEXT= 0;
+static PFN_vkCmdSetColorWriteMaskEXT pfn_vkCmdSetColorWriteMaskEXT= 0;
+static PFN_vkCmdSetConservativeRasterizationModeEXT pfn_vkCmdSetConservativeRasterizationModeEXT= 0;
+static PFN_vkCmdSetCoverageModulationModeNV pfn_vkCmdSetCoverageModulationModeNV= 0;
+static PFN_vkCmdSetCoverageModulationTableEnableNV pfn_vkCmdSetCoverageModulationTableEnableNV= 0;
+static PFN_vkCmdSetCoverageModulationTableNV pfn_vkCmdSetCoverageModulationTableNV= 0;
+static PFN_vkCmdSetCoverageReductionModeNV pfn_vkCmdSetCoverageReductionModeNV= 0;
+static PFN_vkCmdSetCoverageToColorEnableNV pfn_vkCmdSetCoverageToColorEnableNV= 0;
+static PFN_vkCmdSetCoverageToColorLocationNV pfn_vkCmdSetCoverageToColorLocationNV= 0;
+static PFN_vkCmdSetDepthClampEnableEXT pfn_vkCmdSetDepthClampEnableEXT= 0;
+static PFN_vkCmdSetDepthClipEnableEXT pfn_vkCmdSetDepthClipEnableEXT= 0;
+static PFN_vkCmdSetDepthClipNegativeOneToOneEXT pfn_vkCmdSetDepthClipNegativeOneToOneEXT= 0;
+static PFN_vkCmdSetExtraPrimitiveOverestimationSizeEXT pfn_vkCmdSetExtraPrimitiveOverestimationSizeEXT= 0;
+static PFN_vkCmdSetLineRasterizationModeEXT pfn_vkCmdSetLineRasterizationModeEXT= 0;
+static PFN_vkCmdSetLineStippleEnableEXT pfn_vkCmdSetLineStippleEnableEXT= 0;
+static PFN_vkCmdSetLogicOpEnableEXT pfn_vkCmdSetLogicOpEnableEXT= 0;
+static PFN_vkCmdSetPolygonModeEXT pfn_vkCmdSetPolygonModeEXT= 0;
+static PFN_vkCmdSetProvokingVertexModeEXT pfn_vkCmdSetProvokingVertexModeEXT= 0;
+static PFN_vkCmdSetRasterizationSamplesEXT pfn_vkCmdSetRasterizationSamplesEXT= 0;
+static PFN_vkCmdSetRasterizationStreamEXT pfn_vkCmdSetRasterizationStreamEXT= 0;
+static PFN_vkCmdSetRepresentativeFragmentTestEnableNV pfn_vkCmdSetRepresentativeFragmentTestEnableNV= 0;
+static PFN_vkCmdSetSampleLocationsEnableEXT pfn_vkCmdSetSampleLocationsEnableEXT= 0;
+static PFN_vkCmdSetSampleMaskEXT pfn_vkCmdSetSampleMaskEXT= 0;
+static PFN_vkCmdSetShadingRateImageEnableNV pfn_vkCmdSetShadingRateImageEnableNV= 0;
+static PFN_vkCmdSetTessellationDomainOriginEXT pfn_vkCmdSetTessellationDomainOriginEXT= 0;
+static PFN_vkCmdSetViewportSwizzleNV pfn_vkCmdSetViewportSwizzleNV= 0;
+static PFN_vkCmdSetViewportWScalingEnableNV pfn_vkCmdSetViewportWScalingEnableNV= 0;
+#endif /* VK_EXT_extended_dynamic_state3 */
 #ifdef VK_EXT_external_memory_host
 static PFN_vkGetMemoryHostPointerPropertiesEXT pfn_vkGetMemoryHostPointerPropertiesEXT= 0;
 #endif /* VK_EXT_external_memory_host */
@@ -158,6 +207,11 @@ static PFN_vkGetImageDrmFormatModifierPropertiesEXT pfn_vkGetImageDrmFormatModif
 #ifdef VK_EXT_line_rasterization
 static PFN_vkCmdSetLineStippleEXT pfn_vkCmdSetLineStippleEXT= 0;
 #endif /* VK_EXT_line_rasterization */
+#ifdef VK_EXT_mesh_shader
+static PFN_vkCmdDrawMeshTasksEXT pfn_vkCmdDrawMeshTasksEXT= 0;
+static PFN_vkCmdDrawMeshTasksIndirectCountEXT pfn_vkCmdDrawMeshTasksIndirectCountEXT= 0;
+static PFN_vkCmdDrawMeshTasksIndirectEXT pfn_vkCmdDrawMeshTasksIndirectEXT= 0;
+#endif /* VK_EXT_mesh_shader */
 #ifdef VK_EXT_metal_objects
 static PFN_vkExportMetalObjectsEXT pfn_vkExportMetalObjectsEXT= 0;
 #endif /* VK_EXT_metal_objects */
@@ -168,6 +222,22 @@ static PFN_vkCreateMetalSurfaceEXT pfn_vkCreateMetalSurfaceEXT= 0;
 static PFN_vkCmdDrawMultiEXT pfn_vkCmdDrawMultiEXT= 0;
 static PFN_vkCmdDrawMultiIndexedEXT pfn_vkCmdDrawMultiIndexedEXT= 0;
 #endif /* VK_EXT_multi_draw */
+#ifdef VK_EXT_opacity_micromap
+static PFN_vkBuildMicromapsEXT pfn_vkBuildMicromapsEXT= 0;
+static PFN_vkCmdBuildMicromapsEXT pfn_vkCmdBuildMicromapsEXT= 0;
+static PFN_vkCmdCopyMemoryToMicromapEXT pfn_vkCmdCopyMemoryToMicromapEXT= 0;
+static PFN_vkCmdCopyMicromapEXT pfn_vkCmdCopyMicromapEXT= 0;
+static PFN_vkCmdCopyMicromapToMemoryEXT pfn_vkCmdCopyMicromapToMemoryEXT= 0;
+static PFN_vkCmdWriteMicromapsPropertiesEXT pfn_vkCmdWriteMicromapsPropertiesEXT= 0;
+static PFN_vkCopyMemoryToMicromapEXT pfn_vkCopyMemoryToMicromapEXT= 0;
+static PFN_vkCopyMicromapEXT pfn_vkCopyMicromapEXT= 0;
+static PFN_vkCopyMicromapToMemoryEXT pfn_vkCopyMicromapToMemoryEXT= 0;
+static PFN_vkCreateMicromapEXT pfn_vkCreateMicromapEXT= 0;
+static PFN_vkDestroyMicromapEXT pfn_vkDestroyMicromapEXT= 0;
+static PFN_vkGetDeviceMicromapCompatibilityEXT pfn_vkGetDeviceMicromapCompatibilityEXT= 0;
+static PFN_vkGetMicromapBuildSizesEXT pfn_vkGetMicromapBuildSizesEXT= 0;
+static PFN_vkWriteMicromapsPropertiesEXT pfn_vkWriteMicromapsPropertiesEXT= 0;
+#endif /* VK_EXT_opacity_micromap */
 #ifdef VK_EXT_pageable_device_local_memory
 static PFN_vkSetDeviceMemoryPriorityEXT pfn_vkSetDeviceMemoryPriorityEXT= 0;
 #endif /* VK_EXT_pageable_device_local_memory */
@@ -466,6 +536,10 @@ static PFN_vkCmdSetViewportWScalingNV pfn_vkCmdSetViewportWScalingNV= 0;
 #ifdef VK_NV_cooperative_matrix
 static PFN_vkGetPhysicalDeviceCooperativeMatrixPropertiesNV pfn_vkGetPhysicalDeviceCooperativeMatrixPropertiesNV= 0;
 #endif /* VK_NV_cooperative_matrix */
+#ifdef VK_NV_copy_memory_indirect
+static PFN_vkCmdCopyMemoryIndirectNV pfn_vkCmdCopyMemoryIndirectNV= 0;
+static PFN_vkCmdCopyMemoryToImageIndirectNV pfn_vkCmdCopyMemoryToImageIndirectNV= 0;
+#endif /* VK_NV_copy_memory_indirect */
 #ifdef VK_NV_coverage_reduction_mode
 static PFN_vkGetPhysicalDeviceSupportedFramebufferMixedSamplesCombinationsNV pfn_vkGetPhysicalDeviceSupportedFramebufferMixedSamplesCombinationsNV= 0;
 #endif /* VK_NV_coverage_reduction_mode */
@@ -493,11 +567,22 @@ static PFN_vkGetMemoryWin32HandleNV pfn_vkGetMemoryWin32HandleNV= 0;
 #ifdef VK_NV_fragment_shading_rate_enums
 static PFN_vkCmdSetFragmentShadingRateEnumNV pfn_vkCmdSetFragmentShadingRateEnumNV= 0;
 #endif /* VK_NV_fragment_shading_rate_enums */
+#ifdef VK_NV_memory_decompression
+static PFN_vkCmdDecompressMemoryIndirectCountNV pfn_vkCmdDecompressMemoryIndirectCountNV= 0;
+static PFN_vkCmdDecompressMemoryNV pfn_vkCmdDecompressMemoryNV= 0;
+#endif /* VK_NV_memory_decompression */
 #ifdef VK_NV_mesh_shader
 static PFN_vkCmdDrawMeshTasksIndirectCountNV pfn_vkCmdDrawMeshTasksIndirectCountNV= 0;
 static PFN_vkCmdDrawMeshTasksIndirectNV pfn_vkCmdDrawMeshTasksIndirectNV= 0;
 static PFN_vkCmdDrawMeshTasksNV pfn_vkCmdDrawMeshTasksNV= 0;
 #endif /* VK_NV_mesh_shader */
+#ifdef VK_NV_optical_flow
+static PFN_vkBindOpticalFlowSessionImageNV pfn_vkBindOpticalFlowSessionImageNV= 0;
+static PFN_vkCmdOpticalFlowExecuteNV pfn_vkCmdOpticalFlowExecuteNV= 0;
+static PFN_vkCreateOpticalFlowSessionNV pfn_vkCreateOpticalFlowSessionNV= 0;
+static PFN_vkDestroyOpticalFlowSessionNV pfn_vkDestroyOpticalFlowSessionNV= 0;
+static PFN_vkGetPhysicalDeviceOpticalFlowImageFormatsNV pfn_vkGetPhysicalDeviceOpticalFlowImageFormatsNV= 0;
+#endif /* VK_NV_optical_flow */
 #ifdef VK_NV_ray_tracing
 static PFN_vkBindAccelerationStructureMemoryNV pfn_vkBindAccelerationStructureMemoryNV= 0;
 static PFN_vkCmdBuildAccelerationStructureNV pfn_vkCmdBuildAccelerationStructureNV= 0;
@@ -821,6 +906,101 @@ VKAPI_ATTR void VKAPI_CALL vkSubmitDebugUtilsMessageEXT(
   pfn_vkSubmitDebugUtilsMessageEXT(instance, messageSeverity, messageTypes, pCallbackData); 
 }
 #endif /* VK_EXT_debug_utils */
+#ifdef VK_EXT_descriptor_buffer
+VKAPI_ATTR void VKAPI_CALL vkCmdBindDescriptorBufferEmbeddedSamplersEXT(
+	VkCommandBuffer commandBuffer, 
+	VkPipelineBindPoint pipelineBindPoint, 
+	VkPipelineLayout layout, 
+	uint32_t set) 
+{ 
+  pfn_vkCmdBindDescriptorBufferEmbeddedSamplersEXT(commandBuffer, pipelineBindPoint, layout, set); 
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdBindDescriptorBuffersEXT(
+	VkCommandBuffer commandBuffer, 
+	uint32_t bufferCount, 
+	const VkDescriptorBufferBindingInfoEXT* pBindingInfos) 
+{ 
+  pfn_vkCmdBindDescriptorBuffersEXT(commandBuffer, bufferCount, pBindingInfos); 
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdSetDescriptorBufferOffsetsEXT(
+	VkCommandBuffer commandBuffer, 
+	VkPipelineBindPoint pipelineBindPoint, 
+	VkPipelineLayout layout, 
+	uint32_t firstSet, 
+	uint32_t setCount, 
+	const uint32_t* pBufferIndices, 
+	const VkDeviceSize* pOffsets) 
+{ 
+  pfn_vkCmdSetDescriptorBufferOffsetsEXT(commandBuffer, pipelineBindPoint, layout, firstSet, setCount, pBufferIndices, pOffsets); 
+}
+VKAPI_ATTR VkResult VKAPI_CALL vkGetAccelerationStructureOpaqueCaptureDescriptorDataEXT(
+	VkDevice device, 
+	const VkAccelerationStructureCaptureDescriptorDataInfoEXT* pInfo, 
+	void* pData) 
+{ 
+  return pfn_vkGetAccelerationStructureOpaqueCaptureDescriptorDataEXT(device, pInfo, pData); 
+}
+VKAPI_ATTR VkResult VKAPI_CALL vkGetBufferOpaqueCaptureDescriptorDataEXT(
+	VkDevice device, 
+	const VkBufferCaptureDescriptorDataInfoEXT* pInfo, 
+	void* pData) 
+{ 
+  return pfn_vkGetBufferOpaqueCaptureDescriptorDataEXT(device, pInfo, pData); 
+}
+VKAPI_ATTR void VKAPI_CALL vkGetDescriptorEXT(
+	VkDevice device, 
+	const VkDescriptorGetInfoEXT* pDescriptorInfo, 
+	size_t dataSize, 
+	void* pDescriptor) 
+{ 
+  pfn_vkGetDescriptorEXT(device, pDescriptorInfo, dataSize, pDescriptor); 
+}
+VKAPI_ATTR void VKAPI_CALL vkGetDescriptorSetLayoutBindingOffsetEXT(
+	VkDevice device, 
+	VkDescriptorSetLayout layout, 
+	uint32_t binding, 
+	VkDeviceSize* pOffset) 
+{ 
+  pfn_vkGetDescriptorSetLayoutBindingOffsetEXT(device, layout, binding, pOffset); 
+}
+VKAPI_ATTR void VKAPI_CALL vkGetDescriptorSetLayoutSizeEXT(
+	VkDevice device, 
+	VkDescriptorSetLayout layout, 
+	VkDeviceSize* pLayoutSizeInBytes) 
+{ 
+  pfn_vkGetDescriptorSetLayoutSizeEXT(device, layout, pLayoutSizeInBytes); 
+}
+VKAPI_ATTR VkResult VKAPI_CALL vkGetImageOpaqueCaptureDescriptorDataEXT(
+	VkDevice device, 
+	const VkImageCaptureDescriptorDataInfoEXT* pInfo, 
+	void* pData) 
+{ 
+  return pfn_vkGetImageOpaqueCaptureDescriptorDataEXT(device, pInfo, pData); 
+}
+VKAPI_ATTR VkResult VKAPI_CALL vkGetImageViewOpaqueCaptureDescriptorDataEXT(
+	VkDevice device, 
+	const VkImageViewCaptureDescriptorDataInfoEXT* pInfo, 
+	void* pData) 
+{ 
+  return pfn_vkGetImageViewOpaqueCaptureDescriptorDataEXT(device, pInfo, pData); 
+}
+VKAPI_ATTR VkResult VKAPI_CALL vkGetSamplerOpaqueCaptureDescriptorDataEXT(
+	VkDevice device, 
+	const VkSamplerCaptureDescriptorDataInfoEXT* pInfo, 
+	void* pData) 
+{ 
+  return pfn_vkGetSamplerOpaqueCaptureDescriptorDataEXT(device, pInfo, pData); 
+}
+#endif /* VK_EXT_descriptor_buffer */
+#ifdef VK_EXT_device_fault
+VKAPI_ATTR VkResult VKAPI_CALL vkGetDeviceFaultInfoEXT(
+	VkDevice device, 
+	VkDeviceFaultCountsEXT* pFaultCounts, 
+	VkDeviceFaultInfoEXT* pFaultInfo) 
+{ 
+  return pfn_vkGetDeviceFaultInfoEXT(device, pFaultCounts, pFaultInfo); 
+}
+#endif /* VK_EXT_device_fault */
 #ifdef VK_EXT_direct_mode_display
 VKAPI_ATTR VkResult VKAPI_CALL vkReleaseDisplayEXT(
 	VkPhysicalDevice physicalDevice, 
@@ -1016,6 +1196,206 @@ VKAPI_ATTR void VKAPI_CALL vkCmdSetRasterizerDiscardEnableEXT(
   pfn_vkCmdSetRasterizerDiscardEnableEXT(commandBuffer, rasterizerDiscardEnable); 
 }
 #endif /* VK_EXT_extended_dynamic_state2 */
+#ifdef VK_EXT_extended_dynamic_state3
+VKAPI_ATTR void VKAPI_CALL vkCmdSetAlphaToCoverageEnableEXT(
+	VkCommandBuffer commandBuffer, 
+	VkBool32 alphaToCoverageEnable) 
+{ 
+  pfn_vkCmdSetAlphaToCoverageEnableEXT(commandBuffer, alphaToCoverageEnable); 
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdSetAlphaToOneEnableEXT(
+	VkCommandBuffer commandBuffer, 
+	VkBool32 alphaToOneEnable) 
+{ 
+  pfn_vkCmdSetAlphaToOneEnableEXT(commandBuffer, alphaToOneEnable); 
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdSetColorBlendAdvancedEXT(
+	VkCommandBuffer commandBuffer, 
+	uint32_t firstAttachment, 
+	uint32_t attachmentCount, 
+	const VkColorBlendAdvancedEXT* pColorBlendAdvanced) 
+{ 
+  pfn_vkCmdSetColorBlendAdvancedEXT(commandBuffer, firstAttachment, attachmentCount, pColorBlendAdvanced); 
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdSetColorBlendEnableEXT(
+	VkCommandBuffer commandBuffer, 
+	uint32_t firstAttachment, 
+	uint32_t attachmentCount, 
+	const VkBool32* pColorBlendEnables) 
+{ 
+  pfn_vkCmdSetColorBlendEnableEXT(commandBuffer, firstAttachment, attachmentCount, pColorBlendEnables); 
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdSetColorBlendEquationEXT(
+	VkCommandBuffer commandBuffer, 
+	uint32_t firstAttachment, 
+	uint32_t attachmentCount, 
+	const VkColorBlendEquationEXT* pColorBlendEquations) 
+{ 
+  pfn_vkCmdSetColorBlendEquationEXT(commandBuffer, firstAttachment, attachmentCount, pColorBlendEquations); 
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdSetColorWriteMaskEXT(
+	VkCommandBuffer commandBuffer, 
+	uint32_t firstAttachment, 
+	uint32_t attachmentCount, 
+	const VkColorComponentFlags* pColorWriteMasks) 
+{ 
+  pfn_vkCmdSetColorWriteMaskEXT(commandBuffer, firstAttachment, attachmentCount, pColorWriteMasks); 
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdSetConservativeRasterizationModeEXT(
+	VkCommandBuffer commandBuffer, 
+	VkConservativeRasterizationModeEXT conservativeRasterizationMode) 
+{ 
+  pfn_vkCmdSetConservativeRasterizationModeEXT(commandBuffer, conservativeRasterizationMode); 
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdSetCoverageModulationModeNV(
+	VkCommandBuffer commandBuffer, 
+	VkCoverageModulationModeNV coverageModulationMode) 
+{ 
+  pfn_vkCmdSetCoverageModulationModeNV(commandBuffer, coverageModulationMode); 
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdSetCoverageModulationTableEnableNV(
+	VkCommandBuffer commandBuffer, 
+	VkBool32 coverageModulationTableEnable) 
+{ 
+  pfn_vkCmdSetCoverageModulationTableEnableNV(commandBuffer, coverageModulationTableEnable); 
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdSetCoverageModulationTableNV(
+	VkCommandBuffer commandBuffer, 
+	uint32_t coverageModulationTableCount, 
+	const float* pCoverageModulationTable) 
+{ 
+  pfn_vkCmdSetCoverageModulationTableNV(commandBuffer, coverageModulationTableCount, pCoverageModulationTable); 
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdSetCoverageReductionModeNV(
+	VkCommandBuffer commandBuffer, 
+	VkCoverageReductionModeNV coverageReductionMode) 
+{ 
+  pfn_vkCmdSetCoverageReductionModeNV(commandBuffer, coverageReductionMode); 
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdSetCoverageToColorEnableNV(
+	VkCommandBuffer commandBuffer, 
+	VkBool32 coverageToColorEnable) 
+{ 
+  pfn_vkCmdSetCoverageToColorEnableNV(commandBuffer, coverageToColorEnable); 
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdSetCoverageToColorLocationNV(
+	VkCommandBuffer commandBuffer, 
+	uint32_t coverageToColorLocation) 
+{ 
+  pfn_vkCmdSetCoverageToColorLocationNV(commandBuffer, coverageToColorLocation); 
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdSetDepthClampEnableEXT(
+	VkCommandBuffer commandBuffer, 
+	VkBool32 depthClampEnable) 
+{ 
+  pfn_vkCmdSetDepthClampEnableEXT(commandBuffer, depthClampEnable); 
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdSetDepthClipEnableEXT(
+	VkCommandBuffer commandBuffer, 
+	VkBool32 depthClipEnable) 
+{ 
+  pfn_vkCmdSetDepthClipEnableEXT(commandBuffer, depthClipEnable); 
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdSetDepthClipNegativeOneToOneEXT(
+	VkCommandBuffer commandBuffer, 
+	VkBool32 negativeOneToOne) 
+{ 
+  pfn_vkCmdSetDepthClipNegativeOneToOneEXT(commandBuffer, negativeOneToOne); 
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdSetExtraPrimitiveOverestimationSizeEXT(
+	VkCommandBuffer commandBuffer, 
+	float extraPrimitiveOverestimationSize) 
+{ 
+  pfn_vkCmdSetExtraPrimitiveOverestimationSizeEXT(commandBuffer, extraPrimitiveOverestimationSize); 
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdSetLineRasterizationModeEXT(
+	VkCommandBuffer commandBuffer, 
+	VkLineRasterizationModeEXT lineRasterizationMode) 
+{ 
+  pfn_vkCmdSetLineRasterizationModeEXT(commandBuffer, lineRasterizationMode); 
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdSetLineStippleEnableEXT(
+	VkCommandBuffer commandBuffer, 
+	VkBool32 stippledLineEnable) 
+{ 
+  pfn_vkCmdSetLineStippleEnableEXT(commandBuffer, stippledLineEnable); 
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdSetLogicOpEnableEXT(
+	VkCommandBuffer commandBuffer, 
+	VkBool32 logicOpEnable) 
+{ 
+  pfn_vkCmdSetLogicOpEnableEXT(commandBuffer, logicOpEnable); 
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdSetPolygonModeEXT(
+	VkCommandBuffer commandBuffer, 
+	VkPolygonMode polygonMode) 
+{ 
+  pfn_vkCmdSetPolygonModeEXT(commandBuffer, polygonMode); 
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdSetProvokingVertexModeEXT(
+	VkCommandBuffer commandBuffer, 
+	VkProvokingVertexModeEXT provokingVertexMode) 
+{ 
+  pfn_vkCmdSetProvokingVertexModeEXT(commandBuffer, provokingVertexMode); 
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdSetRasterizationSamplesEXT(
+	VkCommandBuffer commandBuffer, 
+	VkSampleCountFlagBits  rasterizationSamples) 
+{ 
+  pfn_vkCmdSetRasterizationSamplesEXT(commandBuffer, rasterizationSamples); 
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdSetRasterizationStreamEXT(
+	VkCommandBuffer commandBuffer, 
+	uint32_t rasterizationStream) 
+{ 
+  pfn_vkCmdSetRasterizationStreamEXT(commandBuffer, rasterizationStream); 
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdSetRepresentativeFragmentTestEnableNV(
+	VkCommandBuffer commandBuffer, 
+	VkBool32 representativeFragmentTestEnable) 
+{ 
+  pfn_vkCmdSetRepresentativeFragmentTestEnableNV(commandBuffer, representativeFragmentTestEnable); 
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdSetSampleLocationsEnableEXT(
+	VkCommandBuffer commandBuffer, 
+	VkBool32 sampleLocationsEnable) 
+{ 
+  pfn_vkCmdSetSampleLocationsEnableEXT(commandBuffer, sampleLocationsEnable); 
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdSetSampleMaskEXT(
+	VkCommandBuffer commandBuffer, 
+	VkSampleCountFlagBits  samples, 
+	const VkSampleMask*    pSampleMask) 
+{ 
+  pfn_vkCmdSetSampleMaskEXT(commandBuffer, samples, pSampleMask); 
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdSetShadingRateImageEnableNV(
+	VkCommandBuffer commandBuffer, 
+	VkBool32 shadingRateImageEnable) 
+{ 
+  pfn_vkCmdSetShadingRateImageEnableNV(commandBuffer, shadingRateImageEnable); 
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdSetTessellationDomainOriginEXT(
+	VkCommandBuffer commandBuffer, 
+	VkTessellationDomainOrigin domainOrigin) 
+{ 
+  pfn_vkCmdSetTessellationDomainOriginEXT(commandBuffer, domainOrigin); 
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdSetViewportSwizzleNV(
+	VkCommandBuffer commandBuffer, 
+	uint32_t firstViewport, 
+	uint32_t viewportCount, 
+	const VkViewportSwizzleNV* pViewportSwizzles) 
+{ 
+  pfn_vkCmdSetViewportSwizzleNV(commandBuffer, firstViewport, viewportCount, pViewportSwizzles); 
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdSetViewportWScalingEnableNV(
+	VkCommandBuffer commandBuffer, 
+	VkBool32 viewportWScalingEnable) 
+{ 
+  pfn_vkCmdSetViewportWScalingEnableNV(commandBuffer, viewportWScalingEnable); 
+}
+#endif /* VK_EXT_extended_dynamic_state3 */
 #ifdef VK_EXT_external_memory_host
 VKAPI_ATTR VkResult VKAPI_CALL vkGetMemoryHostPointerPropertiesEXT(
 	VkDevice device, 
@@ -1106,6 +1486,36 @@ VKAPI_ATTR void VKAPI_CALL vkCmdSetLineStippleEXT(
   pfn_vkCmdSetLineStippleEXT(commandBuffer, lineStippleFactor, lineStipplePattern); 
 }
 #endif /* VK_EXT_line_rasterization */
+#ifdef VK_EXT_mesh_shader
+VKAPI_ATTR void VKAPI_CALL vkCmdDrawMeshTasksEXT(
+	VkCommandBuffer commandBuffer, 
+	uint32_t groupCountX, 
+	uint32_t groupCountY, 
+	uint32_t groupCountZ) 
+{ 
+  pfn_vkCmdDrawMeshTasksEXT(commandBuffer, groupCountX, groupCountY, groupCountZ); 
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdDrawMeshTasksIndirectCountEXT(
+	VkCommandBuffer commandBuffer, 
+	VkBuffer buffer, 
+	VkDeviceSize offset, 
+	VkBuffer countBuffer, 
+	VkDeviceSize countBufferOffset, 
+	uint32_t maxDrawCount, 
+	uint32_t stride) 
+{ 
+  pfn_vkCmdDrawMeshTasksIndirectCountEXT(commandBuffer, buffer, offset, countBuffer, countBufferOffset, maxDrawCount, stride); 
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdDrawMeshTasksIndirectEXT(
+	VkCommandBuffer commandBuffer, 
+	VkBuffer buffer, 
+	VkDeviceSize offset, 
+	uint32_t drawCount, 
+	uint32_t stride) 
+{ 
+  pfn_vkCmdDrawMeshTasksIndirectEXT(commandBuffer, buffer, offset, drawCount, stride); 
+}
+#endif /* VK_EXT_mesh_shader */
 #ifdef VK_EXT_metal_objects
 VKAPI_ATTR void VKAPI_CALL vkExportMetalObjectsEXT(
 	VkDevice device, 
@@ -1147,6 +1557,113 @@ VKAPI_ATTR void VKAPI_CALL vkCmdDrawMultiIndexedEXT(
   pfn_vkCmdDrawMultiIndexedEXT(commandBuffer, drawCount, pIndexInfo, instanceCount, firstInstance, stride, pVertexOffset); 
 }
 #endif /* VK_EXT_multi_draw */
+#ifdef VK_EXT_opacity_micromap
+VKAPI_ATTR VkResult VKAPI_CALL vkBuildMicromapsEXT(
+	VkDevice                                           device, 
+	VkDeferredOperationKHR deferredOperation, 
+	uint32_t infoCount, 
+	const VkMicromapBuildInfoEXT* pInfos) 
+{ 
+  return pfn_vkBuildMicromapsEXT(device, deferredOperation, infoCount, pInfos); 
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdBuildMicromapsEXT(
+	VkCommandBuffer                                    commandBuffer, 
+	uint32_t infoCount, 
+	const VkMicromapBuildInfoEXT* pInfos) 
+{ 
+  pfn_vkCmdBuildMicromapsEXT(commandBuffer, infoCount, pInfos); 
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdCopyMemoryToMicromapEXT(
+	VkCommandBuffer commandBuffer, 
+	const VkCopyMemoryToMicromapInfoEXT* pInfo) 
+{ 
+  pfn_vkCmdCopyMemoryToMicromapEXT(commandBuffer, pInfo); 
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdCopyMicromapEXT(
+	VkCommandBuffer commandBuffer, 
+	const VkCopyMicromapInfoEXT* pInfo) 
+{ 
+  pfn_vkCmdCopyMicromapEXT(commandBuffer, pInfo); 
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdCopyMicromapToMemoryEXT(
+	VkCommandBuffer commandBuffer, 
+	const VkCopyMicromapToMemoryInfoEXT* pInfo) 
+{ 
+  pfn_vkCmdCopyMicromapToMemoryEXT(commandBuffer, pInfo); 
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdWriteMicromapsPropertiesEXT(
+	VkCommandBuffer commandBuffer, 
+	uint32_t micromapCount, 
+	const VkMicromapEXT* pMicromaps, 
+	VkQueryType queryType, 
+	VkQueryPool queryPool, 
+	uint32_t firstQuery) 
+{ 
+  pfn_vkCmdWriteMicromapsPropertiesEXT(commandBuffer, micromapCount, pMicromaps, queryType, queryPool, firstQuery); 
+}
+VKAPI_ATTR VkResult VKAPI_CALL vkCopyMemoryToMicromapEXT(
+	VkDevice device, 
+	VkDeferredOperationKHR deferredOperation, 
+	const VkCopyMemoryToMicromapInfoEXT* pInfo) 
+{ 
+  return pfn_vkCopyMemoryToMicromapEXT(device, deferredOperation, pInfo); 
+}
+VKAPI_ATTR VkResult VKAPI_CALL vkCopyMicromapEXT(
+	VkDevice device, 
+	VkDeferredOperationKHR deferredOperation, 
+	const VkCopyMicromapInfoEXT* pInfo) 
+{ 
+  return pfn_vkCopyMicromapEXT(device, deferredOperation, pInfo); 
+}
+VKAPI_ATTR VkResult VKAPI_CALL vkCopyMicromapToMemoryEXT(
+	VkDevice device, 
+	VkDeferredOperationKHR deferredOperation, 
+	const VkCopyMicromapToMemoryInfoEXT* pInfo) 
+{ 
+  return pfn_vkCopyMicromapToMemoryEXT(device, deferredOperation, pInfo); 
+}
+VKAPI_ATTR VkResult VKAPI_CALL vkCreateMicromapEXT(
+	VkDevice                                           device, 
+	const VkMicromapCreateInfoEXT*        pCreateInfo, 
+	const VkAllocationCallbacks*       pAllocator, 
+	VkMicromapEXT*                        pMicromap) 
+{ 
+  return pfn_vkCreateMicromapEXT(device, pCreateInfo, pAllocator, pMicromap); 
+}
+VKAPI_ATTR void VKAPI_CALL vkDestroyMicromapEXT(
+	VkDevice device, 
+	VkMicromapEXT micromap, 
+	const VkAllocationCallbacks* pAllocator) 
+{ 
+  pfn_vkDestroyMicromapEXT(device, micromap, pAllocator); 
+}
+VKAPI_ATTR void VKAPI_CALL vkGetDeviceMicromapCompatibilityEXT(
+	VkDevice device, 
+	const VkMicromapVersionInfoEXT* pVersionInfo, 
+	VkAccelerationStructureCompatibilityKHR* pCompatibility) 
+{ 
+  pfn_vkGetDeviceMicromapCompatibilityEXT(device, pVersionInfo, pCompatibility); 
+}
+VKAPI_ATTR void VKAPI_CALL vkGetMicromapBuildSizesEXT(
+	VkDevice                                            device, 
+	VkAccelerationStructureBuildTypeKHR                 buildType, 
+	const VkMicromapBuildInfoEXT*  pBuildInfo, 
+	VkMicromapBuildSizesInfoEXT*           pSizeInfo) 
+{ 
+  pfn_vkGetMicromapBuildSizesEXT(device, buildType, pBuildInfo, pSizeInfo); 
+}
+VKAPI_ATTR VkResult VKAPI_CALL vkWriteMicromapsPropertiesEXT(
+	VkDevice device, 
+	uint32_t micromapCount, 
+	const VkMicromapEXT* pMicromaps, 
+	VkQueryType  queryType, 
+	size_t       dataSize, 
+	void* pData, 
+	size_t stride) 
+{ 
+  return pfn_vkWriteMicromapsPropertiesEXT(device, micromapCount, pMicromaps, queryType, dataSize, pData, stride); 
+}
+#endif /* VK_EXT_opacity_micromap */
 #ifdef VK_EXT_pageable_device_local_memory
 VKAPI_ATTR void VKAPI_CALL vkSetDeviceMemoryPriorityEXT(
 	VkDevice       device, 
@@ -2534,6 +3051,27 @@ VKAPI_ATTR VkResult VKAPI_CALL vkGetPhysicalDeviceCooperativeMatrixPropertiesNV(
   return pfn_vkGetPhysicalDeviceCooperativeMatrixPropertiesNV(physicalDevice, pPropertyCount, pProperties); 
 }
 #endif /* VK_NV_cooperative_matrix */
+#ifdef VK_NV_copy_memory_indirect
+VKAPI_ATTR void VKAPI_CALL vkCmdCopyMemoryIndirectNV(
+	VkCommandBuffer commandBuffer, 
+	VkDeviceAddress copyBufferAddress, 
+	uint32_t copyCount, 
+	uint32_t stride) 
+{ 
+  pfn_vkCmdCopyMemoryIndirectNV(commandBuffer, copyBufferAddress, copyCount, stride); 
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdCopyMemoryToImageIndirectNV(
+	VkCommandBuffer commandBuffer, 
+	VkDeviceAddress copyBufferAddress, 
+	uint32_t copyCount, 
+	uint32_t stride, 
+	VkImage dstImage, 
+	VkImageLayout dstImageLayout, 
+	const VkImageSubresourceLayers* pImageSubresources) 
+{ 
+  pfn_vkCmdCopyMemoryToImageIndirectNV(commandBuffer, copyBufferAddress, copyCount, stride, dstImage, dstImageLayout, pImageSubresources); 
+}
+#endif /* VK_NV_copy_memory_indirect */
 #ifdef VK_NV_coverage_reduction_mode
 VKAPI_ATTR VkResult VKAPI_CALL vkGetPhysicalDeviceSupportedFramebufferMixedSamplesCombinationsNV(
 	VkPhysicalDevice physicalDevice, 
@@ -2645,6 +3183,23 @@ VKAPI_ATTR void VKAPI_CALL vkCmdSetFragmentShadingRateEnumNV(
   pfn_vkCmdSetFragmentShadingRateEnumNV(commandBuffer, shadingRate, combinerOps); 
 }
 #endif /* VK_NV_fragment_shading_rate_enums */
+#ifdef VK_NV_memory_decompression
+VKAPI_ATTR void VKAPI_CALL vkCmdDecompressMemoryIndirectCountNV(
+	VkCommandBuffer commandBuffer, 
+	VkDeviceAddress indirectCommandsAddress, 
+	VkDeviceAddress indirectCommandsCountAddress, 
+	uint32_t stride) 
+{ 
+  pfn_vkCmdDecompressMemoryIndirectCountNV(commandBuffer, indirectCommandsAddress, indirectCommandsCountAddress, stride); 
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdDecompressMemoryNV(
+	VkCommandBuffer commandBuffer, 
+	uint32_t decompressRegionCount, 
+	const VkDecompressMemoryRegionNV* pDecompressMemoryRegions) 
+{ 
+  pfn_vkCmdDecompressMemoryNV(commandBuffer, decompressRegionCount, pDecompressMemoryRegions); 
+}
+#endif /* VK_NV_memory_decompression */
 #ifdef VK_NV_mesh_shader
 VKAPI_ATTR void VKAPI_CALL vkCmdDrawMeshTasksIndirectCountNV(
 	VkCommandBuffer commandBuffer, 
@@ -2674,6 +3229,47 @@ VKAPI_ATTR void VKAPI_CALL vkCmdDrawMeshTasksNV(
   pfn_vkCmdDrawMeshTasksNV(commandBuffer, taskCount, firstTask); 
 }
 #endif /* VK_NV_mesh_shader */
+#ifdef VK_NV_optical_flow
+VKAPI_ATTR VkResult VKAPI_CALL vkBindOpticalFlowSessionImageNV(
+	VkDevice device, 
+	VkOpticalFlowSessionNV session, 
+	VkOpticalFlowSessionBindingPointNV bindingPoint, 
+	VkImageView view, 
+	VkImageLayout layout) 
+{ 
+  return pfn_vkBindOpticalFlowSessionImageNV(device, session, bindingPoint, view, layout); 
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdOpticalFlowExecuteNV(
+	VkCommandBuffer commandBuffer, 
+	VkOpticalFlowSessionNV session, 
+	const VkOpticalFlowExecuteInfoNV* pExecuteInfo) 
+{ 
+  pfn_vkCmdOpticalFlowExecuteNV(commandBuffer, session, pExecuteInfo); 
+}
+VKAPI_ATTR VkResult VKAPI_CALL vkCreateOpticalFlowSessionNV(
+	VkDevice device, 
+	const VkOpticalFlowSessionCreateInfoNV* pCreateInfo, 
+	const VkAllocationCallbacks* pAllocator, 
+	VkOpticalFlowSessionNV* pSession) 
+{ 
+  return pfn_vkCreateOpticalFlowSessionNV(device, pCreateInfo, pAllocator, pSession); 
+}
+VKAPI_ATTR void VKAPI_CALL vkDestroyOpticalFlowSessionNV(
+	VkDevice device, 
+	VkOpticalFlowSessionNV session, 
+	const VkAllocationCallbacks* pAllocator) 
+{ 
+  pfn_vkDestroyOpticalFlowSessionNV(device, session, pAllocator); 
+}
+VKAPI_ATTR VkResult VKAPI_CALL vkGetPhysicalDeviceOpticalFlowImageFormatsNV(
+	VkPhysicalDevice physicalDevice, 
+	const VkOpticalFlowImageFormatInfoNV* pOpticalFlowImageFormatInfo, 
+	uint32_t* pFormatCount, 
+	VkOpticalFlowImageFormatPropertiesNV* pImageFormatProperties) 
+{ 
+  return pfn_vkGetPhysicalDeviceOpticalFlowImageFormatsNV(physicalDevice, pOpticalFlowImageFormatInfo, pFormatCount, pImageFormatProperties); 
+}
+#endif /* VK_NV_optical_flow */
 #ifdef VK_NV_ray_tracing
 VKAPI_ATTR VkResult VKAPI_CALL vkBindAccelerationStructureMemoryNV(
 	VkDevice device, 
@@ -2945,6 +3541,22 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
   pfn_vkSetDebugUtilsObjectTagEXT = (PFN_vkSetDebugUtilsObjectTagEXT)getInstanceProcAddr(instance, "vkSetDebugUtilsObjectTagEXT");
   pfn_vkSubmitDebugUtilsMessageEXT = (PFN_vkSubmitDebugUtilsMessageEXT)getInstanceProcAddr(instance, "vkSubmitDebugUtilsMessageEXT");
 #endif /* VK_EXT_debug_utils */
+#ifdef VK_EXT_descriptor_buffer
+  pfn_vkCmdBindDescriptorBufferEmbeddedSamplersEXT = (PFN_vkCmdBindDescriptorBufferEmbeddedSamplersEXT)getDeviceProcAddr(device, "vkCmdBindDescriptorBufferEmbeddedSamplersEXT");
+  pfn_vkCmdBindDescriptorBuffersEXT = (PFN_vkCmdBindDescriptorBuffersEXT)getDeviceProcAddr(device, "vkCmdBindDescriptorBuffersEXT");
+  pfn_vkCmdSetDescriptorBufferOffsetsEXT = (PFN_vkCmdSetDescriptorBufferOffsetsEXT)getDeviceProcAddr(device, "vkCmdSetDescriptorBufferOffsetsEXT");
+  pfn_vkGetAccelerationStructureOpaqueCaptureDescriptorDataEXT = (PFN_vkGetAccelerationStructureOpaqueCaptureDescriptorDataEXT)getDeviceProcAddr(device, "vkGetAccelerationStructureOpaqueCaptureDescriptorDataEXT");
+  pfn_vkGetBufferOpaqueCaptureDescriptorDataEXT = (PFN_vkGetBufferOpaqueCaptureDescriptorDataEXT)getDeviceProcAddr(device, "vkGetBufferOpaqueCaptureDescriptorDataEXT");
+  pfn_vkGetDescriptorEXT = (PFN_vkGetDescriptorEXT)getDeviceProcAddr(device, "vkGetDescriptorEXT");
+  pfn_vkGetDescriptorSetLayoutBindingOffsetEXT = (PFN_vkGetDescriptorSetLayoutBindingOffsetEXT)getDeviceProcAddr(device, "vkGetDescriptorSetLayoutBindingOffsetEXT");
+  pfn_vkGetDescriptorSetLayoutSizeEXT = (PFN_vkGetDescriptorSetLayoutSizeEXT)getDeviceProcAddr(device, "vkGetDescriptorSetLayoutSizeEXT");
+  pfn_vkGetImageOpaqueCaptureDescriptorDataEXT = (PFN_vkGetImageOpaqueCaptureDescriptorDataEXT)getDeviceProcAddr(device, "vkGetImageOpaqueCaptureDescriptorDataEXT");
+  pfn_vkGetImageViewOpaqueCaptureDescriptorDataEXT = (PFN_vkGetImageViewOpaqueCaptureDescriptorDataEXT)getDeviceProcAddr(device, "vkGetImageViewOpaqueCaptureDescriptorDataEXT");
+  pfn_vkGetSamplerOpaqueCaptureDescriptorDataEXT = (PFN_vkGetSamplerOpaqueCaptureDescriptorDataEXT)getDeviceProcAddr(device, "vkGetSamplerOpaqueCaptureDescriptorDataEXT");
+#endif /* VK_EXT_descriptor_buffer */
+#ifdef VK_EXT_device_fault
+  pfn_vkGetDeviceFaultInfoEXT = (PFN_vkGetDeviceFaultInfoEXT)getDeviceProcAddr(device, "vkGetDeviceFaultInfoEXT");
+#endif /* VK_EXT_device_fault */
 #ifdef VK_EXT_direct_mode_display
   pfn_vkReleaseDisplayEXT = (PFN_vkReleaseDisplayEXT)getInstanceProcAddr(instance, "vkReleaseDisplayEXT");
 #endif /* VK_EXT_direct_mode_display */
@@ -2985,6 +3597,39 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
   pfn_vkCmdSetPrimitiveRestartEnableEXT = (PFN_vkCmdSetPrimitiveRestartEnableEXT)getDeviceProcAddr(device, "vkCmdSetPrimitiveRestartEnableEXT");
   pfn_vkCmdSetRasterizerDiscardEnableEXT = (PFN_vkCmdSetRasterizerDiscardEnableEXT)getDeviceProcAddr(device, "vkCmdSetRasterizerDiscardEnableEXT");
 #endif /* VK_EXT_extended_dynamic_state2 */
+#ifdef VK_EXT_extended_dynamic_state3
+  pfn_vkCmdSetAlphaToCoverageEnableEXT = (PFN_vkCmdSetAlphaToCoverageEnableEXT)getDeviceProcAddr(device, "vkCmdSetAlphaToCoverageEnableEXT");
+  pfn_vkCmdSetAlphaToOneEnableEXT = (PFN_vkCmdSetAlphaToOneEnableEXT)getDeviceProcAddr(device, "vkCmdSetAlphaToOneEnableEXT");
+  pfn_vkCmdSetColorBlendAdvancedEXT = (PFN_vkCmdSetColorBlendAdvancedEXT)getDeviceProcAddr(device, "vkCmdSetColorBlendAdvancedEXT");
+  pfn_vkCmdSetColorBlendEnableEXT = (PFN_vkCmdSetColorBlendEnableEXT)getDeviceProcAddr(device, "vkCmdSetColorBlendEnableEXT");
+  pfn_vkCmdSetColorBlendEquationEXT = (PFN_vkCmdSetColorBlendEquationEXT)getDeviceProcAddr(device, "vkCmdSetColorBlendEquationEXT");
+  pfn_vkCmdSetColorWriteMaskEXT = (PFN_vkCmdSetColorWriteMaskEXT)getDeviceProcAddr(device, "vkCmdSetColorWriteMaskEXT");
+  pfn_vkCmdSetConservativeRasterizationModeEXT = (PFN_vkCmdSetConservativeRasterizationModeEXT)getDeviceProcAddr(device, "vkCmdSetConservativeRasterizationModeEXT");
+  pfn_vkCmdSetCoverageModulationModeNV = (PFN_vkCmdSetCoverageModulationModeNV)getDeviceProcAddr(device, "vkCmdSetCoverageModulationModeNV");
+  pfn_vkCmdSetCoverageModulationTableEnableNV = (PFN_vkCmdSetCoverageModulationTableEnableNV)getDeviceProcAddr(device, "vkCmdSetCoverageModulationTableEnableNV");
+  pfn_vkCmdSetCoverageModulationTableNV = (PFN_vkCmdSetCoverageModulationTableNV)getDeviceProcAddr(device, "vkCmdSetCoverageModulationTableNV");
+  pfn_vkCmdSetCoverageReductionModeNV = (PFN_vkCmdSetCoverageReductionModeNV)getDeviceProcAddr(device, "vkCmdSetCoverageReductionModeNV");
+  pfn_vkCmdSetCoverageToColorEnableNV = (PFN_vkCmdSetCoverageToColorEnableNV)getDeviceProcAddr(device, "vkCmdSetCoverageToColorEnableNV");
+  pfn_vkCmdSetCoverageToColorLocationNV = (PFN_vkCmdSetCoverageToColorLocationNV)getDeviceProcAddr(device, "vkCmdSetCoverageToColorLocationNV");
+  pfn_vkCmdSetDepthClampEnableEXT = (PFN_vkCmdSetDepthClampEnableEXT)getDeviceProcAddr(device, "vkCmdSetDepthClampEnableEXT");
+  pfn_vkCmdSetDepthClipEnableEXT = (PFN_vkCmdSetDepthClipEnableEXT)getDeviceProcAddr(device, "vkCmdSetDepthClipEnableEXT");
+  pfn_vkCmdSetDepthClipNegativeOneToOneEXT = (PFN_vkCmdSetDepthClipNegativeOneToOneEXT)getDeviceProcAddr(device, "vkCmdSetDepthClipNegativeOneToOneEXT");
+  pfn_vkCmdSetExtraPrimitiveOverestimationSizeEXT = (PFN_vkCmdSetExtraPrimitiveOverestimationSizeEXT)getDeviceProcAddr(device, "vkCmdSetExtraPrimitiveOverestimationSizeEXT");
+  pfn_vkCmdSetLineRasterizationModeEXT = (PFN_vkCmdSetLineRasterizationModeEXT)getDeviceProcAddr(device, "vkCmdSetLineRasterizationModeEXT");
+  pfn_vkCmdSetLineStippleEnableEXT = (PFN_vkCmdSetLineStippleEnableEXT)getDeviceProcAddr(device, "vkCmdSetLineStippleEnableEXT");
+  pfn_vkCmdSetLogicOpEnableEXT = (PFN_vkCmdSetLogicOpEnableEXT)getDeviceProcAddr(device, "vkCmdSetLogicOpEnableEXT");
+  pfn_vkCmdSetPolygonModeEXT = (PFN_vkCmdSetPolygonModeEXT)getDeviceProcAddr(device, "vkCmdSetPolygonModeEXT");
+  pfn_vkCmdSetProvokingVertexModeEXT = (PFN_vkCmdSetProvokingVertexModeEXT)getDeviceProcAddr(device, "vkCmdSetProvokingVertexModeEXT");
+  pfn_vkCmdSetRasterizationSamplesEXT = (PFN_vkCmdSetRasterizationSamplesEXT)getDeviceProcAddr(device, "vkCmdSetRasterizationSamplesEXT");
+  pfn_vkCmdSetRasterizationStreamEXT = (PFN_vkCmdSetRasterizationStreamEXT)getDeviceProcAddr(device, "vkCmdSetRasterizationStreamEXT");
+  pfn_vkCmdSetRepresentativeFragmentTestEnableNV = (PFN_vkCmdSetRepresentativeFragmentTestEnableNV)getDeviceProcAddr(device, "vkCmdSetRepresentativeFragmentTestEnableNV");
+  pfn_vkCmdSetSampleLocationsEnableEXT = (PFN_vkCmdSetSampleLocationsEnableEXT)getDeviceProcAddr(device, "vkCmdSetSampleLocationsEnableEXT");
+  pfn_vkCmdSetSampleMaskEXT = (PFN_vkCmdSetSampleMaskEXT)getDeviceProcAddr(device, "vkCmdSetSampleMaskEXT");
+  pfn_vkCmdSetShadingRateImageEnableNV = (PFN_vkCmdSetShadingRateImageEnableNV)getDeviceProcAddr(device, "vkCmdSetShadingRateImageEnableNV");
+  pfn_vkCmdSetTessellationDomainOriginEXT = (PFN_vkCmdSetTessellationDomainOriginEXT)getDeviceProcAddr(device, "vkCmdSetTessellationDomainOriginEXT");
+  pfn_vkCmdSetViewportSwizzleNV = (PFN_vkCmdSetViewportSwizzleNV)getDeviceProcAddr(device, "vkCmdSetViewportSwizzleNV");
+  pfn_vkCmdSetViewportWScalingEnableNV = (PFN_vkCmdSetViewportWScalingEnableNV)getDeviceProcAddr(device, "vkCmdSetViewportWScalingEnableNV");
+#endif /* VK_EXT_extended_dynamic_state3 */
 #ifdef VK_EXT_external_memory_host
   pfn_vkGetMemoryHostPointerPropertiesEXT = (PFN_vkGetMemoryHostPointerPropertiesEXT)getDeviceProcAddr(device, "vkGetMemoryHostPointerPropertiesEXT");
 #endif /* VK_EXT_external_memory_host */
@@ -3011,6 +3656,11 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #ifdef VK_EXT_line_rasterization
   pfn_vkCmdSetLineStippleEXT = (PFN_vkCmdSetLineStippleEXT)getDeviceProcAddr(device, "vkCmdSetLineStippleEXT");
 #endif /* VK_EXT_line_rasterization */
+#ifdef VK_EXT_mesh_shader
+  pfn_vkCmdDrawMeshTasksEXT = (PFN_vkCmdDrawMeshTasksEXT)getDeviceProcAddr(device, "vkCmdDrawMeshTasksEXT");
+  pfn_vkCmdDrawMeshTasksIndirectCountEXT = (PFN_vkCmdDrawMeshTasksIndirectCountEXT)getDeviceProcAddr(device, "vkCmdDrawMeshTasksIndirectCountEXT");
+  pfn_vkCmdDrawMeshTasksIndirectEXT = (PFN_vkCmdDrawMeshTasksIndirectEXT)getDeviceProcAddr(device, "vkCmdDrawMeshTasksIndirectEXT");
+#endif /* VK_EXT_mesh_shader */
 #ifdef VK_EXT_metal_objects
   pfn_vkExportMetalObjectsEXT = (PFN_vkExportMetalObjectsEXT)getDeviceProcAddr(device, "vkExportMetalObjectsEXT");
 #endif /* VK_EXT_metal_objects */
@@ -3021,6 +3671,22 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
   pfn_vkCmdDrawMultiEXT = (PFN_vkCmdDrawMultiEXT)getDeviceProcAddr(device, "vkCmdDrawMultiEXT");
   pfn_vkCmdDrawMultiIndexedEXT = (PFN_vkCmdDrawMultiIndexedEXT)getDeviceProcAddr(device, "vkCmdDrawMultiIndexedEXT");
 #endif /* VK_EXT_multi_draw */
+#ifdef VK_EXT_opacity_micromap
+  pfn_vkBuildMicromapsEXT = (PFN_vkBuildMicromapsEXT)getDeviceProcAddr(device, "vkBuildMicromapsEXT");
+  pfn_vkCmdBuildMicromapsEXT = (PFN_vkCmdBuildMicromapsEXT)getDeviceProcAddr(device, "vkCmdBuildMicromapsEXT");
+  pfn_vkCmdCopyMemoryToMicromapEXT = (PFN_vkCmdCopyMemoryToMicromapEXT)getDeviceProcAddr(device, "vkCmdCopyMemoryToMicromapEXT");
+  pfn_vkCmdCopyMicromapEXT = (PFN_vkCmdCopyMicromapEXT)getDeviceProcAddr(device, "vkCmdCopyMicromapEXT");
+  pfn_vkCmdCopyMicromapToMemoryEXT = (PFN_vkCmdCopyMicromapToMemoryEXT)getDeviceProcAddr(device, "vkCmdCopyMicromapToMemoryEXT");
+  pfn_vkCmdWriteMicromapsPropertiesEXT = (PFN_vkCmdWriteMicromapsPropertiesEXT)getDeviceProcAddr(device, "vkCmdWriteMicromapsPropertiesEXT");
+  pfn_vkCopyMemoryToMicromapEXT = (PFN_vkCopyMemoryToMicromapEXT)getDeviceProcAddr(device, "vkCopyMemoryToMicromapEXT");
+  pfn_vkCopyMicromapEXT = (PFN_vkCopyMicromapEXT)getDeviceProcAddr(device, "vkCopyMicromapEXT");
+  pfn_vkCopyMicromapToMemoryEXT = (PFN_vkCopyMicromapToMemoryEXT)getDeviceProcAddr(device, "vkCopyMicromapToMemoryEXT");
+  pfn_vkCreateMicromapEXT = (PFN_vkCreateMicromapEXT)getDeviceProcAddr(device, "vkCreateMicromapEXT");
+  pfn_vkDestroyMicromapEXT = (PFN_vkDestroyMicromapEXT)getDeviceProcAddr(device, "vkDestroyMicromapEXT");
+  pfn_vkGetDeviceMicromapCompatibilityEXT = (PFN_vkGetDeviceMicromapCompatibilityEXT)getDeviceProcAddr(device, "vkGetDeviceMicromapCompatibilityEXT");
+  pfn_vkGetMicromapBuildSizesEXT = (PFN_vkGetMicromapBuildSizesEXT)getDeviceProcAddr(device, "vkGetMicromapBuildSizesEXT");
+  pfn_vkWriteMicromapsPropertiesEXT = (PFN_vkWriteMicromapsPropertiesEXT)getDeviceProcAddr(device, "vkWriteMicromapsPropertiesEXT");
+#endif /* VK_EXT_opacity_micromap */
 #ifdef VK_EXT_pageable_device_local_memory
   pfn_vkSetDeviceMemoryPriorityEXT = (PFN_vkSetDeviceMemoryPriorityEXT)getDeviceProcAddr(device, "vkSetDeviceMemoryPriorityEXT");
 #endif /* VK_EXT_pageable_device_local_memory */
@@ -3319,6 +3985,10 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #ifdef VK_NV_cooperative_matrix
   pfn_vkGetPhysicalDeviceCooperativeMatrixPropertiesNV = (PFN_vkGetPhysicalDeviceCooperativeMatrixPropertiesNV)getInstanceProcAddr(instance, "vkGetPhysicalDeviceCooperativeMatrixPropertiesNV");
 #endif /* VK_NV_cooperative_matrix */
+#ifdef VK_NV_copy_memory_indirect
+  pfn_vkCmdCopyMemoryIndirectNV = (PFN_vkCmdCopyMemoryIndirectNV)getDeviceProcAddr(device, "vkCmdCopyMemoryIndirectNV");
+  pfn_vkCmdCopyMemoryToImageIndirectNV = (PFN_vkCmdCopyMemoryToImageIndirectNV)getDeviceProcAddr(device, "vkCmdCopyMemoryToImageIndirectNV");
+#endif /* VK_NV_copy_memory_indirect */
 #ifdef VK_NV_coverage_reduction_mode
   pfn_vkGetPhysicalDeviceSupportedFramebufferMixedSamplesCombinationsNV = (PFN_vkGetPhysicalDeviceSupportedFramebufferMixedSamplesCombinationsNV)getInstanceProcAddr(instance, "vkGetPhysicalDeviceSupportedFramebufferMixedSamplesCombinationsNV");
 #endif /* VK_NV_coverage_reduction_mode */
@@ -3346,11 +4016,22 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #ifdef VK_NV_fragment_shading_rate_enums
   pfn_vkCmdSetFragmentShadingRateEnumNV = (PFN_vkCmdSetFragmentShadingRateEnumNV)getDeviceProcAddr(device, "vkCmdSetFragmentShadingRateEnumNV");
 #endif /* VK_NV_fragment_shading_rate_enums */
+#ifdef VK_NV_memory_decompression
+  pfn_vkCmdDecompressMemoryIndirectCountNV = (PFN_vkCmdDecompressMemoryIndirectCountNV)getDeviceProcAddr(device, "vkCmdDecompressMemoryIndirectCountNV");
+  pfn_vkCmdDecompressMemoryNV = (PFN_vkCmdDecompressMemoryNV)getDeviceProcAddr(device, "vkCmdDecompressMemoryNV");
+#endif /* VK_NV_memory_decompression */
 #ifdef VK_NV_mesh_shader
   pfn_vkCmdDrawMeshTasksIndirectCountNV = (PFN_vkCmdDrawMeshTasksIndirectCountNV)getDeviceProcAddr(device, "vkCmdDrawMeshTasksIndirectCountNV");
   pfn_vkCmdDrawMeshTasksIndirectNV = (PFN_vkCmdDrawMeshTasksIndirectNV)getDeviceProcAddr(device, "vkCmdDrawMeshTasksIndirectNV");
   pfn_vkCmdDrawMeshTasksNV = (PFN_vkCmdDrawMeshTasksNV)getDeviceProcAddr(device, "vkCmdDrawMeshTasksNV");
 #endif /* VK_NV_mesh_shader */
+#ifdef VK_NV_optical_flow
+  pfn_vkBindOpticalFlowSessionImageNV = (PFN_vkBindOpticalFlowSessionImageNV)getDeviceProcAddr(device, "vkBindOpticalFlowSessionImageNV");
+  pfn_vkCmdOpticalFlowExecuteNV = (PFN_vkCmdOpticalFlowExecuteNV)getDeviceProcAddr(device, "vkCmdOpticalFlowExecuteNV");
+  pfn_vkCreateOpticalFlowSessionNV = (PFN_vkCreateOpticalFlowSessionNV)getDeviceProcAddr(device, "vkCreateOpticalFlowSessionNV");
+  pfn_vkDestroyOpticalFlowSessionNV = (PFN_vkDestroyOpticalFlowSessionNV)getDeviceProcAddr(device, "vkDestroyOpticalFlowSessionNV");
+  pfn_vkGetPhysicalDeviceOpticalFlowImageFormatsNV = (PFN_vkGetPhysicalDeviceOpticalFlowImageFormatsNV)getInstanceProcAddr(instance, "vkGetPhysicalDeviceOpticalFlowImageFormatsNV");
+#endif /* VK_NV_optical_flow */
 #ifdef VK_NV_ray_tracing
   pfn_vkBindAccelerationStructureMemoryNV = (PFN_vkBindAccelerationStructureMemoryNV)getDeviceProcAddr(device, "vkBindAccelerationStructureMemoryNV");
   pfn_vkCmdBuildAccelerationStructureNV = (PFN_vkCmdBuildAccelerationStructureNV)getDeviceProcAddr(device, "vkCmdBuildAccelerationStructureNV");

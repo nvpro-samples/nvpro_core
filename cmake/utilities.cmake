@@ -122,15 +122,15 @@ endfunction()
 # Call 'glslc -M' to find all dependencies of the file and return the list
 # in GLSL_DEPENDENCY
 #
-function(get_glsl_dependecies _SRC _FLAGS)
-   
-  get_filename_component(FILE_NAME ${_SRC} NAME)
-  get_filename_component(DIR_NAME ${_SRC} DIRECTORY)
+function(get_glsl_dependencies )
+  cmake_parse_arguments(GGD "" "SRC" "FLAGS" ${ARGN} )
+  get_filename_component(FILE_NAME ${GGD_SRC} NAME)
+  get_filename_component(DIR_NAME ${GGD_SRC} DIRECTORY)
 
   # glslc has a bug where it won't quote paths with spaces
   # As a workaround, assume all paths are absolute and separate based on matching the root path
   # Include any added include paths in case they are on different windows drives
-  set(INCLUDE_PATHS ${_FLAGS})
+  set(INCLUDE_PATHS ${GGD_FLAGS})
   list(FILTER INCLUDE_PATHS INCLUDE REGEX "-I.*")
   list(TRANSFORM INCLUDE_PATHS REPLACE "-I" "")
   list(APPEND INCLUDE_PATHS ${DIR_NAME})
@@ -146,9 +146,8 @@ function(get_glsl_dependecies _SRC _FLAGS)
   list(REMOVE_DUPLICATES INCLUDE_ROOTS)
 
   message(STATUS " - Find dependencies for ${FILE_NAME}")
-  #message(STATUS "calling : ${GLSLC} ${_FLAGS} -M ${_SRC} OUTPUT_VARIABLE DEP RESULT_VARIABLE RES")
-  separate_arguments(_FLAGS)
-  execute_process(COMMAND ${GLSLC} ${_FLAGS} -M ${_SRC} OUTPUT_VARIABLE DEP RESULT_VARIABLE RES )
+  #message(STATUS "calling : ${GLSLC} ${GGD_FLAGS} -M ${GGD_SRC} OUTPUT_VARIABLE DEP RESULT_VARIABLE RES")
+  execute_process(COMMAND ${GLSLC} ${GGD_FLAGS} -M ${GGD_SRC} OUTPUT_VARIABLE DEP RESULT_VARIABLE RES )
   if(RES EQUAL 0)
     # Removing "name.spv: "
     string(REGEX REPLACE "[^:]*: " "" DEP ${DEP})
@@ -167,13 +166,14 @@ endfunction()
 #------------------------------------------------------------------------------------
 # Function to compile all GLSL source files to Spir-V
 #
-# SOURCE_FILES : All sources to compile
-# HEADER_FILES : Dependencie header files
+# SOURCE_FILES : List of sources to compile
+# HEADER_FILES : List of dependency header files
 # DST : The destination directory (need to be absolute)
 # VULKAN_TARGET : to define the vulkan target i.e vulkan1.2 (default vulkan1.1)
 # HEADER ON: if ON, will generate headers instead of binary Spir-V files
 # DEPENDENCY : ON|OFF will create the list of dependencies for the GLSL source file
-# 
+# FLAGS: List of compile flags
+#
 # compile_glsl(
 #   SOURCES_FILES foo.vert foo.frag
 #   DST ${CMAKE_CURRENT_SOURCE_DIR}/shaders
@@ -181,8 +181,8 @@ endfunction()
 # )
 
 function(compile_glsl)
-  set(oneValueArgs DST VULKAN_TARGET HEADER DEPENDENCY FLAGS)
-  set(multiValueArgs SOURCE_FILES HEADER_FILES)
+  set(oneValueArgs DST VULKAN_TARGET HEADER DEPENDENCY)
+  set(multiValueArgs SOURCE_FILES HEADER_FILES FLAGS)
   cmake_parse_arguments(COMPILE  "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN} )
 
   # Check if the GLSL compiler is present
@@ -210,25 +210,23 @@ function(compile_glsl)
     set(COMPILE_FLAGS -g)
   endif()
 
-  separate_arguments(_FLG UNIX_COMMAND ${COMPILE_FLAGS})
-
   # Compiling all GLSL sources
   foreach(GLSL_SRC ${COMPILE_SOURCE_FILES})
 
     # Find the dependency files for the GLSL source
     # or use all headers as dependencies.
     if(COMPILE_DEPENDENCY)
-        get_glsl_dependecies(${GLSL_SRC} ${COMPILE_FLAGS})
+        get_glsl_dependencies(SRC ${GLSL_SRC} FLAGS ${COMPILE_FLAGS})
     else()
       set(GLSL_DEPENDENCY ${HEADER_FILES}) 
     endif()
 
     # Default compiler command, always adding debug information (Add and option to opt-out?)
-    set(COMPILE_CMD  ${_FLG} --target-env ${COMPILE_VULKAN_TARGET})
+    set(COMPILE_CMD  ${COMPILE_FLAGS} --target-env ${COMPILE_VULKAN_TARGET})
 
     # Compilation to headers need a variable name, the output will be a .h
     get_filename_component(FILE_NAME ${GLSL_SRC} NAME)
-    if(COMPILE_HEADER)           
+    if(COMPILE_HEADER)
         STRING(REPLACE "." "_" VAR_NAME ${FILE_NAME}) # Name of the variable in the header
         list(APPEND COMPILE_CMD  --vn ${VAR_NAME})
         set(GLSL_OUT "${COMPILE_DST}/${FILE_NAME}.h")

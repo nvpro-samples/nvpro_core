@@ -195,35 +195,42 @@ struct CameraManager
     }
   }
 
-  void saveSetting(nvh::CameraManipulator& cameraM)
+  void saveSetting(nvh::CameraManipulator& cameraM) noexcept
   {
     if(jsonFilename.empty())
       return;
 
-    json j;
-    j["mode"]          = cameraM.getMode();
-    j["speed"]         = cameraM.getSpeed();
-    j["anim_duration"] = cameraM.getAnimationDuration();
-
-    // Save all extra cameras
-    json cc = json::array();
-    for(size_t n = 1; n < cameras.size(); n++)
+    try
     {
-      auto& c   = cameras[n];
-      json  jo  = json::object();
-      jo["eye"] = std::vector<float>{c.eye.x, c.eye.y, c.eye.z};
-      jo["up"]  = std::vector<float>{c.up.x, c.up.y, c.up.z};
-      jo["ctr"] = std::vector<float>{c.ctr.x, c.ctr.y, c.ctr.z};
-      jo["fov"] = c.fov;
-      cc.push_back(jo);
+      json j;
+      j["mode"]          = cameraM.getMode();
+      j["speed"]         = cameraM.getSpeed();
+      j["anim_duration"] = cameraM.getAnimationDuration();
+
+      // Save all extra cameras
+      json cc = json::array();
+      for(size_t n = 1; n < cameras.size(); n++)
+      {
+        auto& c   = cameras[n];
+        json  jo  = json::object();
+        jo["eye"] = std::vector<float>{c.eye.x, c.eye.y, c.eye.z};
+        jo["up"]  = std::vector<float>{c.up.x, c.up.y, c.up.z};
+        jo["ctr"] = std::vector<float>{c.ctr.x, c.ctr.y, c.ctr.z};
+        jo["fov"] = c.fov;
+        cc.push_back(jo);
+      }
+      j["cameras"] = cc;
+
+      std::ofstream o(jsonFilename);
+      if(o.is_open())
+      {
+        o << j.dump(2) << std::endl;
+        o.close();
+      }
     }
-    j["cameras"] = cc;
-
-    std::ofstream o(jsonFilename);
-    if(o.is_open())
+    catch(const std::exception& e)
     {
-      o << j.dump(2) << std::endl;
-      o.close();
+      LOGE("Could not save camera settings to %s: %s\n", jsonFilename.c_str(), e.what());
     }
   }
 

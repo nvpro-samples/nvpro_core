@@ -132,8 +132,11 @@ inline MemHandle VMAMemoryAllocator::allocMemory(const MemAllocateInfo& allocInf
     raise(SIGTRAP);
 #endif
   }
-  std::string allocID = std::to_string(counter++);
-  vmaSetAllocationName(m_vma, allocation, allocID.c_str());
+  if (result == VK_SUCCESS)
+  {
+    std::string allocID = std::to_string(counter++);
+    vmaSetAllocationName(m_vma, allocation, allocID.c_str());
+  }
 #endif  // _DEBUG
 
   NVVK_CHECK(result);

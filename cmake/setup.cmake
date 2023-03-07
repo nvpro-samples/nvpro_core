@@ -41,7 +41,18 @@ set_property(GLOBAL PROPERTY PREDEFINED_TARGETS_FOLDER "_cmake")
 set(OpenGL_GL_PREFERENCE GLVND)
 
 set(SUPPORT_NVTOOLSEXT OFF CACHE BOOL "enable NVToolsExt for custom NSIGHT markers")
-set(SUPPORT_AFTERMATH OFF CACHE BOOL "enable nSight Aftermath")
+set(NSIGHT_AFTERMATH_SDK "" CACHE PATH "Point to top directory of nSight Aftermath SDK")
+
+# We use the presence of NSIGHT_AFTERMATH_SDK as enable-switch for Aftermath
+if (NOT NSIGHT_AFTERMATH_SDK)
+	if (DEFINED ENV{NSIGHT_AFTERMATH_SDK})
+	  set(NSIGHT_AFTERMATH_SDK  $ENV{NSIGHT_AFTERMATH_SDK})
+	endif()
+endif()
+if (NSIGHT_AFTERMATH_SDK)
+  message(STATUS "Enabling nSight Aftermath; NSIGHT_AFTERMATH_SDK provided as ${NSIGHT_AFTERMATH_SDK}")
+  set(SUPPORT_AFTERMATH ON)
+endif()
 
 if(WIN32)
   set( MEMORY_LEAKS_CHECK OFF CACHE BOOL "Check for Memory leaks" )
@@ -623,12 +634,12 @@ macro(_add_package_NsightAftermath)
 		if (DEFINED ENV{NSIGHT_AFTERMATH_SDK})
 		  set(NSIGHT_AFTERMATH_SDK  $ENV{NSIGHT_AFTERMATH_SDK} CACHE STRING "Path to the Aftermath SDK")
 		else()
-		  message("Download nSight Aftermath from from https://developer.nvidia.com/nsight-aftermath")
-		  message("Unzip it to a folder. Then set NSIGHT_AFTERMATH_SDK env. variable to the top of the unpacked aftermath directory before running CMake.")
+		  message(WARNING "--> Download nSight Aftermath from from https://developer.nvidia.com/nsight-aftermath")
+		  message(WARNING "--> Unzip it to a folder. Then set NSIGHT_AFTERMATH_SDK env. variable to the top of the unpacked aftermath directory before running CMake.")
 		endif()
 	endif()
 
-	message("Looking for nSight Aftermath at: ${NSIGHT_AFTERMATH_SDK}")
+	message(STATUS "--> Looking for nSight Aftermath at: ${NSIGHT_AFTERMATH_SDK}")
 
     find_package(NsightAftermath)
 

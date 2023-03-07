@@ -140,12 +140,19 @@ VkDescriptorSet DescriptorSetContainer::getSet(uint32_t dstSetIdx /*= 0*/) const
 
 //////////////////////////////////////////////////////////////////////////
 
-VkDescriptorSetLayout DescriptorSetBindings::createLayout(VkDevice device, VkDescriptorSetLayoutCreateFlags flags, DescriptorSupport supportFlags) const
+VkDescriptorSetLayout DescriptorSetBindings::createLayout(VkDevice device, VkDescriptorSetLayoutCreateFlags flags, DescriptorSupport supportFlags)
 {
   VkResult                                    result;
   VkDescriptorSetLayoutBindingFlagsCreateInfo bindingsInfo = {
       isSet(supportFlags, DescriptorSupport::CORE_1_2) ? VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO :
                                                          VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO_EXT};
+
+  // Pad binding flags to match bindings if any exist
+  if(!m_bindingFlags.empty() && m_bindingFlags.size() <= m_bindings.size())
+  {
+    m_bindingFlags.resize(m_bindings.size(), 0);
+  }
+
   bindingsInfo.bindingCount  = uint32_t(m_bindingFlags.size());
   bindingsInfo.pBindingFlags = m_bindingFlags.data();
 
@@ -169,6 +176,12 @@ void DescriptorSetBindings::addRequiredPoolSizes(std::vector<VkDescriptorPoolSiz
 {
   for(auto it = m_bindings.cbegin(); it != m_bindings.cend(); ++it)
   {
+    // Bindings can have a zero descriptor count, used for the layout, but don't reserve storage for them.
+    if(it->descriptorCount == 0)
+    {
+      continue;
+    }
+
     bool found = false;
     for(auto itpool = poolSizes.begin(); itpool != poolSizes.end(); ++itpool)
     {
@@ -219,9 +232,9 @@ void DescriptorSetBindings::setBindingFlags(uint32_t binding, VkDescriptorBindin
   {
     if(m_bindings[i].binding == binding)
     {
-      if(m_bindingFlags.size() <= i)
+      if(m_bindingFlags.size() <= m_bindings.size())
       {
-        m_bindingFlags.resize(i + 1, 0);
+        m_bindingFlags.resize(m_bindings.size(), 0);
       }
       m_bindingFlags[i] = bindingFlag;
       return;
@@ -387,6 +400,7 @@ VkWriteDescriptorSet DescriptorSetBindings::makeWriteArray(VkDescriptorSet      
          || writeSet.descriptorType == VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT);
 
   writeSet.pImageInfo = pImageInfo;
+  assert(writeSet.descriptorCount > 0);  // Can have a zero descriptors in the descriptorset layout, but can't write zero items.
   return writeSet;
 }
 

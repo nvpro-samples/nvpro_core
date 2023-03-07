@@ -40,7 +40,6 @@ public:
     m_filename = filename;
 
     nvh::Stopwatch sw;
-    using vkBU = VkBufferUsageFlagBits;
 
     tinygltf::TinyGLTF tcontext;
     std::string        warn;
@@ -79,6 +78,13 @@ public:
 
   // Clearing loaded model
   void clearModel() { m_model = {}; }
+
+  void destroy()
+  {
+    m_scene    = {};
+    m_model    = {};
+    m_filename = {};
+  }
 
 private:
   nvh::GltfScene  m_scene;

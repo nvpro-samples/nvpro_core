@@ -115,6 +115,9 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #ifdef VK_ARM_rasterization_order_attachment_access
 #define NVVK_HAS_VK_ARM_rasterization_order_attachment_access
 #endif /* VK_ARM_rasterization_order_attachment_access */
+#ifdef VK_ARM_shader_core_builtins
+#define NVVK_HAS_VK_ARM_shader_core_builtins
+#endif /* VK_ARM_shader_core_builtins */
 #ifdef VK_EXT_4444_formats
 #define NVVK_HAS_VK_EXT_4444_formats
 #endif /* VK_EXT_4444_formats */
@@ -163,6 +166,9 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #ifdef VK_EXT_debug_utils
 #define NVVK_HAS_VK_EXT_debug_utils
 #endif /* VK_EXT_debug_utils */
+#ifdef VK_EXT_depth_clamp_zero_one
+#define NVVK_HAS_VK_EXT_depth_clamp_zero_one
+#endif /* VK_EXT_depth_clamp_zero_one */
 #ifdef VK_EXT_depth_clip_control
 #define NVVK_HAS_VK_EXT_depth_clip_control
 #endif /* VK_EXT_depth_clip_control */
@@ -172,9 +178,18 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #ifdef VK_EXT_depth_range_unrestricted
 #define NVVK_HAS_VK_EXT_depth_range_unrestricted
 #endif /* VK_EXT_depth_range_unrestricted */
+#ifdef VK_EXT_descriptor_buffer
+#define NVVK_HAS_VK_EXT_descriptor_buffer
+#endif /* VK_EXT_descriptor_buffer */
 #ifdef VK_EXT_descriptor_indexing
 #define NVVK_HAS_VK_EXT_descriptor_indexing
 #endif /* VK_EXT_descriptor_indexing */
+#ifdef VK_EXT_device_address_binding_report
+#define NVVK_HAS_VK_EXT_device_address_binding_report
+#endif /* VK_EXT_device_address_binding_report */
+#ifdef VK_EXT_device_fault
+#define NVVK_HAS_VK_EXT_device_fault
+#endif /* VK_EXT_device_fault */
 #ifdef VK_EXT_device_memory_report
 #define NVVK_HAS_VK_EXT_device_memory_report
 #endif /* VK_EXT_device_memory_report */
@@ -199,6 +214,9 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #ifdef VK_EXT_extended_dynamic_state2
 #define NVVK_HAS_VK_EXT_extended_dynamic_state2
 #endif /* VK_EXT_extended_dynamic_state2 */
+#ifdef VK_EXT_extended_dynamic_state3
+#define NVVK_HAS_VK_EXT_extended_dynamic_state3
+#endif /* VK_EXT_extended_dynamic_state3 */
 #ifdef VK_EXT_external_memory_dma_buf
 #define NVVK_HAS_VK_EXT_external_memory_dma_buf
 #endif /* VK_EXT_external_memory_dma_buf */
@@ -262,6 +280,9 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #ifdef VK_EXT_inline_uniform_block
 #define NVVK_HAS_VK_EXT_inline_uniform_block
 #endif /* VK_EXT_inline_uniform_block */
+#ifdef VK_EXT_legacy_dithering
+#define NVVK_HAS_VK_EXT_legacy_dithering
+#endif /* VK_EXT_legacy_dithering */
 #ifdef VK_EXT_line_rasterization
 #define NVVK_HAS_VK_EXT_line_rasterization
 #endif /* VK_EXT_line_rasterization */
@@ -274,6 +295,9 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #ifdef VK_EXT_memory_priority
 #define NVVK_HAS_VK_EXT_memory_priority
 #endif /* VK_EXT_memory_priority */
+#ifdef VK_EXT_mesh_shader
+#define NVVK_HAS_VK_EXT_mesh_shader
+#endif /* VK_EXT_mesh_shader */
 #ifdef VK_EXT_metal_objects
 #define NVVK_HAS_VK_EXT_metal_objects
 #endif /* VK_EXT_metal_objects */
@@ -286,9 +310,15 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #ifdef VK_EXT_multisampled_render_to_single_sampled
 #define NVVK_HAS_VK_EXT_multisampled_render_to_single_sampled
 #endif /* VK_EXT_multisampled_render_to_single_sampled */
+#ifdef VK_EXT_mutable_descriptor_type
+#define NVVK_HAS_VK_EXT_mutable_descriptor_type
+#endif /* VK_EXT_mutable_descriptor_type */
 #ifdef VK_EXT_non_seamless_cube_map
 #define NVVK_HAS_VK_EXT_non_seamless_cube_map
 #endif /* VK_EXT_non_seamless_cube_map */
+#ifdef VK_EXT_opacity_micromap
+#define NVVK_HAS_VK_EXT_opacity_micromap
+#endif /* VK_EXT_opacity_micromap */
 #ifdef VK_EXT_pageable_device_local_memory
 #define NVVK_HAS_VK_EXT_pageable_device_local_memory
 #endif /* VK_EXT_pageable_device_local_memory */
@@ -307,6 +337,9 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #ifdef VK_EXT_pipeline_properties
 #define NVVK_HAS_VK_EXT_pipeline_properties
 #endif /* VK_EXT_pipeline_properties */
+#ifdef VK_EXT_pipeline_protected_access
+#define NVVK_HAS_VK_EXT_pipeline_protected_access
+#endif /* VK_EXT_pipeline_protected_access */
 #ifdef VK_EXT_pipeline_robustness
 #define NVVK_HAS_VK_EXT_pipeline_robustness
 #endif /* VK_EXT_pipeline_robustness */
@@ -328,6 +361,9 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #ifdef VK_EXT_queue_family_foreign
 #define NVVK_HAS_VK_EXT_queue_family_foreign
 #endif /* VK_EXT_queue_family_foreign */
+#ifdef VK_EXT_rasterization_order_attachment_access
+#define NVVK_HAS_VK_EXT_rasterization_order_attachment_access
+#endif /* VK_EXT_rasterization_order_attachment_access */
 #ifdef VK_EXT_rgba10x6_formats
 #define NVVK_HAS_VK_EXT_rgba10x6_formats
 #endif /* VK_EXT_rgba10x6_formats */
@@ -706,6 +742,9 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #ifdef VK_KHR_zero_initialize_workgroup_memory
 #define NVVK_HAS_VK_KHR_zero_initialize_workgroup_memory
 #endif /* VK_KHR_zero_initialize_workgroup_memory */
+#ifdef VK_LUNARG_direct_driver_loading
+#define NVVK_HAS_VK_LUNARG_direct_driver_loading
+#endif /* VK_LUNARG_direct_driver_loading */
 #ifdef VK_MVK_ios_surface
 #define NVVK_HAS_VK_MVK_ios_surface
 #endif /* VK_MVK_ios_surface */
@@ -736,6 +775,9 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #ifdef VK_NV_cooperative_matrix
 #define NVVK_HAS_VK_NV_cooperative_matrix
 #endif /* VK_NV_cooperative_matrix */
+#ifdef VK_NV_copy_memory_indirect
+#define NVVK_HAS_VK_NV_copy_memory_indirect
+#endif /* VK_NV_copy_memory_indirect */
 #ifdef VK_NV_corner_sampled_image
 #define NVVK_HAS_VK_NV_corner_sampled_image
 #endif /* VK_NV_corner_sampled_image */
@@ -796,12 +838,24 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #ifdef VK_NV_linear_color_attachment
 #define NVVK_HAS_VK_NV_linear_color_attachment
 #endif /* VK_NV_linear_color_attachment */
+#ifdef VK_NV_memory_decompression
+#define NVVK_HAS_VK_NV_memory_decompression
+#endif /* VK_NV_memory_decompression */
 #ifdef VK_NV_mesh_shader
 #define NVVK_HAS_VK_NV_mesh_shader
 #endif /* VK_NV_mesh_shader */
+#ifdef VK_NV_optical_flow
+#define NVVK_HAS_VK_NV_optical_flow
+#endif /* VK_NV_optical_flow */
+#ifdef VK_NV_present_barrier
+#define NVVK_HAS_VK_NV_present_barrier
+#endif /* VK_NV_present_barrier */
 #ifdef VK_NV_ray_tracing
 #define NVVK_HAS_VK_NV_ray_tracing
 #endif /* VK_NV_ray_tracing */
+#ifdef VK_NV_ray_tracing_invocation_reorder
+#define NVVK_HAS_VK_NV_ray_tracing_invocation_reorder
+#endif /* VK_NV_ray_tracing_invocation_reorder */
 #ifdef VK_NV_ray_tracing_motion_blur
 #define NVVK_HAS_VK_NV_ray_tracing_motion_blur
 #endif /* VK_NV_ray_tracing_motion_blur */
@@ -841,6 +895,9 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #ifdef VK_QCOM_image_processing
 #define NVVK_HAS_VK_QCOM_image_processing
 #endif /* VK_QCOM_image_processing */
+#ifdef VK_QCOM_multiview_per_view_viewports
+#define NVVK_HAS_VK_QCOM_multiview_per_view_viewports
+#endif /* VK_QCOM_multiview_per_view_viewports */
 #ifdef VK_QCOM_render_pass_shader_resolve
 #define NVVK_HAS_VK_QCOM_render_pass_shader_resolve
 #endif /* VK_QCOM_render_pass_shader_resolve */

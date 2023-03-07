@@ -64,6 +64,19 @@
 #define LOGLEVEL_DEBUG 3
 #define LOGLEVEL_STATS 4
 #define LOGLEVEL_OK 7
+#define LOGBIT_INFO (1 << LOGLEVEL_INFO)
+#define LOGBIT_WARNING (1 << LOGLEVEL_WARNING)
+#define LOGBIT_ERROR (1 << LOGLEVEL_ERROR)
+#define LOGBIT_DEBUG (1 << LOGLEVEL_DEBUG)
+#define LOGBIT_STATS (1 << LOGLEVEL_STATS)
+#define LOGBIT_OK (1 << LOGLEVEL_OK)
+#define LOGBITS_ERRORS LOGBIT_ERROR
+#define LOGBITS_WARNINGS (LOGBITS_ERRORS | LOGBIT_WARNING)
+#define LOGBITS_INFO (LOGBITS_WARNINGS | LOGBIT_INFO)
+#define LOGBITS_DEBUG (LOGBITS_INFO | LOGBIT_DEBUG)
+#define LOGBITS_STATS (LOGBITS_DEBUG | LOGBIT_STATS)
+#define LOGBITS_OK (LOGBITS_WARNINGS | LOGBIT_OK)
+#define LOGBITS_ALL 0xffffffffu
 #endif
 
 #define LOGI(...)                                                                                                      \
@@ -123,11 +136,21 @@ void nvprintfLevel(int level,
 #endif
 ;
 
+// Set/get the level for calls to nvprintf(). Use LOGLEVEL_*.
 void nvprintSetLevel(int l);
 int  nvprintGetLevel();
+
 void nvprintSetLogFileName(const char* name);
+
+// Globally enable/disable all nvprint output and logging
 void nvprintSetLogging(bool b);
+
+// Update level bitmasks file and stderr output. 'state' controls whether to
+// enable or disable the 'mask' bits. Use LOGBITS_*.
 void nvprintSetFileLogging(bool state, uint32_t mask = ~0);
+void nvprintSetConsoleLogging(bool state, uint32_t mask = ~0);
+
+// Set a custom print handler. Called in addition to file and console logging.
 void nvprintSetCallback(PFN_NVPRINTCALLBACK callback);
 
 

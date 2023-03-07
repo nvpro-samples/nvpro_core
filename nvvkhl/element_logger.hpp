@@ -37,6 +37,9 @@ struct SampleAppLog
 public:
   SampleAppLog() { clear(); }
 
+  void     setLogLevel(uint32_t level) { m_levelFilter = level; }
+  uint32_t getLogLevel() { return m_levelFilter; }
+
   void clear()
   {
     m_buf.clear();
@@ -44,8 +47,11 @@ public:
     m_lineOffsets.push_back(0);
   }
 
-  void addLog(const char* fmt, ...) IM_FMTARGS(2)
+  void addLog(uint32_t level, const char* fmt, ...)
   {
+    if((m_levelFilter & (1 << level)) == 0)
+      return;
+
     int     old_size = m_buf.size();
     va_list args     = {};
     va_start(args, fmt);
@@ -85,6 +91,18 @@ public:
     ImGui::SameLine();
     bool copy = ImGui::Button("Copy");
     ImGui::SameLine();
+    ImGui::CheckboxFlags("All", &m_levelFilter, LOGBITS_ALL);
+    ImGui::SameLine();
+    ImGui::CheckboxFlags("Stats", &m_levelFilter, LOGBIT_STATS);
+    ImGui::SameLine();
+    ImGui::CheckboxFlags("Debug", &m_levelFilter, LOGBIT_DEBUG);
+    ImGui::SameLine();
+    ImGui::CheckboxFlags("Info", &m_levelFilter, LOGBIT_INFO);
+    ImGui::SameLine();
+    ImGui::CheckboxFlags("Warnings", &m_levelFilter, LOGBIT_WARNING);
+    ImGui::SameLine();
+    ImGui::CheckboxFlags("Errors", &m_levelFilter, LOGBIT_ERROR);
+    ImGui::SameLine();
     ImGui::Text("Filter");
     ImGui::SameLine();
     m_filter.Draw("##Filter", -100.0F);
@@ -100,7 +118,7 @@ public:
     }
     if(copy)
     {
-      ImGui::LogToClipboard();
+      ImGui::SetClipboardText(m_buf.c_str());
     }
     if(clear_filter)
     {
@@ -171,6 +189,7 @@ private:
   ImGuiTextFilter m_filter{};
   ImVector<int>   m_lineOffsets;       // Index to lines offset. We maintain this with AddLog() calls.
   bool            m_autoScroll{true};  // Keep scrolling if already at the bottom.
+  uint32_t        m_levelFilter = LOGBITS_WARNINGS;
 };
 
 
@@ -188,11 +207,11 @@ struct ElementLogger : public nvvkhl::IAppElement
 
   void onUIRender() override
   {
-    if(ImGui::IsKeyDown(ImGuiKey_ModCtrl) && !ImGui::IsKeyDown(ImGuiKey_ModShift) && !ImGui::IsKeyDown(ImGuiKey_ModAlt))
+    if(ImGui::IsKeyDown(ImGuiKey_ModCtrl) && ImGui::IsKeyDown(ImGuiKey_ModShift) && !ImGui::IsKeyDown(ImGuiKey_ModAlt))
     {
       if(ImGui::IsKeyPressed(ImGuiKey_L))
       {
-        m_showLog = true;
+        m_showLog = !m_showLog;
       }
     }
 
@@ -212,7 +231,7 @@ struct ElementLogger : public nvvkhl::IAppElement
   {
     if(ImGui::BeginMenu("Help"))
     {
-      ImGui::MenuItem("Log Window", "Ctrl+L", &m_showLog);
+      ImGui::MenuItem("Log Window", "Ctrl+Shift+L", &m_showLog);
       ImGui::EndMenu();
     }
   }  // This is the menubar to create
@@ -234,11 +253,16 @@ struct ElementLogger : public nvvkhl::IAppElement
       {
         s->m_showLog = (x == 1);
       }
+      else if(sscanf(line, "Level=%d", &x) == 1)
+      {
+        s->m_logger->setLogLevel(x);
+      }
     };
     ini_handler.WriteAllFn = [](ImGuiContext* ctx, ImGuiSettingsHandler* handler, ImGuiTextBuffer* buf) {
       ElementLogger* s = (ElementLogger*)handler->UserData;
       buf->appendf("[%s][State]\n", handler->TypeName);
       buf->appendf("ShowLoader=%d\n", s->m_showLog ? 1 : 0);
+      buf->appendf("Level=%d\n", s->m_logger->getLogLevel());
       buf->appendf("\n");
     };
     ini_handler.UserData = this;

@@ -169,19 +169,22 @@ bool TonemapperPostProcess::onUI()
 
   using namespace ImGuiH;
   PropertyEditor::begin();
-  PropertyEditor::entry("Method", [&]() { return ImGui::Combo("combo", &m_settings.method, items, IM_ARRAYSIZE(items)); });
-  PropertyEditor::entry("Active", [&]() { return ImGui::Checkbox("##1", reinterpret_cast<bool*>(&m_settings.isActive)); });
-  PropertyEditor::entry("Exposure", [&]() { return ImGui::SliderFloat("##1", &m_settings.exposure, 0.001F, 5.0F); });
-  PropertyEditor::entry("Brightness", [&]() { return ImGui::SliderFloat("##1", &m_settings.brightness, 0.0F, 2.0F); });
-  PropertyEditor::entry("Contrast", [&]() { return ImGui::SliderFloat("##1", &m_settings.contrast, 0.0F, 2.0F); });
-  PropertyEditor::entry("Saturation", [&]() { return ImGui::SliderFloat("##1", &m_settings.saturation, 0.0F, 2.0F); });
-  PropertyEditor::entry("Vignette", [&]() { return ImGui::SliderFloat("##1", &m_settings.vignette, 0.0F, 1.0F); });
+  changed |= PropertyEditor::entry("Method", [&]() { return ImGui::Combo("combo", &m_settings.method, items, IM_ARRAYSIZE(items)); });
+  changed |= PropertyEditor::entry("Active", [&]() { return ImGui::Checkbox("##1", reinterpret_cast<bool*>(&m_settings.isActive)); });
+  changed |= PropertyEditor::entry("Exposure", [&]() { return ImGui::SliderFloat("##1", &m_settings.exposure, 0.001F, 5.0F); });
+  changed |= PropertyEditor::entry("Brightness", [&]() { return ImGui::SliderFloat("##1", &m_settings.brightness, 0.0F, 2.0F); });
+  changed |= PropertyEditor::entry("Contrast", [&]() { return ImGui::SliderFloat("##1", &m_settings.contrast, 0.0F, 2.0F); });
+  changed |= PropertyEditor::entry("Saturation", [&]() { return ImGui::SliderFloat("##1", &m_settings.saturation, 0.0F, 2.0F); });
+  changed |= PropertyEditor::entry("Vignette", [&]() { return ImGui::SliderFloat("##1", &m_settings.vignette, 0.0F, 1.0F); });
   ImGui::BeginDisabled(m_settings.method == eTonemapFilmic);
-  PropertyEditor::entry("Gamma", [&]() { return ImGui::SliderFloat("##1", &m_settings.gamma, 1.0F, 2.2F); });
+  changed |= PropertyEditor::entry("Gamma", [&]() { return ImGui::SliderFloat("##1", &m_settings.gamma, 1.0F, 2.2F); });
   ImGui::EndDisabled();
-  if(PropertyEditor::entry(
-         " ", [&]() { return ImGui::SmallButton("reset"); }, "Resetting to the original values"))
+  if (PropertyEditor::entry(
+    " ", [&]() { return ImGui::SmallButton("reset"); }, "Resetting to the original values"))
+  {
     m_settings = Tonemapper{};
+    changed = true;
+  }
   PropertyEditor::end();
   return changed;
 }

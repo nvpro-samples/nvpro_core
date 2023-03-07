@@ -112,7 +112,8 @@ nvvkhl::Application::~Application()
 
 void nvvkhl::Application::init(ApplicationCreateInfo& info)
 {
-  auto path_log = std::filesystem::path(NVPSystem::exePath()) / std::filesystem::path(std::string("log_") + getProjectName() + std::string(".txt"));
+  auto path_log = std::filesystem::path(NVPSystem::exePath())
+                  / std::filesystem::path(std::string("log_") + getProjectName() + std::string(".txt"));
   auto path_ini = std::filesystem::path(NVPSystem::exePath()) / std::filesystem::path(getProjectName() + std::string(".ini"));
 
   // setup some basic things for the sample, logging file for example
@@ -120,8 +121,9 @@ void nvvkhl::Application::init(ApplicationCreateInfo& info)
 
   m_mainWindowData = std::make_unique<ImGui_ImplVulkanH_Window>();
 
-  m_useMenubar  = info.useMenu;
-  m_vsyncWanted = info.vSync;
+  m_useMenubar     = info.useMenu;
+  m_useDockMenubar = info.useDockMenu;
+  m_vsyncWanted    = info.vSync;
 
   // Setup GLFW window
   glfwSetErrorCallback(onErrorCallback);
@@ -307,8 +309,7 @@ void nvvkhl::Application::setupVulkanWindow(VkSurfaceKHR surface, int width, int
 
   m_windowSize.width  = width;
   m_windowSize.height = height;
-  m_viewportSize      = m_windowSize;
-
+  
   // Check for WSI support
   VkBool32 res = VK_FALSE;
   NVVK_CHECK(vkGetPhysicalDeviceSurfaceSupportKHR(m_context->m_physicalDevice, m_context->m_queueGCT.familyIndex, wd->Surface, &res));
@@ -387,14 +388,14 @@ void nvvkhl::Application::run()
       // Adding menu
       if(m_useMenubar)
       {
-        if(ImGui::BeginMenuBar())
+        if(ImGui::BeginMainMenuBar())
         {
           for(auto& e : m_elements)
           {
             e->onUIMenu();
           }
 
-          ImGui::EndMenuBar();
+          ImGui::EndMainMenuBar();
         }
       }
 
@@ -467,7 +468,7 @@ void nvvkhl::Application::createDock() const
   // We are using the ImGuiWindowFlags_NoDocking flag to make the parent window not dockable into,
   // because it would be confusing to have two docking targets within each others.
   ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoDocking;
-  if(m_useMenubar)
+  if(m_useDockMenubar)
   {
     window_flags |= ImGuiWindowFlags_MenuBar;
   }

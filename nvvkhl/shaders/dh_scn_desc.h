@@ -30,9 +30,8 @@ using vec3 = nvmath::vec3f;
 
 struct InstanceInfo
 {
-  mat4 transform;
-  mat4 objMatrix;
-  mat4 objMatrixIT;
+  mat4 objMatrix;    // object to world
+  mat4 objMatrixIT;  // object to world invert-transform
   int  materialID;
 };
 

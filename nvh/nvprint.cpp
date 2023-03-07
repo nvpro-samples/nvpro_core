@@ -34,7 +34,8 @@ static char*               s_strBuffer            = nullptr;
 static FILE*               s_fd                   = nullptr;
 static bool                s_bLogReady            = false;
 static bool                s_bPrintLogging        = true;
-static uint32_t            s_bPrintFileLogging    = ~0;
+static uint32_t            s_bPrintFileLogging    = LOGBITS_ALL;
+static uint32_t            s_bPrintConsoleLogging = LOGBITS_ALL;
 static int                 s_printLevel           = -1;  // <0 mean no level prefix
 static PFN_NVPRINTCALLBACK s_printCallback        = nullptr;
 static std::mutex          s_mutex;
@@ -88,6 +89,20 @@ void nvprintSetFileLogging(bool state, uint32_t mask)
   }
 }
 
+void nvprintSetConsoleLogging(bool state, uint32_t mask)
+{
+  std::lock_guard<std::mutex> lockGuard(s_mutex);
+
+  if(state)
+  {
+    s_bPrintConsoleLogging |= mask;
+  }
+  else
+  {
+    s_bPrintConsoleLogging &= ~mask;
+  }
+}
+
 void nvprintf2(va_list& vlist, const char* fmt, int level)
 {
   if(s_bPrintLogging == false)
@@ -137,7 +152,11 @@ void nvprintf2(va_list& vlist, const char* fmt, int level)
   {
     s_printCallback(level, s_strBuffer);
   }
-  ::printf("%s", s_strBuffer);
+
+  if(s_bPrintConsoleLogging & (1 << level))
+  {
+    fputs(s_strBuffer, stderr);
+  }
 }
 void nvprintf(
 #ifdef _MSC_VER

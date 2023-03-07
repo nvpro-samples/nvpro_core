@@ -36,6 +36,7 @@ public:
   ~SceneVk() { destroy(); }
 
   void create(VkCommandBuffer cmd, const nvvkhl::Scene& scn);
+  void destroy();
 
   // Getters
   const nvvk::Buffer&               material() const { return m_bMaterial; }
@@ -67,7 +68,6 @@ private:
   void createTextureImages(VkCommandBuffer cmd, const tinygltf::Model& tiny, const std::filesystem::path& basedir);
   void loadImage(const std::filesystem::path& basedir, const tinygltf::Image& gltfImage, SceneImage& image);
   bool createImage(const VkCommandBuffer& cmd, SceneImage& image);
-  void destroy();
 
   //--
   nvvk::Context*                   m_ctx;
