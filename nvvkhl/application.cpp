@@ -116,6 +116,9 @@ void nvvkhl::Application::init(ApplicationCreateInfo& info)
                   / std::filesystem::path(std::string("log_") + getProjectName() + std::string(".txt"));
   auto path_ini = std::filesystem::path(NVPSystem::exePath()) / std::filesystem::path(getProjectName() + std::string(".ini"));
 
+  m_clearColor = info.clearColor;
+  m_dockSetup  = info.dockSetup;
+
   // setup some basic things for the sample, logging file for example
   nvprintSetLogFileName(path_log.string().c_str());
 
@@ -309,7 +312,7 @@ void nvvkhl::Application::setupVulkanWindow(VkSurfaceKHR surface, int width, int
 
   m_windowSize.width  = width;
   m_windowSize.height = height;
-  
+
   // Check for WSI support
   VkBool32 res = VK_FALSE;
   NVVK_CHECK(vkGetPhysicalDeviceSurfaceSupportKHR(m_context->m_physicalDevice, m_context->m_queueGCT.familyIndex, wd->Surface, &res));
@@ -401,7 +404,7 @@ void nvvkhl::Application::run()
 
       // Setting up the viewport and getting information
       ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0F, 0.0F));
-      ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0, 0, 0, 1));
+      ImGui::PushStyleColor(ImGuiCol_WindowBg, m_clearColor);
       ImGui::Begin("Viewport");
       ImVec2 viewport_size         = ImGui::GetContentRegionAvail();
       bool   viewport_size_changed = (static_cast<uint32_t>(viewport_size.x) != m_viewportSize.width
@@ -504,18 +507,27 @@ void nvvkhl::Application::createDock() const
   // Building the splitting of the dock space is done only once
   if(ImGui::DockBuilderGetNode(dockspace_id) == nullptr)
   {
+    ImGuiID dock_main_id = dockspace_id;
     ImGui::DockBuilderRemoveNode(dockspace_id);
     ImGui::DockBuilderAddNode(dockspace_id, dockspace_flags | ImGuiDockNodeFlags_DockSpace);
     ImGui::DockBuilderSetNodeSize(dockspace_id, viewport->Size);
-    ImGuiID dock_main_id = dockspace_id;
-    ImGuiID id_right     = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Right, 0.2F, nullptr, &dock_main_id);
-
-    ImGui::DockBuilderDockWindow("Settings", id_right);
-    ImGui::DockBuilderDockWindow("Viewport", dock_main_id);  // Center
+    ImGui::DockBuilderDockWindow("Viewport", dockspace_id);  // Center
 
     // Disable tab bar for custom toolbar
     ImGuiDockNode* node = ImGui::DockBuilderGetNode(dock_main_id);
     node->LocalFlags |= ImGuiDockNodeFlags_NoTabBar;
+
+    if(m_dockSetup)
+    {
+      // This override allow to create the layout of windows by default.
+      // All windows in the application must be named here, otherwise they will appear un-docked
+      m_dockSetup(dockspace_id);
+    }
+    else
+    {  // Default with a window named "Settings" on the right
+      ImGuiID id_right = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Right, 0.2F, nullptr, &dock_main_id);
+      ImGui::DockBuilderDockWindow("Settings", id_right);
+    }
 
     ImGui::DockBuilderFinish(dock_main_id);
   }

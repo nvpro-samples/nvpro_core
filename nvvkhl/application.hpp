@@ -25,6 +25,7 @@
 
 #include "nvmath/nvmath.h"
 #include "nvvk/context_vk.hpp"
+#include "imgui.h"
 
 /*******************************************************************************************************************
 
@@ -66,14 +67,16 @@ struct IAppElement;
 // Information for creating the application
 struct ApplicationCreateInfo
 {
-  std::string             name{"Vulkan App"};  // Name of the GLFW
-  int32_t                 width{-1};           // Width of the Window
-  int32_t                 height{-1};          // Height of the window
-  bool                    vSync{true};         // Is V-Sync on by default?
-  bool                    useMenu{true};       // Is the application will have a menubar?
-  bool                    useDockMenu{false};  // Is there an extra menubar ?
-  nvvk::ContextCreateInfo vkSetup{};           // Vulkan creation context information (see nvvk::Context)
-  std::vector<int>        ignoreDbgMessages;   // Turn off debug messages
+  std::string                  name{"Vulkan App"};  // Name of the GLFW
+  int32_t                      width{-1};           // Width of the Window
+  int32_t                      height{-1};          // Height of the window
+  bool                         vSync{true};         // Is V-Sync on by default?
+  bool                         useMenu{true};       // Is the application will have a menubar?
+  bool                         useDockMenu{false};  // Is there an extra menubar ?
+  nvvk::ContextCreateInfo      vkSetup{};           // Vulkan creation context information (see nvvk::Context)
+  std::vector<int>             ignoreDbgMessages;   // Turn off debug messages
+  ImVec4                       clearColor{0.F, 0.F, 0.F, 1.F};
+  std::function<void(ImGuiID)> dockSetup;  // Allow to configure the dock layout
 };
 
 
@@ -97,10 +100,9 @@ public:
 
   // Utilities
   void setViewport(const VkCommandBuffer& cmd);  // Set viewport and scissor the the size of the viewport
-
-  bool isVsync() const;  // Return true if V-Sync is on
-
-  void setVsync(bool v);  // Set V-Sync on or off
+  bool isVsync() const;                          // Return true if V-Sync is on
+  void setVsync(bool v);                         // Set V-Sync on or off
+  void setViewportClearColor(ImVec4 col) { m_clearColor = col; }
 
   // Sync for special cases
   void addWaitSemaphore(const VkSemaphoreSubmitInfoKHR& wait);
@@ -144,6 +146,7 @@ private:
   int         m_minImageCount{2};         // Nb frames in-flight
   bool        m_swapChainRebuild{false};  // Need to rebuild swapchain?
   std::string m_iniFilename;              // Holds on .ini name
+  ImVec4      m_clearColor{0.0F, 0.0F, 0.0F, 1.0F};
 
   VkCommandPool          m_cmdPool{VK_NULL_HANDLE};         //
   VkPipelineCache        m_pipelineCache{VK_NULL_HANDLE};   // Cache for pipeline/shaders
@@ -160,6 +163,9 @@ private:
   //--
   static uint32_t                                        m_currentFrameIndex;  // (eg. 0, 1, 2, 0, 1, 2)
   static std::vector<std::vector<std::function<void()>>> m_resourceFreeQueue;  // Queue of functions to free resources
+
+  //--
+  std::function<void(ImGuiID)> m_dockSetup;
 };
 
 template <typename T>
