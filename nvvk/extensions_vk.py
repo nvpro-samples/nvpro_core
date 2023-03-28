@@ -139,7 +139,7 @@ def get_function(rtype, name, params):
 if __name__ == "__main__":
     # Using incoming argument, local XML or web version
     specpath = "https://raw.githubusercontent.com/KhronosGroup/Vulkan-Docs/main/xml/vk.xml"
-    loc_spec_path = os.path.normpath(os.getenv('VK_SDK_PATH') + '/share/vulkan/registry/vk.xml')
+    loc_spec_path = os.path.normpath(str(os.getenv('VK_SDK_PATH')) + '/share/vulkan/registry/vk.xml')
 
     parser = argparse.ArgumentParser(description='Generates entry points for Vulkan extensions in extensions_vk.cpp.')
     parser.add_argument('--beta', action='store_true', help='Includes provisional Vulkan extensions; these extensions are not guaranteed to be consistent across Vulkan SDK versions.')
