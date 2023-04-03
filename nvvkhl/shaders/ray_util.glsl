@@ -23,23 +23,21 @@
 precision highp float;
 
 //-------------------------------------------------------------------------------------------------
-// Avoiding self intersections (see Ray Tracing Gems, Ch. 6)
+// Avoiding self intersections
 //-----------------------------------------------------------------------
 vec3 offsetRay(in vec3 p, in vec3 n)
 {
-  const float int_scale   = 256.0f;
-  const float float_scale = 1.0f / 65536.0f;
-  const float origin      = 1.0f / 32.0f;
+  // Smallest epsilon that can be added without losing precision is 1.19209e-07, but we play safe
+  const float epsilon = 1.0f / 65536.0f;  // Safe epsilon
 
-  ivec3 of_i = ivec3(int_scale * n.x, int_scale * n.y, int_scale * n.z);
+  float magnitude = length(p);
+  float offset    = epsilon * magnitude;
+  // multiply the direction vector by the smallest offset
+  vec3 offsetVector = n * offset;
+  // add the offset vector to the starting point
+  vec3 offsetPoint = p + offsetVector;
 
-  vec3 p_i = vec3(intBitsToFloat(floatBitsToInt(p.x) + ((p.x < 0.F) ? -of_i.x : of_i.x)),
-                  intBitsToFloat(floatBitsToInt(p.y) + ((p.y < 0.F) ? -of_i.y : of_i.y)),
-                  intBitsToFloat(floatBitsToInt(p.z) + ((p.z < 0.F) ? -of_i.z : of_i.z)));
-
-  return vec3(abs(p.x) < origin ? p.x + float_scale * n.x : p_i.x,  //
-              abs(p.y) < origin ? p.y + float_scale * n.y : p_i.y,  //
-              abs(p.z) < origin ? p.z + float_scale * n.z : p_i.z);
+  return offsetPoint;
 }
 
 // Hacking the shadow terminator
@@ -51,9 +49,9 @@ vec3 offsetRay(in vec3 p, in vec3 n)
 // return the offset position
 vec3 pointOffset(vec3 p, vec3 pa, vec3 pb, vec3 pc, vec3 na, vec3 nb, vec3 nc, vec3 bary)
 {
-  vec3 tmpu  = p - pa;
-  vec3 tmpv  = p - pb;
-  vec3 tmpw  = p - pc;
+  vec3 tmpu = p - pa;
+  vec3 tmpv = p - pb;
+  vec3 tmpw = p - pc;
 
   float dotu = min(0.0F, dot(tmpu, na));
   float dotv = min(0.0F, dot(tmpv, nb));

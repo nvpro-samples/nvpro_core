@@ -124,6 +124,8 @@ endif()
 
 if(USING_IMGUI)
   set(IMGUI_SOURCE 
+      imgui/imgui_axis.cpp  
+      imgui/imgui_axis.hpp
       imgui/imgui_camera_widget.cpp 
       imgui/imgui_camera_widget.h 
       imgui/imgui_helper.cpp

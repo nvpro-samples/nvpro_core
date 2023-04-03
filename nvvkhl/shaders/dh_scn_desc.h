@@ -30,16 +30,16 @@ using vec3 = nvmath::vec3f;
 
 struct InstanceInfo
 {
-  mat4 objMatrix;    // object to world
-  mat4 objMatrixIT;  // object to world invert-transform
+  mat4 objectToWorld;
+  mat4 worldToObject;
   int  materialID;
 };
 
 struct Vertex
 {
-  vec4 position;
-  vec4 normal;
-  vec4 tangent;
+  vec4 position;  // POS.xyz + UV.x
+  vec4 normal;    // NRM.xyz + UV.y
+  vec4 tangent;   // TNG.xyz + sign: 1, -1
 };
 
 struct PrimMeshInfo

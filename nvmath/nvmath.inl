@@ -24,6 +24,7 @@
 #endif
 
 #include <cmath>  // std::floor
+#include <algorithm> // std::min/max
 
 namespace nvmath {
 

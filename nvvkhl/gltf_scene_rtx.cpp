@@ -131,7 +131,7 @@ void nvvkhl::SceneRtx::createTopLevelAS(const nvh::GltfScene& scn, VkBuildAccele
   tlas.reserve(scn.m_nodes.size());
   for(const auto& node : scn.m_nodes)
   {
-    VkGeometryInstanceFlagsKHR flags{VK_GEOMETRY_INSTANCE_TRIANGLE_CULL_DISABLE_BIT_NV};
+    VkGeometryInstanceFlagsKHR flags{};
     const nvh::GltfPrimMesh&   prim_mesh = scn.m_primMeshes[node.primMesh];
     const nvh::GltfMaterial&   mat       = scn.m_materials[prim_mesh.materialIndex];
 

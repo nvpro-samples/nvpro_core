@@ -110,8 +110,8 @@ void nvvkhl::SceneVk::createInstanceInfoBuffer(VkCommandBuffer cmd, const nvh::G
   for(const auto& node : scn.m_nodes)
   {
     InstanceInfo info{};
-    info.objMatrix   = node.worldMatrix;
-    info.objMatrixIT = nvmath::transpose(nvmath::invert(node.worldMatrix));
+    info.objectToWorld = node.worldMatrix;
+    info.worldToObject = nvmath::invert(node.worldMatrix);
     inst_info.emplace_back(info);
   }
   m_bInstances = m_alloc->createBuffer(cmd, inst_info, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);

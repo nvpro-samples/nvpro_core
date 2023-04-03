@@ -76,15 +76,12 @@ if(_NVML_IN_CUDA_DIR)
   set(NVML_FOUND ON)
 else()
   Message(STATUS "No CUDA SDK detected with NVML installed. Looking for NVML locally and in NVML_LOCATION (${NVML_LOCATION})")
-  # if no CUDA, let's try to find nvml locally in our shared_extenal folder that contains useful external components
+  # if no CUDA, let's try to find nvml locally in our nvpro_core. This file is
+  # located in nvpro_core/cmake/find.
   find_path( NVML_INCLUDE_DIRS nvml.h
     ${NVML_LOCATION}
     $ENV{NVML_LOCATION}
-    ${PROJECT_SOURCE_DIR}/nvpro_core/third_party/binaries/nvml
-    ${PROJECT_SOURCE_DIR}/../nvpro_core/third_party/binaries/nvml
-    ${PROJECT_SOURCE_DIR}/../../nvpro_core/third_party/binaries/nvml
-    ${PROJECT_SOURCE_DIR}/../../../nvpro_core/third_party/binaries/nvml
-    ${PROJECT_SOURCE_DIR}/../../../../nvpro_core/third_party/binaries/nvml
+    ${CMAKE_CURRENT_LIST_DIR}/../../third_party/binaries/nvml
   )
 
   if(NVML_INCLUDE_DIRS)
@@ -101,6 +98,15 @@ else()
         NVML not found. To explicitly locate it, set NVML_LOCATION,
         which should be a folder containing nvml.h."
     )
+  endif()
+endif()
+
+# In the non-Windows case, we use the system nvidia-ml library. Check if it
+# exists; if it doesn't, we point the user to where to install it.
+if(NOT WIN32)
+  find_library(_NVML_LIBRARY_PATH ${NVML_LIBRARIES})
+  if(NOT _NVML_LIBRARY_PATH)
+    message(WARNING "CMake couldn't locate the ${NVML_LIBRARIES} library, so compilation will likely fail. You may need to install NVML using your OS' package manager; for instance, by running `sudo apt install libnvidia-ml-dev`.")
   endif()
 endif()
 

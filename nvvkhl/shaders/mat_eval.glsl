@@ -183,7 +183,7 @@ PbrMaterial evaluateMaterial(in GltfShadeMaterial material, in vec3 normal, in v
   pbrMat.f0        = f0;
   pbrMat.roughness = clamp(perceptual_roughness, 0.001F, 1.0F);
   pbrMat.metallic  = clamp(metallic, 0.0F, 1.0F);
-  pbrMat.emissive  = emissive;
+  pbrMat.emissive  = max(vec3(0), emissive);
   pbrMat.normal    = normal;
 
   return pbrMat;
