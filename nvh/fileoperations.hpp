@@ -134,10 +134,14 @@ inline std::string loadFile(const std::string filename, bool binary, const std::
 // splits filename excluding path
 inline std::string getFileName(std::string const& fullPath)
 {
-  size_t istart;
-  for(istart = fullPath.size() - 1; istart != -1 && fullPath[istart] != '\\' && fullPath[istart] != '/'; istart--)
-    ;
-  return std::string(&fullPath[istart + 1]);
+  // Determine the last occurrence of path separator
+  std::size_t lastSeparator = fullPath.find_last_of("/\\");
+  if (lastSeparator == std::string::npos) {
+    // If no separator found, return fullPath as it is (considered as filename)
+    return fullPath;
+  }
+  // Extract the filename from fullPath
+  return fullPath.substr(lastSeparator + 1);
 }
 
 // splits path from filename
