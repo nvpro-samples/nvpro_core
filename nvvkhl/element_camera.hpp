@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2014-2022 NVIDIA CORPORATION
+ * SPDX-FileCopyrightText: Copyright (c) 2014-2023 NVIDIA CORPORATION
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -122,6 +122,12 @@ private:
        || ImGui::IsMouseDragging(ImGuiMouseButton_Right, 1.0F))
     {
       CameraManip.mouseMove(static_cast<int>(mouse_pos.x), static_cast<int>(mouse_pos.y), m_inputs);
+    }
+
+    // Mouse Wheel
+    if(ImGui::GetIO().MouseWheel != 0.0F)
+    {
+      CameraManip.wheel(static_cast<int>(ImGui::GetIO().MouseWheel * 3), m_inputs);
     }
   }
 
