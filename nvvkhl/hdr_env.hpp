@@ -78,6 +78,7 @@ private:
 
 
   void createDescriptorSetLayout();
+  VkPhysicalDevice m_physicalDevice;
 };
 
 }  // namespace nvvkhl

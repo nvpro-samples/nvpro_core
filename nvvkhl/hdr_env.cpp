@@ -53,11 +53,12 @@ HdrEnv::HdrEnv(nvvk::Context* ctx, nvvk::ResourceAllocator* allocator, uint32_t 
 //--------------------------------------------------------------------------------------------------
 //
 //
-void HdrEnv::setup(const VkDevice& device, const VkPhysicalDevice& /*physicalDevice*/, uint32_t familyIndex, nvvk::ResourceAllocator* allocator)
+void HdrEnv::setup(const VkDevice& device, const VkPhysicalDevice& physicalDevice, uint32_t familyIndex, nvvk::ResourceAllocator* allocator)
 {
-  m_device      = device;
-  m_alloc       = allocator;
-  m_familyIndex = familyIndex;
+  m_device         = device;
+  m_alloc          = allocator;
+  m_familyIndex    = familyIndex;
+  m_physicalDevice = physicalDevice;
   m_debug.setup(device);
 }
 
@@ -110,9 +111,18 @@ void HdrEnv::loadEnvironment(const std::string& hrdImage)
       // Therefore, in U the sampler will use VK_SAMPLER_ADDRESS_MODE_REPEAT (default), but V needs to use
       // CLAMP_TO_EDGE to avoid having light leaking from one pole to another.
       sampler_create_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-      VkFormat          format         = VK_FORMAT_R32G32B32A32_SFLOAT;
+      VkFormat format                  = VK_FORMAT_R32G32B32A32_SFLOAT;
+
+      bool               can_generate_mipmaps = false;
+      VkFormatProperties format_properties;
+      vkGetPhysicalDeviceFormatProperties(m_physicalDevice, format, &format_properties);
+      if(format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_BLIT_DST_BIT)
+        can_generate_mipmaps = true;
+
       VkImageCreateInfo ic_info =
-          nvvk::makeImage2DCreateInfo(img_size, format, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT);
+          nvvk::makeImage2DCreateInfo(img_size, format, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, can_generate_mipmaps);
+
+      sampler_create_info.maxLod = can_generate_mipmaps ? ic_info.mipLevels : 0.0F;
 
       // We can use a different family index (1 - transfer), to allow loading in a different queue/thread than the display (0)
       VkQueue queue = nullptr;
