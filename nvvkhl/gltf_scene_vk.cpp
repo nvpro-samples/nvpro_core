@@ -58,7 +58,7 @@ void nvvkhl::SceneVk::create(VkCommandBuffer cmd, const nvvkhl::Scene& scn)
   scene_desc.primInfoAddress = nvvk::getBufferDeviceAddress(m_ctx->m_device, m_bPrimInfo.buffer);
   scene_desc.instInfoAddress = nvvk::getBufferDeviceAddress(m_ctx->m_device, m_bInstances.buffer);
   m_bSceneDesc               = m_alloc->createBuffer(cmd, sizeof(SceneDescription), &scene_desc,
-                                       VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);
+                                                     VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);
   m_dutil->DBG_NAME(m_bSceneDesc.buffer);
 }
 
@@ -209,6 +209,28 @@ void nvvkhl::SceneVk::createTextureImages(VkCommandBuffer cmd, const tinygltf::M
   sampler_create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
   sampler_create_info.maxLod     = FLT_MAX;
 
+  // Find sRGB images:
+  // - see section on base color texture under https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#metallic-roughness-material
+  for(size_t matID = 0; matID < tiny.materials.size(); matID++)
+  {  // Adding all images referencing by the base color or emissive, all others are linear
+    int texIDs[2] = {tiny.materials[matID].pbrMetallicRoughness.baseColorTexture.index,
+                     tiny.materials[matID].emissiveTexture.index};
+    for(auto texID : texIDs)
+    {
+      if(texID > -1)
+        m_sRgbImages.insert(tiny.textures[texID].source);
+    }
+  }
+  for(size_t texID = 0; texID < tiny.textures.size(); texID++)
+  {  // Special, if the 'extra' in the texture has a gamma defined greater than 1.0, it is sRGB
+    const auto& texture = tiny.textures[texID];
+    if(texture.extras.Has("gamma") && texture.extras.Get("gamma").GetNumberAsDouble() > 1.0)
+    {
+      m_sRgbImages.insert(texture.source);
+    }
+  }
+
+
   // Make dummy image(1,1), needed as we cannot have an empty array
   auto addDefaultImage = [&](uint32_t idx, const std::array<uint8_t, 4>& color) {
     VkImageCreateInfo image_create_info = nvvk::makeImage2DCreateInfo(VkExtent2D{1, 1});
@@ -234,7 +256,7 @@ void nvvkhl::SceneVk::createTextureImages(VkCommandBuffer cmd, const tinygltf::M
       [&](uint64_t i) {
         const auto& image = tiny.images[i];
         LOGI("  - (%" PRIu64 ") %s \n", i, image.uri.c_str());
-        loadImage(basedir, image, m_images[i]);
+        loadImage(basedir, image, static_cast<int>(i));
       },
       num_threads);
 
@@ -280,9 +302,12 @@ void nvvkhl::SceneVk::createTextureImages(VkCommandBuffer cmd, const tinygltf::M
 //--------------------------------------------------------------------------------------------------
 // Loading images from disk
 //
-void nvvkhl::SceneVk::loadImage(const std::filesystem::path& basedir, const tinygltf::Image& gltfImage, SceneImage& image)
+void nvvkhl::SceneVk::loadImage(const std::filesystem::path& basedir, const tinygltf::Image& gltfImage, int imageID)
 {
   namespace fs = std::filesystem;
+
+  auto& image   = m_images[imageID];
+  bool  is_srgb = m_sRgbImages.find(imageID) != m_sRgbImages.end();
 
   fs::path    uri       = fs::path(gltfImage.uri);
   std::string extension = uri.extension().string();
@@ -325,7 +350,10 @@ void nvvkhl::SceneVk::loadImage(const std::filesystem::path& basedir, const tiny
         image.format = is_16Bit ? VK_FORMAT_R16_UNORM : VK_FORMAT_R8_UNORM;
         break;
       case 4:
-        image.format = is_16Bit ? VK_FORMAT_R16G16B16A16_UNORM : VK_FORMAT_R8G8B8A8_UNORM;
+        image.format = is_16Bit ? VK_FORMAT_R16G16B16A16_UNORM :
+                       is_srgb  ? VK_FORMAT_R8G8B8A8_SRGB :
+                                  VK_FORMAT_R8G8B8A8_UNORM;
+
         break;
       default:
         assert(false);
@@ -345,7 +373,7 @@ void nvvkhl::SceneVk::loadImage(const std::filesystem::path& basedir, const tiny
   else
   {  // Loaded internally using GLB
     image.size   = VkExtent2D{(uint32_t)gltfImage.width, (uint32_t)gltfImage.height};
-    image.format = VK_FORMAT_R8G8B8A8_UNORM;
+    image.format = is_srgb ? VK_FORMAT_R8G8B8A8_SRGB : VK_FORMAT_R8G8B8A8_UNORM;
     image.mipData.emplace_back(gltfImage.image);
   }
 }
@@ -464,4 +492,6 @@ void nvvkhl::SceneVk::destroy()
     vkDestroyImageView(m_ctx->m_device, t.descriptor.imageView, nullptr);
   }
   m_textures.clear();
+
+  m_sRgbImages.clear();
 }

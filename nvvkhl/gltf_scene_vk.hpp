@@ -33,10 +33,10 @@ class SceneVk
 {
 public:
   SceneVk(nvvk::Context* ctx, AllocVma* alloc);
-  ~SceneVk() { destroy(); }
+  virtual ~SceneVk() { destroy(); }
 
-  void create(VkCommandBuffer cmd, const nvvkhl::Scene& scn);
-  void destroy();
+  virtual void create(VkCommandBuffer cmd, const nvvkhl::Scene& scn);
+  virtual void destroy();
 
   // Getters
   const nvvk::Buffer&               material() const { return m_bMaterial; }
@@ -48,7 +48,7 @@ public:
   const std::vector<nvvk::Texture>& textures() const { return m_textures; }
   uint32_t                          nbTextures() const { return static_cast<uint32_t>(m_textures.size()); }
 
-private:
+protected:
   struct SceneImage  // Image to be loaded and created
   {
     nvvk::Image       nvvkImage;
@@ -62,12 +62,12 @@ private:
     std::vector<std::vector<uint8_t>> mipData;
   };
 
-  void createMaterialBuffer(VkCommandBuffer cmd, const nvh::GltfScene& scn);
-  void createInstanceInfoBuffer(VkCommandBuffer cmd, const nvh::GltfScene& scn);
-  void createVertexBuffer(VkCommandBuffer cmd, const nvh::GltfScene& scn);
-  void createTextureImages(VkCommandBuffer cmd, const tinygltf::Model& tiny, const std::filesystem::path& basedir);
-  void loadImage(const std::filesystem::path& basedir, const tinygltf::Image& gltfImage, SceneImage& image);
-  bool createImage(const VkCommandBuffer& cmd, SceneImage& image);
+  virtual void createMaterialBuffer(VkCommandBuffer cmd, const nvh::GltfScene& scn);
+  virtual void createInstanceInfoBuffer(VkCommandBuffer cmd, const nvh::GltfScene& scn);
+  virtual void createVertexBuffer(VkCommandBuffer cmd, const nvh::GltfScene& scn);
+  virtual void createTextureImages(VkCommandBuffer cmd, const tinygltf::Model& tiny, const std::filesystem::path& basedir);
+  virtual void loadImage(const std::filesystem::path& basedir, const tinygltf::Image& gltfImage, int imageID);
+  virtual bool createImage(const VkCommandBuffer& cmd, SceneImage& image);
 
   //--
   nvvk::Context*                   m_ctx;
@@ -83,6 +83,8 @@ private:
 
   std::vector<SceneImage>    m_images;
   std::vector<nvvk::Texture> m_textures;  // Vector of all textures of the scene
+
+  std::set<int> m_sRgbImages;  // All images that are in sRGB (typically, only the one used by baseColorTexture)
 };
 
 }  // namespace nvvkhl

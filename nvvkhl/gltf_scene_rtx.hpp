@@ -35,28 +35,32 @@ public:
   SceneRtx(nvvk::Context* ctx, AllocVma* alloc, uint32_t queueFamilyIndex = 0U);
   ~SceneRtx();
 
-  void                       create(const Scene&                         scn,
-                                    const SceneVk&                       scnVk,
-                                    VkBuildAccelerationStructureFlagsKHR flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR
-                                                                                 | VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_KHR);
+  // Create both bottom and top level acceleration structures
+  void create(const Scene&                         scn,
+              const SceneVk&                       scnVk,
+              VkBuildAccelerationStructureFlagsKHR flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR
+                                                           | VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_KHR);
+  // Create all bottom level acceleration structures (BLAS)
+  virtual void createBottomLevelAS(const nvh::GltfScene& scn,
+                                   const SceneVk&        scnVk,
+                                   VkBuildAccelerationStructureFlagsKHR flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR
+                                                                                | VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_KHR);
+
+  // Create the top level acceleration structures, referencing all BLAS
+  virtual void createTopLevelAS(const nvh::GltfScene& scn,
+                                VkBuildAccelerationStructureFlagsKHR flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR
+                                                                             | VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_KHR);
+
+  // Return the constructed acceleration structure
   VkAccelerationStructureKHR tlas();
 
+ 
   void destroy();
 
-private:
+protected:
   nvvk::RaytracingBuilderKHR::BlasInput primitiveToGeometry(const nvh::GltfPrimMesh& prim,
                                                             VkDeviceAddress          vertexAddress,
                                                             VkDeviceAddress          indexAddress);
-
-  //--------------------------------------------------------------------------------------------------
-  // Create all bottom level acceleration structures (BLAS)
-  //
-  virtual void createBottomLevelAS(const nvh::GltfScene& scn, const SceneVk& scnVk, VkBuildAccelerationStructureFlagsKHR flags);
-
-  //--------------------------------------------------------------------------------------------------
-  // Create the top level acceleration structures, referencing all BLAS
-  //
-  virtual void createTopLevelAS(const nvh::GltfScene& scn, VkBuildAccelerationStructureFlagsKHR flags);
 
   nvvk::Context* m_ctx;
   AllocVma*      m_alloc;

@@ -73,6 +73,7 @@ public:
   // Getters
   const nvh::GltfScene&  scene() const { return m_scene; }
   const tinygltf::Model& model() const { return m_model; }
+  tinygltf::Model&       model() { return m_model; }
   bool                   valid() const { return !m_scene.m_nodes.empty(); }
   const std::string&     filename() const { return m_filename; }
 
