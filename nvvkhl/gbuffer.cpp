@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2014-2022 NVIDIA CORPORATION
+ * SPDX-FileCopyrightText: Copyright (c) 2014-2023 NVIDIA CORPORATION
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -163,4 +163,54 @@ void nvvkhl::GBuffer::destroy()
   m_imageSize = {};
   m_colorFormat.clear();
   m_descriptorSet.clear();
+}
+
+//--------------------------------------------------------------------------------------------------------------
+// Creating a buffer from one of the color image.
+// This can be used to save image to disk:
+//
+// Note: it is the responsibility to the function who call this, to destroy the buffer.
+nvvk::Buffer nvvkhl::GBuffer::createImageToBuffer(VkCommandBuffer cmd, uint32_t i /*= 0*/) const
+{
+  // Source image
+  VkImage    src_image = getColorImage(i);
+  VkExtent2D img_size  = getSize();
+
+  VkFormat format        = getColorFormat(i);
+  uint32_t bytesPerPixel = 0;
+  if(format >= VK_FORMAT_R8G8B8A8_UNORM && format <= VK_FORMAT_B8G8R8A8_SRGB)
+    bytesPerPixel = 4 * sizeof(uint8_t);  
+  else if(format >= VK_FORMAT_R16G16B16A16_UNORM && format <= VK_FORMAT_R16G16B16A16_SFLOAT)
+    bytesPerPixel = 4 * sizeof(uint16_t); 
+  else if(format >= VK_FORMAT_R32G32B32A32_UINT && format <= VK_FORMAT_R32G32B32A32_SFLOAT)
+    bytesPerPixel = 4 * sizeof(uint32_t); 
+  assert(bytesPerPixel != 0); // Format unsupported
+
+  // Destination buffer
+  size_t       buf_size   = bytesPerPixel * img_size.width * img_size.height;
+  nvvk::Buffer dst_buffer = m_alloc->createBuffer(buf_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                                  VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+  // Region to copy from the image (all)
+  VkBufferImageCopy region           = {};
+  region.bufferRowLength             = img_size.width;
+  region.bufferImageHeight           = img_size.height;
+  region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+  region.imageSubresource.layerCount = 1;
+  region.imageExtent.width           = img_size.width;
+  region.imageExtent.height          = img_size.height;
+  region.imageExtent.depth           = 1;
+
+  // Copy the image to buffer
+  nvvk::cmdBarrierImageLayout(cmd, src_image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+  vkCmdCopyImageToBuffer(cmd, src_image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dst_buffer.buffer, 1, &region);
+  nvvk::cmdBarrierImageLayout(cmd, src_image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
+
+  // Barrier to make sure work is done
+  VkMemoryBarrier memBarrier = {VK_STRUCTURE_TYPE_MEMORY_BARRIER};
+  memBarrier.srcAccessMask   = VK_ACCESS_TRANSFER_WRITE_BIT;
+  memBarrier.dstAccessMask   = VK_ACCESS_MEMORY_READ_BIT;
+  vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 1,
+                       &memBarrier, 0, nullptr, 0, nullptr);
+
+  return dst_buffer;
 }
