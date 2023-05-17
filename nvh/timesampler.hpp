@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2013-2023, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@
 #pragma once
 #include <chrono>
 #include <string>
+#include <cstdarg>
 #include "nvprint.hpp"
 
 //-----------------------------------------------------------------------------
@@ -127,11 +128,76 @@ struct Stopwatch
 // Logging the time spent while alive in a scope.
 // Usage: at beginning of a function:
 //   auto stimer = ScopedTimer("Time for doing X");
+// Nesting timers is handled, but since the time is printed when it goes out of
+// scope, printing anything else will break the output formatting.
 struct ScopedTimer
 {
-  ScopedTimer(const std::string& str) { LOGI("%s", str.c_str()); }
-  ~ScopedTimer() { LOGI(" %.3f ms\n", sw_.elapsed()); }
-  nvh::Stopwatch sw_;
+  ScopedTimer(const std::string& str) { init_(str); }
+  ScopedTimer(const char* fmt, ...)
+  {
+    std::string str(256, '\0');  // initial guess. ideally the first try fits
+    va_list     args1, args2;
+    va_start(args1, fmt);
+    va_copy(args2, args1);  // make a backup as vsnprintf may consume args1
+    int rc = vsnprintf(str.data(), str.size(), fmt, args1);
+    if(rc >= 0 && static_cast<size_t>(rc + 1) > str.size())
+    {
+      str.resize(rc + 1);  // include storage for '\0'
+      rc = vsnprintf(str.data(), str.size(), fmt, args2);
+    }
+    va_end(args1);
+    assert(rc >= 0 && "vsnprintf error");
+    str.resize(rc >= 0 ? static_cast<size_t>(rc) : 0);
+    init_(str);
+  }
+  void init_(const std::string& str)
+  {
+    // If nesting timers, break the newline of the previous one
+    if(s_openNewline)
+    {
+      assert(s_nesting > 0);
+      LOGI("\n");
+    }
+
+    m_manualIndent = !str.empty() && (str[0] == ' ' || str[0] == '-' || str[0] == '|');
+
+    // Add indentation automatically if not already in str.
+    if(s_nesting > 0 && !m_manualIndent)
+    {
+      LOGI("%s", indent().c_str());
+    }
+
+    LOGI("%s", str.c_str());
+    s_openNewline = str.empty() || str[str.size() - 1] != '\n';
+    ++s_nesting;
+  }
+  ~ScopedTimer()
+  {
+    --s_nesting;
+    // If nesting timers and this is the second destructor in a row, indent and
+    // print "Total" as it won't be on the same line.
+    if(!s_openNewline && !m_manualIndent)
+    {
+      LOGI("%s|", indent().c_str());
+    }
+    else
+    {
+      LOGI(" ");
+    }
+    LOGI("-> %.3f ms\n", m_stopwatch.elapsed());
+    s_openNewline = false;
+  }
+  static std::string indent()
+  {
+    std::string result(static_cast<size_t>(s_nesting * 2), ' ');
+    for(int i = 0; i < s_nesting * 2; i += 2)
+      result[i] = '|';
+    return result;
+  }
+  nvh::Stopwatch                  m_stopwatch;
+  bool                            m_manualIndent = false;
+  static inline thread_local int  s_nesting      = 0;
+  static inline thread_local bool s_openNewline  = false;
 };
 
 }  // namespace nvh
