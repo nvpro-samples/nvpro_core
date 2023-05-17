@@ -43,886 +43,373 @@ load_VK_EXTENSIONS(instance, vkGetInstanceProcAddr, device, vkGetDeviceProcAddr)
 void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstanceProcAddr, VkDevice device, PFN_vkGetDeviceProcAddr getDeviceProcAddr);
 
 /* NVVK_GENERATE_DEFINE */
-#ifdef VK_AMD_buffer_marker
+#if defined(VK_AMD_buffer_marker)
 #define NVVK_HAS_VK_AMD_buffer_marker
 #endif /* VK_AMD_buffer_marker */
-#ifdef VK_AMD_device_coherent_memory
-#define NVVK_HAS_VK_AMD_device_coherent_memory
-#endif /* VK_AMD_device_coherent_memory */
-#ifdef VK_AMD_display_native_hdr
+#if defined(VK_AMD_display_native_hdr)
 #define NVVK_HAS_VK_AMD_display_native_hdr
 #endif /* VK_AMD_display_native_hdr */
-#ifdef VK_AMD_draw_indirect_count
+#if defined(VK_AMD_draw_indirect_count)
 #define NVVK_HAS_VK_AMD_draw_indirect_count
 #endif /* VK_AMD_draw_indirect_count */
-#ifdef VK_AMD_gcn_shader
-#define NVVK_HAS_VK_AMD_gcn_shader
-#endif /* VK_AMD_gcn_shader */
-#ifdef VK_AMD_gpu_shader_half_float
-#define NVVK_HAS_VK_AMD_gpu_shader_half_float
-#endif /* VK_AMD_gpu_shader_half_float */
-#ifdef VK_AMD_gpu_shader_int16
-#define NVVK_HAS_VK_AMD_gpu_shader_int16
-#endif /* VK_AMD_gpu_shader_int16 */
-#ifdef VK_AMD_memory_overallocation_behavior
-#define NVVK_HAS_VK_AMD_memory_overallocation_behavior
-#endif /* VK_AMD_memory_overallocation_behavior */
-#ifdef VK_AMD_mixed_attachment_samples
-#define NVVK_HAS_VK_AMD_mixed_attachment_samples
-#endif /* VK_AMD_mixed_attachment_samples */
-#ifdef VK_AMD_negative_viewport_height
-#define NVVK_HAS_VK_AMD_negative_viewport_height
-#endif /* VK_AMD_negative_viewport_height */
-#ifdef VK_AMD_pipeline_compiler_control
-#define NVVK_HAS_VK_AMD_pipeline_compiler_control
-#endif /* VK_AMD_pipeline_compiler_control */
-#ifdef VK_AMD_rasterization_order
-#define NVVK_HAS_VK_AMD_rasterization_order
-#endif /* VK_AMD_rasterization_order */
-#ifdef VK_AMD_shader_ballot
-#define NVVK_HAS_VK_AMD_shader_ballot
-#endif /* VK_AMD_shader_ballot */
-#ifdef VK_AMD_shader_core_properties
-#define NVVK_HAS_VK_AMD_shader_core_properties
-#endif /* VK_AMD_shader_core_properties */
-#ifdef VK_AMD_shader_core_properties2
-#define NVVK_HAS_VK_AMD_shader_core_properties2
-#endif /* VK_AMD_shader_core_properties2 */
-#ifdef VK_AMD_shader_early_and_late_fragment_tests
-#define NVVK_HAS_VK_AMD_shader_early_and_late_fragment_tests
-#endif /* VK_AMD_shader_early_and_late_fragment_tests */
-#ifdef VK_AMD_shader_explicit_vertex_parameter
-#define NVVK_HAS_VK_AMD_shader_explicit_vertex_parameter
-#endif /* VK_AMD_shader_explicit_vertex_parameter */
-#ifdef VK_AMD_shader_fragment_mask
-#define NVVK_HAS_VK_AMD_shader_fragment_mask
-#endif /* VK_AMD_shader_fragment_mask */
-#ifdef VK_AMD_shader_image_load_store_lod
-#define NVVK_HAS_VK_AMD_shader_image_load_store_lod
-#endif /* VK_AMD_shader_image_load_store_lod */
-#ifdef VK_AMD_shader_info
+#if defined(VK_AMD_shader_info)
 #define NVVK_HAS_VK_AMD_shader_info
 #endif /* VK_AMD_shader_info */
-#ifdef VK_AMD_shader_trinary_minmax
-#define NVVK_HAS_VK_AMD_shader_trinary_minmax
-#endif /* VK_AMD_shader_trinary_minmax */
-#ifdef VK_AMD_texture_gather_bias_lod
-#define NVVK_HAS_VK_AMD_texture_gather_bias_lod
-#endif /* VK_AMD_texture_gather_bias_lod */
-#ifdef VK_ANDROID_external_memory_android_hardware_buffer
+#if defined(VK_ANDROID_external_memory_android_hardware_buffer)
 #define NVVK_HAS_VK_ANDROID_external_memory_android_hardware_buffer
 #endif /* VK_ANDROID_external_memory_android_hardware_buffer */
-#ifdef VK_ARM_rasterization_order_attachment_access
-#define NVVK_HAS_VK_ARM_rasterization_order_attachment_access
-#endif /* VK_ARM_rasterization_order_attachment_access */
-#ifdef VK_ARM_shader_core_builtins
-#define NVVK_HAS_VK_ARM_shader_core_builtins
-#endif /* VK_ARM_shader_core_builtins */
-#ifdef VK_EXT_4444_formats
-#define NVVK_HAS_VK_EXT_4444_formats
-#endif /* VK_EXT_4444_formats */
-#ifdef VK_EXT_acquire_drm_display
+#if defined(VK_EXT_acquire_drm_display)
 #define NVVK_HAS_VK_EXT_acquire_drm_display
 #endif /* VK_EXT_acquire_drm_display */
-#ifdef VK_EXT_acquire_xlib_display
+#if defined(VK_EXT_acquire_xlib_display)
 #define NVVK_HAS_VK_EXT_acquire_xlib_display
 #endif /* VK_EXT_acquire_xlib_display */
-#ifdef VK_EXT_astc_decode_mode
-#define NVVK_HAS_VK_EXT_astc_decode_mode
-#endif /* VK_EXT_astc_decode_mode */
-#ifdef VK_EXT_attachment_feedback_loop_layout
-#define NVVK_HAS_VK_EXT_attachment_feedback_loop_layout
-#endif /* VK_EXT_attachment_feedback_loop_layout */
-#ifdef VK_EXT_blend_operation_advanced
-#define NVVK_HAS_VK_EXT_blend_operation_advanced
-#endif /* VK_EXT_blend_operation_advanced */
-#ifdef VK_EXT_border_color_swizzle
-#define NVVK_HAS_VK_EXT_border_color_swizzle
-#endif /* VK_EXT_border_color_swizzle */
-#ifdef VK_EXT_buffer_device_address
+#if defined(VK_EXT_buffer_device_address)
 #define NVVK_HAS_VK_EXT_buffer_device_address
 #endif /* VK_EXT_buffer_device_address */
-#ifdef VK_EXT_calibrated_timestamps
+#if defined(VK_EXT_calibrated_timestamps)
 #define NVVK_HAS_VK_EXT_calibrated_timestamps
 #endif /* VK_EXT_calibrated_timestamps */
-#ifdef VK_EXT_color_write_enable
+#if defined(VK_EXT_color_write_enable)
 #define NVVK_HAS_VK_EXT_color_write_enable
 #endif /* VK_EXT_color_write_enable */
-#ifdef VK_EXT_conditional_rendering
+#if defined(VK_EXT_conditional_rendering)
 #define NVVK_HAS_VK_EXT_conditional_rendering
 #endif /* VK_EXT_conditional_rendering */
-#ifdef VK_EXT_conservative_rasterization
-#define NVVK_HAS_VK_EXT_conservative_rasterization
-#endif /* VK_EXT_conservative_rasterization */
-#ifdef VK_EXT_custom_border_color
-#define NVVK_HAS_VK_EXT_custom_border_color
-#endif /* VK_EXT_custom_border_color */
-#ifdef VK_EXT_debug_marker
+#if defined(VK_EXT_debug_marker)
 #define NVVK_HAS_VK_EXT_debug_marker
 #endif /* VK_EXT_debug_marker */
-#ifdef VK_EXT_debug_report
+#if defined(VK_EXT_debug_report)
 #define NVVK_HAS_VK_EXT_debug_report
 #endif /* VK_EXT_debug_report */
-#ifdef VK_EXT_debug_utils
+#if defined(VK_EXT_debug_utils)
 #define NVVK_HAS_VK_EXT_debug_utils
 #endif /* VK_EXT_debug_utils */
-#ifdef VK_EXT_depth_clamp_zero_one
-#define NVVK_HAS_VK_EXT_depth_clamp_zero_one
-#endif /* VK_EXT_depth_clamp_zero_one */
-#ifdef VK_EXT_depth_clip_control
-#define NVVK_HAS_VK_EXT_depth_clip_control
-#endif /* VK_EXT_depth_clip_control */
-#ifdef VK_EXT_depth_clip_enable
-#define NVVK_HAS_VK_EXT_depth_clip_enable
-#endif /* VK_EXT_depth_clip_enable */
-#ifdef VK_EXT_depth_range_unrestricted
-#define NVVK_HAS_VK_EXT_depth_range_unrestricted
-#endif /* VK_EXT_depth_range_unrestricted */
-#ifdef VK_EXT_descriptor_buffer
+#if defined(VK_EXT_descriptor_buffer)
 #define NVVK_HAS_VK_EXT_descriptor_buffer
 #endif /* VK_EXT_descriptor_buffer */
-#ifdef VK_EXT_descriptor_indexing
-#define NVVK_HAS_VK_EXT_descriptor_indexing
-#endif /* VK_EXT_descriptor_indexing */
-#ifdef VK_EXT_device_address_binding_report
-#define NVVK_HAS_VK_EXT_device_address_binding_report
-#endif /* VK_EXT_device_address_binding_report */
-#ifdef VK_EXT_device_fault
+#if defined(VK_EXT_device_fault)
 #define NVVK_HAS_VK_EXT_device_fault
 #endif /* VK_EXT_device_fault */
-#ifdef VK_EXT_device_memory_report
-#define NVVK_HAS_VK_EXT_device_memory_report
-#endif /* VK_EXT_device_memory_report */
-#ifdef VK_EXT_direct_mode_display
+#if defined(VK_EXT_direct_mode_display)
 #define NVVK_HAS_VK_EXT_direct_mode_display
 #endif /* VK_EXT_direct_mode_display */
-#ifdef VK_EXT_directfb_surface
+#if defined(VK_EXT_directfb_surface)
 #define NVVK_HAS_VK_EXT_directfb_surface
 #endif /* VK_EXT_directfb_surface */
-#ifdef VK_EXT_discard_rectangles
+#if defined(VK_EXT_discard_rectangles)
 #define NVVK_HAS_VK_EXT_discard_rectangles
 #endif /* VK_EXT_discard_rectangles */
-#ifdef VK_EXT_display_control
+#if defined(VK_EXT_display_control)
 #define NVVK_HAS_VK_EXT_display_control
 #endif /* VK_EXT_display_control */
-#ifdef VK_EXT_display_surface_counter
+#if defined(VK_EXT_display_surface_counter)
 #define NVVK_HAS_VK_EXT_display_surface_counter
 #endif /* VK_EXT_display_surface_counter */
-#ifdef VK_EXT_extended_dynamic_state
+#if defined(VK_EXT_extended_dynamic_state)
 #define NVVK_HAS_VK_EXT_extended_dynamic_state
 #endif /* VK_EXT_extended_dynamic_state */
-#ifdef VK_EXT_extended_dynamic_state2
+#if defined(VK_EXT_extended_dynamic_state2)
 #define NVVK_HAS_VK_EXT_extended_dynamic_state2
 #endif /* VK_EXT_extended_dynamic_state2 */
-#ifdef VK_EXT_extended_dynamic_state3
+#if defined(VK_EXT_extended_dynamic_state3)
 #define NVVK_HAS_VK_EXT_extended_dynamic_state3
 #endif /* VK_EXT_extended_dynamic_state3 */
-#ifdef VK_EXT_external_memory_dma_buf
-#define NVVK_HAS_VK_EXT_external_memory_dma_buf
-#endif /* VK_EXT_external_memory_dma_buf */
-#ifdef VK_EXT_external_memory_host
+#if defined(VK_EXT_external_memory_host)
 #define NVVK_HAS_VK_EXT_external_memory_host
 #endif /* VK_EXT_external_memory_host */
-#ifdef VK_EXT_filter_cubic
-#define NVVK_HAS_VK_EXT_filter_cubic
-#endif /* VK_EXT_filter_cubic */
-#ifdef VK_EXT_fragment_density_map
-#define NVVK_HAS_VK_EXT_fragment_density_map
-#endif /* VK_EXT_fragment_density_map */
-#ifdef VK_EXT_fragment_density_map2
-#define NVVK_HAS_VK_EXT_fragment_density_map2
-#endif /* VK_EXT_fragment_density_map2 */
-#ifdef VK_EXT_fragment_shader_interlock
-#define NVVK_HAS_VK_EXT_fragment_shader_interlock
-#endif /* VK_EXT_fragment_shader_interlock */
-#ifdef VK_EXT_full_screen_exclusive
+#if defined(VK_EXT_full_screen_exclusive)
 #define NVVK_HAS_VK_EXT_full_screen_exclusive
 #endif /* VK_EXT_full_screen_exclusive */
-#ifdef VK_EXT_global_priority
-#define NVVK_HAS_VK_EXT_global_priority
-#endif /* VK_EXT_global_priority */
-#ifdef VK_EXT_global_priority_query
-#define NVVK_HAS_VK_EXT_global_priority_query
-#endif /* VK_EXT_global_priority_query */
-#ifdef VK_EXT_graphics_pipeline_library
-#define NVVK_HAS_VK_EXT_graphics_pipeline_library
-#endif /* VK_EXT_graphics_pipeline_library */
-#ifdef VK_EXT_hdr_metadata
+#if defined(VK_EXT_hdr_metadata)
 #define NVVK_HAS_VK_EXT_hdr_metadata
 #endif /* VK_EXT_hdr_metadata */
-#ifdef VK_EXT_headless_surface
+#if defined(VK_EXT_headless_surface)
 #define NVVK_HAS_VK_EXT_headless_surface
 #endif /* VK_EXT_headless_surface */
-#ifdef VK_EXT_host_query_reset
+#if defined(VK_EXT_host_query_reset)
 #define NVVK_HAS_VK_EXT_host_query_reset
 #endif /* VK_EXT_host_query_reset */
-#ifdef VK_EXT_image_2d_view_of_3d
-#define NVVK_HAS_VK_EXT_image_2d_view_of_3d
-#endif /* VK_EXT_image_2d_view_of_3d */
-#ifdef VK_EXT_image_compression_control
+#if defined(VK_EXT_image_compression_control)
 #define NVVK_HAS_VK_EXT_image_compression_control
 #endif /* VK_EXT_image_compression_control */
-#ifdef VK_EXT_image_compression_control_swapchain
-#define NVVK_HAS_VK_EXT_image_compression_control_swapchain
-#endif /* VK_EXT_image_compression_control_swapchain */
-#ifdef VK_EXT_image_drm_format_modifier
+#if defined(VK_EXT_image_drm_format_modifier)
 #define NVVK_HAS_VK_EXT_image_drm_format_modifier
 #endif /* VK_EXT_image_drm_format_modifier */
-#ifdef VK_EXT_image_robustness
-#define NVVK_HAS_VK_EXT_image_robustness
-#endif /* VK_EXT_image_robustness */
-#ifdef VK_EXT_image_view_min_lod
-#define NVVK_HAS_VK_EXT_image_view_min_lod
-#endif /* VK_EXT_image_view_min_lod */
-#ifdef VK_EXT_index_type_uint8
-#define NVVK_HAS_VK_EXT_index_type_uint8
-#endif /* VK_EXT_index_type_uint8 */
-#ifdef VK_EXT_inline_uniform_block
-#define NVVK_HAS_VK_EXT_inline_uniform_block
-#endif /* VK_EXT_inline_uniform_block */
-#ifdef VK_EXT_legacy_dithering
-#define NVVK_HAS_VK_EXT_legacy_dithering
-#endif /* VK_EXT_legacy_dithering */
-#ifdef VK_EXT_line_rasterization
+#if defined(VK_EXT_line_rasterization)
 #define NVVK_HAS_VK_EXT_line_rasterization
 #endif /* VK_EXT_line_rasterization */
-#ifdef VK_EXT_load_store_op_none
-#define NVVK_HAS_VK_EXT_load_store_op_none
-#endif /* VK_EXT_load_store_op_none */
-#ifdef VK_EXT_memory_budget
-#define NVVK_HAS_VK_EXT_memory_budget
-#endif /* VK_EXT_memory_budget */
-#ifdef VK_EXT_memory_priority
-#define NVVK_HAS_VK_EXT_memory_priority
-#endif /* VK_EXT_memory_priority */
-#ifdef VK_EXT_mesh_shader
+#if defined(VK_EXT_mesh_shader)
 #define NVVK_HAS_VK_EXT_mesh_shader
 #endif /* VK_EXT_mesh_shader */
-#ifdef VK_EXT_metal_objects
+#if defined(VK_EXT_metal_objects)
 #define NVVK_HAS_VK_EXT_metal_objects
 #endif /* VK_EXT_metal_objects */
-#ifdef VK_EXT_metal_surface
+#if defined(VK_EXT_metal_surface)
 #define NVVK_HAS_VK_EXT_metal_surface
 #endif /* VK_EXT_metal_surface */
-#ifdef VK_EXT_multi_draw
+#if defined(VK_EXT_multi_draw)
 #define NVVK_HAS_VK_EXT_multi_draw
 #endif /* VK_EXT_multi_draw */
-#ifdef VK_EXT_multisampled_render_to_single_sampled
-#define NVVK_HAS_VK_EXT_multisampled_render_to_single_sampled
-#endif /* VK_EXT_multisampled_render_to_single_sampled */
-#ifdef VK_EXT_mutable_descriptor_type
-#define NVVK_HAS_VK_EXT_mutable_descriptor_type
-#endif /* VK_EXT_mutable_descriptor_type */
-#ifdef VK_EXT_non_seamless_cube_map
-#define NVVK_HAS_VK_EXT_non_seamless_cube_map
-#endif /* VK_EXT_non_seamless_cube_map */
-#ifdef VK_EXT_opacity_micromap
+#if defined(VK_EXT_opacity_micromap)
 #define NVVK_HAS_VK_EXT_opacity_micromap
 #endif /* VK_EXT_opacity_micromap */
-#ifdef VK_EXT_pageable_device_local_memory
+#if defined(VK_EXT_pageable_device_local_memory)
 #define NVVK_HAS_VK_EXT_pageable_device_local_memory
 #endif /* VK_EXT_pageable_device_local_memory */
-#ifdef VK_EXT_pci_bus_info
-#define NVVK_HAS_VK_EXT_pci_bus_info
-#endif /* VK_EXT_pci_bus_info */
-#ifdef VK_EXT_physical_device_drm
-#define NVVK_HAS_VK_EXT_physical_device_drm
-#endif /* VK_EXT_physical_device_drm */
-#ifdef VK_EXT_pipeline_creation_cache_control
-#define NVVK_HAS_VK_EXT_pipeline_creation_cache_control
-#endif /* VK_EXT_pipeline_creation_cache_control */
-#ifdef VK_EXT_pipeline_creation_feedback
-#define NVVK_HAS_VK_EXT_pipeline_creation_feedback
-#endif /* VK_EXT_pipeline_creation_feedback */
-#ifdef VK_EXT_pipeline_properties
+#if defined(VK_EXT_pipeline_properties)
 #define NVVK_HAS_VK_EXT_pipeline_properties
 #endif /* VK_EXT_pipeline_properties */
-#ifdef VK_EXT_pipeline_protected_access
-#define NVVK_HAS_VK_EXT_pipeline_protected_access
-#endif /* VK_EXT_pipeline_protected_access */
-#ifdef VK_EXT_pipeline_robustness
-#define NVVK_HAS_VK_EXT_pipeline_robustness
-#endif /* VK_EXT_pipeline_robustness */
-#ifdef VK_EXT_post_depth_coverage
-#define NVVK_HAS_VK_EXT_post_depth_coverage
-#endif /* VK_EXT_post_depth_coverage */
-#ifdef VK_EXT_primitive_topology_list_restart
-#define NVVK_HAS_VK_EXT_primitive_topology_list_restart
-#endif /* VK_EXT_primitive_topology_list_restart */
-#ifdef VK_EXT_primitives_generated_query
-#define NVVK_HAS_VK_EXT_primitives_generated_query
-#endif /* VK_EXT_primitives_generated_query */
-#ifdef VK_EXT_private_data
+#if defined(VK_EXT_private_data)
 #define NVVK_HAS_VK_EXT_private_data
 #endif /* VK_EXT_private_data */
-#ifdef VK_EXT_provoking_vertex
-#define NVVK_HAS_VK_EXT_provoking_vertex
-#endif /* VK_EXT_provoking_vertex */
-#ifdef VK_EXT_queue_family_foreign
-#define NVVK_HAS_VK_EXT_queue_family_foreign
-#endif /* VK_EXT_queue_family_foreign */
-#ifdef VK_EXT_rasterization_order_attachment_access
-#define NVVK_HAS_VK_EXT_rasterization_order_attachment_access
-#endif /* VK_EXT_rasterization_order_attachment_access */
-#ifdef VK_EXT_rgba10x6_formats
-#define NVVK_HAS_VK_EXT_rgba10x6_formats
-#endif /* VK_EXT_rgba10x6_formats */
-#ifdef VK_EXT_robustness2
-#define NVVK_HAS_VK_EXT_robustness2
-#endif /* VK_EXT_robustness2 */
-#ifdef VK_EXT_sample_locations
+#if defined(VK_EXT_sample_locations)
 #define NVVK_HAS_VK_EXT_sample_locations
 #endif /* VK_EXT_sample_locations */
-#ifdef VK_EXT_sampler_filter_minmax
-#define NVVK_HAS_VK_EXT_sampler_filter_minmax
-#endif /* VK_EXT_sampler_filter_minmax */
-#ifdef VK_EXT_scalar_block_layout
-#define NVVK_HAS_VK_EXT_scalar_block_layout
-#endif /* VK_EXT_scalar_block_layout */
-#ifdef VK_EXT_separate_stencil_usage
-#define NVVK_HAS_VK_EXT_separate_stencil_usage
-#endif /* VK_EXT_separate_stencil_usage */
-#ifdef VK_EXT_shader_atomic_float
-#define NVVK_HAS_VK_EXT_shader_atomic_float
-#endif /* VK_EXT_shader_atomic_float */
-#ifdef VK_EXT_shader_atomic_float2
-#define NVVK_HAS_VK_EXT_shader_atomic_float2
-#endif /* VK_EXT_shader_atomic_float2 */
-#ifdef VK_EXT_shader_demote_to_helper_invocation
-#define NVVK_HAS_VK_EXT_shader_demote_to_helper_invocation
-#endif /* VK_EXT_shader_demote_to_helper_invocation */
-#ifdef VK_EXT_shader_image_atomic_int64
-#define NVVK_HAS_VK_EXT_shader_image_atomic_int64
-#endif /* VK_EXT_shader_image_atomic_int64 */
-#ifdef VK_EXT_shader_module_identifier
+#if defined(VK_EXT_shader_module_identifier)
 #define NVVK_HAS_VK_EXT_shader_module_identifier
 #endif /* VK_EXT_shader_module_identifier */
-#ifdef VK_EXT_shader_stencil_export
-#define NVVK_HAS_VK_EXT_shader_stencil_export
-#endif /* VK_EXT_shader_stencil_export */
-#ifdef VK_EXT_shader_subgroup_ballot
-#define NVVK_HAS_VK_EXT_shader_subgroup_ballot
-#endif /* VK_EXT_shader_subgroup_ballot */
-#ifdef VK_EXT_shader_subgroup_vote
-#define NVVK_HAS_VK_EXT_shader_subgroup_vote
-#endif /* VK_EXT_shader_subgroup_vote */
-#ifdef VK_EXT_shader_viewport_index_layer
-#define NVVK_HAS_VK_EXT_shader_viewport_index_layer
-#endif /* VK_EXT_shader_viewport_index_layer */
-#ifdef VK_EXT_subgroup_size_control
-#define NVVK_HAS_VK_EXT_subgroup_size_control
-#endif /* VK_EXT_subgroup_size_control */
-#ifdef VK_EXT_subpass_merge_feedback
-#define NVVK_HAS_VK_EXT_subpass_merge_feedback
-#endif /* VK_EXT_subpass_merge_feedback */
-#ifdef VK_EXT_swapchain_colorspace
-#define NVVK_HAS_VK_EXT_swapchain_colorspace
-#endif /* VK_EXT_swapchain_colorspace */
-#ifdef VK_EXT_texel_buffer_alignment
-#define NVVK_HAS_VK_EXT_texel_buffer_alignment
-#endif /* VK_EXT_texel_buffer_alignment */
-#ifdef VK_EXT_texture_compression_astc_hdr
-#define NVVK_HAS_VK_EXT_texture_compression_astc_hdr
-#endif /* VK_EXT_texture_compression_astc_hdr */
-#ifdef VK_EXT_tooling_info
+#if defined(VK_EXT_shader_object)
+#define NVVK_HAS_VK_EXT_shader_object
+#endif /* VK_EXT_shader_object */
+#if defined(VK_EXT_swapchain_maintenance1)
+#define NVVK_HAS_VK_EXT_swapchain_maintenance1
+#endif /* VK_EXT_swapchain_maintenance1 */
+#if defined(VK_EXT_tooling_info)
 #define NVVK_HAS_VK_EXT_tooling_info
 #endif /* VK_EXT_tooling_info */
-#ifdef VK_EXT_transform_feedback
+#if defined(VK_EXT_transform_feedback)
 #define NVVK_HAS_VK_EXT_transform_feedback
 #endif /* VK_EXT_transform_feedback */
-#ifdef VK_EXT_validation_cache
+#if defined(VK_EXT_validation_cache)
 #define NVVK_HAS_VK_EXT_validation_cache
 #endif /* VK_EXT_validation_cache */
-#ifdef VK_EXT_validation_features
-#define NVVK_HAS_VK_EXT_validation_features
-#endif /* VK_EXT_validation_features */
-#ifdef VK_EXT_validation_flags
-#define NVVK_HAS_VK_EXT_validation_flags
-#endif /* VK_EXT_validation_flags */
-#ifdef VK_EXT_vertex_attribute_divisor
-#define NVVK_HAS_VK_EXT_vertex_attribute_divisor
-#endif /* VK_EXT_vertex_attribute_divisor */
-#ifdef VK_EXT_vertex_input_dynamic_state
+#if defined(VK_EXT_vertex_input_dynamic_state)
 #define NVVK_HAS_VK_EXT_vertex_input_dynamic_state
 #endif /* VK_EXT_vertex_input_dynamic_state */
-#ifdef VK_EXT_ycbcr_2plane_444_formats
-#define NVVK_HAS_VK_EXT_ycbcr_2plane_444_formats
-#endif /* VK_EXT_ycbcr_2plane_444_formats */
-#ifdef VK_EXT_ycbcr_image_arrays
-#define NVVK_HAS_VK_EXT_ycbcr_image_arrays
-#endif /* VK_EXT_ycbcr_image_arrays */
-#ifdef VK_FUCHSIA_buffer_collection
+#if defined(VK_FUCHSIA_buffer_collection)
 #define NVVK_HAS_VK_FUCHSIA_buffer_collection
 #endif /* VK_FUCHSIA_buffer_collection */
-#ifdef VK_FUCHSIA_external_memory
+#if defined(VK_FUCHSIA_external_memory)
 #define NVVK_HAS_VK_FUCHSIA_external_memory
 #endif /* VK_FUCHSIA_external_memory */
-#ifdef VK_FUCHSIA_external_semaphore
+#if defined(VK_FUCHSIA_external_semaphore)
 #define NVVK_HAS_VK_FUCHSIA_external_semaphore
 #endif /* VK_FUCHSIA_external_semaphore */
-#ifdef VK_FUCHSIA_imagepipe_surface
+#if defined(VK_FUCHSIA_imagepipe_surface)
 #define NVVK_HAS_VK_FUCHSIA_imagepipe_surface
 #endif /* VK_FUCHSIA_imagepipe_surface */
-#ifdef VK_GGP_frame_token
-#define NVVK_HAS_VK_GGP_frame_token
-#endif /* VK_GGP_frame_token */
-#ifdef VK_GGP_stream_descriptor_surface
+#if defined(VK_GGP_stream_descriptor_surface)
 #define NVVK_HAS_VK_GGP_stream_descriptor_surface
 #endif /* VK_GGP_stream_descriptor_surface */
-#ifdef VK_GOOGLE_decorate_string
-#define NVVK_HAS_VK_GOOGLE_decorate_string
-#endif /* VK_GOOGLE_decorate_string */
-#ifdef VK_GOOGLE_display_timing
+#if defined(VK_GOOGLE_display_timing)
 #define NVVK_HAS_VK_GOOGLE_display_timing
 #endif /* VK_GOOGLE_display_timing */
-#ifdef VK_GOOGLE_hlsl_functionality1
-#define NVVK_HAS_VK_GOOGLE_hlsl_functionality1
-#endif /* VK_GOOGLE_hlsl_functionality1 */
-#ifdef VK_GOOGLE_surfaceless_query
-#define NVVK_HAS_VK_GOOGLE_surfaceless_query
-#endif /* VK_GOOGLE_surfaceless_query */
-#ifdef VK_GOOGLE_user_type
-#define NVVK_HAS_VK_GOOGLE_user_type
-#endif /* VK_GOOGLE_user_type */
-#ifdef VK_HUAWEI_invocation_mask
+#if defined(VK_HUAWEI_cluster_culling_shader)
+#define NVVK_HAS_VK_HUAWEI_cluster_culling_shader
+#endif /* VK_HUAWEI_cluster_culling_shader */
+#if defined(VK_HUAWEI_invocation_mask)
 #define NVVK_HAS_VK_HUAWEI_invocation_mask
 #endif /* VK_HUAWEI_invocation_mask */
-#ifdef VK_HUAWEI_subpass_shading
+#if defined(VK_HUAWEI_subpass_shading)
 #define NVVK_HAS_VK_HUAWEI_subpass_shading
 #endif /* VK_HUAWEI_subpass_shading */
-#ifdef VK_IMG_filter_cubic
-#define NVVK_HAS_VK_IMG_filter_cubic
-#endif /* VK_IMG_filter_cubic */
-#ifdef VK_IMG_format_pvrtc
-#define NVVK_HAS_VK_IMG_format_pvrtc
-#endif /* VK_IMG_format_pvrtc */
-#ifdef VK_INTEL_performance_query
+#if defined(VK_INTEL_performance_query)
 #define NVVK_HAS_VK_INTEL_performance_query
 #endif /* VK_INTEL_performance_query */
-#ifdef VK_INTEL_shader_integer_functions2
-#define NVVK_HAS_VK_INTEL_shader_integer_functions2
-#endif /* VK_INTEL_shader_integer_functions2 */
-#ifdef VK_KHR_16bit_storage
-#define NVVK_HAS_VK_KHR_16bit_storage
-#endif /* VK_KHR_16bit_storage */
-#ifdef VK_KHR_8bit_storage
-#define NVVK_HAS_VK_KHR_8bit_storage
-#endif /* VK_KHR_8bit_storage */
-#ifdef VK_KHR_acceleration_structure
+#if defined(VK_KHR_acceleration_structure)
 #define NVVK_HAS_VK_KHR_acceleration_structure
 #endif /* VK_KHR_acceleration_structure */
-#ifdef VK_KHR_android_surface
+#if defined(VK_KHR_android_surface)
 #define NVVK_HAS_VK_KHR_android_surface
 #endif /* VK_KHR_android_surface */
-#ifdef VK_KHR_bind_memory2
+#if defined(VK_KHR_bind_memory2)
 #define NVVK_HAS_VK_KHR_bind_memory2
 #endif /* VK_KHR_bind_memory2 */
-#ifdef VK_KHR_buffer_device_address
+#if defined(VK_KHR_buffer_device_address)
 #define NVVK_HAS_VK_KHR_buffer_device_address
 #endif /* VK_KHR_buffer_device_address */
-#ifdef VK_KHR_copy_commands2
+#if defined(VK_KHR_copy_commands2)
 #define NVVK_HAS_VK_KHR_copy_commands2
 #endif /* VK_KHR_copy_commands2 */
-#ifdef VK_KHR_create_renderpass2
+#if defined(VK_KHR_create_renderpass2)
 #define NVVK_HAS_VK_KHR_create_renderpass2
 #endif /* VK_KHR_create_renderpass2 */
-#ifdef VK_KHR_dedicated_allocation
-#define NVVK_HAS_VK_KHR_dedicated_allocation
-#endif /* VK_KHR_dedicated_allocation */
-#ifdef VK_KHR_deferred_host_operations
+#if defined(VK_KHR_deferred_host_operations)
 #define NVVK_HAS_VK_KHR_deferred_host_operations
 #endif /* VK_KHR_deferred_host_operations */
-#ifdef VK_KHR_depth_stencil_resolve
-#define NVVK_HAS_VK_KHR_depth_stencil_resolve
-#endif /* VK_KHR_depth_stencil_resolve */
-#ifdef VK_KHR_descriptor_update_template
+#if defined(VK_KHR_descriptor_update_template)
 #define NVVK_HAS_VK_KHR_descriptor_update_template
 #endif /* VK_KHR_descriptor_update_template */
-#ifdef VK_KHR_device_group
+#if defined(VK_KHR_device_group)
 #define NVVK_HAS_VK_KHR_device_group
 #endif /* VK_KHR_device_group */
-#ifdef VK_KHR_device_group_creation
+#if defined(VK_KHR_device_group_creation)
 #define NVVK_HAS_VK_KHR_device_group_creation
 #endif /* VK_KHR_device_group_creation */
-#ifdef VK_KHR_draw_indirect_count
+#if defined(VK_KHR_draw_indirect_count)
 #define NVVK_HAS_VK_KHR_draw_indirect_count
 #endif /* VK_KHR_draw_indirect_count */
-#ifdef VK_KHR_driver_properties
-#define NVVK_HAS_VK_KHR_driver_properties
-#endif /* VK_KHR_driver_properties */
-#ifdef VK_KHR_dynamic_rendering
+#if defined(VK_KHR_dynamic_rendering)
 #define NVVK_HAS_VK_KHR_dynamic_rendering
 #endif /* VK_KHR_dynamic_rendering */
-#ifdef VK_KHR_external_fence
-#define NVVK_HAS_VK_KHR_external_fence
-#endif /* VK_KHR_external_fence */
-#ifdef VK_KHR_external_fence_capabilities
+#if defined(VK_KHR_external_fence_capabilities)
 #define NVVK_HAS_VK_KHR_external_fence_capabilities
 #endif /* VK_KHR_external_fence_capabilities */
-#ifdef VK_KHR_external_fence_fd
+#if defined(VK_KHR_external_fence_fd)
 #define NVVK_HAS_VK_KHR_external_fence_fd
 #endif /* VK_KHR_external_fence_fd */
-#ifdef VK_KHR_external_fence_win32
+#if defined(VK_KHR_external_fence_win32)
 #define NVVK_HAS_VK_KHR_external_fence_win32
 #endif /* VK_KHR_external_fence_win32 */
-#ifdef VK_KHR_external_memory
-#define NVVK_HAS_VK_KHR_external_memory
-#endif /* VK_KHR_external_memory */
-#ifdef VK_KHR_external_memory_capabilities
+#if defined(VK_KHR_external_memory_capabilities)
 #define NVVK_HAS_VK_KHR_external_memory_capabilities
 #endif /* VK_KHR_external_memory_capabilities */
-#ifdef VK_KHR_external_memory_fd
+#if defined(VK_KHR_external_memory_fd)
 #define NVVK_HAS_VK_KHR_external_memory_fd
 #endif /* VK_KHR_external_memory_fd */
-#ifdef VK_KHR_external_memory_win32
+#if defined(VK_KHR_external_memory_win32)
 #define NVVK_HAS_VK_KHR_external_memory_win32
 #endif /* VK_KHR_external_memory_win32 */
-#ifdef VK_KHR_external_semaphore
-#define NVVK_HAS_VK_KHR_external_semaphore
-#endif /* VK_KHR_external_semaphore */
-#ifdef VK_KHR_external_semaphore_capabilities
+#if defined(VK_KHR_external_semaphore_capabilities)
 #define NVVK_HAS_VK_KHR_external_semaphore_capabilities
 #endif /* VK_KHR_external_semaphore_capabilities */
-#ifdef VK_KHR_external_semaphore_fd
+#if defined(VK_KHR_external_semaphore_fd)
 #define NVVK_HAS_VK_KHR_external_semaphore_fd
 #endif /* VK_KHR_external_semaphore_fd */
-#ifdef VK_KHR_external_semaphore_win32
+#if defined(VK_KHR_external_semaphore_win32)
 #define NVVK_HAS_VK_KHR_external_semaphore_win32
 #endif /* VK_KHR_external_semaphore_win32 */
-#ifdef VK_KHR_format_feature_flags2
-#define NVVK_HAS_VK_KHR_format_feature_flags2
-#endif /* VK_KHR_format_feature_flags2 */
-#ifdef VK_KHR_fragment_shader_barycentric
-#define NVVK_HAS_VK_KHR_fragment_shader_barycentric
-#endif /* VK_KHR_fragment_shader_barycentric */
-#ifdef VK_KHR_fragment_shading_rate
+#if defined(VK_KHR_fragment_shading_rate)
 #define NVVK_HAS_VK_KHR_fragment_shading_rate
 #endif /* VK_KHR_fragment_shading_rate */
-#ifdef VK_KHR_get_memory_requirements2
+#if defined(VK_KHR_get_memory_requirements2)
 #define NVVK_HAS_VK_KHR_get_memory_requirements2
 #endif /* VK_KHR_get_memory_requirements2 */
-#ifdef VK_KHR_get_physical_device_properties2
+#if defined(VK_KHR_get_physical_device_properties2)
 #define NVVK_HAS_VK_KHR_get_physical_device_properties2
 #endif /* VK_KHR_get_physical_device_properties2 */
-#ifdef VK_KHR_global_priority
-#define NVVK_HAS_VK_KHR_global_priority
-#endif /* VK_KHR_global_priority */
-#ifdef VK_KHR_image_format_list
-#define NVVK_HAS_VK_KHR_image_format_list
-#endif /* VK_KHR_image_format_list */
-#ifdef VK_KHR_imageless_framebuffer
-#define NVVK_HAS_VK_KHR_imageless_framebuffer
-#endif /* VK_KHR_imageless_framebuffer */
-#ifdef VK_KHR_incremental_present
-#define NVVK_HAS_VK_KHR_incremental_present
-#endif /* VK_KHR_incremental_present */
-#ifdef VK_KHR_maintenance1
+#if defined(VK_KHR_maintenance1)
 #define NVVK_HAS_VK_KHR_maintenance1
 #endif /* VK_KHR_maintenance1 */
-#ifdef VK_KHR_maintenance2
-#define NVVK_HAS_VK_KHR_maintenance2
-#endif /* VK_KHR_maintenance2 */
-#ifdef VK_KHR_maintenance3
+#if defined(VK_KHR_maintenance3)
 #define NVVK_HAS_VK_KHR_maintenance3
 #endif /* VK_KHR_maintenance3 */
-#ifdef VK_KHR_maintenance4
+#if defined(VK_KHR_maintenance4)
 #define NVVK_HAS_VK_KHR_maintenance4
 #endif /* VK_KHR_maintenance4 */
-#ifdef VK_KHR_multiview
-#define NVVK_HAS_VK_KHR_multiview
-#endif /* VK_KHR_multiview */
-#ifdef VK_KHR_performance_query
+#if defined(VK_KHR_map_memory2)
+#define NVVK_HAS_VK_KHR_map_memory2
+#endif /* VK_KHR_map_memory2 */
+#if defined(VK_KHR_performance_query)
 #define NVVK_HAS_VK_KHR_performance_query
 #endif /* VK_KHR_performance_query */
-#ifdef VK_KHR_pipeline_executable_properties
+#if defined(VK_KHR_pipeline_executable_properties)
 #define NVVK_HAS_VK_KHR_pipeline_executable_properties
 #endif /* VK_KHR_pipeline_executable_properties */
-#ifdef VK_KHR_pipeline_library
-#define NVVK_HAS_VK_KHR_pipeline_library
-#endif /* VK_KHR_pipeline_library */
-#ifdef VK_KHR_portability_enumeration
-#define NVVK_HAS_VK_KHR_portability_enumeration
-#endif /* VK_KHR_portability_enumeration */
-#ifdef VK_KHR_present_id
-#define NVVK_HAS_VK_KHR_present_id
-#endif /* VK_KHR_present_id */
-#ifdef VK_KHR_present_wait
+#if defined(VK_KHR_present_wait)
 #define NVVK_HAS_VK_KHR_present_wait
 #endif /* VK_KHR_present_wait */
-#ifdef VK_KHR_push_descriptor
+#if defined(VK_KHR_push_descriptor)
 #define NVVK_HAS_VK_KHR_push_descriptor
 #endif /* VK_KHR_push_descriptor */
-#ifdef VK_KHR_ray_query
-#define NVVK_HAS_VK_KHR_ray_query
-#endif /* VK_KHR_ray_query */
-#ifdef VK_KHR_ray_tracing_maintenance1
+#if defined(VK_KHR_ray_tracing_maintenance1)
 #define NVVK_HAS_VK_KHR_ray_tracing_maintenance1
 #endif /* VK_KHR_ray_tracing_maintenance1 */
-#ifdef VK_KHR_ray_tracing_pipeline
+#if defined(VK_KHR_ray_tracing_pipeline)
 #define NVVK_HAS_VK_KHR_ray_tracing_pipeline
 #endif /* VK_KHR_ray_tracing_pipeline */
-#ifdef VK_KHR_relaxed_block_layout
-#define NVVK_HAS_VK_KHR_relaxed_block_layout
-#endif /* VK_KHR_relaxed_block_layout */
-#ifdef VK_KHR_sampler_mirror_clamp_to_edge
-#define NVVK_HAS_VK_KHR_sampler_mirror_clamp_to_edge
-#endif /* VK_KHR_sampler_mirror_clamp_to_edge */
-#ifdef VK_KHR_sampler_ycbcr_conversion
+#if defined(VK_KHR_sampler_ycbcr_conversion)
 #define NVVK_HAS_VK_KHR_sampler_ycbcr_conversion
 #endif /* VK_KHR_sampler_ycbcr_conversion */
-#ifdef VK_KHR_separate_depth_stencil_layouts
-#define NVVK_HAS_VK_KHR_separate_depth_stencil_layouts
-#endif /* VK_KHR_separate_depth_stencil_layouts */
-#ifdef VK_KHR_shader_atomic_int64
-#define NVVK_HAS_VK_KHR_shader_atomic_int64
-#endif /* VK_KHR_shader_atomic_int64 */
-#ifdef VK_KHR_shader_clock
-#define NVVK_HAS_VK_KHR_shader_clock
-#endif /* VK_KHR_shader_clock */
-#ifdef VK_KHR_shader_draw_parameters
-#define NVVK_HAS_VK_KHR_shader_draw_parameters
-#endif /* VK_KHR_shader_draw_parameters */
-#ifdef VK_KHR_shader_float16_int8
-#define NVVK_HAS_VK_KHR_shader_float16_int8
-#endif /* VK_KHR_shader_float16_int8 */
-#ifdef VK_KHR_shader_float_controls
-#define NVVK_HAS_VK_KHR_shader_float_controls
-#endif /* VK_KHR_shader_float_controls */
-#ifdef VK_KHR_shader_integer_dot_product
-#define NVVK_HAS_VK_KHR_shader_integer_dot_product
-#endif /* VK_KHR_shader_integer_dot_product */
-#ifdef VK_KHR_shader_non_semantic_info
-#define NVVK_HAS_VK_KHR_shader_non_semantic_info
-#endif /* VK_KHR_shader_non_semantic_info */
-#ifdef VK_KHR_shader_subgroup_extended_types
-#define NVVK_HAS_VK_KHR_shader_subgroup_extended_types
-#endif /* VK_KHR_shader_subgroup_extended_types */
-#ifdef VK_KHR_shader_subgroup_uniform_control_flow
-#define NVVK_HAS_VK_KHR_shader_subgroup_uniform_control_flow
-#endif /* VK_KHR_shader_subgroup_uniform_control_flow */
-#ifdef VK_KHR_shader_terminate_invocation
-#define NVVK_HAS_VK_KHR_shader_terminate_invocation
-#endif /* VK_KHR_shader_terminate_invocation */
-#ifdef VK_KHR_shared_presentable_image
+#if defined(VK_KHR_shared_presentable_image)
 #define NVVK_HAS_VK_KHR_shared_presentable_image
 #endif /* VK_KHR_shared_presentable_image */
-#ifdef VK_KHR_spirv_1_4
-#define NVVK_HAS_VK_KHR_spirv_1_4
-#endif /* VK_KHR_spirv_1_4 */
-#ifdef VK_KHR_storage_buffer_storage_class
-#define NVVK_HAS_VK_KHR_storage_buffer_storage_class
-#endif /* VK_KHR_storage_buffer_storage_class */
-#ifdef VK_KHR_surface_protected_capabilities
-#define NVVK_HAS_VK_KHR_surface_protected_capabilities
-#endif /* VK_KHR_surface_protected_capabilities */
-#ifdef VK_KHR_swapchain_mutable_format
-#define NVVK_HAS_VK_KHR_swapchain_mutable_format
-#endif /* VK_KHR_swapchain_mutable_format */
-#ifdef VK_KHR_synchronization2
+#if defined(VK_KHR_synchronization2)
 #define NVVK_HAS_VK_KHR_synchronization2
 #endif /* VK_KHR_synchronization2 */
-#ifdef VK_KHR_timeline_semaphore
+#if defined(VK_KHR_timeline_semaphore)
 #define NVVK_HAS_VK_KHR_timeline_semaphore
 #endif /* VK_KHR_timeline_semaphore */
-#ifdef VK_KHR_uniform_buffer_standard_layout
-#define NVVK_HAS_VK_KHR_uniform_buffer_standard_layout
-#endif /* VK_KHR_uniform_buffer_standard_layout */
-#ifdef VK_KHR_variable_pointers
-#define NVVK_HAS_VK_KHR_variable_pointers
-#endif /* VK_KHR_variable_pointers */
-#ifdef VK_KHR_vulkan_memory_model
-#define NVVK_HAS_VK_KHR_vulkan_memory_model
-#endif /* VK_KHR_vulkan_memory_model */
-#ifdef VK_KHR_win32_keyed_mutex
-#define NVVK_HAS_VK_KHR_win32_keyed_mutex
-#endif /* VK_KHR_win32_keyed_mutex */
-#ifdef VK_KHR_workgroup_memory_explicit_layout
-#define NVVK_HAS_VK_KHR_workgroup_memory_explicit_layout
-#endif /* VK_KHR_workgroup_memory_explicit_layout */
-#ifdef VK_KHR_zero_initialize_workgroup_memory
-#define NVVK_HAS_VK_KHR_zero_initialize_workgroup_memory
-#endif /* VK_KHR_zero_initialize_workgroup_memory */
-#ifdef VK_LUNARG_direct_driver_loading
-#define NVVK_HAS_VK_LUNARG_direct_driver_loading
-#endif /* VK_LUNARG_direct_driver_loading */
-#ifdef VK_MVK_ios_surface
+#if defined(VK_KHR_video_decode_queue)
+#define NVVK_HAS_VK_KHR_video_decode_queue
+#endif /* VK_KHR_video_decode_queue */
+#if defined(VK_KHR_video_queue)
+#define NVVK_HAS_VK_KHR_video_queue
+#endif /* VK_KHR_video_queue */
+#if defined(VK_MVK_ios_surface)
 #define NVVK_HAS_VK_MVK_ios_surface
 #endif /* VK_MVK_ios_surface */
-#ifdef VK_MVK_macos_surface
+#if defined(VK_MVK_macos_surface)
 #define NVVK_HAS_VK_MVK_macos_surface
 #endif /* VK_MVK_macos_surface */
-#ifdef VK_NN_vi_surface
+#if defined(VK_NN_vi_surface)
 #define NVVK_HAS_VK_NN_vi_surface
 #endif /* VK_NN_vi_surface */
-#ifdef VK_NVX_binary_import
+#if defined(VK_NVX_binary_import)
 #define NVVK_HAS_VK_NVX_binary_import
 #endif /* VK_NVX_binary_import */
-#ifdef VK_NVX_image_view_handle
+#if defined(VK_NVX_image_view_handle)
 #define NVVK_HAS_VK_NVX_image_view_handle
 #endif /* VK_NVX_image_view_handle */
-#ifdef VK_NVX_multiview_per_view_attributes
-#define NVVK_HAS_VK_NVX_multiview_per_view_attributes
-#endif /* VK_NVX_multiview_per_view_attributes */
-#ifdef VK_NV_acquire_winrt_display
+#if defined(VK_NV_acquire_winrt_display)
 #define NVVK_HAS_VK_NV_acquire_winrt_display
 #endif /* VK_NV_acquire_winrt_display */
-#ifdef VK_NV_clip_space_w_scaling
+#if defined(VK_NV_clip_space_w_scaling)
 #define NVVK_HAS_VK_NV_clip_space_w_scaling
 #endif /* VK_NV_clip_space_w_scaling */
-#ifdef VK_NV_compute_shader_derivatives
-#define NVVK_HAS_VK_NV_compute_shader_derivatives
-#endif /* VK_NV_compute_shader_derivatives */
-#ifdef VK_NV_cooperative_matrix
+#if defined(VK_NV_cooperative_matrix)
 #define NVVK_HAS_VK_NV_cooperative_matrix
 #endif /* VK_NV_cooperative_matrix */
-#ifdef VK_NV_copy_memory_indirect
+#if defined(VK_NV_copy_memory_indirect)
 #define NVVK_HAS_VK_NV_copy_memory_indirect
 #endif /* VK_NV_copy_memory_indirect */
-#ifdef VK_NV_corner_sampled_image
-#define NVVK_HAS_VK_NV_corner_sampled_image
-#endif /* VK_NV_corner_sampled_image */
-#ifdef VK_NV_coverage_reduction_mode
+#if defined(VK_NV_coverage_reduction_mode)
 #define NVVK_HAS_VK_NV_coverage_reduction_mode
 #endif /* VK_NV_coverage_reduction_mode */
-#ifdef VK_NV_dedicated_allocation
-#define NVVK_HAS_VK_NV_dedicated_allocation
-#endif /* VK_NV_dedicated_allocation */
-#ifdef VK_NV_dedicated_allocation_image_aliasing
-#define NVVK_HAS_VK_NV_dedicated_allocation_image_aliasing
-#endif /* VK_NV_dedicated_allocation_image_aliasing */
-#ifdef VK_NV_device_diagnostic_checkpoints
+#if defined(VK_NV_device_diagnostic_checkpoints)
 #define NVVK_HAS_VK_NV_device_diagnostic_checkpoints
 #endif /* VK_NV_device_diagnostic_checkpoints */
-#ifdef VK_NV_device_diagnostics_config
-#define NVVK_HAS_VK_NV_device_diagnostics_config
-#endif /* VK_NV_device_diagnostics_config */
-#ifdef VK_NV_device_generated_commands
+#if defined(VK_NV_device_generated_commands)
 #define NVVK_HAS_VK_NV_device_generated_commands
 #endif /* VK_NV_device_generated_commands */
-#ifdef VK_NV_external_memory
-#define NVVK_HAS_VK_NV_external_memory
-#endif /* VK_NV_external_memory */
-#ifdef VK_NV_external_memory_capabilities
+#if defined(VK_NV_external_memory_capabilities)
 #define NVVK_HAS_VK_NV_external_memory_capabilities
 #endif /* VK_NV_external_memory_capabilities */
-#ifdef VK_NV_external_memory_rdma
+#if defined(VK_NV_external_memory_rdma)
 #define NVVK_HAS_VK_NV_external_memory_rdma
 #endif /* VK_NV_external_memory_rdma */
-#ifdef VK_NV_external_memory_win32
+#if defined(VK_NV_external_memory_win32)
 #define NVVK_HAS_VK_NV_external_memory_win32
 #endif /* VK_NV_external_memory_win32 */
-#ifdef VK_NV_fill_rectangle
-#define NVVK_HAS_VK_NV_fill_rectangle
-#endif /* VK_NV_fill_rectangle */
-#ifdef VK_NV_fragment_coverage_to_color
-#define NVVK_HAS_VK_NV_fragment_coverage_to_color
-#endif /* VK_NV_fragment_coverage_to_color */
-#ifdef VK_NV_fragment_shader_barycentric
-#define NVVK_HAS_VK_NV_fragment_shader_barycentric
-#endif /* VK_NV_fragment_shader_barycentric */
-#ifdef VK_NV_fragment_shading_rate_enums
+#if defined(VK_NV_fragment_shading_rate_enums)
 #define NVVK_HAS_VK_NV_fragment_shading_rate_enums
 #endif /* VK_NV_fragment_shading_rate_enums */
-#ifdef VK_NV_framebuffer_mixed_samples
-#define NVVK_HAS_VK_NV_framebuffer_mixed_samples
-#endif /* VK_NV_framebuffer_mixed_samples */
-#ifdef VK_NV_geometry_shader_passthrough
-#define NVVK_HAS_VK_NV_geometry_shader_passthrough
-#endif /* VK_NV_geometry_shader_passthrough */
-#ifdef VK_NV_glsl_shader
-#define NVVK_HAS_VK_NV_glsl_shader
-#endif /* VK_NV_glsl_shader */
-#ifdef VK_NV_inherited_viewport_scissor
-#define NVVK_HAS_VK_NV_inherited_viewport_scissor
-#endif /* VK_NV_inherited_viewport_scissor */
-#ifdef VK_NV_linear_color_attachment
-#define NVVK_HAS_VK_NV_linear_color_attachment
-#endif /* VK_NV_linear_color_attachment */
-#ifdef VK_NV_memory_decompression
+#if defined(VK_NV_memory_decompression)
 #define NVVK_HAS_VK_NV_memory_decompression
 #endif /* VK_NV_memory_decompression */
-#ifdef VK_NV_mesh_shader
+#if defined(VK_NV_mesh_shader)
 #define NVVK_HAS_VK_NV_mesh_shader
 #endif /* VK_NV_mesh_shader */
-#ifdef VK_NV_optical_flow
+#if defined(VK_NV_optical_flow)
 #define NVVK_HAS_VK_NV_optical_flow
 #endif /* VK_NV_optical_flow */
-#ifdef VK_NV_present_barrier
-#define NVVK_HAS_VK_NV_present_barrier
-#endif /* VK_NV_present_barrier */
-#ifdef VK_NV_ray_tracing
+#if defined(VK_NV_ray_tracing)
 #define NVVK_HAS_VK_NV_ray_tracing
 #endif /* VK_NV_ray_tracing */
-#ifdef VK_NV_ray_tracing_invocation_reorder
-#define NVVK_HAS_VK_NV_ray_tracing_invocation_reorder
-#endif /* VK_NV_ray_tracing_invocation_reorder */
-#ifdef VK_NV_ray_tracing_motion_blur
-#define NVVK_HAS_VK_NV_ray_tracing_motion_blur
-#endif /* VK_NV_ray_tracing_motion_blur */
-#ifdef VK_NV_representative_fragment_test
-#define NVVK_HAS_VK_NV_representative_fragment_test
-#endif /* VK_NV_representative_fragment_test */
-#ifdef VK_NV_sample_mask_override_coverage
-#define NVVK_HAS_VK_NV_sample_mask_override_coverage
-#endif /* VK_NV_sample_mask_override_coverage */
-#ifdef VK_NV_scissor_exclusive
+#if defined(VK_NV_scissor_exclusive)
 #define NVVK_HAS_VK_NV_scissor_exclusive
 #endif /* VK_NV_scissor_exclusive */
-#ifdef VK_NV_shader_image_footprint
-#define NVVK_HAS_VK_NV_shader_image_footprint
-#endif /* VK_NV_shader_image_footprint */
-#ifdef VK_NV_shader_sm_builtins
-#define NVVK_HAS_VK_NV_shader_sm_builtins
-#endif /* VK_NV_shader_sm_builtins */
-#ifdef VK_NV_shader_subgroup_partitioned
-#define NVVK_HAS_VK_NV_shader_subgroup_partitioned
-#endif /* VK_NV_shader_subgroup_partitioned */
-#ifdef VK_NV_shading_rate_image
+#if defined(VK_NV_shading_rate_image)
 #define NVVK_HAS_VK_NV_shading_rate_image
 #endif /* VK_NV_shading_rate_image */
-#ifdef VK_NV_viewport_array2
-#define NVVK_HAS_VK_NV_viewport_array2
-#endif /* VK_NV_viewport_array2 */
-#ifdef VK_NV_viewport_swizzle
-#define NVVK_HAS_VK_NV_viewport_swizzle
-#endif /* VK_NV_viewport_swizzle */
-#ifdef VK_NV_win32_keyed_mutex
-#define NVVK_HAS_VK_NV_win32_keyed_mutex
-#endif /* VK_NV_win32_keyed_mutex */
-#ifdef VK_QCOM_fragment_density_map_offset
-#define NVVK_HAS_VK_QCOM_fragment_density_map_offset
-#endif /* VK_QCOM_fragment_density_map_offset */
-#ifdef VK_QCOM_image_processing
-#define NVVK_HAS_VK_QCOM_image_processing
-#endif /* VK_QCOM_image_processing */
-#ifdef VK_QCOM_multiview_per_view_viewports
-#define NVVK_HAS_VK_QCOM_multiview_per_view_viewports
-#endif /* VK_QCOM_multiview_per_view_viewports */
-#ifdef VK_QCOM_render_pass_shader_resolve
-#define NVVK_HAS_VK_QCOM_render_pass_shader_resolve
-#endif /* VK_QCOM_render_pass_shader_resolve */
-#ifdef VK_QCOM_render_pass_store_ops
-#define NVVK_HAS_VK_QCOM_render_pass_store_ops
-#endif /* VK_QCOM_render_pass_store_ops */
-#ifdef VK_QCOM_render_pass_transform
-#define NVVK_HAS_VK_QCOM_render_pass_transform
-#endif /* VK_QCOM_render_pass_transform */
-#ifdef VK_QCOM_rotated_copy_commands
-#define NVVK_HAS_VK_QCOM_rotated_copy_commands
-#endif /* VK_QCOM_rotated_copy_commands */
-#ifdef VK_QCOM_tile_properties
+#if defined(VK_QCOM_tile_properties)
 #define NVVK_HAS_VK_QCOM_tile_properties
 #endif /* VK_QCOM_tile_properties */
-#ifdef VK_QNX_screen_surface
+#if defined(VK_QNX_screen_surface)
 #define NVVK_HAS_VK_QNX_screen_surface
 #endif /* VK_QNX_screen_surface */
-#ifdef VK_SEC_amigo_profiling
-#define NVVK_HAS_VK_SEC_amigo_profiling
-#endif /* VK_SEC_amigo_profiling */
-#ifdef VK_VALVE_descriptor_set_host_mapping
+#if defined(VK_VALVE_descriptor_set_host_mapping)
 #define NVVK_HAS_VK_VALVE_descriptor_set_host_mapping
 #endif /* VK_VALVE_descriptor_set_host_mapping */
-#ifdef VK_VALVE_mutable_descriptor_type
-#define NVVK_HAS_VK_VALVE_mutable_descriptor_type
-#endif /* VK_VALVE_mutable_descriptor_type */
 /* NVVK_GENERATE_DEFINE */
