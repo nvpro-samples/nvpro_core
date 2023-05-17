@@ -35,30 +35,34 @@ using Gui = ImGuiH::Control;
 //
 struct CameraManager
 {
-  CameraManager()  = default;
-  ~CameraManager() { saveSetting(nvh::CameraManipulator::Singleton()); };
+  CameraManager() = default;
+  ~CameraManager()
+  {
+    if(m_settingsDirtyTimer > 0.0f)
+      saveSetting(nvh::CameraManipulator::Singleton());
+  };
 
 
   // update setting, load or save
   void update(nvh::CameraManipulator& cameraM)
   {
     // Push the HOME camera and load default setting
-    if(cameras.empty())
+    if(m_cameras.empty())
     {
-      cameras.emplace_back(cameraM.getCamera());
+      m_cameras.emplace_back(cameraM.getCamera());
     }
-    if(doLoadSetting)
+    if(m_doLoadSetting)
       loadSetting(cameraM);
 
     // Save settings (with a delay after the last modification, so we don't spam disk too much)
     auto& IO = ImGui::GetIO();
-    if(settingsDirtyTimer > 0.0f)
+    if(m_settingsDirtyTimer > 0.0f)
     {
-      settingsDirtyTimer -= IO.DeltaTime;
-      if(settingsDirtyTimer <= 0.0f)
+      m_settingsDirtyTimer -= IO.DeltaTime;
+      if(m_settingsDirtyTimer <= 0.0f)
       {
         saveSetting(cameraM);
-        settingsDirtyTimer = 0.0f;
+        m_settingsDirtyTimer = 0.0f;
       }
     }
   }
@@ -66,30 +70,30 @@ struct CameraManager
   // Clear all cameras except the HOME
   void removedSavedCameras()
   {
-    if(cameras.size() > 1)
-      cameras.erase(cameras.begin() + 1, cameras.end());
+    if(m_cameras.size() > 1)
+      m_cameras.erase(m_cameras.begin() + 1, m_cameras.end());
   }
 
   void setCameraJsonFile(const std::string& filename)
   {
-    jsonFilename = NVPSystem::exePath() + filename + ".json";
-    doLoadSetting = true;
+    m_jsonFilename  = NVPSystem::exePath() + filename + ".json";
+    m_doLoadSetting = true;
     removedSavedCameras();
   }
 
 
   void setHomeCamera(const nvh::CameraManipulator::Camera& camera)
   {
-    if(cameras.empty())
-      cameras.resize(1);
-    cameras[0] = camera;
+    if(m_cameras.empty())
+      m_cameras.resize(1);
+    m_cameras[0] = camera;
   }
 
   // Adding a camera only if it different from all the saved ones
   void addCamera(const nvh::CameraManipulator::Camera& camera)
   {
     bool unique = true;
-    for(const auto& c : cameras)
+    for(const auto& c : m_cameras)
     {
       if(c == camera)
       {
@@ -99,16 +103,22 @@ struct CameraManager
     }
     if(unique)
     {
-      cameras.emplace_back(camera);
+      m_cameras.emplace_back(camera);
       markIniSettingsDirty();
     }
   }
 
+  // Removing a camera
+  void removeCamera(int delete_item)
+  {
+    m_cameras.erase(m_cameras.begin() + delete_item);
+    markIniSettingsDirty();
+  }
+
   void markIniSettingsDirty()
   {
-    auto& IO = ImGui::GetIO();
-    if(settingsDirtyTimer <= 0.0f)
-      settingsDirtyTimer = IO.IniSavingRate / 2.0f;
+    if(m_settingsDirtyTimer <= 0.0f)
+      m_settingsDirtyTimer = 0.1f;
   }
 
   template <typename T>
@@ -140,17 +150,17 @@ struct CameraManager
 
   void loadSetting(nvh::CameraManipulator& cameraM)
   {
-    if(jsonFilename.empty() || cameras.empty() || doLoadSetting == false)
+    if(m_jsonFilename.empty() || m_cameras.empty() || m_doLoadSetting == false)
       return;
 
     try
     {
-      doLoadSetting = false;
+      m_doLoadSetting = false;
 
       // Clear all cameras except the HOME
       removedSavedCameras();
 
-      std::ifstream i(jsonFilename);
+      std::ifstream i(m_jsonFilename);
       if(!i.is_open())
         return;
 
@@ -185,7 +195,7 @@ struct CameraManager
           camera.up = {vfVal[0], vfVal[1], vfVal[2]};
         if(getJsonValue(c, "fov", fVal))
           camera.fov = fVal;
-        cameras.emplace_back(camera);
+        m_cameras.emplace_back(camera);
       }
       i.close();
     }
@@ -197,7 +207,7 @@ struct CameraManager
 
   void saveSetting(nvh::CameraManipulator& cameraM) noexcept
   {
-    if(jsonFilename.empty())
+    if(m_jsonFilename.empty())
       return;
 
     try
@@ -209,9 +219,9 @@ struct CameraManager
 
       // Save all extra cameras
       json cc = json::array();
-      for(size_t n = 1; n < cameras.size(); n++)
+      for(size_t n = 1; n < m_cameras.size(); n++)
       {
-        auto& c   = cameras[n];
+        auto& c   = m_cameras[n];
         json  jo  = json::object();
         jo["eye"] = std::vector<float>{c.eye.x, c.eye.y, c.eye.z};
         jo["up"]  = std::vector<float>{c.up.x, c.up.y, c.up.z};
@@ -221,7 +231,7 @@ struct CameraManager
       }
       j["cameras"] = cc;
 
-      std::ofstream o(jsonFilename);
+      std::ofstream o(m_jsonFilename);
       if(o.is_open())
       {
         o << j.dump(2) << std::endl;
@@ -230,15 +240,15 @@ struct CameraManager
     }
     catch(const std::exception& e)
     {
-      LOGE("Could not save camera settings to %s: %s\n", jsonFilename.c_str(), e.what());
+      LOGE("Could not save camera settings to %s: %s\n", m_jsonFilename.c_str(), e.what());
     }
   }
 
   // Holds all cameras. [0] == HOME
-  std::vector<nvh::CameraManipulator::Camera> cameras;
-  float                                       settingsDirtyTimer{0};
-  std::string                                 jsonFilename;
-  bool                                        doLoadSetting{true};
+  std::vector<nvh::CameraManipulator::Camera> m_cameras;
+  float                                       m_settingsDirtyTimer{0};
+  std::string                                 m_jsonFilename;
+  bool                                        m_doLoadSetting{true};
 };
 
 static std::unique_ptr<CameraManager> sCamMgr;
@@ -262,7 +272,7 @@ void CurrentCameraTab(nvh::CameraManipulator& cameraM, nvh::CameraManipulator::C
   changed |= PropertyEditor::entry(
       "Y is UP", [&] { return ImGui::Checkbox("##Y", &y_is_up); }, "Is Y pointing up or Z?");
   if(PropertyEditor::entry(
-         "FOV", [&] { return ImGui::DragFloat("##Y", &camera.fov); }, "Field of view in degrees?"))
+         "FOV", [&] { return ImGui::SliderFloat("##Y", &camera.fov, 1.F, 179.F, "%.1f deg", ImGuiSliderFlags_Logarithmic); }, "Field of view in degrees"))
   {
     instantSet = true;
     changed    = true;
@@ -307,7 +317,7 @@ void CurrentCameraTab(nvh::CameraManipulator& cameraM, nvh::CameraManipulator::C
   const char* pPastedString;
   if(ImGui::SmallButton("Paste") && (pPastedString = ImGui::GetClipboardText()))
   {
-    float val[9];
+    float val[9]{};
     int   result = sscanf(pPastedString, "{%f, %f, %f}, {%f, %f, %f}, {%f, %f, %f}", &val[0], &val[1], &val[2], &val[3],
                           &val[4], &val[5], &val[6], &val[7], &val[8]);
     if(result == 9)  // 9 value properly scanned
@@ -331,13 +341,13 @@ void SavedCameraTab(nvh::CameraManipulator& cameraM, nvh::CameraManipulator::Cam
   ImVec2      button_sz(50, 30);
   char        label[128];
   ImGuiStyle& style             = ImGui::GetStyle();
-  int         buttons_count     = (int)sCamMgr->cameras.size();
+  int         buttons_count     = (int)sCamMgr->m_cameras.size();
   float       window_visible_x2 = ImGui::GetWindowPos().x + ImGui::GetWindowContentRegionMax().x;
 
   // The HOME camera button, different from the other ones
   if(ImGui::Button("Home", ImVec2(ImGui::GetWindowContentRegionMax().x, 50)))
   {
-    camera  = sCamMgr->cameras[0];
+    camera  = sCamMgr->m_cameras[0];
     changed = true;
   }
   ImGuiH::tooltip("Reset the camera to its origin");
@@ -350,7 +360,7 @@ void SavedCameraTab(nvh::CameraManipulator& cameraM, nvh::CameraManipulator::Cam
     sprintf(label, "# %d", n);
     if(ImGui::Button(label, button_sz))
     {
-      camera  = sCamMgr->cameras[n];
+      camera  = sCamMgr->m_cameras[n];
       changed = true;
     }
 
@@ -359,8 +369,8 @@ void SavedCameraTab(nvh::CameraManipulator& cameraM, nvh::CameraManipulator::Cam
       delete_item = n;
 
     // Displaying the position of the camera when hovering the button
-    sprintf(label, "Pos: %3.5f, %3.5f, %3.5f", sCamMgr->cameras[n].eye.x, sCamMgr->cameras[n].eye.y,
-            sCamMgr->cameras[n].eye.z);
+    sprintf(label, "Pos: %3.5f, %3.5f, %3.5f", sCamMgr->m_cameras[n].eye.x, sCamMgr->m_cameras[n].eye.y,
+            sCamMgr->m_cameras[n].eye.z);
     ImGuiH::tooltip(label);
 
     // Wrapping all buttons (see ImGUI Demo)
@@ -376,7 +386,6 @@ void SavedCameraTab(nvh::CameraManipulator& cameraM, nvh::CameraManipulator::Cam
   if(ImGui::Button("+"))
   {
     sCamMgr->addCamera(cameraM.getCamera());
-    sCamMgr->markIniSettingsDirty();
   }
   ImGuiH::tooltip("Add a new saved camera");
   ImGui::SameLine();
@@ -386,8 +395,7 @@ void SavedCameraTab(nvh::CameraManipulator& cameraM, nvh::CameraManipulator::Cam
   // Remove element
   if(delete_item > 0)
   {
-    sCamMgr->cameras.erase(sCamMgr->cameras.begin() + delete_item);
-    sCamMgr->markIniSettingsDirty();
+    sCamMgr->removeCamera(delete_item);
   }
 }
 
@@ -471,7 +479,6 @@ bool CameraWidget(nvh::CameraManipulator& cameraM /*= nvh::CameraManipulator::Si
   if(changed)
   {
     cameraM.setCamera(camera, instantSet);
-    sCamMgr->markIniSettingsDirty();
   }
   ImGui::Separator();
 
