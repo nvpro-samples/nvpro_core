@@ -26,6 +26,8 @@
 #include <limits>
 #include <set>
 #include <sstream>
+#include <thread>
+#include "parallel_work.hpp"
 
 namespace nvh {
 
@@ -249,6 +251,23 @@ void GltfScene::importDrawableNodes(const tinygltf::Model& tmodel, GltfAttribute
     }
   }
 
+  // Fixing tangents, if any were null
+  uint32_t num_threads = std::min((uint32_t)m_tangents.size(), std::thread::hardware_concurrency());
+  nvh::parallel_batches(
+      m_tangents.size(),
+      [&](uint64_t i) {
+        auto& t = m_tangents[i];
+        if(nvmath::nv_sq_norm(nvmath::vec3f(t)) < 0.01F || t.w < 0.5F)
+        {
+          const auto& n   = m_normals[i];
+          const float sgn = n.z > 0.0F ? 1.0F : -1.0F;
+          const float a   = -1.0F / (sgn + n.z);
+          const float b   = n.x * n.y * a;
+          t               = nvmath::vec4f(1.0f + sgn * n.x * n.x * a, sgn * b, -sgn * n.x, sgn);
+        }
+      },
+      num_threads);
+
   // Transforming the scene hierarchy to a flat list
   for(auto nodeIdx : tscene.nodes)
   {
@@ -421,7 +440,8 @@ void GltfScene::processMesh(const tinygltf::Model&     tmodel,
     // POSITION
     {
       const bool hadPosition = getAttribute<nvmath::vec3f>(tmodel, tmesh, m_positions, "POSITION");
-      if (!hadPosition) {
+      if(!hadPosition)
+      {
         LOGE("This glTF file is invalid: it had a primitive with no POSITION attribute.\n");
         return;
       }
