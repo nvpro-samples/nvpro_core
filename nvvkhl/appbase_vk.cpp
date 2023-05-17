@@ -71,7 +71,10 @@ void nvvkhl::AppBaseVk::destroy()
 
   if(ImGui::GetCurrentContext() != nullptr)
   {
-    ImGui_ImplVulkan_Shutdown();
+    // In case multiple ImGUI contexts are used in the same application, the VK side may not own ImGui resources
+    if(ImGui::GetIO().BackendRendererUserData)
+      ImGui_ImplVulkan_Shutdown();
+
     ImGui::DestroyContext();
   }
 
@@ -123,11 +126,11 @@ VkSurfaceKHR nvvkhl::AppBaseVk::getVkSurface(const VkInstance& instance, GLFWwin
 // Creating the surface for rendering
 //
 void nvvkhl::AppBaseVk::createSwapchain(const VkSurfaceKHR& surface,
-                                      uint32_t            width,
-                                      uint32_t            height,
-                                      VkFormat            colorFormat /*= VK_FORMAT_B8G8R8A8_UNORM*/,
-                                      VkFormat            depthFormat /*= VK_FORMAT_UNDEFINED*/,
-                                      bool                vsync /*= false*/)
+                                        uint32_t            width,
+                                        uint32_t            height,
+                                        VkFormat            colorFormat /*= VK_FORMAT_B8G8R8A8_UNORM*/,
+                                        VkFormat            depthFormat /*= VK_FORMAT_UNDEFINED*/,
+                                        bool                vsync /*= false*/)
 {
   m_size        = VkExtent2D{width, height};
   m_colorFormat = colorFormat;
@@ -668,7 +671,7 @@ void nvvkhl::AppBaseVk::initGUI(uint32_t subpassID /*= 0*/)
   ImGuiH::setFonts();
 
   std::vector<VkDescriptorPoolSize> poolSize{{VK_DESCRIPTOR_TYPE_SAMPLER, 1}, {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1}};
-  VkDescriptorPoolCreateInfo        poolInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
+  VkDescriptorPoolCreateInfo poolInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
   poolInfo.maxSets       = 2;
   poolInfo.poolSizeCount = 2;
   poolInfo.pPoolSizes    = poolSize.data();

@@ -75,7 +75,6 @@ struct TonemapperPostProcess
 
 private:
   nvvk::Context*                   m_ctx{nullptr};
-  AllocVma*                        m_alloc{nullptr};
   std::unique_ptr<nvvk::DebugUtil> m_dutil;
 
 

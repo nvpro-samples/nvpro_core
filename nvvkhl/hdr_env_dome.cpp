@@ -40,6 +40,7 @@
 #include "_autogen/hdr_integrate_brdf.comp.h"
 #include "_autogen/hdr_prefilter_diffuse.comp.h"
 #include "_autogen/hdr_prefilter_glossy.comp.h"
+#include "nvh/timesampler.hpp"
 
 
 namespace nvvkhl {
@@ -230,7 +231,7 @@ void HdrEnvDome::createDescriptorSetLayout()
 // http://blog.selfshadow.com/publications/s2013-shading-course/karis/s2013_pbs_epic_notes_v2.pdf
 void HdrEnvDome::integrateBrdf(uint32_t dimension, nvvk::Texture& target)
 {
-  auto t_start = std::chrono::high_resolution_clock::now();
+  nvh::ScopedTimer st(__FUNCTION__);
 
   // Create an image RG16 to store the BRDF
   VkImageCreateInfo     image_ci        = nvvk::makeImage2DCreateInfo({dimension, dimension}, VK_FORMAT_R16G16_SFLOAT,
@@ -298,10 +299,6 @@ void HdrEnvDome::integrateBrdf(uint32_t dimension, nvvk::Texture& target)
   vkDestroyDescriptorPool(m_device, dst_pool, nullptr);
   vkDestroyPipeline(m_device, pipeline, nullptr);
   vkDestroyPipelineLayout(m_device, pipeline_layout, nullptr);
-
-  auto t_end  = std::chrono::high_resolution_clock::now();
-  auto t_diff = std::chrono::duration<double, std::milli>(t_end - t_start).count();
-  LOGI(" - Generating BRDF LUT: %f ms \n", t_diff);
 }
 
 
@@ -310,11 +307,11 @@ void HdrEnvDome::integrateBrdf(uint32_t dimension, nvvk::Texture& target)
 //
 void HdrEnvDome::prefilterHdr(uint32_t dim, nvvk::Texture& target, const VkShaderModule& module, bool doMipmap)
 {
-  auto t_start = std::chrono::high_resolution_clock::now();
-
   const VkExtent2D size{dim, dim};
   VkFormat         format   = VK_FORMAT_R16G16B16A16_SFLOAT;
   const uint32_t   num_mips = doMipmap ? static_cast<uint32_t>(floor(log2(dim))) + 1 : 1;
+
+  nvh::ScopedTimer st("%s: %u", __FUNCTION__, num_mips);
 
   VkSamplerCreateInfo sampler_create_info = nvvk::makeSamplerCreateInfo();
   sampler_create_info.maxLod              = static_cast<float>(num_mips);
@@ -401,10 +398,6 @@ void HdrEnvDome::prefilterHdr(uint32_t dim, nvvk::Texture& target, const VkShade
   vkDestroyPipelineLayout(m_device, pipeline_layout, nullptr);
 
   m_alloc->destroy(scratch_texture);
-
-  auto t_end  = std::chrono::high_resolution_clock::now();
-  auto t_diff = std::chrono::duration<double, std::milli>(t_end - t_start).count();
-  LOGI(" - Prefilter cube, %d mip levels: %f ms \n", num_mips, t_diff);
 }
 
 

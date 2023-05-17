@@ -102,8 +102,7 @@ float solveMetallic(vec3 diffuse, vec3 specular, float one_minus_specular_streng
 //-----------------------------------------------------------------------
 // From the incoming material return the material for evaluating PBR
 //-----------------------------------------------------------------------
-
-PbrMaterial evaluateMaterial(in GltfShadeMaterial material, in vec3 normal, in vec3 tangent, in vec3 bitangent, in vec2 uv, float lod)
+PbrMaterial evaluateMaterial(in GltfShadeMaterial material, in vec3 normal, in vec3 tangent, in vec3 bitangent, in vec2 uv)
 {
   float perceptual_roughness = 0.0F;
   float metallic             = 0.0F;
@@ -114,7 +113,7 @@ PbrMaterial evaluateMaterial(in GltfShadeMaterial material, in vec3 normal, in v
   if(material.normalTexture > -1)
   {
     mat3 tbn           = mat3(tangent, bitangent, normal);
-    vec3 normal_vector = textureLod(MAT_EVAL_TEXTURE_ARRAY[nonuniformEXT(material.normalTexture)], uv, lod).xyz;
+    vec3 normal_vector = texture(MAT_EVAL_TEXTURE_ARRAY[nonuniformEXT(material.normalTexture)], uv).xyz;
     normal_vector      = normal_vector * 2.0F - 1.0F;
     normal_vector *= vec3(material.normalTextureScale, material.normalTextureScale, 1.0F);
     normal = normalize(tbn * normal_vector);
@@ -128,7 +127,7 @@ PbrMaterial evaluateMaterial(in GltfShadeMaterial material, in vec3 normal, in v
     if(material.pbrMetallicRoughnessTexture > -1.0F)
     {
       // Roughness is stored in the 'g' channel, metallic is stored in the 'b' channel.
-      vec4 mr_sample = textureLod(MAT_EVAL_TEXTURE_ARRAY[nonuniformEXT(material.pbrMetallicRoughnessTexture)], uv, lod);
+      vec4 mr_sample = texture(MAT_EVAL_TEXTURE_ARRAY[nonuniformEXT(material.pbrMetallicRoughnessTexture)], uv);
       perceptual_roughness *= mr_sample.g;
       metallic *= mr_sample.b;
     }
@@ -137,7 +136,7 @@ PbrMaterial evaluateMaterial(in GltfShadeMaterial material, in vec3 normal, in v
     base_color = material.pbrBaseColorFactor;
     if(material.pbrBaseColorTexture > -1.0F)
     {
-      base_color *= textureLod(MAT_EVAL_TEXTURE_ARRAY[nonuniformEXT(material.pbrBaseColorTexture)], uv, lod);
+      base_color *= texture(MAT_EVAL_TEXTURE_ARRAY[nonuniformEXT(material.pbrBaseColorTexture)], uv);
     }
     vec3 specular_color = mix(vec3(g_min_reflectance), vec3(base_color), float(metallic));
     f0                  = specular_color;
@@ -151,7 +150,7 @@ PbrMaterial evaluateMaterial(in GltfShadeMaterial material, in vec3 normal, in v
     if(material.khrSpecularGlossinessTexture > -1.0F)
     {
       vec4 sg_sample =
-          srgbToLinear(textureLod(MAT_EVAL_TEXTURE_ARRAY[nonuniformEXT(material.khrSpecularGlossinessTexture)], uv, lod));
+          srgbToLinear(textureLod(MAT_EVAL_TEXTURE_ARRAY[nonuniformEXT(material.khrSpecularGlossinessTexture)], uv, 0));
       perceptual_roughness *= sg_sample.a;  // glossiness to roughness
       f0 *= sg_sample.rgb;                  // specular
     }
@@ -161,7 +160,7 @@ PbrMaterial evaluateMaterial(in GltfShadeMaterial material, in vec3 normal, in v
     vec4 diffuse_color = material.khrDiffuseFactor;
     if(material.khrDiffuseTexture > -1.0F)
     {
-      diffuse_color *= srgbToLinear(textureLod(MAT_EVAL_TEXTURE_ARRAY[nonuniformEXT(material.khrDiffuseTexture)], uv, lod));
+      diffuse_color *= srgbToLinear(textureLod(MAT_EVAL_TEXTURE_ARRAY[nonuniformEXT(material.khrDiffuseTexture)], uv, 0));
     }
 
     vec3  specular_color              = f0;  // f0 = specular
@@ -188,11 +187,6 @@ PbrMaterial evaluateMaterial(in GltfShadeMaterial material, in vec3 normal, in v
   pbrMat.normal    = normal;
 
   return pbrMat;
-}
-
-PbrMaterial evaluateMaterial(in GltfShadeMaterial material, in vec3 normal, in vec3 tangent, in vec3 bitangent, in vec2 uv)
-{
-  return evaluateMaterial(material, normal, tangent, bitangent, uv, 0.0F);
 }
 
 #endif  // MAT_EVAL_H

@@ -111,11 +111,12 @@ public:
     {
       if(m_settings.snapshot)
       {
-        std::string name = std::string("snap_") + std::string(PROJECT_NAME) + std::string(".bmp");
+        std::string name = std::string("snap_") + std::string(PROJECT_NAME) + std::string(".png");
         NVPSystem::windowScreenshot(m_app->getWindowHandle(), name.c_str());
+        LOGI("Saving image: %s \n", name.c_str());
       }
 
-      LOGI("Testing Time: %.3f ms", m_startTime.elapsed());
+      LOGI("Testing Time: %.3f ms\n", m_startTime.elapsed());
 
       m_app->close();  // request to stop
     }
@@ -123,6 +124,8 @@ public:
 
   void addError(const char* msg) { m_errorMessages.emplace_back(msg); }
   int  errorCode() { return m_errorMessages.empty() ? 0 : 1; }
+  bool enabled() { return m_settings.enabled; }
+
 
 private:
   Application*             m_app{nullptr};

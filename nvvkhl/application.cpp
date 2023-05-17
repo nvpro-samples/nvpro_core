@@ -260,8 +260,6 @@ void nvvkhl::Application::init(ApplicationCreateInfo& info)
 //
 void nvvkhl::Application::shutdown()
 {
-  vkDeviceWaitIdle(m_context->m_device);
-
   for(auto& e : m_elements)
   {
     e->onDetach();

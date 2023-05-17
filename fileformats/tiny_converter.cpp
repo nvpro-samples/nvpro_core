@@ -98,7 +98,7 @@ void TinyConverter::convert(tinygltf::Model& gltf, const tinyobj::ObjReader& rea
     };
 
     // Make buffer of attribs
-    OffsetLen olIdx, olPos, olNrm, olTan, olCol, olTex;
+    OffsetLen olIdx, olPos, olNrm, olTex;
     auto&     tBuffer = gltf.buffers.back();
     olPos.offset      = static_cast<uint32_t>(tBuffer.data.size());
     olPos.len         = appendData(tBuffer, vertices);
@@ -265,16 +265,16 @@ void TinyConverter::convert(tinygltf::Model& gltf, const tinyobj::ObjReader& rea
 TinyConverter::Vertex TinyConverter::getVertex(const tinyobj::attrib_t& attrib, const tinyobj::index_t& index)
 {
   Vertex       v;
-  const float* vp = &attrib.vertices[3 * index.vertex_index];
+  const float* vp = &attrib.vertices[3ULL * index.vertex_index];
   v.pos           = {*(vp + 0), *(vp + 1), *(vp + 2)};
   if(!attrib.normals.empty() && index.normal_index >= 0)
   {
-    const float* np = &attrib.normals[3 * index.normal_index];
+    const float* np = &attrib.normals[3ULL * index.normal_index];
     v.nrm           = {*(np + 0), *(np + 1), *(np + 2)};
   }
   if(!attrib.texcoords.empty() && index.texcoord_index >= 0)
   {
-    const float* tp = &attrib.texcoords[2 * index.texcoord_index + 0];
+    const float* tp = &attrib.texcoords[2ULL * index.texcoord_index + 0];
     v.tex           = {*tp, 1.0f - *(tp + 1)};
   }
   return v;

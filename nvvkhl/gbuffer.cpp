@@ -115,8 +115,8 @@ void nvvkhl::GBuffer::create(const VkExtent2D& size, std::vector<VkFormat> color
       m_res.descriptor[c].imageLayout = layout;
 
       // Clear to avoid garbage data
-      VkClearColorValue       clear_value{0.F, 0.F, 0.F, 0.F};
-      VkImageSubresourceRange range{VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+      VkClearColorValue       clear_value = {{0.F, 0.F, 0.F, 0.F}};
+      VkImageSubresourceRange range       = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
       vkCmdClearColorImage(cmd, m_res.gBufferColor[c].image, layout, &clear_value, 1, &range);
     }
     cpool.submitAndWait(cmd);
@@ -141,8 +141,6 @@ void nvvkhl::GBuffer::create(const VkExtent2D& size, std::vector<VkFormat> color
 //
 void nvvkhl::GBuffer::destroy()
 {
-  vkDeviceWaitIdle(m_device);  // Avoid buffer to still be in use
-
   for(nvvk::Image bc : m_res.gBufferColor)
   {
     m_alloc->destroy(bc);
@@ -179,15 +177,15 @@ nvvk::Buffer nvvkhl::GBuffer::createImageToBuffer(VkCommandBuffer cmd, uint32_t 
   VkFormat format        = getColorFormat(i);
   uint32_t bytesPerPixel = 0;
   if(format >= VK_FORMAT_R8G8B8A8_UNORM && format <= VK_FORMAT_B8G8R8A8_SRGB)
-    bytesPerPixel = 4 * sizeof(uint8_t);  
+    bytesPerPixel = 4 * sizeof(uint8_t);
   else if(format >= VK_FORMAT_R16G16B16A16_UNORM && format <= VK_FORMAT_R16G16B16A16_SFLOAT)
-    bytesPerPixel = 4 * sizeof(uint16_t); 
+    bytesPerPixel = 4 * sizeof(uint16_t);
   else if(format >= VK_FORMAT_R32G32B32A32_UINT && format <= VK_FORMAT_R32G32B32A32_SFLOAT)
-    bytesPerPixel = 4 * sizeof(uint32_t); 
-  assert(bytesPerPixel != 0); // Format unsupported
+    bytesPerPixel = 4 * sizeof(uint32_t);
+  assert(bytesPerPixel != 0);  // Format unsupported
 
   // Destination buffer
-  size_t       buf_size   = bytesPerPixel * img_size.width * img_size.height;
+  size_t       buf_size   = static_cast<size_t>(bytesPerPixel) * img_size.width * img_size.height;
   nvvk::Buffer dst_buffer = m_alloc->createBuffer(buf_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                                                   VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
   // Region to copy from the image (all)
@@ -209,8 +207,8 @@ nvvk::Buffer nvvkhl::GBuffer::createImageToBuffer(VkCommandBuffer cmd, uint32_t 
   VkMemoryBarrier memBarrier = {VK_STRUCTURE_TYPE_MEMORY_BARRIER};
   memBarrier.srcAccessMask   = VK_ACCESS_TRANSFER_WRITE_BIT;
   memBarrier.dstAccessMask   = VK_ACCESS_MEMORY_READ_BIT;
-  vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 1,
-                       &memBarrier, 0, nullptr, 0, nullptr);
+  vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 1, &memBarrier, 0,
+                       nullptr, 0, nullptr);
 
   return dst_buffer;
 }

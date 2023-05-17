@@ -36,7 +36,6 @@
 namespace nvvkhl {
 TonemapperPostProcess::TonemapperPostProcess(nvvk::Context* ctx, AllocVma* alloc)
     : m_ctx(ctx)
-    , m_alloc(alloc)
     , m_dutil(std::make_unique<nvvk::DebugUtil>(ctx->m_device))
     , m_dsetGraphics(std::make_unique<nvvk::DescriptorSetContainer>(ctx->m_device))
     , m_dsetCompute(std::make_unique<nvvk::DescriptorSetContainer>(ctx->m_device))

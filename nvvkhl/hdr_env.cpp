@@ -39,6 +39,7 @@
 #include "nvvk/context_vk.hpp"
 
 #include "shaders/dh_hdr.h"
+#include "nvh/timesampler.hpp"
 
 namespace nvvkhl {
 // Forward declaration
@@ -53,12 +54,11 @@ HdrEnv::HdrEnv(nvvk::Context* ctx, nvvk::ResourceAllocator* allocator, uint32_t 
 //--------------------------------------------------------------------------------------------------
 //
 //
-void HdrEnv::setup(const VkDevice& device, const VkPhysicalDevice& physicalDevice, uint32_t familyIndex, nvvk::ResourceAllocator* allocator)
+void HdrEnv::setup(const VkDevice& device, const VkPhysicalDevice& /*physicalDevice*/, uint32_t familyIndex, nvvk::ResourceAllocator* allocator)
 {
-  m_device         = device;
-  m_alloc          = allocator;
-  m_familyIndex    = familyIndex;
-  m_physicalDevice = physicalDevice;
+  m_device      = device;
+  m_alloc       = allocator;
+  m_familyIndex = familyIndex;
   m_debug.setup(device);
 }
 
@@ -81,6 +81,8 @@ void HdrEnv::destroy()
 //
 void HdrEnv::loadEnvironment(const std::string& hrdImage)
 {
+  nvh::ScopedTimer st(__FUNCTION__);
+
   m_valid = false;
 
   if(!hrdImage.empty())
@@ -111,42 +113,31 @@ void HdrEnv::loadEnvironment(const std::string& hrdImage)
       // Therefore, in U the sampler will use VK_SAMPLER_ADDRESS_MODE_REPEAT (default), but V needs to use
       // CLAMP_TO_EDGE to avoid having light leaking from one pole to another.
       sampler_create_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-      VkFormat format                  = VK_FORMAT_R32G32B32A32_SFLOAT;
-
-      bool               can_generate_mipmaps = false;
-      VkFormatProperties format_properties;
-      vkGetPhysicalDeviceFormatProperties(m_physicalDevice, format, &format_properties);
-      if(format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_BLIT_DST_BIT)
-        can_generate_mipmaps = true;
-
+      VkFormat          format         = VK_FORMAT_R32G32B32A32_SFLOAT;
       VkImageCreateInfo ic_info =
-          nvvk::makeImage2DCreateInfo(img_size, format, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, can_generate_mipmaps);
-
-      sampler_create_info.maxLod = can_generate_mipmaps ? ic_info.mipLevels : 0.0F;
+          nvvk::makeImage2DCreateInfo(img_size, format, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT);
 
       // We can use a different family index (1 - transfer), to allow loading in a different queue/thread than the display (0)
       VkQueue queue = nullptr;
       vkGetDeviceQueue(m_device, m_familyIndex, 0, &queue);
 
-      auto t_start = std::chrono::high_resolution_clock::now();
       {
-        nvvk::ScopeCommandBuffer cmd_buf(m_device, m_familyIndex, queue);
+        nvh::ScopedTimer st("Generating Acceleration structure");
+        {
+          nvvk::ScopeCommandBuffer cmd_buf(m_device, m_familyIndex, queue);
 
-        // Creating the importance sampling for the HDR and storing the info in the m_accelImpSmpl buffer
-        auto env_accel = createEnvironmentAccel(pixels, img_size.width, img_size.height, m_average, m_integral);
-        m_accelImpSmpl = m_alloc->createBuffer(cmd_buf, env_accel, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
-        m_debug.setObjectName(m_accelImpSmpl.buffer, "HDR_accel");
+          // Creating the importance sampling for the HDR and storing the info in the m_accelImpSmpl buffer
+          auto env_accel = createEnvironmentAccel(pixels, img_size.width, img_size.height, m_average, m_integral);
+          m_accelImpSmpl = m_alloc->createBuffer(cmd_buf, env_accel, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+          m_debug.setObjectName(m_accelImpSmpl.buffer, "HDR_accel");
 
-        nvvk::Image           image   = m_alloc->createImage(cmd_buf, buffer_size, pixels, ic_info);
-        VkImageViewCreateInfo iv_info = nvvk::makeImageViewCreateInfo(image.image, ic_info);
-        m_texHdr                      = m_alloc->createTexture(image, iv_info, sampler_create_info);
-        m_debug.setObjectName(m_texHdr.image, "HDR");
+          nvvk::Image           image   = m_alloc->createImage(cmd_buf, buffer_size, pixels, ic_info);
+          VkImageViewCreateInfo iv_info = nvvk::makeImageViewCreateInfo(image.image, ic_info);
+          m_texHdr                      = m_alloc->createTexture(image, iv_info, sampler_create_info);
+          m_debug.setObjectName(m_texHdr.image, "HDR");
+        }
+        m_alloc->finalizeAndReleaseStaging();
       }
-      m_alloc->finalizeAndReleaseStaging();
-
-      auto t_end  = std::chrono::high_resolution_clock::now();
-      auto t_diff = std::chrono::duration<double, std::milli>(t_end - t_start).count();
-      LOGI(" - Generating Acceleration structure: %f ms \n", t_diff);
 
       stbi_image_free(pixels);
 

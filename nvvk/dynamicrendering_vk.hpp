@@ -32,7 +32,7 @@ struct createRenderingInfo : public VkRenderingInfoKHR
                       const VkImageView&              depthView,
                       VkAttachmentLoadOp              colorLoadOp     = VK_ATTACHMENT_LOAD_OP_CLEAR,
                       VkAttachmentLoadOp              depthLoadOp     = VK_ATTACHMENT_LOAD_OP_CLEAR,
-                      VkClearColorValue               clearColorValue = {0.f, 0.f, 0.f, 0.f},
+                      VkClearColorValue               clearColorValue = {{0.f, 0.f, 0.f, 0.f}},
                       VkClearDepthStencilValue        clearDepthValue = {1.f, 0U},
                       VkRenderingFlagsKHR             flags           = 0);
 
