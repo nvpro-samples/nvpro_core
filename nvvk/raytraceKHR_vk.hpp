@@ -192,22 +192,6 @@ public:
   );
 
 
-#ifdef VULKAN_HPP
-public:
-  void buildBlas(const std::vector<RaytracingBuilderKHR::BlasInput>& blas_, vk::BuildAccelerationStructureFlagsKHR flags)
-  {
-    buildBlas(blas_, static_cast<VkBuildAccelerationStructureFlagsKHR>(flags));
-  }
-
-  void buildTlas(const std::vector<VkAccelerationStructureInstanceKHR>& instances,
-                 vk::BuildAccelerationStructureFlagsKHR                 flags,
-                 bool                                                   update = false)
-  {
-    buildTlas(instances, static_cast<VkBuildAccelerationStructureFlagsKHR>(flags), update);
-  }
-
-#endif
-
 protected:
   std::vector<nvvk::AccelKHR> m_blas;  // Bottom-level acceleration structure
   nvvk::AccelKHR              m_tlas;  // Top-level acceleration structure

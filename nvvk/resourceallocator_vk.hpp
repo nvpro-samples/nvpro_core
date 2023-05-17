@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2019-2023, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,21 +21,16 @@
 
 #include <vulkan/vulkan_core.h>
 
-#ifdef VULKAN_HPP
-#include <vulkan/vulkan_structs.hpp>
-#include <vulkan/vulkan_enums.hpp>
-#include <vulkan/vulkan_handles.hpp>
-#endif
-
 #include <memory>
 #include <vector>
 
 #include "memallocator_vk.hpp"
 #include "samplers_vk.hpp"
 #include "stagingmemorymanager_vk.hpp"
+#include "sparse_image_vk.hpp"
 
 
- /**
+/**
  \class nvvk::ResourceAllocator
 
  The goal of nvvk::ResourceAllocator is to aid creation of typical Vulkan
@@ -166,11 +161,10 @@ struct AccelKHR
 class StagingMemoryManager;
 
 
-
 class ResourceAllocator
 {
 public:
-  ResourceAllocator(ResourceAllocator const&) = delete;
+  ResourceAllocator(ResourceAllocator const&)            = delete;
   ResourceAllocator& operator=(ResourceAllocator const&) = delete;
 
   ResourceAllocator() = default;
@@ -192,8 +186,8 @@ public:
 
   //--------------------------------------------------------------------------------------------------
   // Basic buffer creation
-  virtual nvvk::Buffer createBuffer(const VkBufferCreateInfo&   info_,
-                                    const VkMemoryPropertyFlags memUsage_ = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+  nvvk::Buffer createBuffer(const VkBufferCreateInfo&   info_,
+                            const VkMemoryPropertyFlags memUsage_ = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
   //--------------------------------------------------------------------------------------------------
   // Simple buffer creation
@@ -255,31 +249,14 @@ public:
                               const VkSamplerCreateInfo& samplerCreateInfo,
                               const VkImageLayout&       layout_ = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                               bool                       isCube  = false);
-#ifdef VULKAN_HPP
-  inline Texture createTexture(const vk::CommandBuffer&     cmdBuf,
-                               size_t                       size_,
-                               const void*                  data_,
-                               const vk::ImageCreateInfo&   info_,
-                               const vk::SamplerCreateInfo& samplerCreateInfo,
-                               const vk::ImageLayout&       layout_ = vk::ImageLayout::eShaderReadOnlyOptimal,
-                               bool                         isCube  = false)
-  {
-    return createTexture(static_cast<VkCommandBuffer>(cmdBuf), size_, data_, static_cast<VkImageCreateInfo>(info_),
-                         static_cast<VkSamplerCreateInfo>(samplerCreateInfo), static_cast<VkImageLayout>(layout_), isCube);
-  }
 
-  nvvk::Texture createTexture(const nvvk::Image& image, const vk::ImageViewCreateInfo& imageViewCreateInfo)
-  {
-    return createTexture(image, static_cast<const VkImageViewCreateInfo&>(imageViewCreateInfo));
-  }
-  nvvk::Texture createTexture(const nvvk::Image&             image,
-                              const vk::ImageViewCreateInfo& imageViewCreateInfo,
-                              const vk::SamplerCreateInfo&   samplerCreateInfo)
-  {
-    return createTexture(image, static_cast<const VkImageViewCreateInfo&>(imageViewCreateInfo), static_cast<const VkSamplerCreateInfo&>(samplerCreateInfo));
-  }
+  nvvk::SparseImage createSparseImage(VkImageCreateInfo           info_,
+                                      const VkMemoryPropertyFlags memUsage_ = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-#endif
+
+  void flushSparseImage(SparseImage& sparseImage);
+
+  bool createSparseImagePage(SparseImage& sparseImage, uint32_t pageIndex, uint32_t layer = 0u);
 
   //--------------------------------------------------------------------------------------------------
   // Create the acceleration structure
@@ -316,6 +293,9 @@ public:
   void destroy(nvvk::AccelNV& a_);
   void destroy(nvvk::AccelKHR& a_);
   void destroy(nvvk::Texture& t_);
+  void destroy(nvvk::SparseImage& i_);
+  // Destroy a sparse image page. Returns true if that page actually was present in memory
+  bool destroy(nvvk::SparseImage& i_, uint32_t pageIndex, uint32_t layer=0);
 
   //--------------------------------------------------------------------------------------------------
   // Other
@@ -347,67 +327,6 @@ protected:
   MemAllocator*                         m_memAlloc{nullptr};
   std::unique_ptr<StagingMemoryManager> m_staging;
   SamplerPool                           m_samplerPool;
-
-
-#ifdef VULKAN_HPP
-public:
-  nvvk::Buffer createBuffer(const vk::BufferCreateInfo& info_, const vk::MemoryPropertyFlags memUsage_ = vk::MemoryPropertyFlagBits::eDeviceLocal)
-  {
-    return createBuffer(static_cast<VkBufferCreateInfo>(info_), static_cast<VkMemoryPropertyFlags>(memUsage_));
-  }
-
-  nvvk::Buffer createBuffer(vk::DeviceSize size_, vk::BufferUsageFlags usage_, const vk::MemoryPropertyFlags memUsage_)
-  {
-    return createBuffer(static_cast<VkDeviceSize>(size_), static_cast<VkBufferUsageFlags>(usage_),
-                        static_cast<VkMemoryPropertyFlags>(memUsage_));
-  }
-
-  nvvk::Buffer createBuffer(const vk::CommandBuffer& cmdBuf,
-                            vk::DeviceSize           size_,
-                            const void*              data_,
-                            vk::BufferUsageFlags     usage_,
-                            vk::MemoryPropertyFlags  memUsage_ = vk::MemoryPropertyFlagBits::eDeviceLocal)
-  {
-    return createBuffer(static_cast<VkCommandBuffer>(cmdBuf), static_cast<VkDeviceSize>(size_), data_,
-                        static_cast<VkBufferUsageFlags>(usage_), static_cast<VkMemoryPropertyFlags>(memUsage_));
-  }
-
-  template <typename T>
-  nvvk::Buffer createBuffer(const vk::CommandBuffer&    cmdBuff,
-                            const std::vector<T>&       data_,
-                            const vk::BufferUsageFlags& usage_,
-                            vk::MemoryPropertyFlags     memUsage_ = vk::MemoryPropertyFlagBits::eDeviceLocal)
-  {
-    return createBuffer(cmdBuff, sizeof(T) * data_.size(), data_.data(), usage_, memUsage_);
-  }
-
-  nvvk::Image createImage(const vk::ImageCreateInfo&    info_,
-                          const vk::MemoryPropertyFlags memUsage_ = vk::MemoryPropertyFlagBits::eDeviceLocal)
-  {
-    return createImage(static_cast<const VkImageCreateInfo&>(info_), static_cast<VkMemoryPropertyFlags>(memUsage_));
-  }
-
-  nvvk::Image createImage(const vk::CommandBuffer&   cmdBuff,
-                          size_t                     size_,
-                          const void*                data_,
-                          const vk::ImageCreateInfo& info_,
-                          const vk::ImageLayout&     layout_ = vk::ImageLayout::eShaderReadOnlyOptimal)
-  {
-    return createImage(static_cast<VkCommandBuffer>(cmdBuff), size_, data_, static_cast<const VkImageCreateInfo&>(info_),
-                       static_cast<VkImageLayout>(layout_));
-  }
-
-  nvvk::AccelNV createAcceleration(vk::AccelerationStructureCreateInfoNV& accel_)
-  {
-    return createAcceleration(static_cast<VkAccelerationStructureCreateInfoNV&>(accel_));
-  }
-
-  nvvk::AccelKHR createAcceleration(vk::AccelerationStructureCreateInfoKHR& accel_)
-  {
-    return createAcceleration(static_cast<VkAccelerationStructureCreateInfoKHR&>(accel_));
-  }
-
-#endif
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -424,17 +343,27 @@ class ResourceAllocatorDma : public ResourceAllocator
 {
 public:
   ResourceAllocatorDma() = default;
-  ResourceAllocatorDma(VkDevice device, VkPhysicalDevice physicalDevice, VkDeviceSize stagingBlockSize = NVVK_DEFAULT_STAGING_BLOCKSIZE, VkDeviceSize memBlockSize = 0);
+  ResourceAllocatorDma(VkDevice         device,
+                       VkPhysicalDevice physicalDevice,
+                       VkDeviceSize     stagingBlockSize = NVVK_DEFAULT_STAGING_BLOCKSIZE,
+                       VkDeviceSize     memBlockSize     = 0);
   virtual ~ResourceAllocatorDma();
 
-  void init(VkDevice device, VkPhysicalDevice physicalDevice, VkDeviceSize stagingBlockSize = NVVK_DEFAULT_STAGING_BLOCKSIZE, VkDeviceSize memBlockSize = 0);
+  void init(VkDevice         device,
+            VkPhysicalDevice physicalDevice,
+            VkDeviceSize     stagingBlockSize = NVVK_DEFAULT_STAGING_BLOCKSIZE,
+            VkDeviceSize     memBlockSize     = 0);
   // Provided such that ResourceAllocatorDedicated, ResourceAllocatorDma and ResourceAllocatorVma all have the same interface
-  void init(VkInstance, VkDevice device, VkPhysicalDevice physicalDevice, VkDeviceSize stagingBlockSize = NVVK_DEFAULT_STAGING_BLOCKSIZE, VkDeviceSize memBlockSize = 0);
+  void init(VkInstance,
+            VkDevice         device,
+            VkPhysicalDevice physicalDevice,
+            VkDeviceSize     stagingBlockSize = NVVK_DEFAULT_STAGING_BLOCKSIZE,
+            VkDeviceSize     memBlockSize     = 0);
 
   void deinit();
 
-  nvvk::DeviceMemoryAllocator*        getDMA() { return m_dma.get(); }
-  const nvvk::DeviceMemoryAllocator*  getDMA() const { return m_dma.get(); }
+  nvvk::DeviceMemoryAllocator*       getDMA() { return m_dma.get(); }
+  const nvvk::DeviceMemoryAllocator* getDMA() const { return m_dma.get(); }
 
 protected:
   std::unique_ptr<nvvk::DeviceMemoryAllocator> m_dma;

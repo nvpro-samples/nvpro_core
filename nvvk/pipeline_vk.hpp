@@ -52,8 +52,6 @@ initialize the structures with the proper default values, such as the primitive 
 with their mask, `DynamicState` for viewport and scissor, adjust depth test if enabled, line width to 1 pixel, for 
 example. 
 
-nvvk::GraphicsPipelineState structure is instantiated using C++ Vulkan objects if VULKAN_HPP is defined, and C otherwise.
-
 Example of usage :
 \code{.cpp}
 nvvk::GraphicsPipelineState pipelineState();
@@ -175,20 +173,6 @@ struct GraphicsPipelineState
     }
   }
 
-#ifdef VULKAN_HPP
-  static inline vk::PipelineColorBlendAttachmentState makePipelineColorBlendAttachmentState(
-      vk::ColorComponentFlags colorWriteMask_ = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG
-                                                | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA,
-      vk::Bool32      blendEnable_         = 0,
-      vk::BlendFactor srcColorBlendFactor_ = vk::BlendFactor::eZero,
-      vk::BlendFactor dstColorBlendFactor_ = vk::BlendFactor::eZero,
-      vk::BlendOp     colorBlendOp_        = vk::BlendOp::eAdd,
-      vk::BlendFactor srcAlphaBlendFactor_ = vk::BlendFactor::eZero,
-      vk::BlendFactor dstAlphaBlendFactor_ = vk::BlendFactor::eZero,
-      vk::BlendOp     alphaBlendOp_        = vk::BlendOp::eAdd)
-  {
-    vk::PipelineColorBlendAttachmentState res;
-#else
   static inline VkPipelineColorBlendAttachmentState makePipelineColorBlendAttachmentState(
       VkColorComponentFlags colorWriteMask_ = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT
                                               | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT,
@@ -201,7 +185,6 @@ struct GraphicsPipelineState
       VkBlendOp     alphaBlendOp_        = VK_BLEND_OP_ADD)
   {
     VkPipelineColorBlendAttachmentState res;
-#endif
 
     res.blendEnable         = blendEnable_;
     res.srcColorBlendFactor = srcColorBlendFactor_;
@@ -237,11 +220,7 @@ struct GraphicsPipelineState
   void clearBlendAttachmentStates() { blendAttachmentStates.clear(); }
   void setBlendAttachmentCount(uint32_t attachmentCount) { blendAttachmentStates.resize(attachmentCount); }
 
-#ifdef VULKAN_HPP
-  void setBlendAttachmentState(uint32_t attachment, const vk::PipelineColorBlendAttachmentState& blendState)
-#else
   void setBlendAttachmentState(uint32_t attachment, const VkPipelineColorBlendAttachmentState& blendState)
-#endif
   {
     assert(attachment < blendAttachmentStates.size());
     if(attachment <= blendAttachmentStates.size())
@@ -250,11 +229,7 @@ struct GraphicsPipelineState
     }
   }
 
-#ifdef VULKAN_HPP
-  uint32_t addBlendAttachmentState(const vk::PipelineColorBlendAttachmentState& blendState)
-#else
   uint32_t addBlendAttachmentState(const VkPipelineColorBlendAttachmentState& blendState)
-#endif
   {
     blendAttachmentStates.push_back(blendState);
     return (uint32_t)(blendAttachmentStates.size() - 1);
@@ -263,11 +238,7 @@ struct GraphicsPipelineState
   void clearDynamicStateEnables() { dynamicStateEnables.clear(); }
   void setDynamicStateEnablesCount(uint32_t dynamicStateCount) { dynamicStateEnables.resize(dynamicStateCount); }
 
-#ifdef VULKAN_HPP
-  void setDynamicStateEnable(uint32_t state, vk::DynamicState dynamicState)
-#else
   void setDynamicStateEnable(uint32_t state, VkDynamicState dynamicState)
-#endif
   {
     assert(state < dynamicStateEnables.size());
     if(state <= dynamicStateEnables.size())
@@ -276,11 +247,7 @@ struct GraphicsPipelineState
     }
   }
 
-#ifdef VULKAN_HPP
-  uint32_t addDynamicStateEnable(vk::DynamicState dynamicState)
-#else
   uint32_t addDynamicStateEnable(VkDynamicState dynamicState)
-#endif
   {
     dynamicStateEnables.push_back(dynamicState);
     return (uint32_t)(dynamicStateEnables.size() - 1);
@@ -301,21 +268,13 @@ struct GraphicsPipelineState
     }
   }
 
-#ifdef VULKAN_HPP
-  uint32_t addBindingDescription(const vk::VertexInputBindingDescription& bindingDescription)
-#else
   uint32_t addBindingDescription(const VkVertexInputBindingDescription& bindingDescription)
-#endif
   {
     bindingDescriptions.push_back(bindingDescription);
     return (uint32_t)(bindingDescriptions.size() - 1);
   }
 
-#ifdef VULKAN_HPP
-  void addBindingDescriptions(const std::vector<vk::VertexInputBindingDescription>& bindingDescriptions_)
-#else
   void addBindingDescriptions(const std::vector<VkVertexInputBindingDescription>& bindingDescriptions_)
-#endif
   {
     bindingDescriptions.insert(bindingDescriptions.end(), bindingDescriptions_.begin(), bindingDescriptions_.end());
   }
@@ -326,11 +285,7 @@ struct GraphicsPipelineState
     attributeDescriptions.resize(attributeDescriptionCount);
   }
 
-#ifdef VULKAN_HPP
-  void setAttributeDescription(uint32_t attribute, const vk::VertexInputAttributeDescription &attributeDescription)
-#else
   void setAttributeDescription(uint32_t attribute, const VkVertexInputAttributeDescription &attributeDescription)
-#endif
   {
     assert(attribute < attributeDescriptions.size());
     if(attribute <= attributeDescriptions.size())
@@ -340,21 +295,13 @@ struct GraphicsPipelineState
   }
 
 
-#ifdef VULKAN_HPP
-  uint32_t addAttributeDescription(const vk::VertexInputAttributeDescription &attributeDescription)
-#else
   uint32_t addAttributeDescription(const VkVertexInputAttributeDescription &attributeDescription)
-#endif
   {
     attributeDescriptions.push_back(attributeDescription);
     return (uint32_t)(attributeDescriptions.size() - 1);
   }
 
-#ifdef VULKAN_HPP
-  void addAttributeDescriptions(const std::vector<vk::VertexInputAttributeDescription>& attributeDescriptions_)
-#else
   void addAttributeDescriptions(const std::vector<VkVertexInputAttributeDescription>& attributeDescriptions_)
-#endif
   {
     attributeDescriptions.insert(attributeDescriptions.end(), attributeDescriptions_.begin(), attributeDescriptions_.end());
   }
@@ -394,28 +341,6 @@ struct GraphicsPipelineState
   }
 
 
-#ifdef VULKAN_HPP
-  vk::PipelineInputAssemblyStateCreateInfo inputAssemblyState;
-  vk::PipelineRasterizationStateCreateInfo rasterizationState;
-  vk::PipelineMultisampleStateCreateInfo   multisampleState;
-  vk::PipelineDepthStencilStateCreateInfo  depthStencilState;
-  vk::PipelineViewportStateCreateInfo      viewportState;
-  vk::PipelineDynamicStateCreateInfo       dynamicState;
-  vk::PipelineColorBlendStateCreateInfo    colorBlendState;
-  vk::PipelineVertexInputStateCreateInfo   vertexInputState;
-
-private:
-  std::vector<vk::PipelineColorBlendAttachmentState> blendAttachmentStates{makePipelineColorBlendAttachmentState()};
-  std::vector<vk::DynamicState> dynamicStateEnables = {vk::DynamicState::eViewport, vk::DynamicState::eScissor};
-
-  std::vector<vk::VertexInputBindingDescription>   bindingDescriptions;
-  std::vector<vk::VertexInputAttributeDescription> attributeDescriptions;
-
-  std::vector<vk::Viewport> viewports;
-  std::vector<vk::Rect2D>   scissors;
-
-
-#else
   VkPipelineInputAssemblyStateCreateInfo inputAssemblyState{VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO};
   VkPipelineRasterizationStateCreateInfo rasterizationState{VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO};
   VkPipelineMultisampleStateCreateInfo   multisampleState{VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO};
@@ -435,7 +360,6 @@ private:
   std::vector<VkViewport> viewports;
   std::vector<VkRect2D>   scissors;
 
-#endif
 
   // Helper to set objects for either C and C++
   template <class T, class U>
@@ -452,8 +376,6 @@ private:
 
 The graphics pipeline generator takes a GraphicsPipelineState object and pipeline-specific information such as 
 the render pass and pipeline layout to generate the final pipeline. 
-
-nvvk::GraphicsPipelineGenerator structure is instantiated using C++ Vulkan objects if VULKAN_HPP is defined, and C otherwise.
 
 Example of usage :
 \code{.cpp}
@@ -495,11 +417,7 @@ public:
   }
 
   // For VK_KHR_dynamic_rendering
-#ifdef VULKAN_HPP
-  using PipelineRenderingCreateInfo = vk::PipelineRenderingCreateInfo;
-#else
   using PipelineRenderingCreateInfo = VkPipelineRenderingCreateInfo;
-#endif
 
   GraphicsPipelineGenerator(VkDevice                           device_,
                             const VkPipelineLayout&            layout,
@@ -535,9 +453,6 @@ public:
   void setPipelineRenderingCreateInfo(const PipelineRenderingCreateInfo& pipelineRenderingCreateInfo)
   {
     // Deep copy
-#ifndef VULKAN_HPP
-    assert(pipelineRenderingCreateInfo.sType == VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO);
-#endif
     assert(pipelineRenderingCreateInfo.pNext == nullptr);  // Update deep copy if needed.
     dynamicRenderingInfo = pipelineRenderingCreateInfo;
     if(dynamicRenderingInfo.colorAttachmentCount != 0)
@@ -556,32 +471,19 @@ public:
 
   ~GraphicsPipelineGenerator() { destroyShaderModules(); }
 
-#ifdef VULKAN_HPP
-  vk::PipelineShaderStageCreateInfo& addShader(const std::string&      code,
-                                               vk::ShaderStageFlagBits stage,
-                                               const char*             entryPoint = "main")
-#else
   VkPipelineShaderStageCreateInfo& addShader(const std::string&    code,
                                              VkShaderStageFlagBits stage,
                                              const char*           entryPoint = "main")
-#endif
   {
     std::vector<char> v;
     std::copy(code.begin(), code.end(), std::back_inserter(v));
     return addShader(v, stage, entryPoint);
   }
 
-#ifdef VULKAN_HPP
-  template <typename T>
-  vk::PipelineShaderStageCreateInfo& addShader(const std::vector<T>&   code,
-                                               vk::ShaderStageFlagBits stage,
-                                               const char*             entryPoint = "main")
-#else
   template <typename T>
   VkPipelineShaderStageCreateInfo& addShader(const std::vector<T>& code,
                                              VkShaderStageFlagBits stage,
                                              const char*           entryPoint = "main")
-#endif
 
   {
     VkShaderModuleCreateInfo createInfo{VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
@@ -593,15 +495,9 @@ public:
 
     return addShader(shaderModule, stage, entryPoint);
   }
-#ifdef VULKAN_HPP
-  vk::PipelineShaderStageCreateInfo& addShader(vk::ShaderModule        shaderModule,
-                                               vk::ShaderStageFlagBits stage,
-                                               const char*             entryPoint = "main")
-#else
   VkPipelineShaderStageCreateInfo& addShader(VkShaderModule        shaderModule,
                                              VkShaderStageFlagBits stage,
                                              const char*           entryPoint = "main")
-#endif
   {
     VkPipelineShaderStageCreateInfo shaderStage{VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
     shaderStage.stage  = (VkShaderStageFlagBits)stage;
@@ -650,29 +546,15 @@ public:
     pipelineState.update();
   }
 
-#ifdef VULKAN_HPP
-  vk::GraphicsPipelineCreateInfo createInfo;
-#else
   VkGraphicsPipelineCreateInfo createInfo{VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
-#endif
 
 private:
-#ifdef VULKAN_HPP
-  vk::Device        device;
-  vk::PipelineCache pipelineCache;
-
-  std::vector<vk::PipelineShaderStageCreateInfo> shaderStages;
-  std::vector<vk::ShaderModule>                  temporaryModules;
-  std::vector<vk::Format>                        dynamicRenderingColorFormats;
-
-#else
   VkDevice        device;
   VkPipelineCache pipelineCache{};
 
   std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
   std::vector<VkShaderModule>                  temporaryModules;
   std::vector<VkFormat>                        dynamicRenderingColorFormats;
-#endif
   GraphicsPipelineState&      pipelineState;
   PipelineRenderingCreateInfo dynamicRenderingInfo{VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO};
 

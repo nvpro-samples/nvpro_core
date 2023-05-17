@@ -139,7 +139,7 @@ VkImageCreateInfo makeImage2DCreateInfo(const VkExtent2D& size, VkFormat format,
   icInfo.extent.width      = size.width;
   icInfo.extent.height     = size.height;
   icInfo.extent.depth      = 1;
-  icInfo.usage             = usage | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+  icInfo.usage             = usage | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
   return icInfo;
 }
 

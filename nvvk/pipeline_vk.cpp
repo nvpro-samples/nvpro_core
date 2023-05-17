@@ -205,8 +205,10 @@ void dumpPipelineInternals(VkDevice device, VkPipeline pipeline, const char* bas
       vkGetPipelineExecutableInternalRepresentationsKHR(device, &execInfo, &internalCount, internals.data());
       for(uint32_t i = 0; i < internalCount; i++)
       {
+        bool isText = strstr(internals[i].name, "text") != nullptr;
+
         std::string fileName = std::string(baseFileName) + "." + std::string(prop.name) + stringFormat(".%d.", e)
-                               + internals[i].name + stringFormat(".%d.bin", i);
+                               + internals[i].name + stringFormat(".%d.%s", i, isText ? "txt" : "bin");
         FILE* f = fopen(fileName.c_str(), "wb");
         if(f)
         {

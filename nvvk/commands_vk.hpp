@@ -127,33 +127,11 @@ public:
             VkQueue                  defaultQueue = VK_NULL_HANDLE);
   void deinit();
 
-#ifdef VULKAN_HPP
-  void init(vk::Device device, uint32_t familyIndex, vk::CommandPoolCreateFlags flags, vk::Queue defaultQueue = nullptr)
-  {
-    init(device, familyIndex, (VkCommandPoolCreateFlags)flags, defaultQueue);
-  }
-  CommandPool(VkDevice device, uint32_t familyIndex, vk::CommandPoolCreateFlags flags, vk::Queue defaultQueue = nullptr)
-  {
-    init(device, familyIndex, (VkCommandPoolCreateFlags)flags, defaultQueue);
-  }
-#endif
-
 
   VkCommandBuffer createCommandBuffer(VkCommandBufferLevel      level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
                                       bool                      begin = true,
                                       VkCommandBufferUsageFlags flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
                                       const VkCommandBufferInheritanceInfo* pInheritanceInfo = nullptr);
-#ifdef VULKAN_HPP
-  // ensure proper cycle is set prior this
-  VkCommandBuffer createCommandBuffer(vk::CommandBufferLevel      level,
-                                      bool                        begin = true,
-                                      vk::CommandBufferUsageFlags flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit,
-                                      const vk::CommandBufferInheritanceInfo* pInheritanceInfo = nullptr)
-  {
-    return createCommandBuffer((VkCommandBufferLevel)level, begin, (VkCommandBufferUsageFlags)flags,
-                               (const VkCommandBufferInheritanceInfo*)pInheritanceInfo);
-  }
-#endif
 
   // free cmdbuffers from this pool
   void destroy(size_t count, const VkCommandBuffer* cmds);
@@ -171,12 +149,6 @@ public:
   void submit(size_t count, const VkCommandBuffer* cmds, VkQueue queue, VkFence fence = VK_NULL_HANDLE);
   void submit(size_t count, const VkCommandBuffer* cmds, VkFence fence = VK_NULL_HANDLE);
   void submit(const std::vector<VkCommandBuffer>& cmds, VkFence fence = VK_NULL_HANDLE);
-#ifdef VULKAN_HPP
-  void submit(vk::ArrayProxy<vk::CommandBuffer>& cmds, vk::Fence fence = vk::Fence())
-  {
-    submit(cmds.size(), &static_cast<const VkCommandBuffer&>(*cmds.data()), m_queue, fence);
-  }
-#endif
 
   // Non-optimal usage pattern using wait for idles, avoid in production use.
   // Consider batching submissions up via FencedCommandPools and
@@ -195,31 +167,7 @@ public:
   void submitAndWait(VkCommandBuffer cmd) { submitAndWait(1, &cmd, m_queue); }
 
 
-#ifdef VULKAN_HPP
-  void destroy(size_t count, const vk::CommandBuffer* cmds) { destroy(count, (const VkCommandBuffer*)cmds); }
-  void destroy(const std::vector<vk::CommandBuffer>& cmds)
-  {
-    destroy(cmds.size(), (const VkCommandBuffer*)cmds.data());
-  }
-  void submitAndWait(size_t count, const vk::CommandBuffer* cmds, VkQueue queue)
-  {
-    submitAndWait(count, (const VkCommandBuffer*)cmds, queue);
-  }
-  void submitAndWait(const std::vector<vk::CommandBuffer>& cmds, VkQueue queue)
-  {
-    submitAndWait(cmds.size(), (const VkCommandBuffer*)cmds.data(), queue);
-  }
-  void submitAndWait(size_t count, const vk::CommandBuffer* cmds)
-  {
-    submitAndWait(count, (const VkCommandBuffer*)cmds, m_queue);
-  }
-  void submitAndWait(const std::vector<vk::CommandBuffer>& cmds)
-  {
-    submitAndWait(cmds.size(), (const VkCommandBuffer*)cmds.data(), m_queue);
-  }
-#endif
-
-private:
+protected:
   VkDevice      m_device      = VK_NULL_HANDLE;
   VkQueue       m_queue       = VK_NULL_HANDLE;
   VkCommandPool m_commandPool = VK_NULL_HANDLE;
@@ -258,9 +206,6 @@ public:
   ~ScopeCommandBuffer() { submitAndWait(m_cmd); }
 
   operator VkCommandBuffer() const { return m_cmd; };
-#ifdef VULKAN_HPP
-  operator vk::CommandBuffer() const { return (vk::CommandBuffer)m_cmd; };
-#endif
 
 private:
   VkCommandBuffer m_cmd;
@@ -399,17 +344,6 @@ public:
             uint32_t                 ringSize = DEFAULT_RING_SIZE);
   void deinit();
 
-#ifdef VULKAN_HPP
-  void init(vk::Device device, uint32_t queueFamilyIndex, vk::CommandPoolCreateFlags flags, uint32_t ringSize = DEFAULT_RING_SIZE)
-  {
-    init(device, queueFamilyIndex, (VkCommandPoolCreateFlags)flags, ringSize);
-  }
-  RingCommandPool(vk::Device device, uint32_t queueFamilyIndex, vk::CommandPoolCreateFlags flags, uint32_t ringSize = DEFAULT_RING_SIZE)
-  {
-    init(device, queueFamilyIndex, (VkCommandPoolCreateFlags)flags, ringSize);
-  }
-#endif
-
   void reset()
   {
     VkDevice                 device           = m_device;
@@ -432,25 +366,6 @@ public:
 
   // pointer is only valid until next create
   const VkCommandBuffer* createCommandBuffers(VkCommandBufferLevel level, uint32_t count);
-
-#ifdef VULKAN_HPP
-  // ensure proper cycle is set prior this
-  VkCommandBuffer createCommandBuffer(vk::CommandBufferLevel      level,
-                                      bool                        begin = true,
-                                      vk::CommandBufferUsageFlags flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit,
-                                      const vk::CommandBufferInheritanceInfo* pInheritanceInfo = nullptr)
-  {
-    return createCommandBuffer((VkCommandBufferLevel)level, begin, (VkCommandBufferUsageFlags)flags,
-                               (const VkCommandBufferInheritanceInfo*)pInheritanceInfo);
-  }
-
-  // pointer is only valid until next create
-  const vk::CommandBuffer* createCommandBuffers(vk::CommandBufferLevel level, uint32_t count)
-  {
-    return (const vk::CommandBuffer*)createCommandBuffers((VkCommandBufferLevel)level, count);
-  }
-#endif
-
 
 protected:
   struct Entry
@@ -539,10 +454,6 @@ public:
   void enqueue(VkCommandBuffer cmdbuffer);
   void enqueueSignal(VkSemaphore sem);
   void enqueueWait(VkSemaphore sem, VkPipelineStageFlags flag);
-#ifdef VULKAN_HPP
-  void enqueue(uint32_t num, const vk::CommandBuffer* cmdbuffers) { enqueue(num, (const VkCommandBuffer*)cmdbuffers); }
-  void enqueueWait(vk::Semaphore sem, vk::PipelineStageFlags flag) { enqueueWait(sem, (VkPipelineStageFlags)flag); }
-#endif
 
   // submits the work and resets internal state
   VkResult execute(VkFence fence = nullptr, uint32_t deviceMask = 0);
@@ -559,7 +470,7 @@ public:
   with a convenient interface.
 
 */
-class FencedCommandPools : private RingFences, private RingCommandPool, private BatchSubmission
+class FencedCommandPools : protected RingFences, protected RingCommandPool, protected BatchSubmission
 {
 public:
   FencedCommandPools(FencedCommandPools const&) = delete;
@@ -587,16 +498,6 @@ public:
     RingCommandPool::init(device, queueFamilyIndex, flags, ringSize);
     BatchSubmission::init(queue);
   }
-#ifdef VULKAN_HPP
-  FencedCommandPools(vk::Device device, vk::Queue queue, uint32_t queueFamilyIndex, vk::CommandPoolCreateFlags flags, uint32_t ringSize = DEFAULT_RING_SIZE)
-  {
-    init(device, queue, queueFamilyIndex, (VkCommandPoolCreateFlags)flags, ringSize);
-  }
-  void init(vk::Device device, vk::Queue queue, uint32_t queueFamilyIndex, vk::CommandPoolCreateFlags flags, uint32_t ringSize = DEFAULT_RING_SIZE)
-  {
-    init(device, queue, queueFamilyIndex, (VkCommandPoolCreateFlags)flags, ringSize);
-  }
-#endif
 
   void deinit()
   {
@@ -616,16 +517,6 @@ public:
   void enqueue(VkCommandBuffer cmdbuffer) { BatchSubmission::enqueue(cmdbuffer); }
   void enqueueSignal(VkSemaphore sem) { BatchSubmission::enqueueSignal(sem); }
   void enqueueWait(VkSemaphore sem, VkPipelineStageFlags flag) { BatchSubmission::enqueueWait(sem, flag); }
-#ifdef VULKAN_HPP
-  void enqueue(uint32_t num, const vk::CommandBuffer* cmdbuffers)
-  {
-    BatchSubmission::enqueue(num, (const VkCommandBuffer*)cmdbuffers);
-  }
-  void enqueueWait(vk::Semaphore sem, vk::PipelineStageFlags flag)
-  {
-    BatchSubmission::enqueueWait(sem, (VkPipelineStageFlags)flag);
-  }
-#endif
   VkResult execute(uint32_t deviceMask = 0) { return BatchSubmission::execute(getFence(), deviceMask); }
 
   void waitIdle() const { BatchSubmission::waitIdle(); }
@@ -651,25 +542,6 @@ public:
     return RingCommandPool::createCommandBuffers(level, count);
   }
 
-#ifdef VULKAN_HPP
-  // ensure proper cycle is set prior this
-  VkCommandBuffer createCommandBuffer(vk::CommandBufferLevel      level,
-                                      bool                        begin = true,
-                                      vk::CommandBufferUsageFlags flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit,
-                                      const vk::CommandBufferInheritanceInfo* pInheritanceInfo = nullptr)
-  {
-    return RingCommandPool::createCommandBuffer((VkCommandBufferLevel)level, begin, (VkCommandBufferUsageFlags)flags,
-                                                (const VkCommandBufferInheritanceInfo*)pInheritanceInfo);
-  }
-
-  // pointer is only valid until next create
-  const vk::CommandBuffer* createCommandBuffers(vk::CommandBufferLevel level, uint32_t count)
-  {
-    return (const vk::CommandBuffer*)createCommandBuffers((VkCommandBufferLevel)level, count);
-  }
-#endif
-
-
   struct ScopedCmd
   {
     FencedCommandPools* pCmdPools;
@@ -689,9 +561,6 @@ public:
     }
 
     operator VkCommandBuffer() { return cmd; }
-#ifdef VULKAN_HPP
-    operator vk::CommandBuffer() const { return (vk::CommandBuffer)cmd; };
-#endif
   };
 };
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2019-2023, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ namespace nvvk {
 
 ResourceAllocator::ResourceAllocator(VkDevice device, VkPhysicalDevice physicalDevice, MemAllocator* memAlloc, VkDeviceSize stagingBlockSize)
 {
-  init(device, physicalDevice, memAlloc);
+  init(device, physicalDevice, memAlloc, stagingBlockSize);
 }
 
 ResourceAllocator::~ResourceAllocator()
@@ -82,7 +82,7 @@ Buffer ResourceAllocator::createBuffer(const VkBufferCreateInfo& info_, const Vk
 
   // Allocate memory
   resultBuffer.memHandle = AllocateMemory(allocInfo);
-  if (resultBuffer.memHandle)
+  if(resultBuffer.memHandle)
   {
     const auto memInfo = m_memAlloc->getMemoryInfo(resultBuffer.memHandle);
     // Bind memory to buffer
@@ -268,6 +268,99 @@ Texture ResourceAllocator::createTexture(const VkCommandBuffer&     cmdBuf,
   return resultTexture;
 }
 
+
+SparseImage ResourceAllocator::createSparseImage(VkImageCreateInfo info_, const VkMemoryPropertyFlags memUsage_ /*= VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT*/)
+{
+  SparseImage resultImage;
+
+  std::array<VkImage, SparseImage::s_sparseImageCount> images;
+  for(size_t i = 0; i < images.size(); i++)
+  {
+    if (NVVK_CHECK(vkCreateImage(m_device, &info_, nullptr, &images[i])))
+    {
+      LOGE("Could not create requested image\n");
+      return {};
+    }
+  }
+
+  std::vector<VkMemoryRequirements> mipTailMemRequirements =
+      resultImage.create(m_device, images, info_.mipLevels, info_.arrayLayers, info_.extent);
+
+  std::vector<std::pair<VkDeviceMemory, VkDeviceSize>> mipTailMemAndOffsets;
+
+
+  for(const auto& memReq : mipTailMemRequirements)
+  {
+    nvvk::MemAllocateInfo allocInfo(m_device, images[0], memUsage_);
+    allocInfo.setMemoryRequirements(memReq);
+
+    nvvk::MemHandle             mipTailAllocationID = AllocateMemory(allocInfo);
+    nvvk::MemAllocator::MemInfo memInfo             = m_memAlloc->getMemoryInfo(mipTailAllocationID);
+
+    resultImage.mipTailAllocations.push_back(mipTailAllocationID);
+    mipTailMemAndOffsets.push_back({memInfo.memory, memInfo.offset});
+  }
+
+  resultImage.bindMipTailMemory(mipTailMemAndOffsets);
+
+  resultImage.memoryProperties = memUsage_;
+
+  return resultImage;
+}
+
+
+void ResourceAllocator::flushSparseImage(SparseImage& sparseImage)
+{
+
+
+  sparseImage.sparseImageMemoryBinds.clear();
+  sparseImage.sparseImageMemoryBinds.reserve(sparseImage.allocatedPages.size());
+  for(auto it : sparseImage.allocatedPages)
+  {
+    auto& page = it.second;
+    if(!page.hasBoundMemory())
+      continue;
+    m_memAlloc->freeMemory(page.allocation);
+    page.allocation                   = {};
+    page.imageMemoryBind.memory       = {};
+    page.imageMemoryBind.memoryOffset = {};
+    sparseImage.sparseImageMemoryBinds.push_back(page.imageMemoryBind);
+  }
+  sparseImage.allocatedPages.clear();
+  sparseImage.updateSparseBindInfo();
+}
+
+// Returns true if the allocation was performed, false if it was already allocated
+bool ResourceAllocator::createSparseImagePage(SparseImage& sparseImage, uint32_t pageIndex, uint32_t layer /*= 0u*/)
+{
+  SparseImage::PageId id{layer, pageIndex};
+
+  auto it = sparseImage.allocatedPages.find(id);
+  // If already allocated, nothing to do
+  if(it != sparseImage.allocatedPages.end())
+  {
+    return false;
+  }
+
+  SparseImagePage page = sparseImage.createPageInfo(pageIndex, layer);
+
+  VkMemoryRequirements memReqs = sparseImage.memoryReqs;
+  memReqs.size                 = page.size;
+
+  nvvk::MemAllocateInfo allocInfo(m_device, sparseImage.images[0], sparseImage.memoryProperties);
+  allocInfo.setMemoryRequirements(memReqs);
+
+  nvvk::MemHandle             allocationID = AllocateMemory(static_cast<VkMemoryRequirements>(memReqs));
+  nvvk::MemAllocator::MemInfo memInfo      = m_memAlloc->getMemoryInfo(allocationID);
+  page.allocation                          = allocationID;
+  page.bindDeviceMemory(memInfo.memory, memInfo.offset);
+
+  sparseImage.allocatedPages[id] = page;
+
+  return true;
+}
+
+
 void ResourceAllocator::finalizeStaging(VkFence fence /*= VK_NULL_HANDLE*/)
 {
   m_staging->finalizeResources(fence);
@@ -322,6 +415,36 @@ void ResourceAllocator::destroy(Texture& t_)
   }
 
   t_ = Texture();
+}
+
+
+void ResourceAllocator::destroy(nvvk::SparseImage& i_)
+{
+  flushSparseImage(i_);
+  for(auto& mipTailAlloc : i_.mipTailAllocations)
+  {
+    m_memAlloc->freeMemory(mipTailAlloc);
+  }
+  i_.mipTailAllocations.clear();
+  i_.unbindMipTailMemory();
+  for(size_t i = 0; i < nvvk::SparseImage::s_sparseImageCount; i++)
+    vkDestroyImage(m_device, i_.images[i], nullptr);
+}
+bool ResourceAllocator::destroy(nvvk::SparseImage& i_, uint32_t pageIndex, uint32_t layer)
+{
+  auto it = i_.allocatedPages.find({layer, pageIndex});
+  if(it == i_.allocatedPages.end())
+  {
+    return false;
+  }
+
+  SparseImagePage& page = it->second;
+  if(!page.hasBoundMemory())
+    return false;
+
+  m_memAlloc->freeMemory(page.allocation);
+  i_.allocatedPages.erase(it);
+  return true;
 }
 
 void* ResourceAllocator::map(const Buffer& buffer)
@@ -562,7 +685,7 @@ ResourceAllocatorDma::~ResourceAllocatorDma()
 
 void ResourceAllocatorDma::init(VkDevice device, VkPhysicalDevice physicalDevice, VkDeviceSize stagingBlockSize, VkDeviceSize memBlockSize)
 {
-  m_dma      = std::make_unique<DeviceMemoryAllocator>(device, physicalDevice, memBlockSize);
+  m_dma = std::make_unique<DeviceMemoryAllocator>(device, physicalDevice, memBlockSize);
   ResourceAllocator::init(device, physicalDevice, m_dma.get(), stagingBlockSize);
 }
 

@@ -20,6 +20,7 @@
 #include "raytraceKHR_vk.hpp"
 #include <cinttypes>
 #include <numeric>
+#include "nvh/timesampler.hpp"
 
 //--------------------------------------------------------------------------------------------------
 // Initializing the allocator and querying the raytracing properties
@@ -167,7 +168,8 @@ void nvvk::RaytracingBuilderKHR::buildBlas(const std::vector<BlasInput>& input, 
       return a + b.sizeInfo.accelerationStructureSize;
     });
     const float  fractionSmaller = (asTotalSize == 0) ? 0 : (asTotalSize - compactSize) / float(asTotalSize);
-    LOGI(" RT BLAS: reducing from: %" PRIu64 " to: %" PRIu64 " = %" PRIu64 " (%2.2f%s smaller) \n", asTotalSize,
+    LOGI("%sRT BLAS: reducing from: %" PRIu64 " to: %" PRIu64 " = %" PRIu64 " (%2.2f%s smaller) \n",
+         nvh::ScopedTimer::indent().c_str(), asTotalSize,
          compactSize, asTotalSize - compactSize, fractionSmaller * 100.f, "%");
   }
 

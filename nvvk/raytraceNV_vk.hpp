@@ -136,20 +136,6 @@ public:
   //
   void updateBlas(uint32_t blasIdx);
 
-#ifdef VULKAN_HPP
-public:
-  void buildBlas(const std::vector<std::vector<VkGeometryNV>>& geoms, vk::BuildAccelerationStructureFlagsNV flags)
-  {
-    buildBlas(geoms, static_cast<VkBuildAccelerationStructureFlagsNV>(flags));
-  }
-
-  void buildTlas(const std::vector<Instance>& instances, vk::BuildAccelerationStructureFlagsNV flags)
-
-  {
-    buildTlas(instances, static_cast<VkBuildAccelerationStructureFlagsNV>(flags));
-  }
-#endif
-
 private:
   // Bottom-level acceleration structure
   struct Blas

@@ -50,9 +50,12 @@ public:
                   bool isTilingOptimal = false  // determine if the alocation is going to be used for an VK_IMAGE_TILING_OPTIMAL image
   );
 
-  // Convenience constructures that infer the allocation information from the Vulkan objects directly
+  // Convenience constructures that infer the allocation information from the buffer object directly
   MemAllocateInfo(VkDevice device, VkBuffer buffer, VkMemoryPropertyFlags memProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-  MemAllocateInfo(VkDevice device, VkImage image, VkMemoryPropertyFlags memProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+  // Convenience constructures that infer the allocation information from the image object directly.
+  // If the driver _prefers_ a dedicated allocation for this particular image and allowDedicatedAllocation is true, a dedicated allocation will be requested.
+  // If the driver _requires_ a dedicated allocation, a dedicated allocation will be requested regardless of 'allowDedicatedAllocation'.
+  MemAllocateInfo(VkDevice device, VkImage image, VkMemoryPropertyFlags memProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, bool allowDedicatedAllocation = true);
 
   // Determines which heap to allocate from
   MemAllocateInfo& setMemoryProperties(VkMemoryPropertyFlags flags);

@@ -85,12 +85,6 @@ inline VkDescriptorPool createDescriptorPool(VkDevice device, const std::vector<
   return createDescriptorPool(device, poolSizes.size(), poolSizes.data(), maxSets);
 }
 
-#ifdef VULKAN_HPP
-inline VkDescriptorPool createDescriptorPool(vk::Device device, const std::vector<vk::DescriptorPoolSize>& poolSizes, uint32_t maxSets)
-{
-  return createDescriptorPool(device, poolSizes.size(), reinterpret_cast<const VkDescriptorPoolSize*>(poolSizes.data()), maxSets);
-}
-#endif
 
 inline VkDescriptorSet allocateDescriptorSet(VkDevice device, VkDescriptorPool pool, VkDescriptorSetLayout layout)
 {
@@ -124,16 +118,6 @@ inline void allocateDescriptorSets(VkDevice                      device,
   result = vkAllocateDescriptorSets(device, &allocInfo, sets.data());
   assert(result == VK_SUCCESS);
 }
-#ifdef VULKAN_HPP
-inline void allocateDescriptorSets(vk::Device                      device,
-                                   vk::DescriptorPool              pool,
-                                   vk::DescriptorSetLayout         layout,
-                                   uint32_t                        count,
-                                   std::vector<vk::DescriptorSet>& sets)
-{
-  allocateDescriptorSets(device, pool, layout, count, reinterpret_cast<std::vector<VkDescriptorSet>&>(sets));
-}
-#endif
 
 /////////////////////////////////////////////////////////////////////////////
 /**
@@ -289,130 +273,8 @@ public:
                                       uint32_t                                         dstBinding,
                                       const VkWriteDescriptorSetInlineUniformBlockEXT* pInline) const;
 #endif
-#ifdef VULKAN_HPP
-  DescriptorSetBindings(const std::vector<vk::DescriptorSetLayoutBinding>& bindings)
-  {
-    auto source = &static_cast<const VkDescriptorSetLayoutBinding&>(bindings[0]);
-    m_bindings.assign(source, source + bindings.size());
-  }
-  void addBinding(uint32_t binding,           // Slot to which the descriptor will be bound, corresponding to the layout
-                                              // binding index in the shader
-                  vk::DescriptorType   type,  // Type of the bound descriptor(s)
-                  uint32_t             count,       // Number of descriptors
-                  vk::ShaderStageFlags stageFlags,  // Shader stages at which the bound resources will be available
-                  const vk::Sampler*   pImmutableSampler = nullptr  // Corresponding sampler, in case of textures
-  )
-  {
-    m_bindings.push_back({binding, static_cast<VkDescriptorType>(type), count, static_cast<VkShaderStageFlags>(stageFlags),
-                          reinterpret_cast<const VkSampler*>(pImmutableSampler)});
-  }
-  void addBinding(const vk::DescriptorSetLayoutBinding& layoutBinding)
-  {
-    m_bindings.emplace_back(static_cast<VkDescriptorSetLayoutBinding>(layoutBinding));
-  }
-  void setBindings(const std::vector<vk::DescriptorSetLayoutBinding>& bindings)
-  {
-    setBindings(reinterpret_cast<const std::vector<VkDescriptorSetLayoutBinding>&>(bindings));
-  }
 
-  void setBindingFlags(uint32_t binding, vk::DescriptorBindingFlags bindingFlags)
-  {
-    setBindingFlags(binding, static_cast<VkDescriptorBindingFlags>(bindingFlags));
-  }
-
-  void addRequiredPoolSizes(std::vector<vk::DescriptorPoolSize>& poolSizes, uint32_t numSets) const
-  {
-    addRequiredPoolSizes(reinterpret_cast<std::vector<VkDescriptorPoolSize>&>(poolSizes), numSets);
-  }
-
-  vk::WriteDescriptorSet makeWrite(vk::DescriptorSet              dstSet,
-                                   uint32_t                       dstBinding,
-                                   const vk::DescriptorImageInfo* pImageInfo,
-                                   uint32_t                       arrayElement = 0) const
-  {
-    return makeWrite(dstSet, dstBinding, reinterpret_cast<const VkDescriptorImageInfo*>(pImageInfo), arrayElement);
-  }
-  vk::WriteDescriptorSet makeWrite(vk::DescriptorSet               dstSet,
-                                   uint32_t                        dstBinding,
-                                   const vk::DescriptorBufferInfo* pBufferInfo,
-                                   uint32_t                        arrayElement = 0) const
-  {
-    return makeWrite(dstSet, dstBinding, reinterpret_cast<const VkDescriptorBufferInfo*>(pBufferInfo), arrayElement);
-  }
-  vk::WriteDescriptorSet makeWrite(vk::DescriptorSet     dstSet,
-                                   uint32_t              dstBinding,
-                                   const vk::BufferView* pTexelBufferView,
-                                   uint32_t              arrayElement = 0) const
-  {
-    return makeWrite(dstSet, dstBinding, reinterpret_cast<const VkBufferView*>(pTexelBufferView), arrayElement);
-  }
-#if VK_NV_ray_tracing
-  vk::WriteDescriptorSet makeWrite(vk::DescriptorSet                                    dstSet,
-                                   uint32_t                                             dstBinding,
-                                   const vk::WriteDescriptorSetAccelerationStructureNV* pAccel,
-                                   uint32_t                                             arrayElement = 0) const
-  {
-    return makeWrite(dstSet, dstBinding, reinterpret_cast<const VkWriteDescriptorSetAccelerationStructureNV*>(pAccel), arrayElement);
-  }
-#endif
-#if VK_KHR_acceleration_structure
-  vk::WriteDescriptorSet makeWrite(vk::DescriptorSet                                     dstSet,
-                                   uint32_t                                              dstBinding,
-                                   const vk::WriteDescriptorSetAccelerationStructureKHR* pAccel,
-                                   uint32_t                                              arrayElement = 0) const
-  {
-    return makeWrite(dstSet, dstBinding, reinterpret_cast<const VkWriteDescriptorSetAccelerationStructureKHR*>(pAccel), arrayElement);
-  }
-#endif
-#if VK_EXT_inline_uniform_block
-  vk::WriteDescriptorSet makeWrite(vk::DescriptorSet                                  dstSet,
-                                   uint32_t                                           dstBinding,
-                                   const vk::WriteDescriptorSetInlineUniformBlockEXT* pInlineUniform,
-                                   uint32_t                                           arrayElement = 0) const
-  {
-    return makeWrite(dstSet, dstBinding,
-                     reinterpret_cast<const VkWriteDescriptorSetInlineUniformBlockEXT*>(pInlineUniform), arrayElement);
-  }
-#endif
-  vk::WriteDescriptorSet makeWriteArray(vk::DescriptorSet dstSet, uint32_t dstBinding, const vk::DescriptorImageInfo* pImageInfo) const
-  {
-    return makeWriteArray(dstSet, dstBinding, reinterpret_cast<const VkDescriptorImageInfo*>(pImageInfo));
-  }
-  vk::WriteDescriptorSet makeWriteArray(vk::DescriptorSet dstSet, uint32_t dstBinding, const vk::DescriptorBufferInfo* pBufferInfo) const
-  {
-    return makeWriteArray(dstSet, dstBinding, reinterpret_cast<const VkDescriptorBufferInfo*>(pBufferInfo));
-  }
-  vk::WriteDescriptorSet makeWriteArray(vk::DescriptorSet dstSet, uint32_t dstBinding, const vk::BufferView* pTexelBufferView) const
-  {
-    return makeWriteArray(dstSet, dstBinding, reinterpret_cast<const VkBufferView*>(pTexelBufferView));
-  }
-#if VK_NV_ray_tracing
-  vk::WriteDescriptorSet makeWriteArray(vk::DescriptorSet                                    dstSet,
-                                        uint32_t                                             dstBinding,
-                                        const vk::WriteDescriptorSetAccelerationStructureNV* pAccel) const
-  {
-    return makeWriteArray(dstSet, dstBinding, reinterpret_cast<const VkWriteDescriptorSetAccelerationStructureNV*>(pAccel));
-  }
-#endif
-#if VK_KHR_acceleration_structure
-  vk::WriteDescriptorSet makeWriteArray(vk::DescriptorSet                                     dstSet,
-                                        uint32_t                                              dstBinding,
-                                        const vk::WriteDescriptorSetAccelerationStructureKHR* pAccel) const
-  {
-    return makeWriteArray(dstSet, dstBinding, reinterpret_cast<const VkWriteDescriptorSetAccelerationStructureKHR*>(pAccel));
-  }
-#endif
-#if VK_EXT_inline_uniform_block
-  vk::WriteDescriptorSet makeWriteArray(vk::DescriptorSet                                  dstSet,
-                                        uint32_t                                           dstBinding,
-                                        const vk::WriteDescriptorSetInlineUniformBlockEXT* pInline) const
-  {
-    return makeWriteArray(dstSet, dstBinding, reinterpret_cast<const VkWriteDescriptorSetInlineUniformBlockEXT*>(pInline));
-  }
-#endif
-#endif
-
-private:
+protected:
   std::vector<VkDescriptorSetLayoutBinding> m_bindings;
   std::vector<VkDescriptorBindingFlags>     m_bindingFlags;
 };
@@ -573,107 +435,7 @@ public:
     return m_bindings.makeWriteArray(getSet(dstSetIdx), dstBinding, pInline);
   }
 #endif
-#ifdef VULKAN_HPP
-  void addBinding(uint32_t binding,           // Slot to which the descriptor will be bound, corresponding to the layout
-                                              // binding index in the shader
-                  vk::DescriptorType   type,  // Type of the bound descriptor(s)
-                  uint32_t             count,       // Number of descriptors
-                  vk::ShaderStageFlags stageFlags,  // Shader stages at which the bound resources will be available
-                  const vk::Sampler*   pImmutableSampler = nullptr  // Corresponding sampler, in case of textures
-  )
-  {
-    m_bindings.addBinding({binding, static_cast<VkDescriptorType>(type), count, static_cast<VkShaderStageFlags>(stageFlags),
-                           reinterpret_cast<const VkSampler*>(pImmutableSampler)});
-  }
-  void setBindings(const std::vector<vk::DescriptorSetLayoutBinding>& bindings)
-  {
-    m_bindings.setBindings(reinterpret_cast<const std::vector<VkDescriptorSetLayoutBinding>&>(bindings));
-  }
-  void setBindingFlags(uint32_t binding, vk::DescriptorBindingFlags bindingFlags)
-  {
-    m_bindings.setBindingFlags(binding, static_cast<VkDescriptorBindingFlags>(bindingFlags));
-  }
 
-  vk::WriteDescriptorSet makeWrite(uint32_t dstSetIdx, uint32_t dstBinding, const vk::DescriptorImageInfo* pImageInfo, uint32_t arrayElement = 0) const
-  {
-    return m_bindings.makeWrite(getSet(dstSetIdx), dstBinding, reinterpret_cast<const VkDescriptorImageInfo*>(pImageInfo), arrayElement);
-  }
-  vk::WriteDescriptorSet makeWrite(uint32_t                        dstSetIdx,
-                                   uint32_t                        dstBinding,
-                                   const vk::DescriptorBufferInfo* pBufferInfo,
-                                   uint32_t                        arrayElement = 0) const
-  {
-    return m_bindings.makeWrite(getSet(dstSetIdx), dstBinding,
-                                reinterpret_cast<const VkDescriptorBufferInfo*>(pBufferInfo), arrayElement);
-  }
-  vk::WriteDescriptorSet makeWrite(uint32_t dstSetIdx, uint32_t dstBinding, const vk::BufferView* pTexelBufferView, uint32_t arrayElement = 0) const
-  {
-    return m_bindings.makeWrite(getSet(dstSetIdx), dstBinding, reinterpret_cast<const VkBufferView*>(pTexelBufferView), arrayElement);
-  }
-#if VK_NV_ray_tracing
-  vk::WriteDescriptorSet makeWrite(uint32_t                                             dstSetIdx,
-                                   uint32_t                                             dstBinding,
-                                   const vk::WriteDescriptorSetAccelerationStructureNV* pAccel,
-                                   uint32_t                                             arrayElement = 0) const
-  {
-    return m_bindings.makeWrite(getSet(dstSetIdx), dstBinding,
-                                reinterpret_cast<const VkWriteDescriptorSetAccelerationStructureNV*>(pAccel), arrayElement);
-  }
-#endif
-#if VK_KHR_acceleration_structure
-  vk::WriteDescriptorSet makeWrite(uint32_t                                              dstSetIdx,
-                                   uint32_t                                              dstBinding,
-                                   const vk::WriteDescriptorSetAccelerationStructureKHR* pAccel,
-                                   uint32_t                                              arrayElement = 0) const
-  {
-    return m_bindings.makeWrite(getSet(dstSetIdx), dstBinding,
-                                reinterpret_cast<const VkWriteDescriptorSetAccelerationStructureKHR*>(pAccel), arrayElement);
-  }
-#endif
-  vk::WriteDescriptorSet makeWrite(uint32_t                                           dstSetIdx,
-                                   uint32_t                                           dstBinding,
-                                   const vk::WriteDescriptorSetInlineUniformBlockEXT* pInlineUniform,
-                                   uint32_t                                           arrayElement = 0) const
-  {
-    return m_bindings.makeWrite(getSet(dstSetIdx), dstBinding,
-                                reinterpret_cast<const VkWriteDescriptorSetInlineUniformBlockEXT*>(pInlineUniform), arrayElement);
-  }
-  vk::WriteDescriptorSet makeWriteArray(uint32_t dstSetIdx, uint32_t dstBinding, const vk::DescriptorImageInfo* pImageInfo) const
-  {
-    return m_bindings.makeWriteArray(getSet(dstSetIdx), dstBinding, reinterpret_cast<const VkDescriptorImageInfo*>(pImageInfo));
-  }
-  vk::WriteDescriptorSet makeWriteArray(uint32_t dstSetIdx, uint32_t dstBinding, const vk::DescriptorBufferInfo* pBufferInfo) const
-  {
-    return m_bindings.makeWriteArray(getSet(dstSetIdx), dstBinding, reinterpret_cast<const VkDescriptorBufferInfo*>(pBufferInfo));
-  }
-  vk::WriteDescriptorSet makeWriteArray(uint32_t dstSetIdx, uint32_t dstBinding, const vk::BufferView* pTexelBufferView) const
-  {
-    return m_bindings.makeWriteArray(getSet(dstSetIdx), dstBinding, reinterpret_cast<const VkBufferView*>(pTexelBufferView));
-  }
-#if VK_NV_ray_tracing
-  vk::WriteDescriptorSet makeWriteArray(uint32_t dstSetIdx, uint32_t dstBinding, const vk::WriteDescriptorSetAccelerationStructureNV* pAccel) const
-  {
-    return m_bindings.makeWriteArray(getSet(dstSetIdx), dstBinding,
-                                     reinterpret_cast<const VkWriteDescriptorSetAccelerationStructureNV*>(pAccel));
-  }
-#endif
-#if VK_KHR_acceleration_structure
-  vk::WriteDescriptorSet makeWriteArray(uint32_t                                              dstSetIdx,
-                                        uint32_t                                              dstBinding,
-                                        const vk::WriteDescriptorSetAccelerationStructureKHR* pAccel) const
-  {
-    return m_bindings.makeWriteArray(getSet(dstSetIdx), dstBinding,
-                                     reinterpret_cast<const VkWriteDescriptorSetAccelerationStructureKHR*>(pAccel));
-  }
-#endif
-#if VK_EXT_inline_uniform_block
-  vk::WriteDescriptorSet makeWriteArray(uint32_t dstSetIdx, uint32_t dstBinding, const vk::WriteDescriptorSetInlineUniformBlockEXT* pInline) const
-  {
-    return m_bindings.makeWriteArray(getSet(dstSetIdx), dstBinding,
-                                     reinterpret_cast<const VkWriteDescriptorSetInlineUniformBlockEXT*>(pInline));
-  }
-#endif
-#endif
 protected:
   VkDevice                     m_device         = VK_NULL_HANDLE;
   VkDescriptorSetLayout        m_layout         = VK_NULL_HANDLE;
