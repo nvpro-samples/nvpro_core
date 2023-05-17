@@ -233,7 +233,9 @@ private:
   uint32_t m_updateHeight{0};
   // if the swap operation is sync'ed with monitor
   bool m_vsync = false;
-
+  // if vsync is off which mode to prefer
+  VkPresentModeKHR m_preferredVsyncOffMode = VK_PRESENT_MODE_MAILBOX_KHR;
+  // usage flags for swapchain images
   VkImageUsageFlags m_imageUsage{};
 
   VkResult waitIdle()
@@ -365,6 +367,9 @@ public:
   // device.  This may be needed if you are using queues in other CPU
   // threads that are not synchronized to the render loop.
   void setWaitQueue(VkQueue waitQueue = VK_NULL_HANDLE) { m_waitQueue = waitQueue; }
+
+  // typically either VK_PRESENT_MODE_MAILBOX_KHR or VK_PRESENT_MODE_IMMEDIATE_KHR
+  void setPreferredVsyncOffMode(VkPresentModeKHR mode) { m_preferredVsyncOffMode = mode; }
 };
 }  // namespace nvvk
 #endif

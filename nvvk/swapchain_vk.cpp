@@ -126,13 +126,15 @@ VkExtent2D SwapChain::update(int width, int height, bool vsync)
     {
       if(presentModes[i] == VK_PRESENT_MODE_MAILBOX_KHR)
       {
-        // prefer mailbox due to no tearing
         swapchainPresentMode = VK_PRESENT_MODE_MAILBOX_KHR;
-        break;
       }
       if(presentModes[i] == VK_PRESENT_MODE_IMMEDIATE_KHR)
       {
         swapchainPresentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
+      }
+      if (swapchainPresentMode == m_preferredVsyncOffMode)
+      {
+        break;
       }
     }
   }
