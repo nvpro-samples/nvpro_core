@@ -25,7 +25,10 @@ macro ( folder_list result curdir )
 ENDMACRO()
 # -------------------------------------------------------------------
 macro(_check_version_on_folder checkdir bestver bestvernumeric bestpath)
-  string ( REGEX MATCH ".*([0-9]+)\\.([0-9]+)\\.([0-9]+)\\.([0-9]+)" result "${checkdir}" )
+  # Find a 4-digit version number somewhere in the directory. We allow trailing
+  # non-digit characters at the end to make tarball paths like
+  # path/to/x.y.z.w/x86_64 work.
+  string ( REGEX MATCH ".*([0-9]+)\\.([0-9]+)\\.([0-9]+)\\.([0-9]+)[^0-9]*" result "${checkdir}" )
   if ( "${result}" STREQUAL "${checkdir}" )
      # found a path with versioning 
      SET ( ver "${CMAKE_MATCH_1}.${CMAKE_MATCH_2}.${CMAKE_MATCH_3}.${CMAKE_MATCH_4}" )
@@ -86,38 +89,33 @@ set ( SEARCH_PATHS
   "${VULKANSDK_LOCATION}" # this could be set to C:\VulkanSDK Best version will be taken
 )
 
-if (WIN32)
-  _find_version_path ( VULKANSDK_VERSION VULKANSDK_ROOT_DIR "${SEARCH_PATHS}" )
-endif()
-if (UNIX)
-  message ( STATUS "VulkanSDK search paths: ${SEARCH_PATHS}")
-  message ( STATUS "VULKAN_SDK environment variable: $ENV{VULKAN_SDK}")
+_find_version_path ( VULKANSDK_VERSION VULKANSDK_ROOT_DIR "${SEARCH_PATHS}" )
 
-  find_path(VULKANSDK_ROOT_DIR NAMES vulkan/vulkan.h HINTS "$ENV{VULKAN_SDK}/include")
-  find_library(VULKAN_LIB NAMES vulkan HINTS "$ENV{VULKAN_SDK}/lib")
-
-  Message(STATUS "Vulkan Include: ${VULKANSDK_ROOT_DIR}")
-  Message(STATUS "Vulkan Library: ${VULKAN_LIB}")
-endif()
 #
-#------- no overridden place to look at so let's use VK_SDK_PATH
-#        VK_SDK_PATH directly points to the dedicated version
-#        put after the search if one wanted to override this default VK_SDK_PATH
+#------- no overridden place to look at so let's use VULKAN_SDK
+#        VULKAN_SDK directly points to the dedicated version
+#        put after the search if one wanted to override this default VULKAN_SDK
 if (NOT VULKANSDK_ROOT_DIR )
-  STRING(REGEX REPLACE "\\\\" "/" VK_SDK_PATH "$ENV{VK_SDK_PATH}")
-  find_path( VULKANSDK_INCLUDE_DIR vulkan/vulkan.h ${VK_SDK_PATH}/include )
+  STRING(REGEX REPLACE "\\\\" "/" VULKAN_SDK_PATH "$ENV{VULKAN_SDK}")
+  # This may set VULKANSDK_INCLUDE_DIR to:
+  # - C:\VulkanSDK\x.y.z.w\Include (Windows)
+  # - path/to/x.y.z.w/x86_64/include (Linux tarball)
+  # - /usr/include (Ubuntu package, or if installed in another way and $ENV{VULKAN_SDK} is null)
+  # The and bin lib folders are always next to the include folder, so setting
+  # VULKANSDK_ROOT_DIR to ${VULKAN_SDK_INCLUDE_DIR}/.. should work.
+  find_path( VULKANSDK_INCLUDE_DIR vulkan/vulkan.h HINTS ${VULKAN_SDK_PATH}/include ${VULKAN_SDK_PATH}/Include)
   if ( VULKANSDK_INCLUDE_DIR )
-    set (VULKANSDK_ROOT_DIR ${VK_SDK_PATH} )
-    SET ( bestver "0.0.0.0" )
-    SET ( bestpath "" )
-    SET ( bestvernumeric "0000" )
-    _check_version_on_folder(${VULKANSDK_ROOT_DIR} bestver bestvernumeric bestpath)
-    SET ( VULKANSDK_VERSION "${bestver}" )
+    get_filename_component(VULKANSDK_ROOT_DIR ${VULKANSDK_INCLUDE_DIR} DIRECTORY)
   endif()
 endif()
 
-
 if (VULKANSDK_ROOT_DIR)
+  set ( bestver "0.0.0.0" )
+  set ( bestpath "" )
+  set ( bestvernumeric "0000" )
+  _check_version_on_folder(${VULKANSDK_ROOT_DIR} bestver bestvernumeric bestpath)
+  set ( VULKANSDK_VERSION "${bestver}" )
+
   #-------- Locate Vulkan and ShaderC libraries, and the glslangValidator executable.
 
   if (WIN32)
@@ -136,10 +134,11 @@ if (VULKANSDK_ROOT_DIR)
     find_file(GLSLANGVALIDATOR VULKANSDK_ROOT_DIR "glslangValidator" HINTS ${VULKANSDK_ROOT_DIR}"../bin/glslangValidator")
     find_file(GLSLC VULKANSDK_ROOT_DIR "glslc" HINTS ${VULKANSDK_ROOT_DIR}"../bin/glslc")
 
+    # Uncomment these 2 lines to print additional diagnostics:
     # message(STATUS "Vulkan Library Dir    : ${VULKAN_LIB_DIR}")
     # message(STATUS "Vulkan Root Dir       : ${VULKANSDK_ROOT_DIR}")
-    # message(STATUS "Vulkan Library        : ${VULKAN_LIB}")
-    # message(STATUS "Vulkan ShaderC Library: ${VULKANSDK_SHADERC_LIB}")
+    message(STATUS "Vulkan Library        : ${VULKAN_LIB}")
+    message(STATUS "Vulkan ShaderC Library: ${VULKANSDK_SHADERC_LIB}")
   endif(UNIX)
 
   if(VULKAN_LIB)
@@ -149,7 +148,7 @@ else(VULKANSDK_ROOT_DIR)
 
   message(WARNING "
       Vulkan SDK not found.
-      Most likely, this means that the environment variable VK_SDK_PATH should be set directly to the
+      Most likely, this means that the environment variable VULKAN_SDK should be set directly to the
       right version to use (e.g. C:\\VulkanSDK\\1.0.1.1; this contains the Vulkan SDK's Bin and Lib folders).
       Another option is that you can set the CMake VULKANSDK_LOCATION variable to the folder where this script should
       search for Vulkan SDK versions (e.g. C:\\VulkanSDK)."
