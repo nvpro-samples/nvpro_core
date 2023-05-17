@@ -296,6 +296,11 @@ inline vector3<T> clamp(const vector3<T>& x, const vector3<T>& minVal, const vec
   return vector3<T>(clamp(x.x, minVal.x, maxVal.x), clamp(x.y, minVal.y, maxVal.y), clamp(x.z, minVal.z, maxVal.z));
 }
 
+template <class T>
+inline vector2<T> clamp(const vector2<T>& x, const vector2<T>& minVal, const vector2<T>& maxVal)
+{
+  return vector2<T>(clamp(x.x, minVal.x, maxVal.x), clamp(x.y, minVal.y, maxVal.y));
+}
 
 template <class T>
 inline T min(T minVal, T maxVal)

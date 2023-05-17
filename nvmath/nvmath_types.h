@@ -1128,6 +1128,28 @@ vector3<T> make_vec3(T const* const ptr);
 template <typename T>
 vector4<T> make_vec4(T const* const ptr);
 
+// clang-format off
+template<typename T> vector2<bool> isinf(const vector2<T>& v) { return {std::isinf(v.x), std::isinf(v.y)}; }
+template<typename T> vector3<bool> isinf(const vector3<T>& v) { return {std::isinf(v.x), std::isinf(v.y), std::isinf(v.z)}; }
+template<typename T> vector4<bool> isinf(const vector4<T>& v) { return {std::isinf(v.x), std::isinf(v.y), std::isinf(v.z), std::isinf(v.w)}; }
+template<typename T> vector2<bool> isnan(const vector2<T>& v) { return {std::isnan(v.x), std::isnan(v.y)}; }
+template<typename T> vector3<bool> isnan(const vector3<T>& v) { return {std::isnan(v.x), std::isnan(v.y), std::isnan(v.z)}; }
+template<typename T> vector4<bool> isnan(const vector4<T>& v) { return {std::isnan(v.x), std::isnan(v.y), std::isnan(v.z), std::isnan(v.w)}; }
+inline bool any(const vector2<bool>& v) { return v.x || v.y; }
+inline bool any(const vector3<bool>& v) { return v.x || v.y || v.z; }
+inline bool any(const vector4<bool>& v) { return v.x || v.y || v.z || v.w; }
+inline bool all(const vector2<bool>& v) { return v.x && v.y; }
+inline bool all(const vector3<bool>& v) { return v.x && v.y && v.z; }
+inline bool all(const vector4<bool>& v) { return v.x && v.y && v.z && v.w; }
+// clang-format on
+
+// Returns true if all components are in R. I.e. there are no inf or nan values.
+template <class Vector>
+bool isreal(const Vector& v)
+{
+  return !any(isinf(v)) && !any(isnan(v));
+}
+
 }  // namespace nvmath
 
 #endif
