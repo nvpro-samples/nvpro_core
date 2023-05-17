@@ -37,6 +37,13 @@
 #include <string>
 #include <vector>
 
+// Samples include their own definitions of stb_image. Use STB_IMAGE_WRITE_STATIC to avoid issues with multiple
+// definitions in the nvpro_core static lib at the cost of having the code exist multiple times.
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#define STB_IMAGE_WRITE_STATIC
+#include <stb_image_write.h>
+#include <memory>
+
 // Executables (but not DLLs) exporting this symbol with this value will be
 // automatically directed to the high-performance GPU on Nvidia Optimus systems
 // with up-to-date drivers
@@ -49,125 +56,122 @@ _declspec(dllexport) DWORD NvOptimusEnablement = 0x00000001;
 
 static int CaptureAnImage(HWND hWnd, const char* filename)
 {
-  HDC     hdcWindow;
-  HDC     hdcMemDC  = NULL;
-  HBITMAP hbmScreen = NULL;
-  BITMAP  bmpScreen;
-
-  // Retrieve the handle to a display device context for the client
-  // area of the window.
-  hdcWindow = GetDC(hWnd);
-
-  // Create a compatible DC which is used in a BitBlt from the window DC
-  hdcMemDC = CreateCompatibleDC(hdcWindow);
-
-  if(!hdcMemDC)
+  struct LocalResources
   {
-    LOGE("CreateCompatibleDC has failed\n");
-    goto done;
-  }
-
-  // Get the client area for size calculation
-  RECT rcClient;
-  GetClientRect(hWnd, &rcClient);
-
-  // Create a compatible bitmap from the Window DC
-  hbmScreen = CreateCompatibleBitmap(hdcWindow, rcClient.right - rcClient.left, rcClient.bottom - rcClient.top);
-
-  if(!hbmScreen)
-  {
-    LOGE("CreateCompatibleBitmap Failed\n");
-    goto done;
-  }
-
-  // Select the compatible bitmap into the compatible memory DC.
-  SelectObject(hdcMemDC, hbmScreen);
-
-  // Bit block transfer into our compatible memory DC.
-  if(!BitBlt(hdcMemDC, 0, 0, rcClient.right - rcClient.left, rcClient.bottom - rcClient.top, hdcWindow, 0, 0, SRCCOPY))
-  {
-    LOGE("BitBlt has failed\n");
-    goto done;
-  }
-
-  {
-    // Get the BITMAP from the HBITMAP
-    GetObject(hbmScreen, sizeof(BITMAP), &bmpScreen);
-
-    BITMAPFILEHEADER bmfHeader{};
-    BITMAPINFOHEADER bi;
-
-    bi.biSize          = sizeof(BITMAPINFOHEADER);
-    bi.biWidth         = bmpScreen.bmWidth;
-    bi.biHeight        = bmpScreen.bmHeight;
-    bi.biPlanes        = 1;
-    bi.biBitCount      = 32;
-    bi.biCompression   = BI_RGB;
-    bi.biSizeImage     = 0;
-    bi.biXPelsPerMeter = 0;
-    bi.biYPelsPerMeter = 0;
-    bi.biClrUsed       = 0;
-    bi.biClrImportant  = 0;
-
-    DWORD dwBmpSize = ((bmpScreen.bmWidth * bi.biBitCount + 31) / 32) * 4 * bmpScreen.bmHeight;
-
-    // Starting with 32-bit Windows, GlobalAlloc and LocalAlloc are implemented as wrapper functions that
-    // call HeapAlloc using a handle to the process's default heap. Therefore, GlobalAlloc and LocalAlloc
-    // have greater overhead than HeapAlloc.
-    HANDLE hDIB = GlobalAlloc(GHND, dwBmpSize);
-    if(hDIB == 0)
+    LocalResources(HWND _hWnd)
+        : hWnd(_hWnd)
     {
-      LOGE("GlobalAlloc in CaptureAnImage has failed\n");
-      goto done;
     }
-    char* lpbitmap = (char*)GlobalLock(hDIB);
+    ~LocalResources()
+    {
+      if(hMemoryDC != nullptr && hOldBitmap != nullptr)
+        SelectObject(hMemoryDC, hOldBitmap);
+      if(hBitmap != nullptr)
+        DeleteObject(hBitmap);
+      if(hMemoryDC != nullptr)
+        DeleteDC(hMemoryDC);
+      if(hWnd != nullptr && hWindowDC != nullptr)
+        ReleaseDC(hWnd, hWindowDC);
+    }
+    HDC     hMemoryDC  = nullptr;
+    HDC     hWindowDC  = nullptr;
+    HBITMAP hOldBitmap = nullptr;
+    HBITMAP hBitmap    = nullptr;
+    HWND    hWnd       = nullptr;
+  };
+  std::unique_ptr<LocalResources> res = std::make_unique<LocalResources>(hWnd);
 
-    // Gets the "bits" from the bitmap and copies them into a buffer
-    // which is pointed to by lpbitmap.
-    GetDIBits(hdcWindow, hbmScreen, 0, (UINT)bmpScreen.bmHeight, lpbitmap, (BITMAPINFO*)&bi, DIB_RGB_COLORS);
-
-    // A file is created, this is where we will save the screen capture.
-    HANDLE hFile = CreateFileA(filename, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-
-    // Add the size of the headers to the size of the bitmap to get the total file size
-    DWORD dwSizeofDIB = dwBmpSize + sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER);
-
-    //Offset to where the actual bitmap bits start.
-    bmfHeader.bfOffBits = (DWORD)sizeof(BITMAPFILEHEADER) + (DWORD)sizeof(BITMAPINFOHEADER);
-
-    //Size of the file
-    bmfHeader.bfSize = dwSizeofDIB;
-
-    //bfType must always be BM for Bitmaps
-    bmfHeader.bfType = 0x4D42;  //BM
-
-    DWORD dwBytesWritten = 0;
-    WriteFile(hFile, (LPSTR)&bmfHeader, sizeof(BITMAPFILEHEADER), &dwBytesWritten, NULL);
-    WriteFile(hFile, (LPSTR)&bi, sizeof(BITMAPINFOHEADER), &dwBytesWritten, NULL);
-    WriteFile(hFile, (LPSTR)lpbitmap, dwBmpSize, &dwBytesWritten, NULL);
-
-    //Unlock and Free the DIB from the heap
-    GlobalUnlock(hDIB);
-    GlobalFree(hDIB);
-
-    //Close the handle for the file that was created
-    CloseHandle(hFile);
-  }
-
-  //Clean up
-done:
-  if(hbmScreen != 0)
+  // Get the window's device context
+  res->hWindowDC = GetDC(hWnd);
+  if(res->hWindowDC == nullptr)
   {
-    DeleteObject(hbmScreen);
+    LOGE("Failed to Create Compatible Bitmap");
+    return -1;
   }
-  if(hdcMemDC != 0)
+
+  // Get the window's width and height
+  RECT rect;
+  if(!GetClientRect(res->hWnd, &rect))
   {
-    DeleteObject(hdcMemDC);
+    LOGE("Failed to retrieves a handle to a device context");
+    return -1;
   }
-  ReleaseDC(hWnd, hdcWindow);
+
+  // Create a compatible device context
+  res->hMemoryDC = CreateCompatibleDC(res->hWindowDC);
+  if(res->hMemoryDC == nullptr)
+  {
+    LOGE("Failed to creates a memory device context");
+    return -1;
+  }
+
+  int width  = rect.right - rect.left;
+  int height = rect.bottom - rect.top;
+
+  // Create a bitmap and select it into the device context
+  res->hBitmap = CreateCompatibleBitmap(res->hWindowDC, width, height);
+  if(res->hBitmap == nullptr)
+  {
+    LOGE("Failed to creates a bitmap compatible with the device");
+    return -1;
+  }
+
+  res->hOldBitmap = (HBITMAP)SelectObject(res->hMemoryDC, res->hBitmap);
+  if(res->hOldBitmap == nullptr)
+  {
+    LOGE("Failed to selects an object into the specified device context");
+    return -1;
+  }
+
+  // Copy the window's device context to the bitmap
+  if(BitBlt(res->hMemoryDC, 0, 0, width, height, res->hWindowDC, 0, 0, SRCCOPY) == 0)
+  {
+    LOGE("Failed to bit-block transfer");
+    return -1;
+  }
+
+  // Prepare the bitmap info header
+  BITMAPINFOHEADER bi = {};
+  bi.biSize           = sizeof(BITMAPINFOHEADER);
+  bi.biWidth          = width;
+  bi.biHeight         = -height;  // Negative height to ensure top-down orientation
+  bi.biPlanes         = 1;
+  bi.biBitCount       = 24;  // 24 bits per pixel (RGB)
+  bi.biCompression    = BI_RGB;
+  bi.biSizeImage      = 0;
+  bi.biXPelsPerMeter  = 0;
+  bi.biYPelsPerMeter  = 0;
+  bi.biClrUsed        = 0;
+  bi.biClrImportant   = 0;
+
+  // Allocate memory for the bitmap data
+  std::vector<uint8_t> pixels(width * height * 3);
+
+  // Copy the bitmap data into the pixel buffer
+  if(GetDIBits(res->hMemoryDC, res->hBitmap, 0, height, pixels.data(), (BITMAPINFO*)&bi, DIB_RGB_COLORS) == 0)
+  {
+    LOGE("Failed to retrieves the bits of the specified compatible bitmap");
+    return -1;
+  }
+
+  // Convert BGR to RGB
+  for(int i = 0; i < width * height; ++i)
+  {
+    uint8_t temp      = pixels[i * 3];
+    pixels[i * 3]     = pixels[i * 3 + 2];
+    pixels[i * 3 + 2] = temp;
+  }
+
+  // Save the bitmap as a PNG file using stb_image
+  if(stbi_write_png(filename, width, height, 3, pixels.data(), width * 3) == 0)
+  {
+    LOGE("Failed to write: %s", filename);
+    return -1;
+  }
 
   return 0;
 }
+
 
 void NVPSystem::windowScreenshot(struct GLFWwindow* glfwin, const char* filename)
 {
@@ -224,8 +228,8 @@ static std::string fileDialog(struct GLFWwindow* glfwin, const char* title, cons
   extsfixed.push_back(0);
   extsfixed.push_back(0);
 
-  OPENFILENAME ofn;           // common dialog box structure
-  char         szFile[1024];  // buffer for file name
+  OPENFILENAME ofn;             // common dialog box structure
+  char         szFile[1024]{};  // buffer for file name
 
   // Initialize OPENFILENAME
   ZeroMemory(&ofn, sizeof(ofn));
