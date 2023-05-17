@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include <filesystem>
 
 #include "nvvk/debug_util_vk.hpp"
 #include "nvvkhl/alloc_vma.hpp"
@@ -66,6 +67,9 @@ protected:
   virtual void createInstanceInfoBuffer(VkCommandBuffer cmd, const nvh::GltfScene& scn);
   virtual void createVertexBuffer(VkCommandBuffer cmd, const nvh::GltfScene& scn);
   virtual void createTextureImages(VkCommandBuffer cmd, const tinygltf::Model& tiny, const std::filesystem::path& basedir);
+
+  void findSrgbImages(const tinygltf::Model& tiny);
+
   virtual void loadImage(const std::filesystem::path& basedir, const tinygltf::Image& gltfImage, int imageID);
   virtual bool createImage(const VkCommandBuffer& cmd, SceneImage& image);
 

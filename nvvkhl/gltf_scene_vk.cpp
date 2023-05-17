@@ -43,6 +43,7 @@ nvvkhl::SceneVk::SceneVk(nvvk::Context* ctx, AllocVma* alloc)
 //
 void nvvkhl::SceneVk::create(VkCommandBuffer cmd, const nvvkhl::Scene& scn)
 {
+  nvh::ScopedTimer st(__FUNCTION__);
   destroy();  // Make sure not to leave allocated buffers
 
   namespace fs     = std::filesystem;
@@ -67,7 +68,7 @@ void nvvkhl::SceneVk::create(VkCommandBuffer cmd, const nvvkhl::Scene& scn)
 //
 void nvvkhl::SceneVk::createMaterialBuffer(VkCommandBuffer cmd, const nvh::GltfScene& scn)
 {
-  nvh::ScopedTimer _st("- Create Material Buffer");
+  nvh::ScopedTimer st(__FUNCTION__);
 
   std::vector<GltfShadeMaterial> shade_materials;
   shade_materials.reserve(scn.m_materials.size());
@@ -104,7 +105,7 @@ void nvvkhl::SceneVk::createMaterialBuffer(VkCommandBuffer cmd, const nvh::GltfS
 // - Use by the vertex shader to retrieve the position of the instance
 void nvvkhl::SceneVk::createInstanceInfoBuffer(VkCommandBuffer cmd, const nvh::GltfScene& scn)
 {
-  nvh::ScopedTimer _st("- Create Instance Buffer");
+  nvh::ScopedTimer st(__FUNCTION__);
 
   std::vector<InstanceInfo> inst_info;
   for(const auto& node : scn.m_nodes)
@@ -125,7 +126,7 @@ void nvvkhl::SceneVk::createInstanceInfoBuffer(VkCommandBuffer cmd, const nvh::G
 //
 void nvvkhl::SceneVk::createVertexBuffer(VkCommandBuffer cmd, const nvh::GltfScene& scn)
 {
-  nvh::ScopedTimer _st("- Create Vertex Buffer");
+  nvh::ScopedTimer st(__FUNCTION__);
 
   std::vector<PrimMeshInfo> prim_info;  // The array of all primitive information
   uint32_t                  prim_idx{0};
@@ -199,37 +200,64 @@ void nvvkhl::SceneVk::createVertexBuffer(VkCommandBuffer cmd, const nvh::GltfSce
   m_dutil->DBG_NAME(m_bPrimInfo.buffer);
 }
 
+//--------------------------------------------------------------------------------------------------------------
+// Returning the Vulkan sampler information from the information in the tinygltf
+//
+VkSamplerCreateInfo getSampler(const tinygltf::Model& tiny, int index)
+{
+  VkSamplerCreateInfo samplerInfo{VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
+  samplerInfo.minFilter  = VK_FILTER_LINEAR;
+  samplerInfo.magFilter  = VK_FILTER_LINEAR;
+  samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+  samplerInfo.maxLod     = FLT_MAX;
+
+  if(index < 0)
+    return samplerInfo;
+
+  const auto& sampler = tiny.samplers[index];
+
+  const std::map<int, VkFilter> filters = {{9728, VK_FILTER_NEAREST}, {9729, VK_FILTER_LINEAR},
+                                           {9984, VK_FILTER_NEAREST}, {9985, VK_FILTER_LINEAR},
+                                           {9986, VK_FILTER_NEAREST}, {9987, VK_FILTER_LINEAR}};
+
+  const std::map<int, VkSamplerMipmapMode> mipmapModes = {
+      {9728, VK_SAMPLER_MIPMAP_MODE_NEAREST}, {9729, VK_SAMPLER_MIPMAP_MODE_LINEAR},
+      {9984, VK_SAMPLER_MIPMAP_MODE_NEAREST}, {9985, VK_SAMPLER_MIPMAP_MODE_LINEAR},
+      {9986, VK_SAMPLER_MIPMAP_MODE_NEAREST}, {9987, VK_SAMPLER_MIPMAP_MODE_LINEAR}};
+
+  const std::map<int, VkSamplerAddressMode> wrapModes = {
+      {TINYGLTF_TEXTURE_WRAP_REPEAT, VK_SAMPLER_ADDRESS_MODE_REPEAT},
+      {TINYGLTF_TEXTURE_WRAP_CLAMP_TO_EDGE, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE},
+      {TINYGLTF_TEXTURE_WRAP_MIRRORED_REPEAT, VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT}};
+
+  if(sampler.minFilter > -1)
+    samplerInfo.minFilter = filters.at(sampler.minFilter);
+  if(sampler.magFilter > -1)
+  {
+    samplerInfo.magFilter  = filters.at(sampler.magFilter);
+    samplerInfo.mipmapMode = mipmapModes.at(sampler.magFilter);
+  }
+  samplerInfo.addressModeU = wrapModes.at(sampler.wrapS);
+  samplerInfo.addressModeV = wrapModes.at(sampler.wrapT);
+
+  return samplerInfo;
+}
+
+//--------------------------------------------------------------------------------------------------------------
+// This is creating all images stored in textures
+//
 void nvvkhl::SceneVk::createTextureImages(VkCommandBuffer cmd, const tinygltf::Model& tiny, const std::filesystem::path& basedir)
 {
-  nvh::ScopedTimer _st("- Create Textures\n");
+  nvh::ScopedTimer st(std::string(__FUNCTION__) + "\n");
 
-  VkSamplerCreateInfo sampler_create_info{VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
-  sampler_create_info.minFilter  = VK_FILTER_LINEAR;
-  sampler_create_info.magFilter  = VK_FILTER_LINEAR;
-  sampler_create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-  sampler_create_info.maxLod     = FLT_MAX;
+  VkSamplerCreateInfo default_sampler{VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
+  default_sampler.minFilter  = VK_FILTER_LINEAR;
+  default_sampler.magFilter  = VK_FILTER_LINEAR;
+  default_sampler.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+  default_sampler.maxLod     = FLT_MAX;
 
-  // Find sRGB images:
-  // - see section on base color texture under https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#metallic-roughness-material
-  for(size_t matID = 0; matID < tiny.materials.size(); matID++)
-  {  // Adding all images referencing by the base color or emissive, all others are linear
-    int texIDs[2] = {tiny.materials[matID].pbrMetallicRoughness.baseColorTexture.index,
-                     tiny.materials[matID].emissiveTexture.index};
-    for(auto texID : texIDs)
-    {
-      if(texID > -1)
-        m_sRgbImages.insert(tiny.textures[texID].source);
-    }
-  }
-  for(size_t texID = 0; texID < tiny.textures.size(); texID++)
-  {  // Special, if the 'extra' in the texture has a gamma defined greater than 1.0, it is sRGB
-    const auto& texture = tiny.textures[texID];
-    if(texture.extras.Has("gamma") && texture.extras.Get("gamma").GetNumberAsDouble() > 1.0)
-    {
-      m_sRgbImages.insert(texture.source);
-    }
-  }
-
+  // Find and all textures/images that should be sRgb encoded.
+  findSrgbImages(tiny);
 
   // Make dummy image(1,1), needed as we cannot have an empty array
   auto addDefaultImage = [&](uint32_t idx, const std::array<uint8_t, 4>& color) {
@@ -245,17 +273,18 @@ void nvvkhl::SceneVk::createTextureImages(VkCommandBuffer cmd, const tinygltf::M
     assert(!m_images.empty());
     SceneImage&           scn_image = m_images[0];
     VkImageViewCreateInfo iv_info   = nvvk::makeImageViewCreateInfo(scn_image.nvvkImage.image, scn_image.createInfo);
-    m_textures.emplace_back(m_alloc->createTexture(scn_image.nvvkImage, iv_info, sampler_create_info));
+    m_textures.emplace_back(m_alloc->createTexture(scn_image.nvvkImage, iv_info, default_sampler));
   };
 
   // Load images in parallel
   m_images.resize(tiny.images.size());
   uint32_t num_threads = std::min((uint32_t)tiny.images.size(), std::thread::hardware_concurrency());
+  const std::string indent      = st.indent();
   nvh::parallel_batches<1>(  // Not batching
       tiny.images.size(),
       [&](uint64_t i) {
         const auto& image = tiny.images[i];
-        LOGI("  - (%" PRIu64 ") %s \n", i, image.uri.c_str());
+        LOGI("%s(%" PRIu64 ") %s \n", indent.c_str(), i, image.uri.c_str());
         loadImage(basedir, image, static_cast<int>(i));
       },
       num_threads);
@@ -287,15 +316,69 @@ void nvvkhl::SceneVk::createTextureImages(VkCommandBuffer cmd, const tinygltf::M
       continue;
     }
 
+    VkSamplerCreateInfo sampler = getSampler(tiny, tiny.textures[i].sampler);
+
     SceneImage&           scn_image = m_images[source_image];
     VkImageViewCreateInfo iv_info   = nvvk::makeImageViewCreateInfo(scn_image.nvvkImage.image, scn_image.createInfo);
-    m_textures.emplace_back(m_alloc->createTexture(scn_image.nvvkImage, iv_info, sampler_create_info));
+    m_textures.emplace_back(m_alloc->createTexture(scn_image.nvvkImage, iv_info, sampler));
   }
 
   // Add a default texture, cannot work with empty descriptor set
   if(tiny.textures.empty())
   {
     addDefaultTexture();
+  }
+}
+
+//-------------------------------------------------------------------------------------------------
+// Some images must be sRgb encoded, we find them and will be uploaded with the _SRGB format.
+//
+void nvvkhl::SceneVk::findSrgbImages(const tinygltf::Model& tiny)
+{
+  // Lambda helper functions
+  auto addImage = [&](int texID) {
+    if(texID > -1)
+      m_sRgbImages.insert(tiny.textures[texID].source);
+  };
+
+  // For images in extensions
+  auto addImageFromExtension = [&](const tinygltf::Material& mat, const std::string extName, const std::string name) {
+    const auto& ext = mat.extensions.find(extName);
+    if(ext != mat.extensions.end())
+    {
+      if(ext->second.Has(name))
+        addImage(ext->second.Get(name).Get("index").Get<int>());
+    }
+  };
+
+  // Loop over all materials and find the sRgb textures
+  for(size_t matID = 0; matID < tiny.materials.size(); matID++)
+  {
+    const auto& mat = tiny.materials[matID];
+    // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#metallic-roughness-material
+    addImage(mat.pbrMetallicRoughness.baseColorTexture.index);
+    addImage(mat.emissiveTexture.index);
+
+    // https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_materials_specular/README.md#extending-materials
+    addImageFromExtension(mat, "KHR_materials_specular", "specularColorTexture");
+
+    // https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_materials_sheen/README.md#sheen
+    addImageFromExtension(mat, "KHR_materials_sheen", "sheenColorTexture");
+
+    // **Deprecated** but still used with some scenes
+    // https://kcoley.github.io/glTF/extensions/2.0/Khronos/KHR_materials_pbrSpecularGlossiness
+    addImageFromExtension(mat, "KHR_materials_pbrSpecularGlossiness", "diffuseTexture");
+    addImageFromExtension(mat, "KHR_materials_pbrSpecularGlossiness", "specularGlossinessTexture");
+  }
+
+  // Special, if the 'extra' in the texture has a gamma defined greater than 1.0, it is sRGB
+  for(size_t texID = 0; texID < tiny.textures.size(); texID++)
+  {
+    const auto& texture = tiny.textures[texID];
+    if(texture.extras.Has("gamma") && texture.extras.Get("gamma").GetNumberAsDouble() > 1.0)
+    {
+      m_sRgbImages.insert(texture.source);
+    }
   }
 }
 
@@ -309,7 +392,9 @@ void nvvkhl::SceneVk::loadImage(const std::filesystem::path& basedir, const tiny
   auto& image   = m_images[imageID];
   bool  is_srgb = m_sRgbImages.find(imageID) != m_sRgbImages.end();
 
-  fs::path    uri       = fs::path(gltfImage.uri);
+  std::string uri_decoded;
+  tinygltf::URIDecode(gltfImage.uri, &uri_decoded, nullptr);  // ex. whitespace may be represented as %20
+  fs::path    uri       = fs::path(uri_decoded);
   std::string extension = uri.extension().string();
   std::string imgName   = uri.filename().string();
   std::string img_uri   = fs::path(basedir / uri).string();

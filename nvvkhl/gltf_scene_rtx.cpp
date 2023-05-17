@@ -101,8 +101,8 @@ nvvk::RaytracingBuilderKHR::BlasInput nvvkhl::SceneRtx::primitiveToGeometry(cons
 
 void nvvkhl::SceneRtx::createBottomLevelAS(const nvh::GltfScene& scn, const SceneVk& scnVk, VkBuildAccelerationStructureFlagsKHR flags)
 {
-  nvh::ScopedTimer _st("- Create BLAS");
-
+  nvh::ScopedTimer st(std::string(__FUNCTION__) + "\n");
+  
   // BLAS - Storing each primitive in a geometry
   std::vector<nvvk::RaytracingBuilderKHR::BlasInput> all_blas;
   all_blas.reserve(scn.m_primMeshes.size());
@@ -125,7 +125,7 @@ void nvvkhl::SceneRtx::createBottomLevelAS(const nvh::GltfScene& scn, const Scen
 
 void nvvkhl::SceneRtx::createTopLevelAS(const nvh::GltfScene& scn, VkBuildAccelerationStructureFlagsKHR flags)
 {
-  nvh::ScopedTimer _st("- Create TLAS");
+  nvh::ScopedTimer st(__FUNCTION__);
 
   std::vector<VkAccelerationStructureInstanceKHR> tlas;
   tlas.reserve(scn.m_nodes.size());
