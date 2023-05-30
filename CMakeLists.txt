@@ -239,6 +239,11 @@ if(UNIX)
   LIST(APPEND PLATFORM_LIBRARIES ${X11_LIBRARIES})
 endif()
 
+if(USING_IMGUI)
+  # Enable ImVec* operators for all nvpro_core. See imgui.h.
+  target_compile_definitions(nvpro_core PRIVATE IMGUI_DEFINE_MATH_OPERATORS)
+endif()
+
 target_link_libraries(nvpro_core
   ${PLATFORM_LIBRARIES} 
   glfw 

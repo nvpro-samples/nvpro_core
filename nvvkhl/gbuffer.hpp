@@ -54,6 +54,7 @@ private:
     nvvk::Image                        gBufferDepth;                // Depth buffer
     VkImageView                        depthView = VK_NULL_HANDLE;  // Image view of the depth buffer
     std::vector<VkDescriptorImageInfo> descriptor;                  // Holds the sampler and image view
+    VkSampler                          linearSampler = VK_NULL_HANDLE;
   };
 
   Resources                    m_res;

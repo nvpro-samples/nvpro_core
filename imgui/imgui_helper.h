@@ -23,7 +23,6 @@
 #define NV_IMGUI_INCLUDED
 
 #define IMGUI_DISABLE_OBSOLETE_FUNCTIONS 1
-#define IMGUI_DEFINE_MATH_OPERATORS
 #include "imgui.h"
 #include "imgui_internal.h"
 
@@ -415,7 +414,7 @@ public:
     {
       entries.resize(type + 1ULL);
     }
-    entries[type].enums.push_back({value, std::string("Bool")});
+    entries[type].enums.push_back({{value}, std::string("Bool")});
     entries[type].valueChanged = false;
     entries[type].valueType    = TYPE_BOOL;
   }
@@ -426,7 +425,7 @@ public:
     {
       entries.resize(type + 1ULL);
     }
-    entries[type].enums.push_back({value, std::string("iI")});
+    entries[type].enums.push_back({{value}, std::string("iI")});
     entries[type].valueChanged = false;
     entries[type].valueType    = TYPE_INT;
   }
@@ -451,7 +450,7 @@ public:
     {
       entries.resize(type + 1ULL);
     }
-    entries[type].enums.push_back({value, name});
+    entries[type].enums.push_back({{value}, name});
     entries[type].valueChanged = false;
     entries[type].valueType = TYPE_INT;  // the user must be consistent so that he adds only the same type for the same combo !
   }

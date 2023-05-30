@@ -189,7 +189,10 @@ bool AppWindowCameraInertia::open(int posX, int posY, int width, int height, con
   return NVPWindow::open(posX, posY, width, height, title, requireGLContext);
 }
 
-void AppWindowCameraInertia::onWindowClose() {}
+void AppWindowCameraInertia::onWindowClose()
+{
+  ImGuiH::Deinit();
+}
 
 //------------------------------------------------------------------------------
 //

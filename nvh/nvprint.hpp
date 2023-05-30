@@ -119,7 +119,7 @@ void nvprintf(
     _Printf_format_string_
 #endif
     const char* fmt,
-    ...)
+    ...) noexcept
 #if defined(__GNUC__) || defined(__clang__)
     __attribute__((format(printf, 1, 2)));
 #endif
@@ -130,7 +130,7 @@ void nvprintfLevel(int level,
                    _Printf_format_string_
 #endif
                    const char* fmt,
-                   ...)
+                   ...) noexcept
 #if defined(__GNUC__) || defined(__clang__)
     __attribute__((format(printf, 2, 3)));
 #endif
@@ -140,7 +140,7 @@ void nvprintfLevel(int level,
 void nvprintSetLevel(int l);
 int  nvprintGetLevel();
 
-void nvprintSetLogFileName(const char* name);
+void nvprintSetLogFileName(const char* name) noexcept;
 
 // Globally enable/disable all nvprint output and logging
 void nvprintSetLogging(bool b);

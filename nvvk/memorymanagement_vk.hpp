@@ -27,7 +27,6 @@
 #include <nvvk/memallocator_vk.hpp>
 #include <nvh/trangeallocator.hpp>
 
-#include <vulkan/vulkan_beta.h>
 #include <vulkan/vulkan_core.h>
 
 namespace nvvk {

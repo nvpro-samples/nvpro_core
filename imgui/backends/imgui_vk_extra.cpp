@@ -17,7 +17,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-
 #include "imgui_vk_extra.h"
 #include "../imgui_helper.h"
 

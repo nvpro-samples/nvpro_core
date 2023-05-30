@@ -20,17 +20,18 @@
 
 #include "nvprint.hpp"
 
+#include <cstdarg>
+#include <limits.h>
 #include <mutex>
+#include <string>
 #include <vector>
 
 #ifdef _WIN32
 #include <windows.h>
 #endif
 
-static char                s_logFileNameDefault[] = "log_nvprosample.txt";
-static char*               s_logFileName          = s_logFileNameDefault;
-static size_t              s_strBuffer_sz         = 0;
-static char*               s_strBuffer            = nullptr;
+static std::string         s_logFileName = "log_nvprosample.txt";
+static std::vector<char>   s_strBuffer;  // Persistent allocation for formatted text.
 static FILE*               s_fd                   = nullptr;
 static bool                s_bLogReady            = false;
 static bool                s_bPrintLogging        = true;
@@ -40,16 +41,22 @@ static int                 s_printLevel           = -1;  // <0 mean no level pre
 static PFN_NVPRINTCALLBACK s_printCallback        = nullptr;
 static std::mutex          s_mutex;
 
-void nvprintSetLogFileName(const char* name)
+void nvprintSetLogFileName(const char* name) noexcept
 {
   std::lock_guard<std::mutex> lockGuard(s_mutex);
 
-  if(name == NULL || strcmp(s_logFileName, name) == 0)
+  if(name == NULL || s_logFileName == name)
     return;
 
-  size_t l      = strlen(name) + 1;
-  s_logFileName = new char[l];
-  strncpy(s_logFileName, name, l);
+  try
+  {
+    s_logFileName = name;
+  }
+  catch(const std::exception& e)
+  {
+    fputs("nvprintfSetLogFileName could not allocate space for new file name. Additional info below:", stderr);
+    fputs(e.what(), stderr);
+  }
 
   if(s_fd)
   {
@@ -103,7 +110,7 @@ void nvprintSetConsoleLogging(bool state, uint32_t mask)
   }
 }
 
-void nvprintf2(va_list& vlist, const char* fmt, int level)
+void nvprintf2(va_list& vlist, const char* fmt, int level) noexcept
 {
   if(s_bPrintLogging == false)
   {
@@ -111,51 +118,71 @@ void nvprintf2(va_list& vlist, const char* fmt, int level)
   }
 
   std::lock_guard<std::mutex> lockGuard(s_mutex);
-  if(s_strBuffer_sz == 0)
-  {
-    s_strBuffer_sz = 1024;
-    s_strBuffer    = (char*)malloc(s_strBuffer_sz);
-  }
-  while((vsnprintf(s_strBuffer, s_strBuffer_sz - 1, fmt, vlist)) < 0)  // means there wasn't enough room
-  {
-    s_strBuffer_sz *= 2;
-    char* tmp = (char*)realloc(s_strBuffer, s_strBuffer_sz);
-    if(tmp == nullptr)  // !C6308
-      return;
-    s_strBuffer = tmp;
-  }
 
-  // Do nothing if allocating/reallocating s_strBuffer failed
-  if(!s_strBuffer)
+  // Format the inputs into an std::string.
   {
-    return;
+    // Copy vlist as it may be modified by vsnprintf.
+    va_list vlistCopy;
+    va_copy(vlistCopy, vlist);
+    const int charactersNeeded = vsnprintf(s_strBuffer.data(), s_strBuffer.size(), fmt, vlistCopy);
+    va_end(vlistCopy);
+
+    // Check that:
+    // * vsnprintf did not return an error;
+    // * The string (plus null terminator) could fit in a vector.
+    if((charactersNeeded < 0) || (size_t(charactersNeeded) > s_strBuffer.max_size() - 1))
+    {
+      // Formatting error
+      fputs("nvprintf2: Internal message formatting error.", stderr);
+      return;
+    }
+
+    // Increase the size of s_strBuffer as needed if there wasn't enough space.
+    if(size_t(charactersNeeded) >= s_strBuffer.size())
+    {
+      try
+      {
+        // Make sure to add 1, because vsnprintf doesn't count the terminating
+        // null character. This can potentially throw an exception.
+        s_strBuffer.resize(size_t(charactersNeeded) + 1, '\0');
+      }
+      catch(const std::exception& e)
+      {
+        fputs("nvprintf2: Error resizing buffer to hold message. Additional info below:", stderr);
+        fputs(e.what(), stderr);
+        return;
+      }
+
+      // Now format it; we know this will succeed.
+      (void)vsnprintf(s_strBuffer.data(), s_strBuffer.size(), fmt, vlist);
+    }
   }
 
 #ifdef WIN32
-  OutputDebugStringA(s_strBuffer);
+  OutputDebugStringA(s_strBuffer.data());
 #endif
 
   if(s_bPrintFileLogging & (1 << level))
   {
     if(s_bLogReady == false)
     {
-      s_fd        = fopen(s_logFileName, "wt");
+      s_fd        = fopen(s_logFileName.c_str(), "wt");
       s_bLogReady = true;
     }
     if(s_fd)
     {
-      fputs(s_strBuffer, s_fd);
+      fputs(s_strBuffer.data(), s_fd);
     }
   }
 
   if(s_printCallback)
   {
-    s_printCallback(level, s_strBuffer);
+    s_printCallback(level, s_strBuffer.data());
   }
 
   if(s_bPrintConsoleLogging & (1 << level))
   {
-    fputs(s_strBuffer, stderr);
+    fputs(s_strBuffer.data(), stderr);
   }
 }
 void nvprintf(
@@ -163,7 +190,7 @@ void nvprintf(
     _Printf_format_string_
 #endif
     const char* fmt,
-    ...)
+    ...) noexcept
 {
   //    int r = 0;
   va_list vlist;
@@ -176,7 +203,7 @@ void nvprintfLevel(int level,
                    _Printf_format_string_
 #endif
                    const char* fmt,
-                   ...)
+                   ...) noexcept
 {
   va_list vlist;
   va_start(vlist, fmt);

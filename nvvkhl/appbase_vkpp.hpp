@@ -19,6 +19,12 @@
 
 #pragma once
 
+// Not strictly needed for this header, but some samples got used to having
+// them available by just including appbase_vkpp.hpp
+#include "imgui.h"
+#include "imgui/imgui_helper.h"
+#include "imgui/imgui_camera_widget.h"
+
 #include <vulkan/vulkan.hpp>
 
 #include "nvh/timesampler.hpp"
@@ -26,12 +32,6 @@
 
 #include "nvvk/swapchain_vk.hpp"
 #include "imgui/backends/imgui_impl_vulkan.h"
-
-// Not strictly needed for this header, but some samples got used to having
-// them available by just including appbase_vkpp.hpp
-#include "imgui.h"
-#include "imgui/imgui_helper.h"
-#include "imgui/imgui_camera_widget.h"
 
 #include "GLFW/glfw3.h"
 

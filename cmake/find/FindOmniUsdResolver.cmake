@@ -5,43 +5,29 @@ unset(OMNI_USD_RESOLVER_INCLUDE_DIR CACHE)
 unset(OMNI_USD_RESOLVER_LIBRARY_DIR CACHE)
 unset(OMNI_USD_RESOLVER_FOUND CACHE)
 
-if (WIN32)
-  set(OMNI_USD_RESOLVER_PACKMAN_PLATFORM "windows-x86_64")
-  set(USE_PACKMAN_COMMAND "packman.cmd")
-elseif (UNIX)
-  set(OMNI_USD_RESOLVER_PACKMAN_PLATFORM "linux-${CMAKE_HOST_SYSTEM_PROCESSOR}")
-  set(USE_PACKMAN_COMMAND "packman")
-endif()
-
-if ("nopy" IN_LIST OmniUsdResolver_FIND_COMPONENTS)
+if ("nopy" IN_LIST OmniUsdResolver_FIND_COMPONENTS OR (DEFINED PYTHON_VERSION AND PYTHON_VERSION EQUAL "nopy"))
   set(INCLUDE_PYTHON 0)
-  set(OmniUsdResolver_PYTHON_VERSION "nopy")
-else()
+  set(PYTHON_VERSION "nopy")
+elseif()
   set(INCLUDE_PYTHON 1)
-  set(OmniUsdResolver_PYTHON_VERSION "py37")
+  if (NOT DEFINED PYTHON_VERSION)
+    message(STATUS "PYTHON_VERSION must be set to compatible python version string ['py37, 'py310', or 'nopy']")
+    message(STATUS "Defaulting PYTHON_VERSION to 'py37'")
+    set(PYTHON_VERSION "py37")
+  endif()
 endif()
 
+if(EXISTS ${BASE_DIRECTORY}/nvpro_core/cmake/utilities.cmake)
+  include(${BASE_DIRECTORY}/nvpro_core/cmake/utilities.cmake)
+endif()
 
-message(STATUS "Pulling OMNI_USD_RESOLVER dependencies...")
-message(STATUS "    Platform: ${OMNI_USD_RESOLVER_PACKMAN_PLATFORM}")
+if(USE_PACKMAN)
+  message(STATUS "attempting to using packman to source omni usd resolver")
 
-file(MAKE_DIRECTORY "${BASE_DIRECTORY}/nvpro_core/OV/downloaded")
-configure_file(
-  "${BASE_DIRECTORY}/nvpro_core/OV/omniusdresolver-deps.packman.xml"
-  "${BASE_DIRECTORY}/nvpro_core/OV/downloaded/omniusdresolver-deps.packman.xml"
-  @ONLY
-)
+  pull_dependencies(DEPENDENCY_FILE "omniusdresolver-deps.packman.xml")
 
-execute_process(COMMAND "${BASE_DIRECTORY}/nvpro_core/OV/packman/${USE_PACKMAN_COMMAND}" pull "${BASE_DIRECTORY}/nvpro_core/OV/downloaded/omniusdresolver-deps.packman.xml" -p ${OMNI_USD_RESOLVER_PACKMAN_PLATFORM}
-                WORKING_DIRECTORY "${BASE_DIRECTORY}/nvpro_core/OV/downloaded"
-                RESULT_VARIABLE OMNI_USD_RESOLVER_PACKMAN_RESULT)
-
-Message(STATUS "execute_process(COMMAND ${BASE_DIRECTORY}/nvpro_core/OV/packman/${USE_PACKMAN_COMMAND} pull ${BASE_DIRECTORY}/nvpro_core/OV/downloaded/omniusdresolver-deps.packman.xml -p ${OMNI_USD_RESOLVER_PACKMAN_PLATFORM}
-                WORKING_DIRECTORY ${BASE_DIRECTORY}/nvpro_core/OV/downloaded
-                RESULT_VARIABLE OMNI_USD_RESOLVER_PACKMAN_RESULT)")
-
-
-set(OMNI_USD_RESOLVER_DIR "${BASE_DIRECTORY}/nvpro_core/OV/downloaded/omni_usd_resolver")
+  set(OMNI_USD_RESOLVER_DIR "${BASE_DIRECTORY}/nvpro_core/OV/downloaded/omni_usd_resolver")
+endif()
 
 #message("OMNI_USD_RESOLVER_DIR: " ${OMNI_USD_RESOLVER_DIR})
 

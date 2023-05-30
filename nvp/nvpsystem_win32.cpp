@@ -295,9 +295,9 @@ void NVPSystem::platformInit()
 
 void NVPSystem::platformDeinit()
 {
-#ifdef MEMORY_LEAKS_CHECK
-  _CrtDumpMemoryLeaks();
-#endif
+  // Because we set _CRTDBG_LEAK_CHECK_DF in platformInit(), we don't need to
+  // call _CrtDumpMemoryLeaks() in platformDeinit(). If we did, then we might
+  // see allocations for static objects that haven't been destroyed yet.
 }
 
 static std::string s_exePath;

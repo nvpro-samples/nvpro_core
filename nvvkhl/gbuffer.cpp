@@ -126,12 +126,12 @@ void nvvkhl::GBuffer::create(const VkExtent2D& size, std::vector<VkFormat> color
   if((ImGui::GetCurrentContext() != nullptr) && ImGui::GetIO().BackendPlatformUserData != nullptr)
   {
     VkSamplerCreateInfo info{VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
-    info.minFilter    = VK_FILTER_LINEAR;
-    info.magFilter    = VK_FILTER_LINEAR;
-    VkSampler sampler = m_alloc->acquireSampler(info);
+    info.minFilter      = VK_FILTER_LINEAR;
+    info.magFilter      = VK_FILTER_LINEAR;
+    m_res.linearSampler = m_alloc->acquireSampler(info);
     for(const VkDescriptorImageInfo& desc : m_res.descriptor)
     {
-      m_descriptorSet.push_back(ImGui_ImplVulkan_AddTexture(sampler, desc.imageView, layout));
+      m_descriptorSet.push_back(ImGui_ImplVulkan_AddTexture(m_res.linearSampler, desc.imageView, layout));
     }
   }
 }
@@ -141,6 +141,16 @@ void nvvkhl::GBuffer::create(const VkExtent2D& size, std::vector<VkFormat> color
 //
 void nvvkhl::GBuffer::destroy()
 {
+  if((ImGui::GetCurrentContext() != nullptr) && ImGui::GetIO().BackendPlatformUserData != nullptr)
+  {
+    for(VkDescriptorSet set : m_descriptorSet)
+    {
+      ImGui_ImplVulkan_RemoveTexture(set);
+    }
+
+    m_alloc->releaseSampler(m_res.linearSampler);
+  }
+
   for(nvvk::Image bc : m_res.gBufferColor)
   {
     m_alloc->destroy(bc);

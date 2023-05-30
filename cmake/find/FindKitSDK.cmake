@@ -4,36 +4,27 @@ unset(KIT_SDK_LIBRARIES CACHE)
 unset(KIT_SDK_INCLUDE_DIR CACHE)
 unset(KIT_SDK_LIBRARY_DIR CACHE)
 unset(KIT_SDK_FOUND CACHE)
+unset(KIT_SDK_ALL_DEPS_FILE CACHE)
 
-if (WIN32)
-  set(KIT_SDK_PACKMAN_PLATFORM "windows-x86_64")
-  set(USE_PACKMAN_COMMAND "packman.cmd")
-elseif (UNIX)
-  set(KIT_SDK_PACKMAN_PLATFORM "linux-${CMAKE_HOST_SYSTEM_PROCESSOR}")
-  set(USE_PACKMAN_COMMAND "packman")
+if(EXISTS ${BASE_DIRECTORY}/nvpro_core/cmake/utilities.cmake)
+  include(${BASE_DIRECTORY}/nvpro_core/cmake/utilities.cmake)
 endif()
 
-message(STATUS "Pulling KIT_SDK dependencies...")
-message(STATUS "    Platform: ${KIT_SDK_PACKMAN_PLATFORM}")
+if(USE_PACKMAN)
+  message(STATUS "attempting to using packman to source kit-sdk")
 
-file(COPY "${BASE_DIRECTORY}/nvpro_core/OV/kit-sdk-deps.packman.xml"
-        DESTINATION "${BASE_DIRECTORY}/nvpro_core/OV/downloaded")
+  pull_dependencies(DEPENDENCY_FILE "kit-sdk-deps.packman.xml")
 
-execute_process(COMMAND "${BASE_DIRECTORY}/nvpro_core/OV/packman/${USE_PACKMAN_COMMAND}" pull "${BASE_DIRECTORY}/nvpro_core/OV/downloaded/kit-sdk-deps.packman.xml" -p ${KIT_SDK_PACKMAN_PLATFORM}
-                WORKING_DIRECTORY "${BASE_DIRECTORY}/nvpro_core/OV/downloaded"
-                RESULT_VARIABLE KIT_SDK_PACKMAN_RESULT)
+  set(KitSDK_DIR "${BASE_DIRECTORY}/nvpro_core/OV/downloaded/kit")
 
-Message(STATUS "execute_process(COMMAND ${BASE_DIRECTORY}/nvpro_core/OV/packman/${USE_PACKMAN_COMMAND} pull ${BASE_DIRECTORY}/nvpro_core/OV/downloaded/kit-sdk-deps.packman.xml -p ${KIT_SDK_PACKMAN_PLATFORM}
-                WORKING_DIRECTORY ${BASE_DIRECTORY}/nvpro_core/OV/downloaded
-                RESULT_VARIABLE KIT_SDK_PACKMAN_RESULT)")
-
-if (${KIT_SDK_PACKMAN_RESULT} EQUAL 0)
-  message(STATUS "    Packman result: success")
-else()
-  message(FATAL_ERROR "    Packman result: ${KIT_SDK_PACKMAN_RESULT}")
+  find_file(KIT_SDK_ALL_DEPS_FILE
+      NAMES all-deps.packman.xml
+      PATHS ${KitSDK_DIR}/dev
+  )
+  if (NOT KIT_SDK_ALL_DEPS_FILE)
+    message(WARNING "Kit all-deps.packman.xml not found.")
+  endif()
 endif()
-
-set(KitSDK_DIR "${BASE_DIRECTORY}/nvpro_core/OV/downloaded/kit")
 
 if (WIN32)
     find_file(KIT_SDK_LAUNCH_SCRIPT
@@ -69,6 +60,7 @@ find_package_handle_standard_args(KitSDK DEFAULT_MSG
   KIT_SDK_LAUNCH_SCRIPT
   KIT_APP
   KitSDK_DIR
+  KIT_SDK_ALL_DEPS_FILE
 )
 
 # Do we have to rewrite the variable here...

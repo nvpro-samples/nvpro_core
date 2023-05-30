@@ -178,6 +178,7 @@ else(UNIX)
       add_definitions(-DNOMINMAX)
       if(MEMORY_LEAKS_CHECK)
         add_definitions(-DMEMORY_LEAKS_CHECK)
+        message(STATUS "MEMORY_LEAKS_CHECK is enabled; any memory leaks in apps will be reported when they close.")
       endif()
     endif(WIN32)
   endif(APPLE)
@@ -239,9 +240,9 @@ endmacro(_add_package_OpenGL)
 # this happens when the nvpro_core library was built with these stuff in it
 # so many samples can share the same library for many purposes
 macro(_optional_package_OpenGL)
-  if(USING_OPENGL)
+  if(USING_OPENGL AND NOT OPENGL_FOUND)
     _add_package_OpenGL()
-  endif(USING_OPENGL)
+  endif()
 endmacro(_optional_package_OpenGL)
 
 #####################################################################################
@@ -379,8 +380,11 @@ macro(_add_package_VulkanSDK)
         set( USING_VULKANSDK "YES" PARENT_SCOPE) # PARENT_SCOPE important to have this variable passed to parent. Here we want to notify that something used the Vulkan package
       endif()
       set( USING_VULKANSDK "YES")
+      option(VK_ENABLE_BETA_EXTENSIONS "Enable beta extensions provided by the Vulkan SDK" ON)
       add_definitions(-DNVP_SUPPORTS_VULKANSDK)
-      add_definitions(-DVK_ENABLE_BETA_EXTENSIONS)
+      if(VK_ENABLE_BETA_EXTENSIONS)
+        add_definitions(-DVK_ENABLE_BETA_EXTENSIONS)
+      endif()
       add_definitions(-DVULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1)
 
       set(VULKAN_HEADERS_OVERRIDE_INCLUDE_DIR CACHE PATH "Override for Vulkan headers, leave empty to use SDK")
@@ -408,9 +412,9 @@ endmacro()
 # this happens when the nvpro_core library was built with these stuff in it
 # so many samples can share the same library for many purposes
 macro(_optional_package_VulkanSDK)
-  if(USING_VULKANSDK)
+  if(USING_VULKANSDK AND NOT VULKANSDK_FOUND)
     _add_package_VulkanSDK()
-  endif(USING_VULKANSDK)
+  endif()
 endmacro(_optional_package_VulkanSDK)
 
 #####################################################################################
@@ -1039,15 +1043,13 @@ macro(_add_nvpro_core_lib)
   if(NOT HAS_NVPRO_CORE)
     add_subdirectory(${BASE_DIRECTORY}/nvpro_core ${CMAKE_BINARY_DIR}/nvpro_core)
   endif()
+
   #-----------------------------------------------------------------------------------
   # optional packages we don't need, but might be needed by other samples
   Message(STATUS " Packages needed for nvpro_core lib compat:")
-  if(USING_OPENGL OR NOT OPENGL_FOUND)
-    _optional_package_OpenGL()
-  endif()
-  if(USING_VULKANSDK OR NOT VULKANSDK_FOUND)
-    _optional_package_VulkanSDK()
-  endif()
+  _optional_package_OpenGL()
+  _optional_package_VulkanSDK()
+
   # finish with another part (also used by cname for the nvpro_core)
   _process_shared_cmake_code()
 

@@ -26,9 +26,8 @@
 #include <stdlib.h>
 #include <string>
 
-#ifdef WIN32
-#ifdef MEMORY_LEAKS_CHECK
-#pragma message("build will Check for Memory Leaks!")
+#if defined(WIN32) && defined(MEMORY_LEAKS_CHECK)
+
 #define _CRTDBG_MAP_ALLOC
 #include <crtdbg.h>
 #include <stdlib.h>
@@ -44,11 +43,13 @@ inline void __cdecl operator delete(void* ptr, const char* file, int line)
 
 #define DEBUG_NEW new(__FILE__, __LINE__)
 #define MALLOC_DBG(x) _malloc_dbg(x, 1, __FILE__, __LINE__);
-#define malloc(x) MALLOC_DBG(x)
-#define new DEBUG_NEW
-#endif
 
-#endif  // WIN32
+#else
+
+#define DEBUG_NEW new
+#define MALLOC_DBG malloc
+
+#endif  // #if defined(WIN32) && defined(MEMORY_LEAKS_CHECK)
 
 
 #include <nvh/nvprint.hpp>

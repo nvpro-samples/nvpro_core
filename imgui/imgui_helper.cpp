@@ -23,7 +23,7 @@
 #include <GLFW/glfw3.h>
 #include <math.h>
 
-#include "imgui.h"
+ 
 #include <fstream>
 
 namespace ImGuiH {
