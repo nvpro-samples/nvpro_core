@@ -257,7 +257,7 @@ void GltfScene::importDrawableNodes(const tinygltf::Model& tmodel, GltfAttribute
       m_tangents.size(),
       [&](uint64_t i) {
         auto& t = m_tangents[i];
-        if(nvmath::nv_sq_norm(nvmath::vec3f(t)) < 0.01F || t.w < 0.5F)
+        if(nvmath::nv_sq_norm(nvmath::vec3f(t)) < 0.01F || std::abs(t.w) < 0.5F)
         {
           const auto& n   = m_normals[i];
           const float sgn = n.z > 0.0F ? 1.0F : -1.0F;
