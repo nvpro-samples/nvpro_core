@@ -148,7 +148,8 @@ void nvvkhl::GBuffer::destroy()
       ImGui_ImplVulkan_RemoveTexture(set);
     }
 
-    m_alloc->releaseSampler(m_res.linearSampler);
+    if(m_res.linearSampler)
+      m_alloc->releaseSampler(m_res.linearSampler);
   }
 
   for(nvvk::Image bc : m_res.gBufferColor)
