@@ -23,6 +23,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <string>
 
 // use CSF_IMPLEMENTATION define prior including
 // to add actual implementation to this project

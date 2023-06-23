@@ -126,6 +126,7 @@ void DescriptorSetContainer::deinit()
   deinitLayout();
   deinitPool();
   m_bindings.clear();
+  m_device = VK_NULL_HANDLE;
 }
 
 VkDescriptorSet DescriptorSetContainer::getSet(uint32_t dstSetIdx /*= 0*/) const

@@ -22,10 +22,10 @@
 #define NV_SHADERFILEMANAGER_INCLUDED
 
 
+#include <stdint.h>
 #include <stdio.h>
 #include <string>
 #include <vector>
-#include <cstdint>
 
 namespace nvh {
 
