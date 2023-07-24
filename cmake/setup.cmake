@@ -1,5 +1,8 @@
 #*****************************************************************************
-# Copyright 2020 NVIDIA Corporation. All rights reserved.
+# Copyright 2020-2023 NVIDIA Corporation. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
 #*****************************************************************************
 include_guard(GLOBAL)
 
@@ -127,9 +130,6 @@ macro(_add_project_definitions name)
   endif(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
   if(CUDA_TOOLKIT_ROOT_DIR)
     string(REPLACE "\\" "/" CUDA_TOOLKIT_ROOT_DIR ${CUDA_TOOLKIT_ROOT_DIR})
-  endif()
-  if(VULKANSDK_LOCATION)
-    string(REPLACE "\\" "/" VULKANSDK_LOCATION ${VULKANSDK_LOCATION})
   endif()
   if(CMAKE_INSTALL_PREFIX)
     string(REPLACE "\\" "/" CMAKE_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX})
@@ -372,9 +372,10 @@ endmacro(_optional_package_Optix7)
 # Optional VulkanSDK package
 #
 macro(_add_package_VulkanSDK)
-  find_package(VulkanSDK REQUIRED)  
-  if(VULKANSDK_FOUND)
-      Message(STATUS "--> using package VulkanSDK (version ${VULKANSDK_VERSION})")
+  find_package(Vulkan REQUIRED
+    COMPONENTS glslc glslangValidator shaderc_combined)
+  if(Vulkan_FOUND)
+      Message(STATUS "--> using package VulkanSDK (linking with ${Vulkan_LIBRARY})")
       get_directory_property(hasParent PARENT_DIRECTORY)
       if(hasParent)
         set( USING_VULKANSDK "YES" PARENT_SCOPE) # PARENT_SCOPE important to have this variable passed to parent. Here we want to notify that something used the Vulkan package
@@ -392,18 +393,30 @@ macro(_add_package_VulkanSDK)
       if (VULKAN_HEADERS_OVERRIDE_INCLUDE_DIR)
         set(vulkanHeaderDir ${VULKAN_HEADERS_OVERRIDE_INCLUDE_DIR})
       else()
-        set(vulkanHeaderDir ${VULKANSDK_INCLUDE_DIR})
+        set(vulkanHeaderDir ${Vulkan_INCLUDE_DIR})
       endif()
 
       Message(STATUS "--> using Vulkan Headers from: ${vulkanHeaderDir}")
       include_directories(${vulkanHeaderDir})
       set( vulkanHeaderFiles 
         "${vulkanHeaderDir}/vulkan/vulkan_core.h")
-      LIST(APPEND PACKAGE_SOURCE_FILES ${vulkanHeaderFiles} )
-      source_group(Vulkan FILES  ${vulkanHeaderFiles} )
+      LIST(APPEND PACKAGE_SOURCE_FILES ${vulkanHeaderFiles})
+      source_group(Vulkan FILES ${vulkanHeaderFiles})
 
-      LIST(APPEND LIBRARIES_OPTIMIZED ${VULKAN_LIB} )
-      LIST(APPEND LIBRARIES_DEBUG ${VULKAN_LIB} )
+      LIST(APPEND LIBRARIES_OPTIMIZED ${Vulkan_LIBRARY})
+      LIST(APPEND LIBRARIES_DEBUG ${Vulkan_LIBRARY})
+
+      # CMake 3.24+ finds glslangValidator and glslc for us.
+      # On < 3.24, find it manually:
+      if(${CMAKE_VERSION} VERSION_LESS "3.24.0")
+        get_filename_component(_VULKAN_LIB_DIR ${Vulkan_LIBRARY} DIRECTORY)
+        find_file(Vulkan_GLSLANG_VALIDATOR_EXECUTABLE
+          NAMES glslangValidator.exe glslangValidator
+          PATHS ${_VULKAN_LIB_DIR}/../Bin)
+        find_file(Vulkan_GLSLC_EXECUTABLE
+          NAMES glslc.exe glslc
+          PATHS ${_VULKAN_LIB_DIR}/../Bin)
+      endif()
  else()
      Message(STATUS "--> NOT using package VulkanSDK")
  endif()
@@ -412,7 +425,7 @@ endmacro()
 # this happens when the nvpro_core library was built with these stuff in it
 # so many samples can share the same library for many purposes
 macro(_optional_package_VulkanSDK)
-  if(USING_VULKANSDK AND NOT VULKANSDK_FOUND)
+  if(USING_VULKANSDK AND NOT VULKAN_FOUND)
     _add_package_VulkanSDK()
   endif()
 endmacro(_optional_package_VulkanSDK)
@@ -434,21 +447,45 @@ endmacro()
 # Optional ShaderC package
 #
 macro(_add_package_ShaderC)
-  _add_package_VulkanSDK()  
-  if(VULKANSDK_FOUND AND (VULKANSDK_SHADERC_LIB OR NVSHADERC_LIB))
+  _add_package_VulkanSDK()
+  # Find the release shaderc libraries.
+  # CMake 3.24 finds shaderc_combined for us, but we target CMake 3.10+.
+  # Debug ShaderC isn't always installed on Windows or Linux.
+  # On Windows, linking release shaderc with a debug app produces linker errors,
+  # because they use different C runtime libraries (one uses /MT and the other
+  # uses /MTd), and MSVC's linker prohibits mixing these in the same .exe.
+  # So we use release shaderc_shared on Windows and release shaderc_combined
+  # on Linux.
+  if(NOT NVSHADERC_LIB)
+    get_filename_component(_VULKAN_LIB_DIR ${Vulkan_LIBRARY} DIRECTORY)
+    if(WIN32)
+      find_file(VULKANSDK_SHADERC_LIB
+        NAMES shaderc_shared.lib
+        PATHS ${_VULKAN_LIB_DIR})
+      find_file(VULKANSDK_SHADERC_DLL
+        NAMES shaderc_shared.dll
+        PATHS ${_VULKAN_LIB_DIR}/../Bin)
+      add_definitions(-DSHADERC_SHAREDLIB)
+      if(NOT VULKANSDK_SHADERC_DLL)
+        message(FATAL_ERROR "Windows platform requires VulkanSDK with shaderc_shared.lib/dll (since SDK 1.2.135.0)")
+      endif()
+    else()
+      if(NOT Vulkan_shaderc_combined_LIBRARY)
+        find_file(Vulkan_shaderc_combined_LIBRARY
+          NAMES libshaderc_combined.a
+          PATHS ${_VULKAN_LIB_DIR})
+      endif()
+      set(VULKANSDK_SHADERC_LIB ${Vulkan_shaderc_combined_LIBRARY})
+    endif()
+  endif()
+
+  if(Vulkan_FOUND AND (VULKANSDK_SHADERC_LIB OR NVSHADERC_LIB))
       Message(STATUS "--> using package ShaderC")
       
       add_definitions(-DNVP_SUPPORTS_SHADERC)
       if (NVSHADERC_LIB)
         Message(STATUS "--> using NVShaderC LIB")
         add_definitions(-DNVP_SUPPORTS_NVSHADERC)
-      endif()
-      
-      if(WIN32)
-        add_definitions(-DSHADERC_SHAREDLIB)
-        if (NOT VULKANSDK_SHADERC_DLL)
-          message(FATAL_ERROR "Windows platform requires VulkanSDK with shaderc_shared.lib/dll (since SDK 1.2.135.0)")  
-        endif()
       endif()
       
       if (NVSHADERC_LIB)
@@ -510,18 +547,20 @@ endmacro(_optional_package_DirectX11)
 # Optional DirectX12 package
 #
 macro(_add_package_DirectX12)
-  Message(STATUS "--> using package DirectX 12")
-  get_directory_property(hasParent PARENT_DIRECTORY)
-  if(hasParent)
-    set( USING_DIRECTX12 "YES" PARENT_SCOPE) # PARENT_SCOPE important to have this variable passed to parent. Here we want to notify that something used the DX12 package
-  else()
-    set( USING_DIRECTX12 "YES")
+  if(WIN32)
+    Message(STATUS "--> using package DirectX 12")
+    get_directory_property(hasParent PARENT_DIRECTORY)
+    if(hasParent)
+      set( USING_DIRECTX12 "YES" PARENT_SCOPE) # PARENT_SCOPE important to have this variable passed to parent. Here we want to notify that something used the DX12 package
+    else()
+      set( USING_DIRECTX12 "YES")
+    endif()
+    add_definitions(-DNVP_SUPPORTS_DIRECTX12)
+    include_directories(${BASE_DIRECTORY}/nvpro_core/third_party/dxc/Include)
+    include_directories(${BASE_DIRECTORY}/nvpro_core/third_party/dxh/include/directx)
+    LIST(APPEND LIBRARIES_OPTIMIZED dxgi.lib d3d12.lib)
+    LIST(APPEND LIBRARIES_DEBUG dxgi.lib d3d12.lib)
   endif()
-  add_definitions(-DNVP_SUPPORTS_DIRECTX12)
-  include_directories(${BASE_DIRECTORY}/nvpro_core/third_party/dxc/Include)
-  include_directories(${BASE_DIRECTORY}/nvpro_core/third_party/dxh/include/directx)
-  LIST(APPEND LIBRARIES_OPTIMIZED dxgi.lib d3d12.lib)
-  LIST(APPEND LIBRARIES_DEBUG dxgi.lib d3d12.lib)
 endmacro()
 # this macro is needed for the samples to add this package, although not needed
 # this happens when the nvpro_core library was built with these stuff in it
@@ -935,8 +974,8 @@ macro(_compile_GLSL_flags _SOURCE _OUTPUT _FLAGS SOURCE_LIST OUTPUT_LIST)
   endif()
   LIST(APPEND ${SOURCE_LIST} ${_SOURCE})
   LIST(APPEND ${OUTPUT_LIST} ${_OUTPUT})
-  if(GLSLANGVALIDATOR)
-    set(_COMMAND ${GLSLANGVALIDATOR} --target-env ${VULKAN_TARGET_ENV} -o ${_OUTPUT} ${_FLAGS} ${_SOURCE})
+  if(Vulkan_GLSLANG_VALIDATOR_EXECUTABLE)
+    set(_COMMAND ${Vulkan_GLSLANG_VALIDATOR_EXECUTABLE} --target-env ${VULKAN_TARGET_ENV} -o ${_OUTPUT} ${_FLAGS} ${_SOURCE})
     add_custom_command(
       OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/${_OUTPUT}
       COMMAND echo ${_COMMAND}
@@ -944,9 +983,9 @@ macro(_compile_GLSL_flags _SOURCE _OUTPUT _FLAGS SOURCE_LIST OUTPUT_LIST)
       MAIN_DEPENDENCY ${_SOURCE}
       WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
       )
-  else(GLSLANGVALIDATOR)
-    MESSAGE(WARNING "could not find GLSLANGVALIDATOR to compile shaders")
-  endif(GLSLANGVALIDATOR)
+  else(Vulkan_GLSLANG_VALIDATOR_EXECUTABLE)
+    MESSAGE(WARNING "could not find Vulkan_GLSLANG_VALIDATOR_EXECUTABLE to compile shaders")
+  endif(Vulkan_GLSLANG_VALIDATOR_EXECUTABLE)
 endmacro()
 
 #####################################################################################
@@ -996,7 +1035,7 @@ macro(_process_shared_cmake_code)
   endif()
   
   if (USING_VULKANSDK)
-    LIST(APPEND PLATFORM_LIBRARIES ${VULKAN_LIB})
+    LIST(APPEND PLATFORM_LIBRARIES ${Vulkan_LIBRARIES})
   endif()
   
   set(COMMON_SOURCE_FILES)

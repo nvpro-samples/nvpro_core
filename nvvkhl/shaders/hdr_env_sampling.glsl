@@ -34,7 +34,7 @@ precision highp float;
 // Environment Sampling (HDR)
 // See:  https://arxiv.org/pdf/1901.05423.pdf
 //-------------------------------------------------------------------------------------------------
-vec4 environmentSample(sampler2D hdrTexture, in vec3 randVal, out vec3 toLight)
+vec4 environmentSample(in sampler2D hdrTexture, in vec3 randVal, out vec3 toLight)
 {
 
   // Uniformly pick a texel index idx in the environment map

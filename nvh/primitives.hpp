@@ -38,10 +38,15 @@ struct PrimitiveVertex
   nvmath::vec2f t;  // Texture Coordinates
 };
 
+struct PrimitiveTriangle
+{
+  nvmath::vec3ui v;  // vertex indices
+};
+
 struct PrimitiveMesh
 {
-  std::vector<PrimitiveVertex> vertices;  // Array of all vertex
-  std::vector<uint32_t>        indices;   // Indices forming triangles
+  std::vector<PrimitiveVertex>   vertices;   // Array of all vertex
+  std::vector<PrimitiveTriangle> triangles;  // Indices forming triangles
 };
 
 struct Node
@@ -50,8 +55,8 @@ struct Node
   nvmath::quaternion<float> rotation{};
   nvmath::vec3f             scale{1.0F};
   nvmath::mat4f             matrix{1};
-  int32_t                   material{0};
-  int32_t                   mesh{-1};
+  int                       material{0};
+  int                       mesh{-1};
 
   nvmath::mat4f localMatrix() const
   {
@@ -63,12 +68,18 @@ struct Node
   }
 };
 
-PrimitiveMesh tetrahedron();
-PrimitiveMesh icosahedron();
-PrimitiveMesh octahedron();
-PrimitiveMesh plane(uint32_t steps = 1, float width = 1.0F, float depth = 1.0F);
-PrimitiveMesh cube(float width = 1.0F, float height = 1.0F, float depth = 1.0F);
-PrimitiveMesh sphere(float radius = 0.5F, int sectors = 20, int stacks = 20);
-PrimitiveMesh cone(float radius = 0.5F, int sectors = 20);
+PrimitiveMesh createTetrahedron();
+PrimitiveMesh createIcosahedron();
+PrimitiveMesh createOctahedron();
+PrimitiveMesh createPlane(int steps = 1, float width = 1.0F, float depth = 1.0F);
+PrimitiveMesh createCube(float width = 1.0F, float height = 1.0F, float depth = 1.0F);
+PrimitiveMesh createSphereUv(float radius = 0.5F, int sectors = 20, int stacks = 20);
+PrimitiveMesh createConeMesh(float radius = 0.5F, float height = 1.0F, int segments = 16);
+PrimitiveMesh createSphereMesh(float radius = 0.5F, int subdivisions = 3);
+PrimitiveMesh createTorusMesh(float majorRadius = 0.5F, float minorRadius = 0.25F, int majorSegments = 32, int minorSegments = 16);
+
+// Utilities
+PrimitiveMesh removeDuplicateVertices(const PrimitiveMesh& mesh, bool testNormal = true, bool testUv = true);
+PrimitiveMesh wobblePrimitive(const PrimitiveMesh& mesh, float amplitude = 0.05F);
 
 }  // namespace nvh

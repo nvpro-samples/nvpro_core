@@ -1,5 +1,8 @@
 #*****************************************************************************
-# Copyright 2020 NVIDIA Corporation. All rights reserved.
+# Copyright 2020-2023 NVIDIA Corporation. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
 #*****************************************************************************
 include_guard(GLOBAL)
 
@@ -90,7 +93,19 @@ function(download_files)
     set(TARGET_FILENAME ${DOWNLOAD_FILES_TARGET_DIR}/${FILENAME})
     if(NOT EXISTS ${TARGET_FILENAME})
       message(STATUS "Downloading ${DOWNLOAD_SITE}/${FILENAME} to ${TARGET_FILENAME}")
-      file(DOWNLOAD ${DOWNLOAD_SITE}${DOWNLOAD_FILES_SOURCE_DIR}/${FILENAME} ${TARGET_FILENAME} SHOW_PROGRESS)
+      file(DOWNLOAD ${DOWNLOAD_SITE}${DOWNLOAD_FILES_SOURCE_DIR}/${FILENAME} ${TARGET_FILENAME}
+        SHOW_PROGRESS
+        STATUS _DOWNLOAD_STATUS)
+
+      # Check whether the download succeeded. _DOWNLOAD_STATUS is a list of
+      # length 2; element 0 is the return value (0 == no error), element 1 is
+      # a string value for the error.
+      message(STATUS ${_DOWNLOAD_STATUS})
+      list(GET _DOWNLOAD_STATUS 0 _DOWNLOAD_STATUS_CODE)
+      if(NOT (${_DOWNLOAD_STATUS_CODE} EQUAL 0))
+        list(GET _DOWNLOAD_STATUS 1 _DOWNLOAD_STATUS_MESSAGE)
+        message(FATAL_ERROR "Download of ${DOWNLOAD_SITE}/${FILENAME} to ${TARGET_FILENAME} failed with code ${_DOWNLOAD_STATUS_CODE}: ${_DOWNLOAD_STATUS_MESSAGE}")
+      endif()
   
       # Extracting the ZIP file
 	    if(DOWNLOAD_FILES_EXTRACT)
@@ -146,8 +161,8 @@ function(get_glsl_dependencies )
   list(REMOVE_DUPLICATES INCLUDE_ROOTS)
 
   message(STATUS " - Find dependencies for ${FILE_NAME}")
-  #message(STATUS "calling : ${GLSLC} ${GGD_FLAGS} -M ${GGD_SRC} OUTPUT_VARIABLE DEP RESULT_VARIABLE RES")
-  execute_process(COMMAND ${GLSLC} ${GGD_FLAGS} -M ${GGD_SRC} OUTPUT_VARIABLE DEP RESULT_VARIABLE RES )
+  #message(STATUS "calling : ${Vulkan_GLSLC_EXECUTABLE} ${GGD_FLAGS} -M ${GGD_SRC} OUTPUT_VARIABLE DEP RESULT_VARIABLE RES")
+  execute_process(COMMAND ${Vulkan_GLSLC_EXECUTABLE} ${GGD_FLAGS} -M ${GGD_SRC} OUTPUT_VARIABLE DEP RESULT_VARIABLE RES )
   if(RES EQUAL 0)
     # Removing "name.spv: "
     string(REGEX REPLACE "[^:]*: " "" DEP ${DEP})
@@ -175,7 +190,7 @@ endfunction()
 # FLAGS: List of compile flags
 #
 # compile_glsl(
-#   SOURCES_FILES foo.vert foo.frag
+#   SOURCE_FILES foo.vert foo.frag
 #   DST ${CMAKE_CURRENT_SOURCE_DIR}/shaders
 #   FLAGS -g0
 # )
@@ -186,8 +201,8 @@ function(compile_glsl)
   cmake_parse_arguments(COMPILE  "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN} )
 
   # Check if the GLSL compiler is present
-  if(NOT GLSLANGVALIDATOR)
-    message(ERROR "Could not find GLSLANGVALIDATOR to compile shaders")
+  if(NOT Vulkan_GLSLANG_VALIDATOR_EXECUTABLE)
+    message(ERROR "Could not find Vulkan_GLSLANG_VALIDATOR_EXECUTABLE to compile shaders")
     return()
   endif()
 
@@ -238,14 +253,13 @@ function(compile_glsl)
 
     # Appending the output name and the file source
     list(APPEND COMPILE_CMD  -o ${GLSL_OUT} ${GLSL_SRC} )
-
     # The custom command is added to the build system, check for the presence of the output
     # but also for changes done in GLSL headers 
     add_custom_command(
          PRE_BUILD
          OUTPUT ${GLSL_OUT}
-         COMMAND echo ${GLSLANGVALIDATOR} ${COMPILE_CMD}
-         COMMAND ${GLSLANGVALIDATOR} ${COMPILE_CMD}
+         COMMAND echo ${Vulkan_GLSLANG_VALIDATOR_EXECUTABLE} ${COMPILE_CMD}
+         COMMAND ${Vulkan_GLSLANG_VALIDATOR_EXECUTABLE} ${COMPILE_CMD}
          MAIN_DEPENDENCY ${GLSL_SRC}
          WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
          DEPENDS ${GLSL_DEPENDENCY}

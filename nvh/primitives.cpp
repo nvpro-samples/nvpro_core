@@ -22,8 +22,10 @@
 
 #define _USE_MATH_DEFINES
 #include <math.h>
-
+#include <unordered_map>
+#include <random>
 #include "primitives.hpp"
+#include "container_utils.hpp"
 
 
 namespace nvh {
@@ -37,28 +39,24 @@ static uint32_t addPos(PrimitiveMesh& mesh, nvmath::vec3f p)
 
 static void addTriangle(PrimitiveMesh& mesh, uint32_t a, uint32_t b, uint32_t c)
 {
-  mesh.indices.push_back(a);
-  mesh.indices.push_back(b);
-  mesh.indices.push_back(c);
+  mesh.triangles.push_back({{a, b, c}});
 }
 
 static void addTriangle(PrimitiveMesh& mesh, nvmath::vec3f a, nvmath::vec3f b, nvmath::vec3f c)
 {
-  mesh.indices.push_back(addPos(mesh, a));
-  mesh.indices.push_back(addPos(mesh, b));
-  mesh.indices.push_back(addPos(mesh, c));
+  mesh.triangles.push_back({{addPos(mesh, a), addPos(mesh, b), addPos(mesh, c)}});
 }
 
-static void faceted(PrimitiveMesh& mesh)
+static void generateFacetedNormals(PrimitiveMesh& mesh)
 {
-  auto num_indices = static_cast<uint32_t>(mesh.indices.size());
-  for(uint32_t i = 0; i < num_indices; i += 3)
+  auto num_indices = static_cast<int>(mesh.triangles.size());
+  for(int i = 0; i < num_indices; i++)
   {
-    auto& v0 = mesh.vertices[mesh.indices[i + 0]];
-    auto& v1 = mesh.vertices[mesh.indices[i + 1]];
-    auto& v2 = mesh.vertices[mesh.indices[i + 2]];
+    auto& v0 = mesh.vertices[mesh.triangles[i].v[0]];
+    auto& v1 = mesh.vertices[mesh.triangles[i].v[1]];
+    auto& v2 = mesh.vertices[mesh.triangles[i].v[2]];
 
-    auto n = nvmath::cross(nvmath::normalize(v1.p - v0.p), nvmath::normalize(v2.p - v0.p));
+    nvmath::vec3f n = nvmath::normalize(nvmath::cross(nvmath::normalize(v1.p - v0.p), nvmath::normalize(v2.p - v0.p)));
 
     v0.n = n;
     v1.n = n;
@@ -66,7 +64,20 @@ static void faceted(PrimitiveMesh& mesh)
   }
 }
 
-PrimitiveMesh tetrahedron()
+// Function to generate texture coordinates
+static void generateTexCoords(PrimitiveMesh& mesh)
+{
+  for(auto& vertex : mesh.vertices)
+  {
+    nvmath::vec3f n = normalize(vertex.p);
+    float u  = 0.5f + std::atan2(n.z, n.x) / (2.0F * float(M_PI));
+    float v  = 0.5f - std::asin(n.y) / float(M_PI);
+    vertex.t = {u, v};
+  }
+}
+
+// Generates a tetrahedron mesh (four triangular faces)
+PrimitiveMesh createTetrahedron()
 {
   PrimitiveMesh mesh;
 
@@ -88,13 +99,14 @@ PrimitiveMesh tetrahedron()
   addTriangle(mesh, v0, v1, v3);
   addTriangle(mesh, v3, v1, v2);
 
-  faceted(mesh);
+  generateFacetedNormals(mesh);
+  generateTexCoords(mesh);
 
   return mesh;
 }
 
-
-PrimitiveMesh icosahedron()
+// Generates an icosahedron mesh (twenty equilateral triangular faces)
+PrimitiveMesh createIcosahedron()
 {
   PrimitiveMesh mesh;
 
@@ -139,12 +151,14 @@ PrimitiveMesh icosahedron()
   addTriangle(mesh, v[2], v[10], v[7]);
   addTriangle(mesh, v[2], v[5], v[8]);
 
-  faceted(mesh);
+  generateFacetedNormals(mesh);
+  generateTexCoords(mesh);
 
   return mesh;
 }
 
-PrimitiveMesh octahedron()
+// Generates an octahedron mesh (eight faces), this is like two four-sided pyramids placed base to base.
+PrimitiveMesh createOctahedron()
 {
   PrimitiveMesh mesh;
 
@@ -165,18 +179,24 @@ PrimitiveMesh octahedron()
   addTriangle(mesh, v[1], v[5], v[3]);
   addTriangle(mesh, v[2], v[5], v[1]);
 
-  faceted(mesh);
+  generateFacetedNormals(mesh);
+  generateTexCoords(mesh);
+
   return mesh;
 }
 
-PrimitiveMesh plane(uint32_t steps, float width, float depth)
+// Generates a flat plane mesh with the specified number of steps, width, and depth.
+// The plane is essentially a grid with the specified number of subdivisions (steps)
+// in both the X and Z directions. It creates vertices, normals, and texture coordinates
+// for each point on the grid and forms triangles to create the plane's surface.
+PrimitiveMesh createPlane(int steps, float width, float depth)
 {
   PrimitiveMesh mesh;
 
   float increment = 1.0F / static_cast<float>(steps);
-  for(uint32_t sz = 0; sz <= steps; sz++)
+  for(int sz = 0; sz <= steps; sz++)
   {
-    for(uint32_t sx = 0; sx <= steps; sx++)
+    for(int sx = 0; sx <= steps; sx++)
     {
       PrimitiveVertex v{};
 
@@ -189,9 +209,9 @@ PrimitiveMesh plane(uint32_t steps, float width, float depth)
     }
   }
 
-  for(uint32_t sz = 0; sz < steps; sz++)
+  for(int sz = 0; sz < steps; sz++)
   {
-    for(uint32_t sx = 0; sx < steps; sx++)
+    for(int sx = 0; sx < steps; sx++)
     {
       addTriangle(mesh, sx + sz * (steps + 1), sx + 1 + (sz + 1) * (steps + 1), sx + 1 + sz * (steps + 1));
       addTriangle(mesh, sx + sz * (steps + 1), sx + (sz + 1) * (steps + 1), sx + 1 + (sz + 1) * (steps + 1));
@@ -201,7 +221,10 @@ PrimitiveMesh plane(uint32_t steps, float width, float depth)
   return mesh;
 }
 
-PrimitiveMesh cube(float width /*= 1*/, float height /*= 1*/, float depth /*= 1*/)
+// Generates a cube mesh with the specified width, height, and depth
+// Start with 8 vertex, 6 normal and 4 uv, then 12 triangles and 24
+// unique PrimitiveVertex
+PrimitiveMesh createCube(float width /*= 1*/, float height /*= 1*/, float depth /*= 1*/)
 {
   PrimitiveMesh mesh;
 
@@ -218,7 +241,7 @@ PrimitiveMesh cube(float width /*= 1*/, float height /*= 1*/, float depth /*= 1*
 
   for(int i = 0; i < 6; ++i)
   {
-    auto index = static_cast<int32_t>(mesh.vertices.size());
+    auto index = static_cast<int>(mesh.vertices.size());
     for(int j = 0; j < 4; ++j)
       mesh.vertices.push_back({pnt[cube_polygons[i][j]], nrm[i], uv[j]});
     addTriangle(mesh, index, index + 1, index + 2);
@@ -228,8 +251,10 @@ PrimitiveMesh cube(float width /*= 1*/, float height /*= 1*/, float depth /*= 1*
   return mesh;
 }
 
-
-PrimitiveMesh sphere(float radius, int sectors, int stacks)
+// Generates a UV-sphere mesh with the specified radius, number of sectors (horizontal subdivisions)
+// and stacks (vertical subdivisions). It uses latitude-longitude grid generation to create vertices
+// with proper positions, normals, and texture coordinates.
+PrimitiveMesh createSphereUv(float radius, int sectors, int stacks)
 {
   PrimitiveMesh mesh;
 
@@ -278,8 +303,8 @@ PrimitiveMesh sphere(float radius, int sectors, int stacks)
   //  | \  |
   //  |  \ |
   //  k1---k1+1
-  uint32_t k1{0};
-  uint32_t k2{0};
+  int k1{0};
+  int k2{0};
   for(int i = 0; i < stacks; ++i)
   {
     k1 = i * (sectors + 1);  // beginning of current stack
@@ -303,12 +328,18 @@ PrimitiveMesh sphere(float radius, int sectors, int stacks)
   return mesh;
 }
 
-PrimitiveMesh cone(float radius, int sectors)
+// Function to create a cone
+// radius   :Adjust this to change the size of the cone
+// height   :Adjust this to change the height of the cone
+// segments :Adjust this for the number of segments forming the base circle
+PrimitiveMesh createConeMesh(float radius, float height, int segments)
 {
   PrimitiveMesh mesh;
 
+  float halfHeight = height * 0.5f;
+
   const float math_pi     = static_cast<float>(M_PI);
-  float       sector_step = 2.0F * math_pi / static_cast<float>(sectors);
+  float       sector_step = 2.0F * math_pi / static_cast<float>(segments);
   float       sector_angle{0.0F};
 
   // length of the flank of the cone
@@ -317,10 +348,10 @@ PrimitiveMesh cone(float radius, int sectors)
   float cone_x = radius / flank_len;
   float cone_y = -1.0F / flank_len;
 
-  nvmath::vec3f tip = {0.0F, 0.5F, 0.0F};
+  nvmath::vec3f tip = {0.0F, halfHeight, 0.0F};
 
   // Sides
-  for(int i = 0; i <= sectors; ++i)
+  for(int i = 0; i <= segments; ++i)
   {
     PrimitiveVertex v{};
     sector_angle = static_cast<float>(i) * sector_step;
@@ -328,13 +359,13 @@ PrimitiveMesh cone(float radius, int sectors)
     // Position
     v.p.x = radius * cosf(sector_angle);  // r * cos(u) * cos(v)
     v.p.z = radius * sinf(sector_angle);  // r * cos(u) * sin(v)
-    v.p.y = -0.5F;
+    v.p.y = -halfHeight;
     // Normal
     v.n.x = -cone_y * cosf(sector_angle);
     v.n.y = cone_x;
     v.n.z = -cone_y * sinf(sector_angle);
     // TexCoord
-    v.t.x = static_cast<float>(i) / static_cast<float>(sectors);
+    v.t.x = static_cast<float>(i) / static_cast<float>(segments);
     v.t.y = 0.0F;
     mesh.vertices.emplace_back(v);
 
@@ -346,48 +377,248 @@ PrimitiveMesh cone(float radius, int sectors)
     v.n.y = cone_x;
     v.n.z = -cone_y * sinf(sector_angle);
     // TexCoord
-    v.t.x += 0.5F / static_cast<float>(sectors);
+    v.t.x += 0.5F / static_cast<float>(segments);
     v.t.y = 1.0F;
 
     mesh.vertices.emplace_back(v);
   }
 
-  for(int j = 0; j < sectors; ++j)
+  for(int j = 0; j < segments; ++j)
   {
-    uint32_t k1 = j * 2;
+    int k1 = j * 2;
     addTriangle(mesh, k1, k1 + 1, k1 + 2);
   }
 
   // Bottom plate (normal are different)
-  for(int i = 0; i <= sectors; ++i)
+  for(int i = 0; i <= segments; ++i)
   {
     PrimitiveVertex v{};
     sector_angle = static_cast<float>(i) * sector_step;  // starting from 0 to 2pi
 
     v.p.x = radius * cosf(sector_angle);  // r * cos(u) * cos(v)
     v.p.z = radius * sinf(sector_angle);  // r * cos(u) * sin(v)
-    v.p.y = -0.5F;
+    v.p.y = -halfHeight;
     //
     v.n = {0.0F, -1.0F, 0.0F};
     //
-    v.t.x = static_cast<float>(i) / static_cast<float>(sectors);
+    v.t.x = static_cast<float>(i) / static_cast<float>(segments);
     v.t.y = 0.0F;
     mesh.vertices.emplace_back(v);
 
     v.p = -tip;
-    v.t.x += 0.5F / static_cast<float>(sectors);
+    v.t.x += 0.5F / static_cast<float>(segments);
     v.t.y = 1.0F;
     mesh.vertices.emplace_back(v);
   }
 
-  for(int j = 0; j < sectors; ++j)
+  for(int j = 0; j < segments; ++j)
   {
-    uint32_t k1 = (j + sectors + 1) * 2;
+    int k1 = (j + segments + 1) * 2;
     addTriangle(mesh, k1, k1 + 2, k1 + 1);
   }
 
 
   return mesh;
 }
+
+// Generates a sphere mesh with the specified radius and subdivisions (level of detail).
+// It uses the icosahedron subdivision technique to iteratively refine the mesh by
+// subdividing triangles into smaller triangles to approximate a more spherical shape.
+// It calculates vertex positions, normals, and texture coordinates for each vertex
+// and constructs triangles accordingly.
+// Note: There will be duplicated vertices with this method.
+//       Use removeDuplicateVertices to avoid duplicated vertices.
+PrimitiveMesh createSphereMesh(float radius, int subdivisions)
+{
+
+  const float                t        = (1.0F + std::sqrt(5.0F)) / 2.0F;  // Golden ratio
+  std::vector<nvmath::vec3f> vertices = {{-1, t, 0},  {1, t, 0},  {-1, -t, 0}, {1, -t, 0}, {0, -1, t},  {0, 1, t},
+                                         {0, -1, -t}, {0, 1, -t}, {t, 0, -1},  {t, 0, 1},  {-t, 0, -1}, {-t, 0, 1}};
+
+  // Function to calculate the midpoint between two vertices
+  auto midpoint = [](const nvmath::vec3f& v1, const nvmath::vec3f& v2) { return (v1 + v2) * 0.5f; };
+
+  auto texCoord = [](const nvmath::vec3f& v1) {
+    return nvmath::vec2f{0.5f + std::atan2(v1.z, v1.x) / (2 * M_PI), 0.5f - std::asin(v1.y) / M_PI};
+  };
+
+  std::vector<PrimitiveVertex> primitiveVertices;
+  for(const auto& vertex : vertices)
+  {
+    nvmath::vec3f n = normalize(vertex);
+    primitiveVertices.push_back({n * radius, n, texCoord(n)});
+  }
+
+  std::vector<PrimitiveTriangle> triangles = {{{0, 11, 5}}, {{0, 5, 1}},  {{0, 1, 7}},   {{0, 7, 10}}, {{0, 10, 11}},
+                                              {{1, 5, 9}},  {{5, 11, 4}}, {{11, 10, 2}}, {{10, 7, 6}}, {{7, 1, 8}},
+                                              {{3, 9, 4}},  {{3, 4, 2}},  {{3, 2, 6}},   {{3, 6, 8}},  {{3, 8, 9}},
+                                              {{4, 9, 5}},  {{2, 4, 11}}, {{6, 2, 10}},  {{8, 6, 7}},  {{9, 8, 1}}};
+
+
+  for(int i = 0; i < subdivisions; ++i)
+  {
+    std::vector<PrimitiveTriangle> subTriangles;
+    for(const auto& tri : triangles)
+    {
+      // Subdivide each triangle into 4 sub-triangles
+      nvmath::vec3f mid1 = midpoint(primitiveVertices[tri.v[0]].p, primitiveVertices[tri.v[1]].p);
+      nvmath::vec3f mid2 = midpoint(primitiveVertices[tri.v[1]].p, primitiveVertices[tri.v[2]].p);
+      nvmath::vec3f mid3 = midpoint(primitiveVertices[tri.v[2]].p, primitiveVertices[tri.v[0]].p);
+
+      nvmath::vec3f mid1Normalized = normalize(mid1);
+      nvmath::vec3f mid2Normalized = normalize(mid2);
+      nvmath::vec3f mid3Normalized = normalize(mid3);
+
+      nvmath::vec2f mid1Uv = texCoord(mid1Normalized);
+      nvmath::vec2f mid2Uv = texCoord(mid2Normalized);
+      nvmath::vec2f mid3Uv = texCoord(mid3Normalized);
+
+      primitiveVertices.push_back({mid1Normalized * radius, mid1Normalized, mid1Uv});
+      primitiveVertices.push_back({mid2Normalized * radius, mid2Normalized, mid2Uv});
+      primitiveVertices.push_back({mid3Normalized * radius, mid3Normalized, mid3Uv});
+
+      uint32_t m1 = static_cast<uint32_t>(primitiveVertices.size()) - 3U;
+      uint32_t m2 = m1 + 1U;
+      uint32_t m3 = m2 + 1U;
+
+      // Create 4 new triangles from the subdivided triangle
+      subTriangles.push_back({{tri.v[0], m1, m3}});
+      subTriangles.push_back({{m1, tri.v[1], m2}});
+      subTriangles.push_back({{m2, tri.v[2], m3}});
+      subTriangles.push_back({{m1, m2, m3}});
+    }
+
+    triangles = subTriangles;
+  }
+
+  return {primitiveVertices, triangles};
+}
+
+
+// Generates a torus mesh, which is a 3D geometric shape resembling a donut
+// majorRadius: This represents the distance from the center of the torus to the center of the tube (the larger circle's radius).
+// minorRadius: This represents the radius of the tube (the smaller circle's radius).
+// majorSegments: The number of segments used to approximate the larger circle that forms the torus.
+// minorSegments: The number of segments used to approximate the smaller circle (tube) within the torus.
+nvh::PrimitiveMesh createTorusMesh(float majorRadius, float minorRadius, int majorSegments, int minorSegments)
+{
+  nvh::PrimitiveMesh mesh;
+
+  float majorStep = 2.0f * float(M_PI) / float(majorSegments);
+  float minorStep = 2.0f * float(M_PI) / float(minorSegments);
+
+  for(int i = 0; i <= majorSegments; ++i)
+  {
+    float         angle1 = i * majorStep;
+    nvmath::vec3f center = {majorRadius * std::cos(angle1), 0.0f, majorRadius * std::sin(angle1)};
+
+    for(int j = 0; j <= minorSegments; ++j)
+    {
+      float angle2 = j * minorStep;
+      nvmath::vec3f position = {center.x + minorRadius * std::cos(angle2) * std::cos(angle1), minorRadius * std::sin(angle2),
+                                center.z + minorRadius * std::cos(angle2) * std::sin(angle1)};
+
+      nvmath::vec3f normal = {std::cos(angle2) * std::cos(angle1), std::sin(angle2), std::cos(angle2) * std::sin(angle1)};
+
+      nvmath::vec2f texCoord = {static_cast<float>(i) / majorSegments, static_cast<float>(j) / minorSegments};
+      mesh.vertices.push_back({position, normal, texCoord});
+    }
+  }
+
+  for(int i = 0; i < majorSegments; ++i)
+  {
+    for(int j = 0; j < minorSegments; ++j)
+    {
+      uint32_t idx1 = i * (minorSegments + 1) + j;
+      uint32_t idx2 = (i + 1) * (minorSegments + 1) + j;
+      uint32_t idx3 = idx1 + 1;
+      uint32_t idx4 = idx2 + 1;
+
+      mesh.triangles.push_back({{idx1, idx2, idx3}});
+      mesh.triangles.push_back({{idx3, idx2, idx4}});
+    }
+  }
+
+  return mesh;
+}
+
+
+// Takes a 3D mesh as input and modifies its vertices by adding random displacements within a
+// specified `amplitude` range to create a wobbling effect. The intensity of the wobbling effect
+// can be controlled by adjusting the `amplitude` parameter.
+// The function returns the modified mesh.
+nvh::PrimitiveMesh wobblePrimitive(const nvh::PrimitiveMesh& mesh, float amplitude)
+{
+  // Seed the random number generator with a random device
+  std::random_device rd;
+  std::mt19937       gen(rd());
+
+  // Define the range for the random number generation (-1.0 to 1.0)
+  std::uniform_real_distribution<float> distribution(-1.0, 1.0);
+
+  // Our random function
+  auto rand = [&] { return distribution(gen); };
+
+  std::vector<PrimitiveVertex> newVertices;
+  for(auto& vertex : mesh.vertices)
+  {
+    nvmath::vec3f originalPosition = vertex.p;
+    nvmath::vec3f displacement     = nvmath::vec3f(rand(), rand(), rand());
+    displacement *= amplitude;
+    nvmath::vec3f newPosition = originalPosition + displacement;
+
+    newVertices.push_back({newPosition, vertex.n, vertex.t});
+  }
+
+  return {newVertices, mesh.triangles};
+}
+
+// Takes a 3D mesh as input and returns a new mesh with duplicate vertices removed.
+// This function iterates through each triangle in the original PrimitiveMesh,
+// compares its vertices, and creates a new set of unique vertices in uniqueVertices.
+// We use an unordered_map called vertexIndexMap to keep track of the mapping between
+// the original vertices and their corresponding indices in the uniqueVertices vector.
+PrimitiveMesh removeDuplicateVertices(const PrimitiveMesh& mesh, bool testNormal, bool testUv)
+{
+  auto hash = [&](const PrimitiveVertex& v) {
+    return nvh::hashVal(v.p.x, v.p.y, v.p.z, v.n.x, v.n.y, v.n.z, v.t.x, v.t.y);
+  };
+  auto equal = [&](const PrimitiveVertex& l, const PrimitiveVertex& r) {
+    return (l.p == r.p) && (testNormal ? l.n == r.n : true) && (testUv ? l.t == r.t : true);
+  };
+  std::unordered_map<PrimitiveVertex, uint32_t, decltype(hash), decltype(equal)> vertexIndexMap(0, hash, equal);
+
+  std::vector<PrimitiveVertex>   uniqueVertices;
+  std::vector<PrimitiveTriangle> uniqueTriangles;
+
+  for(const auto& triangle : mesh.triangles)
+  {
+    PrimitiveTriangle uniqueTriangle = {};
+    for(int i = 0; i < 3; i++)
+    {
+      const PrimitiveVertex& vertex = mesh.vertices[triangle.v[i]];
+
+      // Check if the vertex is already in the uniqueVertices list
+      auto it = vertexIndexMap.find(vertex);
+      if(it == vertexIndexMap.end())
+      {
+        // Vertex not found, add it to uniqueVertices and update the index map
+        uint32_t newIndex      = static_cast<uint32_t>(uniqueVertices.size());
+        vertexIndexMap[vertex] = newIndex;
+        uniqueVertices.push_back(vertex);
+        uniqueTriangle.v[i] = newIndex;
+      }
+      else
+      {
+        // Vertex found, use its index in uniqueVertices
+        uniqueTriangle.v[i] = it->second;
+      }
+    }
+    uniqueTriangles.push_back(uniqueTriangle);
+  }
+
+  return {uniqueVertices, uniqueTriangles};
+}
+
 
 }  // namespace nvh

@@ -92,6 +92,23 @@ void nvvkhl::SceneVk::createMaterialBuffer(VkCommandBuffer cmd, const nvh::GltfS
     s.shadingModel                 = m.shadingModel;
     s.alphaMode                    = m.alphaMode;
     s.alphaCutoff                  = m.alphaCutoff;
+    // KHR_materials_transmission
+    s.transmissionFactor  = m.transmission.factor;
+    s.transmissionTexture = m.transmission.texture;
+    // KHR_materials_ior
+    s.ior = m.ior.ior;
+    // KHR_materials_volume
+    s.attenuationColor    = m.volume.attenuationColor;
+    s.thicknessFactor     = m.volume.thicknessFactor;
+    s.thicknessTexture    = m.volume.thicknessTexture;
+    s.attenuationDistance = m.volume.attenuationDistance;
+    // KHR_materials_clearcoat
+    s.clearcoatFactor    = m.clearcoat.factor;
+    s.clearcoatRoughness = m.clearcoat.roughnessFactor;
+    s.clearcoatTexture   = m.clearcoat.roughnessTexture;
+    s.clearcoatTexture   = m.clearcoat.texture;
+    // KHR_materials_emissive_strength
+    s.emissiveFactor *= m.emissiveStrength.emissiveStrength;
 
     shade_materials.emplace_back(s);
   }
@@ -278,7 +295,7 @@ void nvvkhl::SceneVk::createTextureImages(VkCommandBuffer cmd, const tinygltf::M
 
   // Load images in parallel
   m_images.resize(tiny.images.size());
-  uint32_t num_threads = std::min((uint32_t)tiny.images.size(), std::thread::hardware_concurrency());
+  uint32_t          num_threads = std::min((uint32_t)tiny.images.size(), std::thread::hardware_concurrency());
   const std::string indent      = st.indent();
   nvh::parallel_batches<1>(  // Not batching
       tiny.images.size(),

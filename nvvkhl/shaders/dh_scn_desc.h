@@ -56,6 +56,14 @@ struct SceneDescription
   uint64_t primInfoAddress;
 };
 
+// shadingModel
+#define MATERIAL_METALLICROUGHNESS 0
+#define MATERIAL_SPECULARGLOSSINESS 1
+// alphaMode
+#define ALPHA_OPAQUE 0
+#define ALPHA_MASK 1
+#define ALPHA_BLEND 2
+
 struct GltfShadeMaterial
 {
   vec4 pbrBaseColorFactor;
@@ -79,6 +87,22 @@ struct GltfShadeMaterial
   int   emissiveTexture;
   int   alphaMode;
   float alphaCutoff;
+
+  // KHR_materials_transmission
+  float transmissionFactor;
+  int   transmissionTexture;
+  // KHR_materials_ior
+  float ior;
+  // KHR_materials_volume
+  vec3  attenuationColor;
+  float thicknessFactor;
+  int   thicknessTexture;
+  float attenuationDistance;
+  // KHR_materials_clearcoat
+  float clearcoatFactor;
+  float clearcoatRoughness;
+  int   clearcoatTexture;
+  int   clearcoatRoughnessTexture;
 };
 
 #endif

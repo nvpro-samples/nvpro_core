@@ -107,6 +107,7 @@ public:
 
   // Sync for special cases
   void addWaitSemaphore(const VkSemaphoreSubmitInfoKHR& wait);
+  void addSignalSemaphore(const VkSemaphoreSubmitInfoKHR& signal);
 
   VkCommandBuffer createTempCmdBuffer();
   void            submitAndWaitTempCmdBuffer(VkCommandBuffer cmd);
@@ -157,7 +158,8 @@ private:
   VkExtent2D             m_windowSize{0, 0};                // Size of the window
   VkAllocationCallbacks* m_allocator{nullptr};
 
-  std::vector<VkSemaphoreSubmitInfoKHR> m_waitSemaphores;  // Possible extra frame wait semaphores
+  std::vector<VkSemaphoreSubmitInfoKHR> m_waitSemaphores;    // Possible extra frame wait semaphores
+  std::vector<VkSemaphoreSubmitInfoKHR> m_signalSemaphores;  // Possible extra frame signal semaphores
 
   std::unique_ptr<ImGui_ImplVulkanH_Window> m_mainWindowData;
 

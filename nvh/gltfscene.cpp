@@ -179,6 +179,13 @@ void GltfScene::importMaterials(const tinygltf::Model& tmodel)
       getFloat(ext, "displacementGeometryOffset", gmat.displacement.displacementGeometryOffset);
     }
 
+    // KHR_materials_emissive_strength
+    if(tmat.extensions.find(KHR_MATERIALS_EMISSIVE_STRENGTH_NAME) != tmat.extensions.end())
+    {
+      const auto& ext = tmat.extensions.find(KHR_MATERIALS_EMISSIVE_STRENGTH_NAME)->second;
+      getFloat(ext, "emissiveStrength", gmat.emissiveStrength.emissiveStrength);
+    }
+
     m_materials.emplace_back(gmat);
   }
 

@@ -176,6 +176,14 @@ struct KHR_materials_displacement
   int   displacementGeometryTexture{-1};
 };
 
+
+// https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_materials_emissive_strength/README.md
+#define KHR_MATERIALS_EMISSIVE_STRENGTH_NAME "KHR_materials_emissive_strength"
+struct KHR_materials_emissive_strength
+{
+  float emissiveStrength{1.0};
+};
+
 // https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md#reference-material
 struct GltfMaterial
 {
@@ -211,6 +219,7 @@ struct GltfMaterial
   KHR_materials_ior                   ior;
   KHR_materials_volume                volume;
   KHR_materials_displacement          displacement;
+  KHR_materials_emissive_strength     emissiveStrength;
 
   // Tiny Reference
   const tinygltf::Material* tmaterial{nullptr};

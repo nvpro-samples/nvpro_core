@@ -75,6 +75,7 @@ void nvvkhl::AppBaseVk::destroy()
     if(ImGui::GetIO().BackendRendererUserData)
       ImGui_ImplVulkan_Shutdown();
 
+    ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
   }
 

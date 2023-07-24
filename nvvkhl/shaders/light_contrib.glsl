@@ -23,7 +23,7 @@
 #include "func.glsl"
 #include "dh_lighting.h"
 
-LightContrib singleLightContribution(Light light, vec3 surfacePos, vec3 surfaceNormal, vec3 view_incident)
+LightContrib singleLightContribution(in Light light, in vec3 surfacePos, in vec3 surfaceNormal, in vec3 viewIncident, in vec2 randVal)
 {
   LightContrib contrib;
   contrib.incidentVector  = vec3(0.0F);
@@ -86,11 +86,33 @@ LightContrib singleLightContribution(Light light, vec3 surfacePos, vec3 surfaceN
   contrib.intensity = irradiance * light.color;
 
 
-  vec3 V = -view_incident;
-  vec3 L = -contrib.incidentVector;
-  vec3 R = reflect(view_incident, surfaceNormal);
+  if(contrib.halfAngularSize > 0.0F)
+  {  // <----- Sampling area lights
+    float angular_size = contrib.halfAngularSize;
+
+    // section 34  https://people.cs.kuleuven.be/~philip.dutre/GI/TotalCompendium.pdf
+    vec3  dir;
+    float tmp      = (1.0F - randVal.y * (1.0F - cos(angular_size)));
+    float tmp2     = tmp * tmp;
+    float tetha    = sqrt(1.0F - tmp2);
+    dir.x          = cos(M_TWO_PI * randVal.x) * tetha;
+    dir.y          = sin(M_TWO_PI * randVal.x) * tetha;
+    dir.z          = tmp;
+    vec3 light_dir = -contrib.incidentVector;
+    vec3 tangent, binormal;
+    orthonormalBasis(light_dir, tangent, binormal);
+    mat3 tbn  = mat3(tangent, binormal, light_dir);
+    light_dir = normalize(tbn * dir);
+
+    contrib.incidentVector = -light_dir;
+  }
 
   return contrib;
 }
 
+// Version without random values
+LightContrib singleLightContribution(in Light light, in vec3 surfacePos, in vec3 surfaceNormal, in vec3 viewIncident)
+{
+  return singleLightContribution(light, surfacePos, surfaceNormal, viewIncident, vec2(0.0F));
+}
 #endif

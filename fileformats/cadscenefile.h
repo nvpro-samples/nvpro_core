@@ -1310,7 +1310,8 @@ CSFAPI int CSFile_load(CSFile** outcsf, const char* filename, CSFileMemoryPTR me
   const size_t numRead = FREAD(data, size, size, 1, file);
   fclose(file);
 
-  if(numRead != size)
+  // we are reading `size` many bytes in one block
+  if(numRead != 1)
   {
     return CADSCENEFILE_ERROR_NOFILE;
   }

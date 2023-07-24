@@ -136,7 +136,7 @@ public:
       return blockIndex == other.blockIndex && offset == other.offset && dedicated == other.dedicated && size == other.size;
     }
 
-    operator bool() const { return isValid(); }
+    explicit operator bool() const { return isValid(); }
 
     friend bool operator==(const Handle& lhs, const Handle& rhs) { return rhs.isEqual(lhs); }
   };

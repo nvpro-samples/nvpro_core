@@ -28,6 +28,17 @@ struct PbrMaterial
   vec3  normal;
   vec3  emissive;
   vec3  f0;
+  // KHR_materials_transmission
+  float transmission;
+  // KHR_materials_ior
+  float ior;
+  // KHR_materials_volume
+  vec3  attenuationColor;
+  float attenuationDistance;
+  bool  thinWalled;
+  // KHR_materials_clearcoat
+  float clearcoat;
+  float clearcoatRoughness;
 };
 
 #endif

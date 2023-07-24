@@ -98,8 +98,11 @@ void nvvk::SparseImage::computeMipPageCounts()
   // granularity is typically lower than the width and height granularities
   uint32_t pageCountAtCoarsestLevel = (size.width >> (sparseMipLevels - 1)) / imageGranularity.width;
   pageCountAtCoarsestLevel =
-      std::max(pageCountAtCoarsestLevel, (size.height >> (sparseMipLevels - 1)) / imageGranularity.height);
-  pageCountAtCoarsestLevel = std::max(pageCountAtCoarsestLevel, (size.depth >> (sparseMipLevels - 1)) / imageGranularity.depth);
+      std::max(pageCountAtCoarsestLevel,
+               pageCountAtCoarsestLevel * ((size.height >> (sparseMipLevels - 1)) / imageGranularity.height));
+  pageCountAtCoarsestLevel =
+      std::max(pageCountAtCoarsestLevel,
+               pageCountAtCoarsestLevel * (size.depth >> (sparseMipLevels - 1)) / imageGranularity.depth);
 
 
   // When going from level n+1 to level n each dimension will

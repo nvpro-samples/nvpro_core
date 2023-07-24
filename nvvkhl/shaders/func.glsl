@@ -64,6 +64,7 @@ void createCoordinateSystem(in vec3 normal, out vec3 tangent, out vec3 bitangent
   bitangent = cross(normal, tangent);
 }
 
+//-----------------------------------------------------------------------
 // Building an Orthonormal Basis, Revisited
 // by Tom Duff, James Burgess, Per Christensen, Christophe Hery, Andrew Kensler, Max Liani, Ryusuke Villemin
 // https://graphics.pixar.com/library/OrthonormalB/
@@ -99,7 +100,9 @@ vec2 getSphericalUv(vec3 v)
   return uv;
 }
 
-
+//-----------------------------------------------------------------------
+// Return the interpolated value between 3 values and the barycentrics
+//-----------------------------------------------------------------------
 vec2 mixBary(vec2 a, vec2 b, vec2 c, vec3 bary)
 {
   return a * bary.x + b * bary.y + c * bary.z;
@@ -115,7 +118,18 @@ vec4 mixBary(vec4 a, vec4 b, vec4 c, vec3 bary)
   return a * bary.x + b * bary.y + c * bary.z;
 }
 
-
-
-
+//-----------------------------------------------------------------------
+// https://www.realtimerendering.com/raytracinggems/unofficial_RayTracingGems_v1.4.pdf
+// 16.6.1 COSINE-WEIGHTED HEMISPHERE ORIENTED TO THE Z-AXIS
+//-----------------------------------------------------------------------
+vec3 cosineSampleHemisphere(float r1, float r2)
+{
+  float r   = sqrt(r1);
+  float phi = M_TWO_PI * r2;
+  vec3  dir;
+  dir.x = r * cos(phi);
+  dir.y = r * sin(phi);
+  dir.z = sqrt(max(0.0, 1.0 - dir.x * dir.x - dir.y * dir.y));
+  return dir;
+}
 #endif  // FUNC_GLSL

@@ -568,6 +568,7 @@ void nvvkhl::Application::frameRender()
   ImGui_ImplVulkanH_Window* wd        = m_mainWindowData.get();
   ImDrawData*               draw_data = ImGui::GetDrawData();
   m_waitSemaphores.clear();
+  m_signalSemaphores.clear();
 
   VkSemaphore image_acquired_semaphore  = wd->FrameSemaphores[wd->SemaphoreIndex].ImageAcquiredSemaphore;
   VkSemaphore render_complete_semaphore = wd->FrameSemaphores[wd->SemaphoreIndex].RenderCompleteSemaphore;
@@ -631,6 +632,7 @@ void nvvkhl::Application::frameRender()
     VkSemaphoreSubmitInfo signalSemaphore{VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO};
     signalSemaphore.semaphore = render_complete_semaphore;
     signalSemaphore.stageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+    m_signalSemaphores.emplace_back(signalSemaphore);
 
     VkSemaphoreSubmitInfo waitSemaphore{VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO};
     waitSemaphore.semaphore = image_acquired_semaphore;
@@ -642,8 +644,8 @@ void nvvkhl::Application::frameRender()
     submits.pCommandBufferInfos      = &cmdBufInfo;
     submits.waitSemaphoreInfoCount   = (uint32_t)m_waitSemaphores.size();
     submits.pWaitSemaphoreInfos      = m_waitSemaphores.data();
-    submits.signalSemaphoreInfoCount = 1;
-    submits.pSignalSemaphoreInfos    = &signalSemaphore;
+    submits.signalSemaphoreInfoCount = (uint32_t)m_signalSemaphores.size();
+    submits.pSignalSemaphoreInfos    = m_signalSemaphores.data();
 
     NVVK_CHECK(vkEndCommandBuffer(fd->CommandBuffer));
     NVVK_CHECK(vkQueueSubmit2(m_context->m_queueGCT.queue, 1, &submits, fd->Fence));
@@ -653,6 +655,10 @@ void nvvkhl::Application::frameRender()
 void nvvkhl::Application::addWaitSemaphore(const VkSemaphoreSubmitInfoKHR& wait)
 {
   m_waitSemaphores.push_back(wait);
+}
+void nvvkhl::Application::addSignalSemaphore(const VkSemaphoreSubmitInfoKHR& signal)
+{
+  m_signalSemaphores.push_back(signal);
 }
 
 
