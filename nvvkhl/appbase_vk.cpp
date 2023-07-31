@@ -673,7 +673,7 @@ void nvvkhl::AppBaseVk::initGUI(uint32_t subpassID /*= 0*/)
 
   std::vector<VkDescriptorPoolSize> poolSize{{VK_DESCRIPTOR_TYPE_SAMPLER, 1}, {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1}};
   VkDescriptorPoolCreateInfo poolInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
-  poolInfo.maxSets       = 2;
+  poolInfo.maxSets       = 1000;
   poolInfo.poolSizeCount = 2;
   poolInfo.pPoolSizes    = poolSize.data();
   vkCreateDescriptorPool(m_device, &poolInfo, nullptr, &m_imguiDescPool);
