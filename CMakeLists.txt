@@ -248,6 +248,7 @@ target_link_libraries(nvpro_core
   ${PLATFORM_LIBRARIES} 
   glfw 
   imgui
+  fmt
   ${THIRDPARTY_LIBRARIES}
  )
 

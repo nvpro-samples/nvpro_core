@@ -2,8 +2,9 @@ include(FindPackageHandleStandardArgs)
 
 find_path( GLM_INCLUDE_DIR glm/glm.hpp HINTS ${GLM_LOCATION}
                                              $ENV{GLM_LOCATION}
-                                             ${VK_SDK_PATH}/include
-                                             ${VULKANSDK_INCLUDE_DIR} )
+                                             $ENV{VK_SDK_PATH}/include
+                                             ${VULKAN_HEADERS_OVERRIDE_INCLUDE_DIR}
+                                             ${Vulkan_INCLUDE_DIR} )
 
 # Handle REQUIRD argument, define *_FOUND variable
 find_package_handle_standard_args(GLM DEFAULT_MSG GLM_INCLUDE_DIR)

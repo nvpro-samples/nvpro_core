@@ -100,7 +100,6 @@ function(download_files)
       # Check whether the download succeeded. _DOWNLOAD_STATUS is a list of
       # length 2; element 0 is the return value (0 == no error), element 1 is
       # a string value for the error.
-      message(STATUS ${_DOWNLOAD_STATUS})
       list(GET _DOWNLOAD_STATUS 0 _DOWNLOAD_STATUS_CODE)
       if(NOT (${_DOWNLOAD_STATUS_CODE} EQUAL 0))
         list(GET _DOWNLOAD_STATUS 1 _DOWNLOAD_STATUS_MESSAGE)

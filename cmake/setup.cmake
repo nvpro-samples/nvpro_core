@@ -388,6 +388,10 @@ macro(_add_package_VulkanSDK)
       endif()
       add_definitions(-DVULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1)
 
+      if(NOT VULKAN_BUILD_DEPENDENCIES)
+        set(VULKAN_BUILD_DEPENDENCIES ON CACHE BOOL "Create dependencies on GLSL files")
+      endif()
+
       set(VULKAN_HEADERS_OVERRIDE_INCLUDE_DIR CACHE PATH "Override for Vulkan headers, leave empty to use SDK")
 
       if (VULKAN_HEADERS_OVERRIDE_INCLUDE_DIR)

@@ -42,6 +42,13 @@ endif()
 
 set(IMGUI_DIR "${CMAKE_CURRENT_SOURCE_DIR}/imgui" PARENT_SCOPE)
 
+# fmt
+if (NOT TARGET fmt)
+  add_library(fmt STATIC fmt/src/format.cc)
+  target_include_directories(fmt PUBLIC fmt/include)
+  set_property(TARGET fmt PROPERTY FOLDER "ThirdParty")
+endif()
+
 
 ### optional dependencies
 
@@ -60,6 +67,19 @@ set(IMGUI_DIR "${CMAKE_CURRENT_SOURCE_DIR}/imgui" PARENT_SCOPE)
 # if(NOT CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
 #     target_compile_definitions(glm INTERFACE GLM_FORCE_CXX14)
 # endif()
+
+# stb
+if (NOT TARGET stb AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/stb)
+  add_library(stb INTERFACE)
+  target_include_directories(stb INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/stb")
+  # Use secure C Runtime calls when compiling with MSVC
+  if(MSVC)
+    target_compile_definitions(stb INTERFACE STBI_MSC_SECURE_CRT)
+  endif()
+endif()
+if (TARGET stb)
+  LIST(APPEND THIRDPARTY_LIBRARIES stb)
+endif()
 
 # tinygltf
 if (NOT TARGET tinygltf AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/tinygltf)
@@ -81,19 +101,6 @@ if (NOT TARGET tinyobjloader AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/tinyobjloade
 endif()
 if (TARGET tinyobjloader)
   LIST(APPEND THIRDPARTY_LIBRARIES tinyobjloader)
-endif()
-
-# stb
-if (NOT TARGET stb AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/stb)
-  add_library(stb INTERFACE)
-  target_include_directories(stb INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/stb")
-  # Use secure C Runtime calls when compiling with MSVC
-  if(MSVC)
-    target_compile_definitions(stb INTERFACE STBI_MSC_SECURE_CRT)
-  endif()
-endif()
-if (TARGET stb)
-  LIST(APPEND THIRDPARTY_LIBRARIES stb)
 endif()
 
 # cgltf
@@ -118,6 +125,11 @@ if (NOT TARGET vma AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/vma)
   set(VMA_DIR ${CMAKE_CURRENT_SOURCE_DIR}/vma/include)
   target_sources(vma INTERFACE ${VMA_DIR}/vk_mem_alloc.h)
   target_include_directories(vma INTERFACE ${VMA_DIR})
+  # Although nvpro_core requires at least Vulkan 1.3.x, we tell VMA to only
+  # link with core extension symbols from Vulkan 1.2.x. This avoids
+  # "undefined symbol" errors at load-time on Linux when running projects
+  # using nvpro_core on systems with earlier versions of libvulkan.so.
+  target_compile_definitions(vma INTERFACE VMA_VULKAN_VERSION=1002000)
 endif()
 if (TARGET vma)
   LIST(APPEND THIRDPARTY_LIBRARIES vma)

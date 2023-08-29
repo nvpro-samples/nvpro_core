@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include <cassert>
 #include <nvh/nvprint.hpp>
 #include <nvh/threading.hpp>
 #include <functional>
