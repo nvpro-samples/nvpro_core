@@ -14,14 +14,8 @@ check_include_file(sys/types.h HAVE_SYS_TYPES_H)
 check_include_file(stdint.h    HAVE_STDINT_H)
 check_include_file(stddef.h    HAVE_STDDEF_H)
 
-#
 # Check to see if we have large file support.
-# Because a non-default CMAKE_EXECUTABLE_SUFFIX (from setup.cmake) can interfere
-# with check_type_size, we unset and then re-set it around these calls.
-#
 set(CMAKE_REQUIRED_DEFINITIONS -D_LARGEFILE64_SOURCE=1)
-set(_ORIGINAL_EXECUTABLE_SUFFIX "${CMAKE_EXECUTABLE_SUFFIX}")
-unset(CMAKE_EXECUTABLE_SUFFIX)
 # We add these other definitions here because CheckTypeSize.cmake
 # in CMake 2.4.x does not automatically do so and we want
 # compatibility with CMake 2.4.x.
@@ -38,7 +32,6 @@ check_type_size(off64_t SIZEOF_OFF64_T)
 if(HAVE_OFF64_T)
    add_definitions(-D_LARGEFILE64_SOURCE=1)
 endif()
-set(CMAKE_EXECUTABLE_SUFFIX ${_ORIGINAL_EXECUTABLE_SUFFIX})
 set(CMAKE_REQUIRED_DEFINITIONS) # clear variable
 
 #

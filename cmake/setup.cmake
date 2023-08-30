@@ -28,14 +28,6 @@ set(CMAKE_CXX_STANDARD 17)
 # Find includes in corresponding build directories
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-
-# Most installed projects place their files under a folder with the same name as
-# the project. On Linux, this conflicts with the name of the executable. We add
-# the following suffix to avoid this.
-if(UNIX)
-  set(CMAKE_EXECUTABLE_SUFFIX "_app")
-endif()
-
 # IDE Setup
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)  # Generate folders for IDE targets
 set_property(GLOBAL PROPERTY PREDEFINED_TARGETS_FOLDER "_cmake")
@@ -921,6 +913,15 @@ macro(_set_target_output _PROJNAME)
     LIBRARY_OUTPUT_DIRECTORY "${OUTPUT_PATH}/$<CONFIG>/"
     RUNTIME_OUTPUT_DIRECTORY "${OUTPUT_PATH}/$<CONFIG>/"
   )
+  # Most installed projects place their files under a folder with the same name as
+  # the project. On Linux, this conflicts with the name of the executable. We add
+  # the following suffix to avoid this.
+  # Note that setting CMAKE_EXECUTABLE_SUFFIX is not the solution: it causes
+  # CUDA try_compile to break inside build_all, because CMake thinks the CUDA
+  # executables end with CMAKE_EXECUTABLE_SUFFIX.
+  if(UNIX)
+    set_target_properties(${_PROJNAME} PROPERTIES SUFFIX "_app")
+  endif()
 endmacro()
 
 #####################################################################################
@@ -1111,19 +1112,10 @@ macro(_add_nvpro_core_lib)
 endmacro()
 
 #####################################################################################
-# The OpenMP find macro. does not support non-default CMAKE_EXECUTABLE_SUFFIX
-# properly. Workaround the issue by temporarily restoring the default value
-# while the FindOpenMP script runs.
+# The OpenMP find macro.
 
 macro(_find_package_OpenMP)
-  if(UNIX)
-    set(EXE_SUFFIX ${CMAKE_EXECUTABLE_SUFFIX})
-    unset(CMAKE_EXECUTABLE_SUFFIX)
-    find_package(OpenMP)
-    set(CMAKE_EXECUTABLE_SUFFIX ${EXE_SUFFIX})
-  else()
-    find_package(OpenMP)
-  endif(UNIX)
+  find_package(OpenMP)
 endmacro()
 
 
