@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2014-2023, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -713,10 +713,10 @@ void GltfScene::createTangents(GltfPrimMesh& resultMesh)
     // In case the tangent is invalid
     if(otangent == nvmath::vec3f(0, 0, 0))
     {
-      if(abs(n.x) > abs(n.y))
-        otangent = nvmath::vec3f(n.z, 0, -n.x) / sqrt(n.x * n.x + n.z * n.z);
+      if(fabsf(n.x) > fabsf(n.y))
+        otangent = nvmath::vec3f(n.z, 0, -n.x) / sqrtf(n.x * n.x + n.z * n.z);
       else
-        otangent = nvmath::vec3f(0, -n.z, n.y) / sqrt(n.y * n.y + n.z * n.z);
+        otangent = nvmath::vec3f(0, -n.z, n.y) / sqrtf(n.y * n.y + n.z * n.z);
     }
 
     // Calculate handedness
