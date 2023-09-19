@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2014-2023, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,12 +21,6 @@
 
 #include "vulkan/vulkan_core.h"
 
-// Imgui
-#include "imgui.h"
-#include "imgui/imgui_camera_widget.h"
-#include "imgui/imgui_helper.h"
-#include "imgui/backends/imgui_impl_vulkan.h"
-
 // Utilities
 #include "nvh/cameramanipulator.hpp"
 #include "nvvk/swapchain_vk.hpp"
@@ -42,8 +36,6 @@
 #include "GLFW/glfw3.h"
 #include "GLFW/glfw3native.h"
 
-#include <cmath>
-#include <set>
 #include <vector>
 
 namespace nvvkhl {

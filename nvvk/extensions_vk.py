@@ -17,6 +17,18 @@
 #  SPDX-License-Identifier: Apache-2.0
 #
 
+#
+# The following script originate from Volk (https://github.com/zeux/volk) and adapted to the need
+# of nvpro-core samples.
+#
+
+
+# Copyright (c) 2018-2023 Arseny Kapoulkine
+# Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"),
+# to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+
 #!/usr/bin/python3
 # This will generate the entry point for all Vulkan extensions
 # Code blocks are created and will be replace between
@@ -26,20 +38,25 @@ import os.path
 import urllib
 import urllib.request
 import xml.etree.ElementTree as etree
+import re
 from collections import OrderedDict
 
 # Ignoring those extensions because they are part of vulkan-1.lib
 ExcludeList = [
-    "VK_KHR_surface",
-    "VK_KHR_win32_surface",
-    "VK_KHR_xlib_surface",
-    "VK_KHR_wayland_surface",
-    "VK_KHR_xcb_surface",
-    "VK_KHR_display",
-    "VK_KHR_swapchain",
-    "VK_KHR_get_surface_capabilities2",
-    "VK_KHR_get_display_properties2",
-    "VK_KHR_display_swapchain",
+    "defined(VK_KHR_surface)",
+    "defined(VK_KHR_win32_surface)",
+    "defined(VK_KHR_xlib_surface)",
+    "defined(VK_KHR_wayland_surface)",
+    "defined(VK_KHR_xcb_surface)",
+    "defined(VK_KHR_display)",
+    "defined(VK_KHR_swapchain)",
+    "defined(VK_KHR_get_surface_capabilities2)",
+    "defined(VK_KHR_get_display_properties2)",
+    "defined(VK_KHR_display_swapchain)",
+    "VK_VERSION_1_0",
+    "VK_VERSION_1_1",
+    "VK_VERSION_1_2",
+    "VK_VERSION_1_3",
 ]
 
 # Debugging - To be sure that the exclude list is excluding commands
@@ -113,6 +130,22 @@ def is_descendant_type(types, name, base):
         [is_descendant_type(types, parent, base) for parent in parents.split(",")]
     )
 
+
+def defined(key):
+    return "defined(" + key + ")"
+
+
+def cdepends(key):
+    return (
+        re.sub(r"[a-zA-Z0-9_]+", lambda m: defined(m.group(0)), key)
+        .replace(",", " || ")
+        .replace("+", " && ")
+    )
+
+
+# Remove "defined(..)"
+def remove_defined(input_string):
+    return re.sub(r"defined\((.*?)\)", r"\1", input_string)
 
 def toStr(txt):
     # Return the string if it exist or '' if None
@@ -239,6 +272,14 @@ if __name__ == "__main__":
     command_groups = OrderedDict()
     instance_commands = set()
 
+    for feature in spec.findall("feature"):
+        api = feature.get("api")
+        if "vulkan" not in api.split(","):
+            continue
+        key = feature.get("name")
+        cmdrefs = feature.findall("require/command")
+        command_groups[key] = [cmdref.get("name") for cmdref in cmdrefs]
+
     # Retrieve all extension and sorted alphabetically
     for ext in sorted(
         spec.findall("extensions/extension"), key=lambda ext: ext.get("name")
@@ -257,7 +298,16 @@ if __name__ == "__main__":
 
         for req in ext.findall("require"):
             # Adding all commands for this extension
-            key = name
+            key = defined(name)
+            if req.get("feature"):  # old-style XML depends specification
+                for i in req.get("feature").split(","):
+                    key += " && " + defined(i)
+            if req.get("extension"):  # old-style XML depends specification
+                for i in req.get("extension").split(","):
+                    key += " && " + defined(i)
+            if req.get("depends"):  # new-style XML depends specification
+                dep = cdepends(req.get("depends"))
+                key += " && " + ("(" + dep + ")" if "||" in dep else dep)
             cmdrefs = req.findall("command")
 
             # Add ifdef section and split commands with high version
@@ -265,8 +315,7 @@ if __name__ == "__main__":
                 ver = cmdversions.get(cmdref.get("name"))
                 if ver:
                     command_groups.setdefault(
-                        key + "&&" + name.upper() + "_SPEC_VERSION >= " + str(ver),
-                        [],
+                        key + " && " + name.upper() + "_SPEC_VERSION >= " + str(ver), []
                     ).append(cmdref.get("name"))
                 else:
                     command_groups.setdefault(key, []).append(cmdref.get("name"))
@@ -286,6 +335,12 @@ if __name__ == "__main__":
         command_groups[group] = [
             name for name in cmdnames if len(commands_to_groups[name]) == 1
         ]
+
+    for name, groups in commands_to_groups.items():
+        if len(groups) == 1:
+            continue
+        key = " || ".join([g for g in groups])
+        command_groups.setdefault(key, []).append(name)
 
     # Finding the alias name for a function: <command
     # name="vkGetPhysicalDeviceExternalBufferPropertiesKHR"
@@ -308,25 +363,28 @@ if __name__ == "__main__":
         if name:
             types[name] = type
 
+    for key in block_keys:
+        blocks[key] = ""
+
     # For each group, get the list of all commands
     for group, cmdnames in command_groups.items():
         # Skipping some extensions
         if group in ExcludeList:
             continue
 
-        # Each code groups will be surrounded by #ifdef/#endif
-        ext_name = group.split("&&")
-        ifdef = "#if defined(" + ext_name[0] + ")"
-        if len(ext_name) > 1:
-            ifdef += " && " + ext_name[1]
-        ifdef += "\n"
+        ifdef = "#if " + group + "\n"
 
         for key in block_keys:
             blocks[key] += ifdef
 
-        # Only add to the DEFINE block the groups that have no version (&&)
-        if len(ext_name) == 1:
-            blocks["DEFINE"] += "#define NVVK_HAS_" + ext_name[0] + "\n"
+        # Name the NVVK_HAS with the first part of the group
+        ext_name = group
+        if "&&" in group:
+            ext_name = group.split("&&")[0].strip()
+        elif "||" in group:
+            ext_name = group.split("||")[0].strip()
+        if ext_name != None:
+            blocks["DEFINE"] += "#define NVVK_HAS_" + remove_defined(ext_name) + "\n"
 
         # Getting all commands within the group
         for name in sorted(cmdnames):
@@ -378,7 +436,7 @@ if __name__ == "__main__":
             if blocks[key].endswith(ifdef):
                 blocks[key] = blocks[key][: -len(ifdef)]
             else:
-                blocks[key] += "#endif /* " + group + " */\n"
+                blocks[key] += "#endif /* " + remove_defined(group) + " */\n"
 
     # Patching the files
     patch_file("extensions_vk.hpp", blocks)

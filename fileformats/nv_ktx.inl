@@ -8,7 +8,7 @@
 #include <mutex>
 #include <sstream>
 #include <string.h>  // memcpy
-#include <vulkan/vulkan.h>
+#include <vulkan/vulkan_core.h>
 #ifdef NVP_SUPPORTS_ZSTD
 #include <zstd.h>
 #endif

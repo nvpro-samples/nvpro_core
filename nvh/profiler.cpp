@@ -377,10 +377,12 @@ Profiler::SectionID Profiler::beginSection(const char* name, const char* api, gp
   Entry&   entry = m_data->entries[sec];
   uint32_t level = singleShot ? LEVEL_SINGLESHOT : (m_data->level++);
 
-  if(entry.name != name || entry.api != api || entry.level != level)
+  const std::string name_str = (name ? name : "");
+  const std::string api_str  = (api ? api : "");
+  if(entry.name != name_str || entry.api != api_str || entry.level != level)
   {
-    entry.name = name;
-    entry.api  = api;
+    entry.name = name_str;
+    entry.api  = api_str;
 
     if(!singleShot)
     {

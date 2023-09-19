@@ -47,13 +47,21 @@ struct Tonemapper
   float saturation;
   float vignette;
   float gamma;
-
-#ifdef __cplusplus
-  // clang-format off
-  Tonemapper(): method(0), isActive(1), exposure(1.0F), brightness(1.0F), contrast(1.0F), saturation(1.0F), vignette(0.0F), gamma(2.2F) {}
-  // clang-format on
-#endif
 };
+
+INLINE Tonemapper defaultTonemapper()
+{
+  Tonemapper t;
+  t.method     = 0;
+  t.isActive   = 1;
+  t.exposure   = 1.0F;
+  t.brightness = 1.0F;
+  t.contrast   = 1.0F;
+  t.saturation = 1.0F;
+  t.vignette   = 0.0F;
+  t.gamma      = 2.2F;
+  return t;
+}
 
 // Bindings
 const int eTonemapperInput  = 0;

@@ -51,10 +51,10 @@ struct PrimitiveMesh
 
 struct Node
 {
-  nvmath::vec3f             translation{};
-  nvmath::quaternion<float> rotation{};
-  nvmath::vec3f             scale{1.0F};
-  nvmath::mat4f             matrix{1};
+  nvmath::vec3f             translation{};         //
+  nvmath::quaternion<float> rotation{0, 0, 0, 1};  //
+  nvmath::vec3f             scale{1.0F};           //
+  nvmath::mat4f             matrix{1};             // Added with the above transformations
   int                       material{0};
   int                       mesh{-1};
 
@@ -78,7 +78,10 @@ PrimitiveMesh createConeMesh(float radius = 0.5F, float height = 1.0F, int segme
 PrimitiveMesh createSphereMesh(float radius = 0.5F, int subdivisions = 3);
 PrimitiveMesh createTorusMesh(float majorRadius = 0.5F, float minorRadius = 0.25F, int majorSegments = 32, int minorSegments = 16);
 
+std::vector<Node> mengerSpongeNodes(int level = 3, float probability = -1.f, int seed = 1);
+
 // Utilities
+PrimitiveMesh mergeNodes(const std::vector<Node>& nodes, const std::vector<PrimitiveMesh> meshes);
 PrimitiveMesh removeDuplicateVertices(const PrimitiveMesh& mesh, bool testNormal = true, bool testUv = true);
 PrimitiveMesh wobblePrimitive(const PrimitiveMesh& mesh, float amplitude = 0.05F);
 

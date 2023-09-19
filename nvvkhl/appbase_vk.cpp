@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,12 @@
 
 #include "nvvkhl/appbase_vk.hpp"
 #include "nvp/perproject_globals.hpp"
+// Imgui
+#include "imgui.h"
 #include "backends/imgui_impl_glfw.h"
+#include "imgui/backends/imgui_impl_vulkan.h"
+#include "imgui/imgui_camera_widget.h"
+#include "imgui/imgui_helper.h"
 
 
 //--------------------------------------------------------------------------------------------------
@@ -180,7 +185,7 @@ void nvvkhl::AppBaseVk::createSwapchain(const VkSurfaceKHR& surface,
   m_swapChain.cmdUpdateBarriers(cmdBuffer);
   submitTempCmdBuffer(cmdBuffer);
 
-#ifdef _DEBUG
+#ifndef NDEBUG
   for(size_t i = 0; i < m_commandBuffers.size(); i++)
   {
     std::string name = std::string("AppBase") + std::to_string(i);
@@ -191,7 +196,7 @@ void nvvkhl::AppBaseVk::createSwapchain(const VkSurfaceKHR& surface,
     nameInfo.pObjectName  = name.c_str();
     vkSetDebugUtilsObjectNameEXT(m_device, &nameInfo);
   }
-#endif  // _DEBUG
+#endif  // !NDEBUG
 
   // Setup camera
   CameraManip.setWindowSize(m_size.width, m_size.height);
@@ -232,7 +237,7 @@ void nvvkhl::AppBaseVk::createFrameBuffers()
   }
 
 
-#ifdef _DEBUG
+#ifndef NDEBUG
   for(size_t i = 0; i < m_framebuffers.size(); i++)
   {
     std::string                   name = std::string("AppBase") + std::to_string(i);
@@ -242,7 +247,7 @@ void nvvkhl::AppBaseVk::createFrameBuffers()
     nameInfo.pObjectName  = name.c_str();
     vkSetDebugUtilsObjectNameEXT(m_device, &nameInfo);
   }
-#endif  // _DEBUG
+#endif  // !NDEBUG
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -301,13 +306,13 @@ void nvvkhl::AppBaseVk::createRenderPass()
 
   vkCreateRenderPass(m_device, &renderPassInfo, nullptr, &m_renderPass);
 
-#ifdef _DEBUG
+#ifndef NDEBUG
   VkDebugUtilsObjectNameInfoEXT nameInfo{VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT};
   nameInfo.objectHandle = (uint64_t)m_renderPass;
   nameInfo.objectType   = VK_OBJECT_TYPE_RENDER_PASS;
   nameInfo.pObjectName  = R"(AppBaseVk)";
   vkSetDebugUtilsObjectNameEXT(m_device, &nameInfo);
-#endif  // _DEBUG
+#endif  // !NDEBUG
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -337,14 +342,14 @@ void nvvkhl::AppBaseVk::createDepthBuffer()
   // Create the depth image
   vkCreateImage(m_device, &depthStencilCreateInfo, nullptr, &m_depthImage);
 
-#ifdef _DEBUG
+#ifndef NDEBUG
   std::string                   name = std::string("AppBaseDepth");
   VkDebugUtilsObjectNameInfoEXT nameInfo{VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT};
   nameInfo.objectHandle = (uint64_t)m_depthImage;
   nameInfo.objectType   = VK_OBJECT_TYPE_IMAGE;
   nameInfo.pObjectName  = R"(AppBase)";
   vkSetDebugUtilsObjectNameEXT(m_device, &nameInfo);
-#endif  // _DEBUG
+#endif  // !NDEBUG
 
   // Allocate the memory
   VkMemoryRequirements memReqs;

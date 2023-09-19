@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2014-2022 NVIDIA CORPORATION
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2023 NVIDIA CORPORATION
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -76,7 +76,7 @@ nvvk::RaytracingBuilderKHR::BlasInput nvvkhl::SceneRtx::primitiveToGeometry(cons
   triangles.vertexStride             = sizeof(Vertex);
   triangles.indexType                = VK_INDEX_TYPE_UINT32;
   triangles.indexData.deviceAddress  = indexAddress;
-  triangles.maxVertex                = prim.vertexCount;
+  triangles.maxVertex                = prim.vertexCount - 1;
   //triangles.transformData; // Identity
 
   // Identify the above data as containing opaque triangles.
@@ -102,7 +102,7 @@ nvvk::RaytracingBuilderKHR::BlasInput nvvkhl::SceneRtx::primitiveToGeometry(cons
 void nvvkhl::SceneRtx::createBottomLevelAS(const nvh::GltfScene& scn, const SceneVk& scnVk, VkBuildAccelerationStructureFlagsKHR flags)
 {
   nvh::ScopedTimer st(std::string(__FUNCTION__) + "\n");
-  
+
   // BLAS - Storing each primitive in a geometry
   std::vector<nvvk::RaytracingBuilderKHR::BlasInput> all_blas;
   all_blas.reserve(scn.m_primMeshes.size());

@@ -1112,8 +1112,8 @@ macro(_add_nvpro_core_lib)
 endmacro()
 
 #####################################################################################
-# The OpenMP find macro.
-
+# Finds OpenMP. This is a backwards-compatible alias for a function that was
+# previously more complex.
 macro(_find_package_OpenMP)
   find_package(OpenMP)
 endmacro()

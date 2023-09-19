@@ -55,7 +55,7 @@ namespace nvgl {
 //------------------------------------------------------------------------------
 // OGL callback
 //------------------------------------------------------------------------------
-#ifdef _DEBUG
+#ifndef NDEBUG
 static void APIENTRY myOpenGLCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const GLvoid* userParam)
 {
 
@@ -362,7 +362,7 @@ struct ContextWindowInternalGL
       {
         wglDeleteContext(m_hRC);
         m_hRC = hRC;
-#ifdef _DEBUG
+#ifndef NDEBUG
 
         PFNGLDEBUGMESSAGECALLBACKARBPROC fn_glDebugMessageCallbackARB =
             (PFNGLDEBUGMESSAGECALLBACKARBPROC)wglGetProcAddress("glDebugMessageCallbackARB");
@@ -485,7 +485,7 @@ struct ContextWindowInternalGL
     m_glfwwindow = sourcewindow;
     glfwMakeContextCurrent(m_glfwwindow);
 
-#ifdef _DEBUG
+#ifndef NDEBUG
     PFNGLDEBUGMESSAGECALLBACKARBPROC fn_glDebugMessageCallbackARB =
         (PFNGLDEBUGMESSAGECALLBACKARBPROC)glfwGetProcAddress("glDebugMessageCallbackARB");
     PFNGLDEBUGMESSAGECONTROLARBPROC fn_glDebugMessageControlARB =

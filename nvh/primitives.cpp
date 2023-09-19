@@ -23,6 +23,7 @@
 #define _USE_MATH_DEFINES
 #include <math.h>
 #include <unordered_map>
+#include <unordered_set>
 #include <random>
 #include "primitives.hpp"
 #include "container_utils.hpp"
@@ -70,9 +71,9 @@ static void generateTexCoords(PrimitiveMesh& mesh)
   for(auto& vertex : mesh.vertices)
   {
     nvmath::vec3f n = normalize(vertex.p);
-    float u  = 0.5f + std::atan2(n.z, n.x) / (2.0F * float(M_PI));
-    float v  = 0.5f - std::asin(n.y) / float(M_PI);
-    vertex.t = {u, v};
+    float         u = 0.5f + std::atan2(n.z, n.x) / (2.0F * float(M_PI));
+    float         v = 0.5f - std::asin(n.y) / float(M_PI);
+    vertex.t        = {u, v};
   }
 }
 
@@ -534,12 +535,154 @@ nvh::PrimitiveMesh createTorusMesh(float majorRadius, float minorRadius, int maj
       uint32_t idx3 = idx1 + 1;
       uint32_t idx4 = idx2 + 1;
 
-      mesh.triangles.push_back({{idx1, idx2, idx3}});
-      mesh.triangles.push_back({{idx3, idx2, idx4}});
+      mesh.triangles.push_back({{idx1, idx3, idx2}});
+      mesh.triangles.push_back({{idx3, idx4, idx2}});
     }
   }
 
   return mesh;
+}
+
+//------------------------------------------------------------------------
+// Create a vector of nodes that represent the Menger Sponge
+// Nodes have a different translation and scale, which can be used with
+// different objects.
+std::vector<nvh::Node> mengerSpongeNodes(int level, float probability, int seed)
+{
+  srand(seed);
+
+  struct MengerSponge
+  {
+    nvmath::vec3f m_topLeftFront;
+    float         m_size;
+
+    void split(std::vector<MengerSponge>& cubes)
+    {
+      float         size         = m_size / 3.f;
+      nvmath::vec3f topLeftFront = m_topLeftFront;
+      for(int x = 0; x < 3; x++)
+      {
+        topLeftFront[0] = m_topLeftFront[0] + static_cast<float>(x) * size;
+        for(int y = 0; y < 3; y++)
+        {
+          if(x == 1 && y == 1)
+            continue;
+          topLeftFront[1] = m_topLeftFront[1] + static_cast<float>(y) * size;
+          for(int z = 0; z < 3; z++)
+          {
+            if(x == 1 && z == 1)
+              continue;
+            if(y == 1 && z == 1)
+              continue;
+
+            topLeftFront[2] = m_topLeftFront[2] + static_cast<float>(z) * size;
+            cubes.push_back({topLeftFront, size});
+          }
+        }
+      }
+    }
+
+    void splitProb(std::vector<MengerSponge>& cubes, float prob)
+    {
+      float         size         = m_size / 3.f;
+      nvmath::vec3f topLeftFront = m_topLeftFront;
+      for(int x = 0; x < 3; x++)
+      {
+        topLeftFront[0] = m_topLeftFront[0] + static_cast<float>(x) * size;
+        for(int y = 0; y < 3; y++)
+        {
+          topLeftFront[1] = m_topLeftFront[1] + static_cast<float>(y) * size;
+          for(int z = 0; z < 3; z++)
+          {
+            float sample = rand() / static_cast<float>(RAND_MAX);
+            if(sample > prob)
+              continue;
+            topLeftFront[2] = m_topLeftFront[2] + static_cast<float>(z) * size;
+            cubes.push_back({topLeftFront, size});
+          }
+        }
+      }
+    }
+  };
+
+  // Starting element
+  MengerSponge element = {nvmath::vec3f(-0.5, -0.5, -0.5), 1.f};
+
+  std::vector<MengerSponge> elements1 = {element};
+  std::vector<MengerSponge> elements2 = {};
+
+  auto previous = &elements1;
+  auto next     = &elements2;
+
+  for(int i = 0; i < level; i++)
+  {
+    for(MengerSponge& c : *previous)
+    {
+      if(probability < 0.f)
+        c.split(*next);
+      else
+        c.splitProb(*next, probability);
+    }
+    auto temp = previous;
+    previous  = next;
+    next      = temp;
+    next->clear();
+  }
+
+  std::vector<nvh::Node> nodes;
+  for(MengerSponge& c : *previous)
+  {
+    nvh::Node node{};
+    node.translation = c.m_topLeftFront;
+    node.scale       = c.m_size;
+    node.mesh        = 0;  // default to the first mesh
+    nodes.push_back(node);
+  }
+
+  return nodes;
+}
+
+
+//---------------------------------------------------------------------------
+// Merge all nodes meshes into a single one
+// - nodes: the nodes to merge
+// - meshes: the mesh array that the nodes is referring to
+nvh::PrimitiveMesh mergeNodes(const std::vector<nvh::Node>& nodes, const std::vector<nvh::PrimitiveMesh> meshes)
+{
+  nvh::PrimitiveMesh resultMesh;
+
+  // Find how many triangles and vertices the merged mesh will have
+  size_t nb_triangles = 0;
+  size_t nb_vertices  = 0;
+  for(const auto& n : nodes)
+  {
+    nb_triangles += meshes[n.mesh].triangles.size();
+    nb_vertices += meshes[n.mesh].vertices.size();
+  }
+  resultMesh.triangles.reserve(nb_triangles);
+  resultMesh.vertices.reserve(nb_vertices);
+
+  // Merge all nodes meshes into a single one
+  for(const auto& n : nodes)
+  {
+    const nvmath::mat4f mat = n.localMatrix();
+
+    uint32_t                  tIndex = resultMesh.vertices.size();
+    const nvh::PrimitiveMesh& mesh   = meshes[n.mesh];
+
+    for(auto v : mesh.vertices)
+    {
+      v.p = nvmath::vec3f(mat * nvmath::vec4f(v.p, 1));
+      resultMesh.vertices.push_back(v);
+    }
+    for(auto t : mesh.triangles)
+    {
+      t.v += tIndex;
+      resultMesh.triangles.push_back(t);
+    }
+  }
+
+  return resultMesh;
 }
 
 
@@ -581,7 +724,16 @@ nvh::PrimitiveMesh wobblePrimitive(const nvh::PrimitiveMesh& mesh, float amplitu
 PrimitiveMesh removeDuplicateVertices(const PrimitiveMesh& mesh, bool testNormal, bool testUv)
 {
   auto hash = [&](const PrimitiveVertex& v) {
-    return nvh::hashVal(v.p.x, v.p.y, v.p.z, v.n.x, v.n.y, v.n.z, v.t.x, v.t.y);
+    if(testNormal)
+    {
+      if(testUv)
+        return nvh::hashVal(v.p.x, v.p.y, v.p.z, v.n.x, v.n.y, v.n.z, v.t.x, v.t.y);
+      else
+        return nvh::hashVal(v.p.x, v.p.y, v.p.z, v.n.x, v.n.y, v.n.z);
+    }
+    else if(testUv)
+      return nvh::hashVal(v.p.x, v.p.y, v.p.z, v.t.x, v.t.y);
+    return nvh::hashVal(v.p.x, v.p.y, v.p.z);
   };
   auto equal = [&](const PrimitiveVertex& l, const PrimitiveVertex& r) {
     return (l.p == r.p) && (testNormal ? l.n == r.n : true) && (testUv ? l.t == r.t : true);
@@ -616,6 +768,9 @@ PrimitiveMesh removeDuplicateVertices(const PrimitiveMesh& mesh, bool testNormal
     }
     uniqueTriangles.push_back(uniqueTriangle);
   }
+
+  // nvprintf("Before: %d vertex, %d triangles\n", mesh.vertices.size(), mesh.triangles.size());
+  // nvprintf("After: %d vertex, %d triangles\n", uniqueVertices.size(), uniqueTriangles.size());
 
   return {uniqueVertices, uniqueTriangles};
 }

@@ -644,7 +644,7 @@ void ImGui::PlotMultiEx(const char* label, int num_datas, ImPlotMulti* datas, co
   ItemSize(total_bb, style.FramePadding.y);
   if(!ItemAdd(total_bb, 0, &frame_bb))
     return;
-  const bool hovered = ItemHoverable(frame_bb, id);
+  const bool hovered = ItemHoverable(frame_bb, id, g.LastItemData.InFlags);
 
   // Determine scale from values if not specified
   for(int data_idx = 0; data_idx < num_datas; data_idx++)

@@ -31,7 +31,7 @@ It means that you must clone this repository (with submodules) prior to trying t
 ## Dependencies
 Some samples may rely on few additional libraries in order to compile (mostly for win32). You can find them in [third_party/binaries](https://github.com/nvpro-samples/third_party_binaries). The use of Vulkan or DirectX APIs requires that the appropriate SDKs are installed.
 
-The minimum Vulkan SDK version is currently: 1.3.204.0
+The minimum Vulkan SDK version is currently: 1.3.261.0
 
 ## License
 nvpro_core is licensed under the [Apache License 2.0](LICENSE).

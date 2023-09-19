@@ -40,6 +40,7 @@ TonemapperPostProcess::TonemapperPostProcess(nvvk::Context* ctx, AllocVma* alloc
     , m_dsetGraphics(std::make_unique<nvvk::DescriptorSetContainer>(ctx->m_device))
     , m_dsetCompute(std::make_unique<nvvk::DescriptorSetContainer>(ctx->m_device))
 {
+  m_settings = defaultTonemapper();
 }
 
 TonemapperPostProcess::~TonemapperPostProcess()
@@ -168,21 +169,30 @@ bool TonemapperPostProcess::onUI()
 
   using namespace ImGuiH;
   PropertyEditor::begin();
-  changed |= PropertyEditor::entry("Method", [&]() { return ImGui::Combo("combo", &m_settings.method, items, IM_ARRAYSIZE(items)); });
-  changed |= PropertyEditor::entry("Active", [&]() { return ImGui::Checkbox("##1", reinterpret_cast<bool*>(&m_settings.isActive)); });
-  changed |= PropertyEditor::entry("Exposure", [&]() { return ImGui::SliderFloat("##1", &m_settings.exposure, 0.001F, 5.0F); });
-  changed |= PropertyEditor::entry("Brightness", [&]() { return ImGui::SliderFloat("##1", &m_settings.brightness, 0.0F, 2.0F); });
-  changed |= PropertyEditor::entry("Contrast", [&]() { return ImGui::SliderFloat("##1", &m_settings.contrast, 0.0F, 2.0F); });
-  changed |= PropertyEditor::entry("Saturation", [&]() { return ImGui::SliderFloat("##1", &m_settings.saturation, 0.0F, 2.0F); });
-  changed |= PropertyEditor::entry("Vignette", [&]() { return ImGui::SliderFloat("##1", &m_settings.vignette, 0.0F, 1.0F); });
+  changed |= PropertyEditor::entry("Method", [&]() {
+    return ImGui::Combo("combo", &m_settings.method, items, IM_ARRAYSIZE(items));
+  });
+  changed |= PropertyEditor::entry("Active", [&]() {
+    return ImGui::Checkbox("##1", reinterpret_cast<bool*>(&m_settings.isActive));
+  });
+  changed |=
+      PropertyEditor::entry("Exposure", [&]() { return ImGui::SliderFloat("##1", &m_settings.exposure, 0.001F, 5.0F); });
+  changed |=
+      PropertyEditor::entry("Brightness", [&]() { return ImGui::SliderFloat("##1", &m_settings.brightness, 0.0F, 2.0F); });
+  changed |=
+      PropertyEditor::entry("Contrast", [&]() { return ImGui::SliderFloat("##1", &m_settings.contrast, 0.0F, 2.0F); });
+  changed |=
+      PropertyEditor::entry("Saturation", [&]() { return ImGui::SliderFloat("##1", &m_settings.saturation, 0.0F, 2.0F); });
+  changed |=
+      PropertyEditor::entry("Vignette", [&]() { return ImGui::SliderFloat("##1", &m_settings.vignette, 0.0F, 1.0F); });
   ImGui::BeginDisabled(m_settings.method == eTonemapFilmic);
   changed |= PropertyEditor::entry("Gamma", [&]() { return ImGui::SliderFloat("##1", &m_settings.gamma, 1.0F, 2.2F); });
   ImGui::EndDisabled();
-  if (PropertyEditor::entry(
-    " ", [&]() { return ImGui::SmallButton("reset"); }, "Resetting to the original values"))
+  if(PropertyEditor::entry(
+         " ", [&]() { return ImGui::SmallButton("reset"); }, "Resetting to the original values"))
   {
     m_settings = Tonemapper{};
-    changed = true;
+    changed    = true;
   }
   PropertyEditor::end();
   return changed;

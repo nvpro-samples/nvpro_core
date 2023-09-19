@@ -47,7 +47,7 @@ public:
   {
     static bool close_app{false};
     bool        v_sync = m_app->isVsync();
-#ifdef _DEBUG
+#ifndef NDEBUG
     static bool show_demo{false};
 #endif
     if(ImGui::BeginMenu("File"))
@@ -61,9 +61,9 @@ public:
     if(ImGui::BeginMenu("Tools"))
     {
       ImGui::MenuItem("V-Sync", "Ctrl+Shift+V", &v_sync);
-#ifdef _DEBUG
+#ifndef NDEBUG
       ImGui::MenuItem("Show Demo", nullptr, &show_demo);
-#endif  // _DEBUG
+#endif  // !NDEBUG
       ImGui::EndMenu();
     }
 
@@ -82,12 +82,12 @@ public:
     {
       m_app->close();
     }
-#ifdef _DEBUG
+#ifndef NDEBUG
     if(show_demo)
     {
       ImGui::ShowDemoWindow(&show_demo);
     }
-#endif  // DEBUG
+#endif  // !NDEBUG
 
     if(m_app->isVsync() != v_sync)
     {

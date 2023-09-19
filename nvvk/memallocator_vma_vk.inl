@@ -117,7 +117,7 @@ inline MemHandle VMAMemoryAllocator::allocMemory(const MemAllocateInfo& allocInf
 
   VkResult result = vmaAllocateMemory(m_vma, &allocInfo.getMemoryRequirements(), &vmaAllocInfo, &allocation, &allocationDetail);
 
-#ifdef _DEBUG
+#ifndef NDEBUG
   // !! VMA leaks finder!!
   // Call findLeak with the value showing in the leak report.
   // Add : #define VMA_DEBUG_LOG(format, ...) do { printf(format, __VA_ARGS__); printf("\n"); } while(false)
@@ -137,7 +137,7 @@ inline MemHandle VMAMemoryAllocator::allocMemory(const MemAllocateInfo& allocInf
     std::string allocID = std::to_string(counter++);
     vmaSetAllocationName(m_vma, allocation, allocID.c_str());
   }
-#endif  // _DEBUG
+#endif  // !NDEBUG
 
   NVVK_CHECK(result);
   if(pResult)

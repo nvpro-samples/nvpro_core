@@ -21,6 +21,7 @@
 #include <chrono>
 #include <string>
 #include <cstdarg>
+#include <cassert>
 #include "nvprint.hpp"
 
 //-----------------------------------------------------------------------------

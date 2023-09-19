@@ -226,17 +226,23 @@ add_library(nvpro_core STATIC
 )
 
 # Create precompiled header (added in CMake 3.16)
-if((${CMAKE_VERSION} VERSION_GREATER "3.16.0") OR (${CMAKE_VERSION} VERSION_EQUAL "3.16.0"))
-  target_precompile_headers(nvpro_core PRIVATE
+if(${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.16.0")
+  set(_PCH_FILES
     "<algorithm>"
-    ${VULKAN_HEADERS}
+    ${CMAKE_CURRENT_SOURCE_DIR}/nvh/nvprint.hpp
   )
+  target_precompile_headers(nvpro_core PRIVATE ${_PCH_FILES})
 endif()
 
 # Add X11 for screenshot support on linux
 if(UNIX)
   find_package(X11 REQUIRED)
   LIST(APPEND PLATFORM_LIBRARIES ${X11_LIBRARIES})
+endif()
+
+# Make Windows compilation somewhat faster
+if(WIN32)
+  target_compile_definitions(nvpro_core PRIVATE WIN32_LEAN_AND_MEAN)
 endif()
 
 if(USING_IMGUI)

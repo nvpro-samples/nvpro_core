@@ -195,7 +195,7 @@ void DescriptorSetBindings::addRequiredPoolSizes(std::vector<VkDescriptorPoolSiz
     }
     if(!found)
     {
-      VkDescriptorPoolSize poolSize;
+      VkDescriptorPoolSize poolSize{};
       poolSize.type            = it->descriptorType;
       poolSize.descriptorCount = it->descriptorCount * numSets;
       poolSizes.push_back(poolSize);

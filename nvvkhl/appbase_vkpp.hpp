@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2014-2023, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,24 +19,15 @@
 
 #pragma once
 
-// Not strictly needed for this header, but some samples got used to having
-// them available by just including appbase_vkpp.hpp
-#include "imgui.h"
-#include "imgui/imgui_helper.h"
-#include "imgui/imgui_camera_widget.h"
-
-#include <vulkan/vulkan.hpp>
-
-#include "nvh/timesampler.hpp"
-#include "nvh/cameramanipulator.hpp"
-
-#include "nvvk/swapchain_vk.hpp"
-#include "imgui/backends/imgui_impl_vulkan.h"
-
-#include "GLFW/glfw3.h"
-
 #include <set>
 #include <vector>
+#include <vulkan/vulkan.hpp>
+
+#include "nvh/cameramanipulator.hpp"
+#include "nvh/timesampler.hpp"
+#include "nvvk/swapchain_vk.hpp"
+
+struct GLFWwindow;
 
 namespace nvvkhl {
 

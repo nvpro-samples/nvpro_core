@@ -282,7 +282,7 @@ bool NVPWindow::open(int posX, int posY, int width, int height, const char* titl
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
     // Some samples make use of compatibility profile features
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_COMPAT_PROFILE);
-#ifdef _DEBUG
+#ifndef NDEBUG
 #ifdef GLFW_CONTEXT_DEBUG  // Since GLFW_CONTEXT_DEBUG is new in GLFW 3.4
     glfwWindowHint(GLFW_CONTEXT_DEBUG, 1);
 #else

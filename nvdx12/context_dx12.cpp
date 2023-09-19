@@ -28,7 +28,7 @@ namespace nvdx12 {
 bool Context::init(const ContextCreateInfo& info)
 {
   UINT dxgiFactoryFlags = 0;
-#ifdef _DEBUG
+#ifndef NDEBUG
   // Enable the debug layer (requires the Graphics Tools "optional feature").
   // This will allow the driver to output errors and track object leaks
   // NOTE: Enabling the debug layer after device creation will invalidate the
@@ -89,7 +89,7 @@ void Context::deinit()
   m_commandQueue->Release();
   m_factory->Release();
 
-#ifdef _DEBUG
+#ifndef NDEBUG
   // If the debug layer is enabled, write on stdout whether there are any
   // leaked DX12 objects. Since the device is still alive, the report should
   // indicate a nonzero ID3D12Device reference count, but all other references

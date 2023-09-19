@@ -784,7 +784,7 @@ ContextCreateInfo::ContextCreateInfo(bool bUseValidation, VkDeviceDiagnosticsCon
     requestedQueues.push_back({defaultQueueC, 1, defaultPriorityC});
   }
 
-#ifdef _DEBUG
+#ifndef NDEBUG
   instanceExtensions.push_back({VK_EXT_DEBUG_UTILS_EXTENSION_NAME, true});
   if(bUseValidation)
     instanceLayers.push_back({"VK_LAYER_KHRONOS_validation", true});

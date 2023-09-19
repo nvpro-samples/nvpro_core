@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,11 +18,18 @@
  */
 
 #include "nvvkhl/appbase_vkpp.hpp"
+
+#include "imgui.h"
+#include "imgui/backends/imgui_impl_vulkan.h"
+#include "imgui/imgui_helper.h"
+#include "imgui/imgui_camera_widget.h"
 #include "nvp/perproject_globals.hpp"
 
 #ifdef LINUX
 #include <unistd.h>
 #endif
+
+#include "GLFW/glfw3.h"
 
 #include <cmath>
 
@@ -132,14 +139,14 @@ void nvvkhl::AppBase::createSwapchain(const vk::SurfaceKHR& surface, uint32_t wi
   m_commandBuffers =
       m_device.allocateCommandBuffers({m_cmdPool, vk::CommandBufferLevel::ePrimary, m_swapChain.getImageCount()});
 
-#ifdef _DEBUG
+#ifndef NDEBUG
   for(size_t i = 0; i < m_commandBuffers.size(); i++)
   {
     std::string name = std::string("AppBase") + std::to_string(i);
     m_device.setDebugUtilsObjectNameEXT(
         {vk::ObjectType::eCommandBuffer, reinterpret_cast<const uint64_t&>(m_commandBuffers[i]), name.c_str()});
   }
-#endif  // _DEBUG
+#endif  // !NDEBUG
 
   // Setup camera
   CameraManip.setWindowSize(m_size.width, m_size.height);
@@ -175,14 +182,14 @@ void nvvkhl::AppBase::createFrameBuffers()
   }
 
 
-#ifdef _DEBUG
+#ifndef NDEBUG
   for(size_t i = 0; i < m_framebuffers.size(); i++)
   {
     std::string name = std::string("AppBase") + std::to_string(i);
     m_device.setDebugUtilsObjectNameEXT(
         {vk::ObjectType::eFramebuffer, reinterpret_cast<const uint64_t&>(m_framebuffers[i]), name.c_str()});
   }
-#endif  // _DEBUG
+#endif  // !NDEBUG
 }
 
 void nvvkhl::AppBase::createRenderPass()
@@ -234,10 +241,10 @@ void nvvkhl::AppBase::createRenderPass()
 
   m_renderPass = m_device.createRenderPass(renderPassInfo);
 
-#ifdef _DEBUG
+#ifndef NDEBUG
   m_device.setDebugUtilsObjectNameEXT(
       {vk::ObjectType::eRenderPass, reinterpret_cast<const uint64_t&>(m_renderPass), "AppBase"});
-#endif  // _DEBUG
+#endif  // !NDEBUG
 }
 
 void nvvkhl::AppBase::createDepthBuffer()

@@ -73,6 +73,9 @@ struct TonemapperPostProcess
 
   bool onUI();  // Display UI of the tonemapper
 
+  void        setSettings(const Tonemapper& settings) { m_settings = settings; }
+  Tonemapper& settings() { return m_settings; };  // returning access to setting values
+
 private:
   nvvk::Context*                   m_ctx{nullptr};
   std::unique_ptr<nvvk::DebugUtil> m_dutil;

@@ -30,7 +30,7 @@
 
 #include "nsight_aftermath_vk.hpp"
 
-static_assert(VK_HEADER_VERSION >= 204, "Vulkan SDK version needs to be 1.3.204.0 or greater");
+static_assert(VK_HEADER_VERSION >= 261, "Vulkan SDK version needs to be 1.3.261.0 or greater");
 
 namespace nvvk {
 /**
@@ -169,7 +169,7 @@ struct ContextCreateInfo
   bool verboseCompatibleDevices = true;
   bool verboseUsed              = true;  // Print what is used
   bool verboseAvailable         =        // Print what is available
-#ifdef _DEBUG
+#ifndef NDEBUG
       true;
 #else
       false;
