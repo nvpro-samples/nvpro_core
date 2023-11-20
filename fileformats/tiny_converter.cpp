@@ -44,10 +44,10 @@ void TinyConverter::convert(tinygltf::Model& gltf, const tinyobj::ObjReader& rea
   std::unordered_map<Vertex, size_t, decltype(hash), decltype(equal)> vertexToIdx(0, hash, equal);
 
   // Building unique vertices
-  auto&                      attrib = reader.GetAttrib();
-  std::vector<nvmath::vec3f> vertices;
-  std::vector<nvmath::vec3f> normals;
-  std::vector<nvmath::vec2f> texcoords;
+  auto&                  attrib = reader.GetAttrib();
+  std::vector<glm::vec3> vertices;
+  std::vector<glm::vec3> normals;
+  std::vector<glm::vec2> texcoords;
   vertices.reserve((int)(attrib.vertices.size()) / 3);
   normals.reserve((int)(attrib.normals.size()) / 3);
   texcoords.reserve((int)(attrib.texcoords.size()) / 2);
@@ -82,9 +82,9 @@ void TinyConverter::convert(tinygltf::Model& gltf, const tinyobj::ObjReader& rea
   for(const auto& shape : reader.GetShapes())
     nbIndices += (uint32_t)shape.mesh.indices.size();
   size_t bufferEstimateSize{0};
-  bufferEstimateSize += nbVertices * sizeof(nvmath::vec3f);
-  bufferEstimateSize += normals.empty() ? 0 : nbVertices * sizeof(nvmath::vec3f);
-  bufferEstimateSize += texcoords.empty() ? 0 : nbVertices * sizeof(nvmath::vec2f);
+  bufferEstimateSize += nbVertices * sizeof(glm::vec3);
+  bufferEstimateSize += normals.empty() ? 0 : nbVertices * sizeof(glm::vec3);
+  bufferEstimateSize += texcoords.empty() ? 0 : nbVertices * sizeof(glm::vec2);
   bufferEstimateSize += nbIndices * sizeof(uint32_t);
   tBuffer.data.reserve(bufferEstimateSize);  // Reserving to make the allocations faster
 

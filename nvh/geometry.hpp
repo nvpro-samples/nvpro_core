@@ -21,7 +21,10 @@
 #ifndef NV_GEOMETRY_INCLUDED
 #define NV_GEOMETRY_INCLUDED
 
-#include <nvmath/nvmath.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/constants.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
 #include <stdint.h>
 
 #include <cmath>
@@ -65,16 +68,16 @@ namespace nvh {
 namespace geometry {
 struct Vertex
 {
-  Vertex(nvmath::vec3f const& position, nvmath::vec3f const& normal, nvmath::vec2f const& texcoord)
-      : position(nvmath::vec4f(position, 1.0f))
-      , normal(nvmath::vec4f(normal, 0.0f))
-      , texcoord(nvmath::vec4f(texcoord, 0.0f, 0.0f))
+  Vertex(glm::vec3 const& position, glm::vec3 const& normal, glm::vec2 const& texcoord)
+      : position(glm::vec4(position, 1.0f))
+      , normal(glm::vec4(normal, 0.0f))
+      , texcoord(glm::vec4(texcoord, 0.0f, 0.0f))
   {
   }
 
-  nvmath::vec4f position;
-  nvmath::vec4f normal;
-  nvmath::vec4f texcoord;
+  glm::vec4 position;
+  glm::vec4 normal;
+  glm::vec4 texcoord;
 };
 
 
@@ -84,9 +87,9 @@ template <class TVertex = Vertex>
 class Mesh
 {
 public:
-  std::vector<TVertex>        m_vertices;
-  std::vector<nvmath::vec3ui> m_indicesTriangles;
-  std::vector<nvmath::vec2ui> m_indicesOutline;
+  std::vector<TVertex>    m_vertices;
+  std::vector<glm::uvec3> m_indicesTriangles;
+  std::vector<glm::uvec2> m_indicesOutline;
 
   void append(Mesh<TVertex>& geo)
   {
@@ -103,12 +106,12 @@ public:
 
     for(size_t i = 0; i < geo.m_indicesTriangles.size(); i++)
     {
-      m_indicesTriangles.push_back(geo.m_indicesTriangles[i] + nvmath::vec3ui(offset));
+      m_indicesTriangles.push_back(geo.m_indicesTriangles[i] + glm::uvec3(offset));
     }
 
     for(size_t i = 0; i < geo.m_indicesOutline.size(); i++)
     {
-      m_indicesOutline.push_back(geo.m_indicesOutline[i] + nvmath::vec2ui(offset));
+      m_indicesOutline.push_back(geo.m_indicesOutline[i] + glm::uvec2(offset));
     }
   }
 
@@ -120,11 +123,11 @@ public:
     }
   }
 
-  size_t getTriangleIndicesSize() const { return m_indicesTriangles.size() * sizeof(nvmath::vec3ui); }
+  size_t getTriangleIndicesSize() const { return m_indicesTriangles.size() * sizeof(glm::uvec3); }
 
   uint32_t getTriangleIndicesCount() const { return (uint32_t)m_indicesTriangles.size() * 3; }
 
-  size_t getOutlineIndicesSize() const { return m_indicesOutline.size() * sizeof(nvmath::vec2ui); }
+  size_t getOutlineIndicesSize() const { return m_indicesOutline.size() * sizeof(glm::uvec2); }
 
   uint32_t getOutlineIndicesCount() const { return (uint32_t)m_indicesOutline.size() * 2; }
 
@@ -137,7 +140,7 @@ template <class TVertex = Vertex>
 class Plane : public Mesh<TVertex>
 {
 public:
-  static void add(Mesh<TVertex>& geo, const nvmath::mat4f& mat, int w, int h)
+  static void add(Mesh<TVertex>& geo, const glm::mat4& mat, int w, int h)
   {
     int xdim = w;
     int ydim = h;
@@ -154,11 +157,11 @@ public:
     {
       for(x = 0; x < xdim + 1; x++)
       {
-        float         xpos = ((float)x * xmove);
-        float         ypos = ((float)y * ymove);
-        nvmath::vec3f pos;
-        nvmath::vec2f uv;
-        nvmath::vec3f normal;
+        float     xpos = ((float)x * xmove);
+        float     ypos = ((float)y * ymove);
+        glm::vec3 pos;
+        glm::vec2 uv;
+        glm::vec3 normal;
 
         pos[0] = (xpos - 0.5f) * 2.0f;
         pos[1] = (ypos - 0.5f) * 2.0f;
@@ -183,40 +186,40 @@ public:
       for(x = 0; x < xdim; x++)
       {
         // upper tris
-        geo.m_indicesTriangles.push_back(nvmath::vec3ui((x) + (y + 1) * width + vertOffset, (x) + (y)*width + vertOffset,
-                                                        (x + 1) + (y + 1) * width + vertOffset));
+        geo.m_indicesTriangles.push_back(glm::uvec3((x) + (y + 1) * width + vertOffset, (x) + (y)*width + vertOffset,
+                                                    (x + 1) + (y + 1) * width + vertOffset));
         // lower tris
-        geo.m_indicesTriangles.push_back(nvmath::vec3ui((x + 1) + (y + 1) * width + vertOffset,
-                                                        (x) + (y)*width + vertOffset, (x + 1) + (y)*width + vertOffset));
+        geo.m_indicesTriangles.push_back(glm::uvec3((x + 1) + (y + 1) * width + vertOffset,
+                                                    (x) + (y)*width + vertOffset, (x + 1) + (y)*width + vertOffset));
       }
     }
 
     for(y = 0; y < ydim; y++)
     {
-      geo.m_indicesOutline.push_back(nvmath::vec2ui((y)*width + vertOffset, (y + 1) * width + vertOffset));
+      geo.m_indicesOutline.push_back(glm::uvec2((y)*width + vertOffset, (y + 1) * width + vertOffset));
     }
     for(y = 0; y < ydim; y++)
     {
-      geo.m_indicesOutline.push_back(nvmath::vec2ui((y)*width + xdim + vertOffset, (y + 1) * width + xdim + vertOffset));
+      geo.m_indicesOutline.push_back(glm::uvec2((y)*width + xdim + vertOffset, (y + 1) * width + xdim + vertOffset));
     }
     for(x = 0; x < xdim; x++)
     {
-      geo.m_indicesOutline.push_back(nvmath::vec2ui((x) + vertOffset, (x + 1) + vertOffset));
+      geo.m_indicesOutline.push_back(glm::uvec2((x) + vertOffset, (x + 1) + vertOffset));
     }
     for(x = 0; x < xdim; x++)
     {
-      geo.m_indicesOutline.push_back(nvmath::vec2ui((x) + ydim * width + vertOffset, (x + 1) + ydim * width + vertOffset));
+      geo.m_indicesOutline.push_back(glm::uvec2((x) + ydim * width + vertOffset, (x + 1) + ydim * width + vertOffset));
     }
   }
 
-  Plane(int segments = 1) { add(*this, nvmath::mat4f(1), segments, segments); }
+  Plane(int segments = 1) { add(*this, glm::mat4(1), segments, segments); }
 };
 
 template <class TVertex = Vertex>
 class Box : public Mesh<TVertex>
 {
 public:
-  static void add(Mesh<TVertex>& geo, const nvmath::mat4f& mat, int w, int h, int d)
+  static void add(Mesh<TVertex>& geo, const glm::mat4& mat, int w, int h, int d)
   {
     int configs[6][2] = {
         {w, h}, {w, h},
@@ -228,43 +231,43 @@ public:
 
     for(int side = 0; side < 6; side++)
     {
-      nvmath::mat4f matrixRot(1);
+      glm::mat4 matrixRot(1);
 
       switch(side)
       {
         case 0:
           break;
         case 1:
-          matrixRot = nvmath::rotation_mat4_y(nv_pi);
+          matrixRot = glm::rotate(glm::mat4(1), glm::pi<float>(), glm::vec3(0, 1, 0));
           break;
         case 2:
-          matrixRot = nvmath::rotation_mat4_y(nv_pi * 0.5f);
+          matrixRot = glm::rotate(glm::mat4(1), glm::pi<float>() * 0.5f, glm::vec3(0, 1, 0));
           break;
         case 3:
-          matrixRot = nvmath::rotation_mat4_y(nv_pi * 1.5f);
+          matrixRot = glm::rotate(glm::mat4(1), glm::pi<float>() * 1.5f, glm::vec3(0, 1, 0));
           break;
         case 4:
-          matrixRot = nvmath::rotation_mat4_x(nv_pi * 0.5f);
+          matrixRot = glm::rotate(glm::mat4(1), glm::pi<float>() * 0.5f, glm::vec3(1, 0, 0));
           break;
         case 5:
-          matrixRot = nvmath::rotation_mat4_x(nv_pi * 1.5f);
+          matrixRot = glm::rotate(glm::mat4(1), glm::pi<float>() * 1.5f, glm::vec3(1, 0, 0));
           break;
       }
 
-      nvmath::mat4f matrixMove = nvmath::translation_mat4(0.0f, 0.0f, 1.0f);
+      glm::mat4 matrixMove = glm::translate(glm::mat4(1.f), {0.0f, 0.0f, 1.0f});
 
       Plane<TVertex>::add(geo, mat * matrixRot * matrixMove, configs[side][0], configs[side][1]);
     }
   }
 
-  Box(int segments = 1) { add(*this, nvmath::mat4f(1), segments, segments, segments); }
+  Box(int segments = 1) { add(*this, glm::mat4(1), segments, segments, segments); }
 };
 
 template <class TVertex = Vertex>
 class Sphere : public Mesh<TVertex>
 {
 public:
-  static void add(Mesh<TVertex>& geo, const nvmath::mat4f& mat, int w, int h)
+  static void add(Mesh<TVertex>& geo, const glm::mat4& mat, int w, int h)
   {
     int xydim = w;
     int zdim  = h;
@@ -282,19 +285,19 @@ public:
     {
       for(xy = 0; xy < xydim + 1; xy++)
       {
-        nvmath::vec3f pos;
-        nvmath::vec3f normal;
-        nvmath::vec2f uv;
-        float         curxy   = xyshift * (float)xy;
-        float         curz    = zshift * (float)z;
-        float         anglexy = curxy * nv_pi * 2.0f;
-        float         anglez  = (1.0f - curz) * nv_pi;
-        pos[0]                = cosf(anglexy) * sinf(anglez);
-        pos[1]                = sinf(anglexy) * sinf(anglez);
-        pos[2]                = cosf(anglez);
-        normal                = pos;
-        uv[0]                 = curxy;
-        uv[1]                 = curz;
+        glm::vec3 pos;
+        glm::vec3 normal;
+        glm::vec2 uv;
+        float     curxy   = xyshift * (float)xy;
+        float     curz    = zshift * (float)z;
+        float     anglexy = curxy * glm::pi<float>() * 2.0f;
+        float     anglez  = (1.0f - curz) * glm::pi<float>();
+        pos[0]            = cosf(anglexy) * sinf(anglez);
+        pos[1]            = sinf(anglexy) * sinf(anglez);
+        pos[2]            = cosf(anglez);
+        normal            = pos;
+        uv[0]             = curxy;
+        uv[1]             = curz;
 
         Vertex vert   = Vertex(pos, normal, uv);
         vert.position = mat * vert.position;
@@ -309,7 +312,7 @@ public:
     {
       for(xy = 0; xy < xydim; xy++, vertex++)
       {
-        nvmath::vec3ui indices;
+        glm::uvec3 indices;
         if(z != zdim - 1)
         {
           indices[2] = vertex + vertOffset;
@@ -333,7 +336,7 @@ public:
 
     for(xy = 0; xy < xydim; xy++)
     {
-      nvmath::vec2ui indices;
+      glm::uvec2 indices;
       indices[0] = middlez * width + xy + vertOffset;
       indices[1] = middlez * width + xy + 1 + vertOffset;
       geo.m_indicesOutline.push_back(indices);
@@ -344,7 +347,7 @@ public:
       int x = (xydim * i) / 4;
       for(z = 0; z < zdim; z++)
       {
-        nvmath::vec2ui indices;
+        glm::uvec2 indices;
         indices[0] = x + width * (z) + vertOffset;
         indices[1] = x + width * (z + 1) + vertOffset;
         geo.m_indicesOutline.push_back(indices);
@@ -352,14 +355,14 @@ public:
     }
   }
 
-  Sphere(int w = 16, int h = 8) { add(*this, nvmath::mat4f(1), w, h); }
+  Sphere(int w = 16, int h = 8) { add(*this, glm::mat4(1), w, h); }
 };
 
 template <class TVertex = Vertex>
 class Torus : public Mesh<TVertex>
 {
 public:
-  static void add(Mesh<TVertex>& geo, const nvmath::mat4f& mat, int w, int h)
+  static void add(Mesh<TVertex>& geo, const glm::mat4& mat, int w, int h)
   {
     // Radius of inner and outer circles
     float innerRadius = 0.8f;
@@ -370,8 +373,8 @@ public:
     float wf = (float)w;
     float hf = (float)h;
 
-    float phi_step   = 2.0f * nv_pi / wf;
-    float theta_step = 2.0f * nv_pi / hf;
+    float phi_step   = 2.0f * glm::pi<float>() / wf;
+    float theta_step = 2.0f * glm::pi<float>() / hf;
 
     // Setup vertices and normals
     // Generate the Torus exactly like the sphere with rings around the origin along the latitudes.
@@ -389,9 +392,9 @@ public:
         float sinPhi = sinf(phi);
         float cosPhi = cosf(phi);
 
-        nvmath::vec3f position = nvmath::vec3f(radius * cosPhi, outerRadius * sinTheta, radius * -sinPhi);
-        nvmath::vec3f normal   = nvmath::vec3f(cosPhi * cosTheta, sinTheta, -sinPhi * cosTheta);
-        nvmath::vec2f uv       = nvmath::vec2f((float)longitude / wf, (float)latitude / hf);
+        glm::vec3 position = glm::vec3(radius * cosPhi, outerRadius * sinTheta, radius * -sinPhi);
+        glm::vec3 normal   = glm::vec3(cosPhi * cosTheta, sinTheta, -sinPhi * cosTheta);
+        glm::vec2 uv       = glm::vec2((float)longitude / wf, (float)latitude / hf);
 
         Vertex vertex(position, normal, uv);
         geo.m_vertices.push_back(TVertex(vertex));
@@ -406,10 +409,9 @@ public:
       for(unsigned int longitude = 0; longitude < (unsigned int)h; longitude++)
       {
         // Indices for triangles
-        nvmath::vec3ui triangle1(latitude * columns + longitude, latitude * columns + longitude + 1,
-                                 (latitude + 1) * columns + longitude);
-        nvmath::vec3ui triangle2((latitude + 1) * columns + longitude, latitude * columns + longitude + 1,
-                                 (latitude + 1) * columns + longitude + 1);
+        glm::uvec3 triangle1(latitude * columns + longitude, latitude * columns + longitude + 1, (latitude + 1) * columns + longitude);
+        glm::uvec3 triangle2((latitude + 1) * columns + longitude, latitude * columns + longitude + 1,
+                             (latitude + 1) * columns + longitude + 1);
 
         geo.m_indicesTriangles.push_back(triangle1);
         geo.m_indicesTriangles.push_back(triangle2);
@@ -422,8 +424,8 @@ public:
     {
       for(unsigned int y = 0; y < 4; y++)
       {
-        unsigned int   latitude = y * (0.25 * h);
-        nvmath::vec2ui line(latitude * columns + longitude, latitude * columns + longitude + 1);
+        unsigned int latitude = y * (0.25 * h);
+        glm::uvec2   line(latitude * columns + longitude, latitude * columns + longitude + 1);
         geo.m_indicesOutline.push_back(line);
       }
     }
@@ -432,31 +434,31 @@ public:
     {
       for(unsigned int latitude = 0; latitude < (unsigned int)h; latitude++)
       {
-        unsigned int   longitude = x * (0.25 * w);
-        nvmath::vec2ui line(latitude * columns + longitude, (latitude + 1) * columns + longitude);
+        unsigned int longitude = x * (0.25 * w);
+        glm::uvec2   line(latitude * columns + longitude, (latitude + 1) * columns + longitude);
         geo.m_indicesOutline.push_back(line);
       }
     }
   }
 
-  Torus(int w = 16, int h = 16) { add(*this, nvmath::mat4f(1), w, h); }
+  Torus(int w = 16, int h = 16) { add(*this, glm::mat4(1), w, h); }
 };
 
 template <class TVertex = Vertex>
 class RandomMengerSponge : public Mesh<TVertex>
 {
 public:
-  static void add(Mesh<TVertex>& geo, const nvmath::mat4f& mat, int w, int h, int d, int level = 3, float probability = -1.f)
+  static void add(Mesh<TVertex>& geo, const glm::mat4& mat, int w, int h, int d, int level = 3, float probability = -1.f)
   {
     struct Cube
     {
-      nvmath::vec3f m_topLeftFront;
-      float         m_size;
+      glm::vec3 m_topLeftFront;
+      float     m_size;
 
       void split(std::vector<Cube>& cubes)
       {
-        float         size         = m_size / 3.f;
-        nvmath::vec3f topLeftFront = m_topLeftFront;
+        float     size         = m_size / 3.f;
+        glm::vec3 topLeftFront = m_topLeftFront;
         for(int x = 0; x < 3; x++)
         {
           topLeftFront[0] = m_topLeftFront[0] + static_cast<float>(x) * size;
@@ -482,8 +484,8 @@ public:
       void splitProb(std::vector<Cube>& cubes, float prob)
       {
 
-        float         size         = m_size / 3.f;
-        nvmath::vec3f topLeftFront = m_topLeftFront;
+        float     size         = m_size / 3.f;
+        glm::vec3 topLeftFront = m_topLeftFront;
         for(int x = 0; x < 3; x++)
         {
           topLeftFront[0] = m_topLeftFront[0] + static_cast<float>(x) * size;
@@ -503,9 +505,9 @@ public:
       }
     };
 
-    Cube cube = {nvmath::vec3f(-0.25, -0.25, -0.25), 0.5f};
-    //Cube cube = { nvmath::vec3f(-25, -25, -25), 50.f };
-    //Cube cube = { nvmath::vec3f(-40, -40, -40), 10.f };
+    Cube cube = {glm::vec3(-0.25, -0.25, -0.25), 0.5f};
+    //Cube cube = { glm::vec3(-25, -25, -25), 50.f };
+    //Cube cube = { glm::vec3(-40, -40, -40), 10.f };
 
     std::vector<Cube> cubes1 = {cube};
     std::vector<Cube> cubes2 = {};
@@ -530,8 +532,8 @@ public:
     }
     for(Cube& c : *previous)
     {
-      nvmath::mat4f matrixMove  = nvmath::translation_mat4(c.m_topLeftFront);
-      nvmath::mat4f matrixScale = nvmath::scale_mat4(nvmath::vec3f(c.m_size));
+      glm::mat4 matrixMove  = glm::translate(glm::mat4(1.f), c.m_topLeftFront);
+      glm::mat4 matrixScale = glm::scale(glm::mat4(1.f), glm::vec3(c.m_size));
       ;
       Box<TVertex>::add(geo, matrixMove * matrixScale, 1, 1, 1);
     }

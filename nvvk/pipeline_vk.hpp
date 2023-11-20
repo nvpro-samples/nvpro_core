@@ -285,7 +285,7 @@ struct GraphicsPipelineState
     attributeDescriptions.resize(attributeDescriptionCount);
   }
 
-  void setAttributeDescription(uint32_t attribute, const VkVertexInputAttributeDescription &attributeDescription)
+  void setAttributeDescription(uint32_t attribute, const VkVertexInputAttributeDescription& attributeDescription)
   {
     assert(attribute < attributeDescriptions.size());
     if(attribute <= attributeDescriptions.size())
@@ -295,7 +295,7 @@ struct GraphicsPipelineState
   }
 
 
-  uint32_t addAttributeDescription(const VkVertexInputAttributeDescription &attributeDescription)
+  uint32_t addAttributeDescription(const VkVertexInputAttributeDescription& attributeDescription)
   {
     attributeDescriptions.push_back(attributeDescription);
     return (uint32_t)(attributeDescriptions.size() - 1);
@@ -471,9 +471,7 @@ public:
 
   ~GraphicsPipelineGenerator() { destroyShaderModules(); }
 
-  VkPipelineShaderStageCreateInfo& addShader(const std::string&    code,
-                                             VkShaderStageFlagBits stage,
-                                             const char*           entryPoint = "main")
+  VkPipelineShaderStageCreateInfo& addShader(const std::string& code, VkShaderStageFlagBits stage, const char* entryPoint = "main")
   {
     std::vector<char> v;
     std::copy(code.begin(), code.end(), std::back_inserter(v));
@@ -481,9 +479,7 @@ public:
   }
 
   template <typename T>
-  VkPipelineShaderStageCreateInfo& addShader(const std::vector<T>& code,
-                                             VkShaderStageFlagBits stage,
-                                             const char*           entryPoint = "main")
+  VkPipelineShaderStageCreateInfo& addShader(const std::vector<T>& code, VkShaderStageFlagBits stage, const char* entryPoint = "main")
 
   {
     VkShaderModuleCreateInfo createInfo{VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
@@ -495,9 +491,7 @@ public:
 
     return addShader(shaderModule, stage, entryPoint);
   }
-  VkPipelineShaderStageCreateInfo& addShader(VkShaderModule        shaderModule,
-                                             VkShaderStageFlagBits stage,
-                                             const char*           entryPoint = "main")
+  VkPipelineShaderStageCreateInfo& addShader(VkShaderModule shaderModule, VkShaderStageFlagBits stage, const char* entryPoint = "main")
   {
     VkPipelineShaderStageCreateInfo shaderStage{VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
     shaderStage.stage  = (VkShaderStageFlagBits)stage;
@@ -555,8 +549,8 @@ private:
   std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
   std::vector<VkShaderModule>                  temporaryModules;
   std::vector<VkFormat>                        dynamicRenderingColorFormats;
-  GraphicsPipelineState&      pipelineState;
-  PipelineRenderingCreateInfo dynamicRenderingInfo{VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO};
+  GraphicsPipelineState&                       pipelineState;
+  PipelineRenderingCreateInfo                  dynamicRenderingInfo{VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO};
 
 
   void init()

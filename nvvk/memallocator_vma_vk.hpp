@@ -50,8 +50,8 @@ public:
   inline MemHandle allocMemory(const MemAllocateInfo& allocInfo, VkResult* pResult = nullptr) override;
   inline void      freeMemory(MemHandle memHandle) override;
   inline MemInfo   getMemoryInfo(MemHandle memHandle) const override;
-  inline void*     map(MemHandle memHandle, VkDeviceSize offset = 0, VkDeviceSize size = VK_WHOLE_SIZE, VkResult* pResult = nullptr) override;
-  inline void      unmap(MemHandle memHandle) override;
+  inline void* map(MemHandle memHandle, VkDeviceSize offset = 0, VkDeviceSize size = VK_WHOLE_SIZE, VkResult* pResult = nullptr) override;
+  inline void unmap(MemHandle memHandle) override;
 
   inline VkDevice         getDevice() const override;
   inline VkPhysicalDevice getPhysicalDevice() const override;

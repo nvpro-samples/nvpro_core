@@ -28,7 +28,6 @@
 */
 
 #include <stdint.h>
-#include <nvmath/nvmath_glsltypes.h>
 
 namespace nvgl
 {

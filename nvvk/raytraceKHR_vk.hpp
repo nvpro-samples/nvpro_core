@@ -72,19 +72,19 @@ const VkAccelerationStructureKHR tlas = m.rtBuilder.getAccelerationStructure()
 #include "commands_vk.hpp"  // this is only needed here to satisfy some samples that rely on it
 #include "debug_util_vk.hpp"
 #include "nvh/nvprint.hpp"  // this is only needed here to satisfy some samples that rely on it
-#include "nvmath/nvmath.h"
+#include <glm/glm.hpp>
 #include <type_traits>
 
 
 namespace nvvk {
 
 // Convert a Mat4x4 to the matrix required by acceleration structures
-inline VkTransformMatrixKHR toTransformMatrixKHR(nvmath::mat4f matrix)
+inline VkTransformMatrixKHR toTransformMatrixKHR(glm::mat4 matrix)
 {
-  // VkTransformMatrixKHR uses a row-major memory layout, while nvmath::mat4f
+  // VkTransformMatrixKHR uses a row-major memory layout, while glm::mat4
   // uses a column-major memory layout. We transpose the matrix so we can
   // memcpy the matrix's data directly.
-  nvmath::mat4f        temp = nvmath::transpose(matrix);
+  glm::mat4            temp = glm::transpose(matrix);
   VkTransformMatrixKHR out_matrix;
   memcpy(&out_matrix, &temp, sizeof(VkTransformMatrixKHR));
   return out_matrix;
@@ -118,7 +118,7 @@ public:
   VkDeviceAddress getBlasDeviceAddress(uint32_t blasId);
 
   // Create all the BLAS from the vector of BlasInput
-  void buildBlas(const std::vector<BlasInput>&        input,
+  void buildBlas(const std::vector<BlasInput>& input,
                  VkBuildAccelerationStructureFlagsKHR flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR);
 
   // Refit BLAS number blasIdx from updated buffer contents.

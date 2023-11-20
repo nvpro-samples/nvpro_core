@@ -68,7 +68,7 @@ public:
   }
 
   // Return the relative mouse coordinates in the window named "Viewport"
-  nvmath::vec2f getMouseCoord() { return m_mouseCoord; }
+  glm::vec2 getMouseCoord() { return m_mouseCoord; }
 
 
   void onAttach(Application* app) override
@@ -103,9 +103,9 @@ public:
     {
       ImGuiWindow* window = ImGui::FindWindowByName("Viewport");
       assert(window);
-      const nvmath::vec2f mouse_pos = {ImGui::GetMousePos().x, ImGui::GetMousePos().y};  // Current mouse pos in window
-      const nvmath::vec2f corner    = {window->Pos.x, window->Pos.y};                    // Corner of the viewport
-      m_mouseCoord                  = mouse_pos - corner;
+      const glm::vec2 mouse_pos = {ImGui::GetMousePos().x, ImGui::GetMousePos().y};  // Current mouse pos in window
+      const glm::vec2 corner    = {window->Pos.x, window->Pos.y};                    // Corner of the viewport
+      m_mouseCoord              = mouse_pos - corner;
     }
     else
     {
@@ -115,7 +115,7 @@ public:
 
 private:
   VkInstance               m_instance     = {};
-  nvmath::vec2f            m_mouseCoord   = {-1, -1};
+  glm::vec2                m_mouseCoord   = {-1, -1};
   VkDebugUtilsMessengerEXT m_dbgMessenger = {};
 };
 

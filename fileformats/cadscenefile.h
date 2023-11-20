@@ -35,7 +35,7 @@
 // CSF_SUPPORT_ZLIB         0/1 (uses zlib)
 // CSF_SUPPORT_GLTF2        0/1 (uses cgltf)
 //
-// CSF_PARALLEL_WORK         0/1 
+// CSF_PARALLEL_WORK         0/1
 //    meant for other cadscenefile processing files
 //    that want minimal dependencies (as in just this header).
 //    It is meant to remove all of the `pragma omp parallel for` code.
@@ -590,7 +590,7 @@ typedef struct _CSFNode
 } CSFNode;
 
 
-// All loaders will allocate this header separate from the 
+// All loaders will allocate this header separate from the
 // file data, therefore the header can be safely extended with
 // new versions.
 // New members will be nulled, if the file version
@@ -801,12 +801,12 @@ CSFAPI void CSFileHandle_close(CSFileHandlePTR handle);
 
 typedef enum CSFileHandleContentBit_e
 {
-  CSFILEHANDLE_CONTENT_MATERIAL        = 1,
-  CSFILEHANDLE_CONTENT_GEOMETRY        = 2,
-  CSFILEHANDLE_CONTENT_NODE            = 4,
-  CSFILEHANDLE_CONTENT_GEOMETRYMETA    = 8,
-  CSFILEHANDLE_CONTENT_NODEMETA        = 16,
-  CSFILEHANDLE_CONTENT_FILEMETA        = 32,
+  CSFILEHANDLE_CONTENT_MATERIAL     = 1,
+  CSFILEHANDLE_CONTENT_GEOMETRY     = 2,
+  CSFILEHANDLE_CONTENT_NODE         = 4,
+  CSFILEHANDLE_CONTENT_GEOMETRYMETA = 8,
+  CSFILEHANDLE_CONTENT_NODEMETA     = 16,
+  CSFILEHANDLE_CONTENT_FILEMETA     = 32,
 } CSFileHandleContentBit;
 
 // zeros pointer arrays to avoid accidental access
@@ -892,7 +892,7 @@ struct CSFReadMapping
     other.mapping = nullptr;
     return *this;
   }
-  CSFReadMapping(const CSFReadMapping&) = delete;
+  CSFReadMapping(const CSFReadMapping&)                  = delete;
   CSFReadMapping& operator=(const CSFReadMapping& other) = delete;
 
   size_t getSize() const { return mapping ? CSFReadMapping_getSize(mapping) : 0; }
@@ -922,7 +922,7 @@ struct CSFWriteMapping
     other.mapping = nullptr;
     return *this;
   }
-  CSFWriteMapping(const CSFWriteMapping&) = delete;
+  CSFWriteMapping(const CSFWriteMapping&)                  = delete;
   CSFWriteMapping& operator=(const CSFWriteMapping& other) = delete;
 
   size_t getSize() const { return mapping ? CSFWriteMapping_getSize(mapping) : 0; }

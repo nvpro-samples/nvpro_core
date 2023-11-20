@@ -24,7 +24,7 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include "nvmath/nvmath.h"
+#include <glm/glm.hpp>
 #include "nvvk/pipeline_vk.hpp"  // Using the Pipeline Generator Utility
 
 
@@ -83,7 +83,7 @@ public:
     vkDestroyPipelineLayout(m_device, m_pipelineLayout, nullptr);
   }
 
-  void display(VkCommandBuffer cmdBuf, const nvmath::mat4f& transform, const VkExtent2D& screenSize);
+  void display(VkCommandBuffer cmdBuf, const glm::mat4& transform, const VkExtent2D& screenSize);
 
   void setAxisSize(float s) { m_axisSize = s; }
 

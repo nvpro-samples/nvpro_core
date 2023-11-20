@@ -180,7 +180,7 @@ VkGeometryInstanceNV nvvk::RaytracingBuilderNV::instanceToVkGeometryInstanceNV(c
   VkGeometryInstanceNV gInst{};
   // The matrices for the instance transforms are row-major, instead of column-major in the
   // rest of the application
-  nvmath::mat4f transp = nvmath::transpose(instance.transform);
+  glm::mat4 transp = glm::transpose(instance.transform);
   // The gInst.transform value only contains 12 values, corresponding to a 4x3 matrix, hence
   // saving the last row that is anyway always (0,0,0,1). Since the matrix is row-major,
   // we simply copy the first 12 values of the original 4x4 matrix

@@ -77,7 +77,7 @@ void AppWindowProfilerVK::contextInit()
   createInfo.hinstance                   = hInstance;
   createInfo.hwnd                        = hWnd;
   result = vkCreateWin32SurfaceKHR(m_context.m_instance, &createInfo, nullptr, &m_surface);
-#else  // _WIN32
+#else   // _WIN32
   result = glfwCreateWindowSurface(m_context.m_instance, m_internal, NULL, &m_surface);
 #endif  // _WIN32
   assert(result == VK_SUCCESS);

@@ -2,6 +2,7 @@ include(FindPackageHandleStandardArgs)
 
 find_path( GLM_INCLUDE_DIR glm/glm.hpp HINTS ${GLM_LOCATION}
                                              $ENV{GLM_LOCATION}
+                                             ${BASE_DIRECTORY}/nvpro_core/third_party/glm
                                              $ENV{VK_SDK_PATH}/include
                                              ${VULKAN_HEADERS_OVERRIDE_INCLUDE_DIR}
                                              ${Vulkan_INCLUDE_DIR} )

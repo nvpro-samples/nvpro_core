@@ -47,15 +47,15 @@
     RayPickerKHR::PickResult pr = m_picker.getResult();
     if(pr.instanceID != ~0) // Hit something
     {
-      nvmath::vec3 worldPos = pr.worldRayOrigin + pr.worldRayDirection * pr.hitT;
-      nvmath::vec3f eye, center, up;
+      glm::vec3 worldPos = pr.worldRayOrigin + pr.worldRayDirection * pr.hitT;
+      glm::vec3 eye, center, up;
       CameraManip.getLookat(eye, center, up);
       CameraManip.setLookat(eye, worldPos, up, false); // Nice with CameraManip.updateAnim();
     }
     \endcode
 */
 
-#include "nvmath/nvmath.h"
+#include <glm/glm.hpp>
 #include "nvvk/commands_vk.hpp"
 #include "nvvk/debug_util_vk.hpp"
 #include "nvvk/descriptorsets_vk.hpp"
@@ -70,21 +70,21 @@ struct RayPickerKHR
 public:
   struct PickInfo
   {
-    nvmath::mat4f modelViewInv;    // inverse model view matrix
-    nvmath::mat4f perspectiveInv;  // inverse perspective matrix
-    float         pickX{0};        // normalized X position
-    float         pickY{0};        // normalized Y position
+    glm::mat4 modelViewInv;    // inverse model view matrix
+    glm::mat4 perspectiveInv;  // inverse perspective matrix
+    float     pickX{0};        // normalized X position
+    float     pickY{0};        // normalized Y position
   } m_pickInfo;
 
   struct PickResult
   {
-    nvmath::vec4f worldRayOrigin{0, 0, 0, 0};
-    nvmath::vec4f worldRayDirection{0, 0, 0, 0};
-    float         hitT{0};
-    int           primitiveID{0};
-    int           instanceID{~0};
-    int           instanceCustomIndex{0};
-    nvmath::vec3f baryCoord{0, 0, 0};
+    glm::vec4 worldRayOrigin{0, 0, 0, 0};
+    glm::vec4 worldRayDirection{0, 0, 0, 0};
+    float     hitT{0};
+    int       primitiveID{0};
+    int       instanceID{~0};
+    int       instanceCustomIndex{0};
+    glm::vec3 baryCoord{0, 0, 0};
   };
 
   RayPickerKHR() = default;

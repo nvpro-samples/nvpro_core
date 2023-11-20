@@ -64,7 +64,7 @@ namespace nvvk {
 class SamplerPool
 {
 public:
-  SamplerPool(SamplerPool const&) = delete;
+  SamplerPool(SamplerPool const&)            = delete;
   SamplerPool& operator=(SamplerPool const&) = delete;
 
   SamplerPool() {}
@@ -93,7 +93,6 @@ private:
     bool operator==(const SamplerState& other) const { return memcmp(this, &other, sizeof(SamplerState)) == 0; }
   };
 
-  
 
   struct Chain
   {
@@ -114,7 +113,7 @@ private:
   std::vector<Entry> m_entries;
 
   std::unordered_map<SamplerState, uint32_t, nvh::HashAligned32<SamplerState>> m_stateMap;
-  std::unordered_map<VkSampler, uint32_t>             m_samplerMap;
+  std::unordered_map<VkSampler, uint32_t>                                      m_samplerMap;
 };
 
 VkSamplerCreateInfo makeSamplerCreateInfo(VkFilter             magFilter        = VK_FILTER_LINEAR,

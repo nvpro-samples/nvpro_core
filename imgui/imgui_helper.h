@@ -22,12 +22,11 @@
 #ifndef NV_IMGUI_INCLUDED
 #define NV_IMGUI_INCLUDED
 
-#define IMGUI_DISABLE_OBSOLETE_FUNCTIONS 1
-#include "imgui.h"
-#include "imgui_internal.h"
+#include <imgui.h>
+#include <imgui_internal.h>
 
 #include <nvpwindow.hpp>
-#include "nvmath/nvmath.h"
+#include <glm/glm.hpp>
 
 #include <algorithm>
 #include <limits>
@@ -1274,10 +1273,10 @@ struct PropertyEditor
 };
 
 
-bool azimuthElevationSliders(nvmath::vec3f& direction, bool negative = true, bool yIsUp = true);
+bool azimuthElevationSliders(glm::vec3& direction, bool negative = true, bool yIsUp = true);
 
 // This allow to use the mouse wheel over a widget and change the "data" value by and
-// increment. The value can be clamp if min_val != max_val. 
+// increment. The value can be clamp if min_val != max_val.
 // Ex. ImGui::Combo("Value", &combo_item, ...);
 //     ImGuiH::hoverScrolling(combo_item, 0, 5); // Scroll the item of the combo
 template <typename T>

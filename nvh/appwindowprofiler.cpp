@@ -464,7 +464,7 @@ void AppWindowProfiler::parameterCallback(uint32_t param)
   if(param == m_paramLog)
   {
     std::string logfileName = specialStrings(m_config.logFilename.c_str());
-    if (!logfileName.empty())
+    if(!logfileName.empty())
     {
       nvprintSetLogFileName(logfileName.c_str());
     }
@@ -491,7 +491,7 @@ void AppWindowProfiler::parameterCallback(uint32_t param)
   else if(param == m_paramScreenshot)
   {
     std::string filename = specialStrings(m_config.screenshotFilename.c_str());
-    if (!filename.empty())
+    if(!filename.empty())
     {
       screenshot(filename.c_str());
     }

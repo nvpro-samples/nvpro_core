@@ -18,12 +18,12 @@
  */
 
 #define GLFW_INCLUDE_NONE
-#include "imgui_helper.h"
-#include "backends/imgui_impl_glfw.h"
+#include "imgui/imgui_helper.h"
+#include <backends/imgui_impl_glfw.h>
 #include <GLFW/glfw3.h>
 #include <math.h>
 
- 
+
 #include <fstream>
 
 namespace ImGuiH {
@@ -381,19 +381,19 @@ bool Control::show_slider_control<float>(float* value, float& min, float& max, c
 }
 
 template <>
-bool Control::show_slider_control<nvmath::vec2f>(nvmath::vec2f* value, nvmath::vec2f& min, nvmath::vec2f& max, const char* format)
+bool Control::show_slider_control<glm::vec2>(glm::vec2* value, glm::vec2& min, glm::vec2& max, const char* format)
 {
   return show_slider_control_scalar<float, ImGuiDataType_Float, 2>(&value->x, &min.x, &max.x, format ? format : "%.3f");
 }
 
 template <>
-bool Control::show_slider_control<nvmath::vec3f>(nvmath::vec3f* value, nvmath::vec3f& min, nvmath::vec3f& max, const char* format)
+bool Control::show_slider_control<glm::vec3>(glm::vec3* value, glm::vec3& min, glm::vec3& max, const char* format)
 {
   return show_slider_control_scalar<float, ImGuiDataType_Float, 3>(&value->x, &min.x, &max.x, format ? format : "%.3f");
 }
 
 template <>
-bool Control::show_slider_control<nvmath::vec4f>(nvmath::vec4f* value, nvmath::vec4f& min, nvmath::vec4f& max, const char* format)
+bool Control::show_slider_control<glm::vec4>(glm::vec4* value, glm::vec4& min, glm::vec4& max, const char* format)
 {
   return show_slider_control_scalar<float, ImGuiDataType_Float, 4>(&value->x, &min.x, &max.x, format ? format : "%.3f");
 }
@@ -405,19 +405,19 @@ bool Control::show_drag_control<float>(float* value, float speed, float& min, fl
 }
 
 template <>
-bool Control::show_drag_control<nvmath::vec2f>(nvmath::vec2f* value, float speed, nvmath::vec2f& min, nvmath::vec2f& max, const char* format)
+bool Control::show_drag_control<glm::vec2>(glm::vec2* value, float speed, glm::vec2& min, glm::vec2& max, const char* format)
 {
   return show_drag_control_scalar<float, ImGuiDataType_Float, 2>(&value->x, speed, &min.x, &max.x, format ? format : "%.3f");
 }
 
 template <>
-bool Control::show_drag_control<nvmath::vec3f>(nvmath::vec3f* value, float speed, nvmath::vec3f& min, nvmath::vec3f& max, const char* format)
+bool Control::show_drag_control<glm::vec3>(glm::vec3* value, float speed, glm::vec3& min, glm::vec3& max, const char* format)
 {
   return show_drag_control_scalar<float, ImGuiDataType_Float, 3>(&value->x, speed, &min.x, &max.x, format ? format : "%.3f");
 }
 
 template <>
-bool Control::show_drag_control<nvmath::vec4f>(nvmath::vec4f* value, float speed, nvmath::vec4f& min, nvmath::vec4f& max, const char* format)
+bool Control::show_drag_control<glm::vec4>(glm::vec4* value, float speed, glm::vec4& min, glm::vec4& max, const char* format)
 {
   return show_drag_control_scalar<float, ImGuiDataType_Float, 4>(&value->x, speed, &min.x, &max.x, format ? format : "%.3f");
 }
@@ -430,19 +430,19 @@ bool Control::show_slider_control<int>(int* value, int& min, int& max, const cha
 }
 
 template <>
-bool Control::show_slider_control<nvmath::vec2i>(nvmath::vec2i* value, nvmath::vec2i& min, nvmath::vec2i& max, const char* format)
+bool Control::show_slider_control<glm::ivec2>(glm::ivec2* value, glm::ivec2& min, glm::ivec2& max, const char* format)
 {
   return show_slider_control_scalar<int, ImGuiDataType_S32, 2>(&value->x, &min.x, &max.x, format ? format : "%d");
 }
 
 template <>
-bool Control::show_slider_control<nvmath::vec3i>(nvmath::vec3i* value, nvmath::vec3i& min, nvmath::vec3i& max, const char* format)
+bool Control::show_slider_control<glm::ivec3>(glm::ivec3* value, glm::ivec3& min, glm::ivec3& max, const char* format)
 {
   return show_slider_control_scalar<int, ImGuiDataType_S32, 3>(&value->x, &min.x, &max.x, format ? format : "%d");
 }
 
 template <>
-bool Control::show_slider_control<nvmath::vec4i>(nvmath::vec4i* value, nvmath::vec4i& min, nvmath::vec4i& max, const char* format)
+bool Control::show_slider_control<glm::ivec4>(glm::ivec4* value, glm::ivec4& min, glm::ivec4& max, const char* format)
 {
   return show_slider_control_scalar<int, ImGuiDataType_S32, 4>(&value->x, &min.x, &max.x, format ? format : "%d");
 }
@@ -454,19 +454,19 @@ bool Control::show_drag_control<int>(int* value, float speed, int& min, int& max
 }
 
 template <>
-bool Control::show_drag_control<nvmath::vec2i>(nvmath::vec2i* value, float speed, nvmath::vec2i& min, nvmath::vec2i& max, const char* format)
+bool Control::show_drag_control<glm::ivec2>(glm::ivec2* value, float speed, glm::ivec2& min, glm::ivec2& max, const char* format)
 {
   return show_drag_control_scalar<int, ImGuiDataType_S32, 2>(&value->x, speed, &min.x, &max.x, format ? format : "%d");
 }
 
 template <>
-bool Control::show_drag_control<nvmath::vec3i>(nvmath::vec3i* value, float speed, nvmath::vec3i& min, nvmath::vec3i& max, const char* format)
+bool Control::show_drag_control<glm::ivec3>(glm::ivec3* value, float speed, glm::ivec3& min, glm::ivec3& max, const char* format)
 {
   return show_drag_control_scalar<int, ImGuiDataType_S32, 3>(&value->x, speed, &min.x, &max.x, format ? format : "%d");
 }
 
 template <>
-bool Control::show_drag_control<nvmath::vec4i>(nvmath::vec4i* value, float speed, nvmath::vec4i& min, nvmath::vec4i& max, const char* format)
+bool Control::show_drag_control<glm::ivec4>(glm::ivec4* value, float speed, glm::ivec4& min, glm::ivec4& max, const char* format)
 {
   return show_drag_control_scalar<int, ImGuiDataType_S32, 4>(&value->x, speed, &min.x, &max.x, format ? format : "%d");
 }
@@ -567,7 +567,7 @@ void Panel::Begin(Side side /*= Side::Right*/, float alpha /*= 0.5f*/, char* nam
   // Auto Hide Bar, no title of the panel
   // Center is not dockable, that is for the scene
   ImGuiDockNodeFlags dockspaceFlags = ImGuiDockNodeFlags_PassthruCentralNode | ImGuiDockNodeFlags_AutoHideTabBar
-                                      | ImGuiDockNodeFlags_NoDockingInCentralNode;
+                                      | ImGuiDockNodeFlags_NoDockingOverCentralNode;
 
   // Default panel/window is name setting
   std::string dock_name("Settings");
@@ -584,8 +584,8 @@ void Panel::Begin(Side side /*= Side::Right*/, float alpha /*= 0.5f*/, char* nam
     ImGuiID dock_main_id = dockspaceID;
 
     // Slitting all 4 directions, targetting (320 pixel * DPI) panel width, (180 pixel * DPI) panel height.
-    const float xRatio = nvmath::nv_clamp<float>(320.0f * getDPIScale() / viewport->WorkSize[0], 0.01f, 0.499f);
-    const float yRatio = nvmath::nv_clamp<float>(180.0f * getDPIScale() / viewport->WorkSize[1], 0.01f, 0.499f);
+    const float xRatio = glm::clamp<float>(320.0f * getDPIScale() / viewport->WorkSize[0], 0.01f, 0.499f);
+    const float yRatio = glm::clamp<float>(180.0f * getDPIScale() / viewport->WorkSize[1], 0.01f, 0.499f);
     ImGuiID     id_left, id_right, id_up, id_down;
 
     // Note, for right, down panels, we use the n / (1 - n) formula to correctly split the space remaining from the left, up panels.
@@ -767,9 +767,9 @@ void ImGui::PlotMultiEx(const char* label, int num_datas, ImPlotMulti* datas, co
 }
 
 
-bool ImGuiH::azimuthElevationSliders(nvmath::vec3f& direction, bool negative, bool yIsUp /*=true*/)
+bool ImGuiH::azimuthElevationSliders(glm::vec3& direction, bool negative, bool yIsUp /*=true*/)
 {
-  nvmath::vec3f normalized_dir = normalize(direction);
+  glm::vec3 normalized_dir = normalize(direction);
   if(negative)
   {
     normalized_dir = -normalized_dir;
@@ -784,13 +784,13 @@ bool ImGuiH::azimuthElevationSliders(nvmath::vec3f& direction, bool negative, bo
 
   if(yIsUp)
   {
-    azimuth   = nv_to_deg * (atan2(normalized_dir.z, normalized_dir.x));
-    elevation = nv_to_deg * (asin(normalized_dir.y));
+    azimuth   = glm::degrees(atan2(normalized_dir.z, normalized_dir.x));
+    elevation = glm::degrees(asin(normalized_dir.y));
   }
   else
   {
-    azimuth   = nv_to_deg * (atan2(normalized_dir.y, normalized_dir.x));
-    elevation = nv_to_deg * (asin(normalized_dir.z));
+    azimuth   = glm::degrees(atan2(normalized_dir.y, normalized_dir.x));
+    elevation = glm::degrees(asin(normalized_dir.z));
   }
 
 
@@ -806,8 +806,8 @@ bool ImGuiH::azimuthElevationSliders(nvmath::vec3f& direction, bool negative, bo
 
   if(changed)
   {
-    azimuth              = nv_to_rad * (azimuth);
-    elevation            = nv_to_rad * (elevation);
+    azimuth              = glm::radians(azimuth);
+    elevation            = glm::radians(elevation);
     double cos_elevation = cos(elevation);
 
     if(yIsUp)

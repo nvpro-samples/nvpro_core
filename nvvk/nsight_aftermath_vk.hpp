@@ -29,7 +29,7 @@ public:
   void initialize();  // Initialize the GPU crash dump tracker.
 
 private:
-  class GpuCrashTrackerImpl *m_pimpl;
+  class GpuCrashTrackerImpl* m_pimpl;
 };
 
 }  //namespace nvvk

@@ -73,7 +73,7 @@ nvvk::RaytracingBuilderKHR::BlasInput nvvkhl::SceneRtx::primitiveToGeometry(cons
   VkAccelerationStructureGeometryTrianglesDataKHR triangles{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR};
   triangles.vertexFormat             = VK_FORMAT_R32G32B32A32_SFLOAT;  // vec3 vertex position data.
   triangles.vertexData.deviceAddress = vertexAddress;
-  triangles.vertexStride             = sizeof(Vertex);
+  triangles.vertexStride             = sizeof(nvvkhl_shaders::Vertex);
   triangles.indexType                = VK_INDEX_TYPE_UINT32;
   triangles.indexData.deviceAddress  = indexAddress;
   triangles.maxVertex                = prim.vertexCount - 1;

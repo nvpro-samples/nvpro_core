@@ -98,12 +98,12 @@ inline void DrawToggles()
 class AppWindowCameraInertia : public NVPWindow
 {
 public:
-  AppWindowCameraInertia(const vec3f eye    = vec3f(0.0f, 1.0f, -3.0f),
-                         const vec3f focus  = vec3f(0, 0, 0),
-                         const vec3f object = vec3f(0, 0, 0),
-                         float       fov_   = 50.0,
-                         float       near_  = 0.01f,
-                         float       far_   = 10.0)
+  AppWindowCameraInertia(const glm::vec3 eye    = glm::vec3(0.0f, 1.0f, -3.0f),
+                         const glm::vec3 focus  = glm::vec3(0, 0, 0),
+                         const glm::vec3 object = glm::vec3(0, 0, 0),
+                         float           fov_   = 50.0,
+                         float           near_  = 0.01f,
+                         float           far_   = 10.0)
       : m_camera(eye, focus, object)
   {
     m_renderCnt          = 1;
@@ -139,13 +139,13 @@ public:
   TimeSampler   m_realtime;
   bool          m_timingGlitch;
   InertiaCamera m_camera;
-  mat4f         m_projection;
+  glm::mat4     m_projection;
   float         m_fov, m_near, m_far;
 
 public:
-  inline mat4f& projMat() { return m_projection; }
-  inline mat4f& viewMat() { return m_camera.m4_view; }
-  inline bool&  nonStopRendering() { return m_realtime.bNonStopRendering; }
+  inline glm::mat4& projMat() { return m_projection; }
+  inline glm::mat4& viewMat() { return m_camera.m4_view; }
+  inline bool&      nonStopRendering() { return m_realtime.bNonStopRendering; }
 
   bool open(int posX, int posY, int width, int height, const char* title, bool requireGLContext) override;
 
@@ -183,7 +183,7 @@ bool AppWindowCameraInertia::open(int posX, int posY, int width, int height, con
   m_realtime.bNonStopRendering = true;
 
   float r      = (float)width / (float)height;
-  m_projection = perspective(m_fov, r, m_near, m_far);
+  m_projection = glm::perspective(glm::radians(m_fov), r, m_near, m_far);
 
   ImGuiH::Init(width, height, this);
   return NVPWindow::open(posX, posY, width, height, title, requireGLContext);
@@ -422,7 +422,7 @@ void AppWindowCameraInertia::onWindowResize(int w, int h)
   imgui_io.DisplaySize = ImVec2(float(w), float(h));
 
   float r      = (float)w / (float)h;
-  m_projection = perspective(m_fov, r, m_near, m_far);
+  m_projection = glm::perspective(glm::radians(m_fov), r, m_near, m_far);
   m_renderCnt++;
 }
 #endif  //WINDOWINERTIACAMERA_EXTERN

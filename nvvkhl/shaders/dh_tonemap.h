@@ -22,8 +22,9 @@
 #define DH_TONEMAMP_H 1
 
 #ifdef __cplusplus
-using vec3 = nvmath::vec3f;
-using vec2 = nvmath::vec2f;
+namespace nvvkhl_shaders {
+using vec3 = glm::vec3;
+using vec2 = glm::vec2;
 using uint = uint32_t;
 #define INLINE inline
 #else
@@ -150,4 +151,9 @@ INLINE vec3 toLinear(vec3 srgb)
 {
   return srgb * (srgb * (srgb * vec3(0.305306011F) + vec3(0.682171111F)) + vec3(0.012522878F));
 }
+
+#ifdef __cplusplus
+}  // namespace nvvkhl_shaders
+#endif
+
 #endif  // DH_TONEMAMP_H

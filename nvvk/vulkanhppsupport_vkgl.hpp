@@ -23,8 +23,7 @@
 
 #include "nvvk/vulkanhppsupport.hpp"
 
-namespace nvvkpp
-{
+namespace nvvkpp {
 
 class ResourceAllocatorGLInterop : public ExportResourceAllocator
 {

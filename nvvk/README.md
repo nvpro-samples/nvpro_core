@@ -1151,8 +1151,8 @@ Example to set the camera interest point
   RayPickerKHR::PickResult pr = m_picker.getResult();
   if(pr.instanceID != ~0) // Hit something
   {
-    nvmath::vec3 worldPos = pr.worldRayOrigin + pr.worldRayDirection * pr.hitT;
-    nvmath::vec3f eye, center, up;
+    glm::vec3 worldPos = pr.worldRayOrigin + pr.worldRayDirection * pr.hitT;
+    glm::vec3 eye, center, up;
     CameraManip.getLookat(eye, center, up);
     CameraManip.setLookat(eye, worldPos, up, false); // Nice with CameraManip.updateAnim();
   }

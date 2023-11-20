@@ -44,8 +44,8 @@ public:
   virtual MemHandle allocMemory(const MemAllocateInfo& allocInfo, VkResult* pResult = nullptr) override;
   virtual void      freeMemory(MemHandle memHandle) override;
   virtual MemInfo   getMemoryInfo(MemHandle memHandle) const override;
-  virtual void*     map(MemHandle memHandle, VkDeviceSize offset = 0, VkDeviceSize size = VK_WHOLE_SIZE, VkResult* pResult = nullptr) override;
-  virtual void      unmap(MemHandle memHandle) override;
+  virtual void* map(MemHandle memHandle, VkDeviceSize offset = 0, VkDeviceSize size = VK_WHOLE_SIZE, VkResult* pResult = nullptr) override;
+  virtual void unmap(MemHandle memHandle) override;
 
   virtual VkDevice         getDevice() const override;
   virtual VkPhysicalDevice getPhysicalDevice() const override;

@@ -62,13 +62,13 @@ bool StagingMemoryManager::fitsInAllocated(VkDeviceSize size, bool toDevice /*= 
 }
 
 void* StagingMemoryManager::cmdToImage(VkCommandBuffer                 cmd,
-                                    VkImage                         image,
-                                    const VkOffset3D&               offset,
-                                    const VkExtent3D&               extent,
-                                    const VkImageSubresourceLayers& subresource,
-                                    VkDeviceSize                    size,
-                                    const void*                     data,
-                                    VkImageLayout                   layout)
+                                       VkImage                         image,
+                                       const VkOffset3D&               offset,
+                                       const VkExtent3D&               extent,
+                                       const VkImageSubresourceLayers& subresource,
+                                       VkDeviceSize                    size,
+                                       const void*                     data,
+                                       VkImageLayout                   layout)
 {
   if(!image)
     return nullptr;
@@ -144,12 +144,12 @@ const void* StagingMemoryManager::cmdFromBuffer(VkCommandBuffer cmd, VkBuffer bu
 }
 
 const void* StagingMemoryManager::cmdFromImage(VkCommandBuffer                 cmd,
-                                            VkImage                         image,
-                                            const VkOffset3D&               offset,
-                                            const VkExtent3D&               extent,
-                                            const VkImageSubresourceLayers& subresource,
-                                            VkDeviceSize                    size,
-                                            VkImageLayout                   layout)
+                                               VkImage                         image,
+                                               const VkOffset3D&               offset,
+                                               const VkExtent3D&               extent,
+                                               const VkImageSubresourceLayers& subresource,
+                                               VkDeviceSize                    size,
+                                               VkImageLayout                   layout)
 {
   VkBuffer     dstBuffer;
   VkDeviceSize dstOffset;

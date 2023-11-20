@@ -17,8 +17,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "imgui_vk_extra.h"
-#include "../imgui_helper.h"
+#include "imgui/backends/imgui_vk_extra.h"
+#include "imgui/imgui_helper.h"
+#include <backends/imgui_impl_vulkan.h>
 
 static ImGui_ImplVulkan_InitInfo g_VulkanInitInfo = {};
 
@@ -32,7 +33,7 @@ void ImGui::InitVK(VkDevice device, VkPhysicalDevice physicalDevice, VkQueue que
   VkResult err = VK_RESULT_MAX_ENUM;
 
   std::vector<VkDescriptorPoolSize> poolSize{{VK_DESCRIPTOR_TYPE_SAMPLER, 1}, {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1}};
-  VkDescriptorPoolCreateInfo        poolInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
+  VkDescriptorPoolCreateInfo poolInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
   poolInfo.maxSets       = 2;
   poolInfo.poolSizeCount = static_cast<uint32_t>(poolSize.size());
   poolInfo.pPoolSizes    = poolSize.data();

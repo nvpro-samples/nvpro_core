@@ -19,8 +19,8 @@
 
 #include "nvvkhl/appbase_vkpp.hpp"
 
-#include "imgui.h"
-#include "imgui/backends/imgui_impl_vulkan.h"
+#include <imgui.h>
+#include <backends/imgui_impl_vulkan.h>
 #include "imgui/imgui_helper.h"
 #include "imgui/imgui_camera_widget.h"
 #include "nvp/perproject_globals.hpp"
@@ -38,9 +38,8 @@ void nvvkhl::AppBase::onResize(int, int) {}
 void nvvkhl::AppBase::setup(const vk::Instance& instance, const vk::Device& device, const vk::PhysicalDevice& physicalDevice, uint32_t graphicsQueueIndex)
 {
   // Initialize function pointers
-  vk::DynamicLoader         dl;
-  PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr =
-      dl.getProcAddress<PFN_vkGetInstanceProcAddr>("vkGetInstanceProcAddr");
+  vk::DynamicLoader dl;
+  PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr = dl.getProcAddress<PFN_vkGetInstanceProcAddr>("vkGetInstanceProcAddr");
   VULKAN_HPP_DEFAULT_DISPATCHER.init(vkGetInstanceProcAddr);
   VULKAN_HPP_DEFAULT_DISPATCHER.init(instance, device);
 
@@ -62,7 +61,8 @@ void nvvkhl::AppBase::destroy()
   if(ImGui::GetCurrentContext() != nullptr)
   {
     //ImGui::ShutdownVK();
-    ImGui_ImplVulkan_Shutdown();
+    if(ImGui::GetIO().BackendRendererUserData != nullptr)
+      ImGui_ImplVulkan_Shutdown();
     ImGui::DestroyContext();
   }
 
@@ -242,8 +242,7 @@ void nvvkhl::AppBase::createRenderPass()
   m_renderPass = m_device.createRenderPass(renderPassInfo);
 
 #ifndef NDEBUG
-  m_device.setDebugUtilsObjectNameEXT(
-      {vk::ObjectType::eRenderPass, reinterpret_cast<const uint64_t&>(m_renderPass), "AppBase"});
+  m_device.setDebugUtilsObjectNameEXT({vk::ObjectType::eRenderPass, reinterpret_cast<const uint64_t&>(m_renderPass), "AppBase"});
 #endif  // !NDEBUG
 }
 
@@ -552,7 +551,7 @@ void nvvkhl::AppBase::initGUI(uint32_t subpassID)
   m_device.waitIdle();
 }
 
-void nvvkhl::AppBase::fitCamera(const nvmath::vec3f& boxMin, const nvmath::vec3f& boxMax, bool instantFit)
+void nvvkhl::AppBase::fitCamera(const glm::vec3& boxMin, const glm::vec3& boxMax, bool instantFit)
 {
   CameraManip.fit(boxMin, boxMax, instantFit, false, m_size.width / static_cast<float>(m_size.height));
 }

@@ -22,7 +22,9 @@
 #define NV_CAMCONTROL_INCLUDED
 
 #include <algorithm>
-#include <nvmath/nvmath.h>
+#include <glm/ext/matrix_transform.hpp>
+#include <glm/gtx/euler_angles.hpp>
+
 
 namespace nvh {
 //////////////////////////////////////////////////////////////////////////
@@ -58,7 +60,7 @@ public:
       , m_lastWheel(0)
       , m_senseWheelZoom(0.05f / 120.0f)
       , m_senseZoom(0.001f)
-      , m_senseRotate((nv_pi * 0.5f) / 256.0f)
+      , m_senseRotate((glm::pi<float>() * 0.5f) / 256.0f)
       , m_sensePan(1.0f)
       , m_sceneOrbit(0.0f)
       , m_sceneDimension(1.0f)
@@ -69,7 +71,7 @@ public:
   {
   }
 
-  inline void processActions(const nvmath::vec2i& window, const nvmath::vec2f& mouse, int mouseButtonFlags, int wheel)
+  inline void processActions(const glm::ivec2& window, const glm::vec2& mouse, int mouseButtonFlags, int wheel)
   {
     int changed       = m_lastButtonFlags ^ mouseButtonFlags;
     m_lastButtonFlags = mouseButtonFlags;
@@ -115,7 +117,7 @@ public:
 
     if(m_zooming || m_zoomingWheel)
     {
-      float dist = m_zooming ? -(nvmath::dot(mouse - m_startZoom, nvmath::vec2f(-1, 1)) * m_sceneDimension * m_senseZoom) :
+      float dist = m_zooming ? -(glm::dot(mouse - m_startZoom, glm::vec2(-1, 1)) * m_sceneDimension * m_senseZoom) :
                                (float(wheel - m_startZoomWheel) * m_sceneDimension * m_senseWheelZoom);
 
       if(m_zoomingWheel)
@@ -150,8 +152,8 @@ public:
       }
       else
       {
-        nvmath::mat4f delta = nvmath::translation_mat4(nvmath::vec3f(0, 0, dist * 2.0f));
-        m_viewMatrix        = delta * m_startMatrix;
+        glm::mat4 delta = glm::translate(glm::mat4(1), glm::vec3(0, 0, dist * 2.0f));
+        m_viewMatrix    = delta * m_startMatrix;
       }
     }
 
@@ -159,9 +161,9 @@ public:
     {
       float aspect = float(window.x) / float(window.y);
 
-      nvmath::vec3f winsize(window.x, window.y, 1.0f);
-      nvmath::vec3f ortho(m_sceneOrthoZoom * aspect, m_sceneOrthoZoom, 1.0f);
-      nvmath::vec3f sub(mouse - m_startPan, 0.0f);
+      glm::vec3 winsize(window.x, window.y, 1.0f);
+      glm::vec3 ortho(m_sceneOrthoZoom * aspect, m_sceneOrthoZoom, 1.0f);
+      glm::vec3 sub(mouse - m_startPan, 0.0f);
       sub /= winsize;
       sub *= ortho;
       sub.y *= -1.0;
@@ -170,30 +172,29 @@ public:
         sub *= m_sensePan * m_sceneDimension;
       }
 
-      nvmath::mat4f delta;
-      delta.as_translation(sub);
-      m_viewMatrix = delta * m_startMatrix;
+      glm::mat4 delta = glm::translate(glm::mat4(1), sub);
+      m_viewMatrix    = delta * m_startMatrix;
     }
 
     if(m_rotating)
     {
       float aspect = float(window.x) / float(window.y);
 
-      nvmath::vec2f angles = (mouse - m_startRotate) * m_senseRotate;
+      glm::vec2 angles = (mouse - m_startRotate) * m_senseRotate;
 
 
       if(m_useOrbit)
       {
-        nvmath::mat4f rot    = nvmath::rotation_yaw_pitch_roll(angles.x, angles.y, 0.0f);
-        nvmath::vec3f center = nvmath::vec3f(m_startMatrix * nvmath::vec4f(m_sceneOrbit, 1.0f));
-        nvmath::mat4f delta  = nvmath::translation_mat4(center) * rot * nvmath::translation_mat4(-center);
+        glm::mat4 rot    = glm::yawPitchRoll(angles.x, angles.y, 0.0f);
+        glm::vec3 center = glm::vec3(m_startMatrix * glm::vec4(m_sceneOrbit, 1.0f));
+        glm::mat4 delta  = glm::translate(glm::mat4(1), center) * rot * glm::translate(glm::mat4(1), -center);
 
         m_viewMatrix = delta * m_startMatrix;
       }
       else
       {
         // FIXME use sceneUP
-        nvmath::mat4f rot = nvmath::rotation_yaw_pitch_roll(angles.x, angles.y, 0.0f);
+        glm::mat4 rot = glm::yawPitchRoll(angles.x, angles.y, 0.0f);
 
         m_viewMatrix = rot * m_startMatrix;
       }
@@ -205,9 +206,9 @@ public:
   float m_sceneOrthoZoom;
   float m_sceneDimension;
 
-  nvmath::vec3f m_sceneUp;
-  nvmath::vec3f m_sceneOrbit;
-  nvmath::mat4f m_viewMatrix;
+  glm::vec3 m_sceneUp;
+  glm::vec3 m_sceneOrbit;
+  glm::mat4 m_viewMatrix;
 
   float m_senseWheelZoom;
   float m_senseZoom;
@@ -220,12 +221,12 @@ private:
   bool m_panning;
   bool m_rotating;
 
-  nvmath::vec2f m_startPan;
-  nvmath::vec2f m_startZoom;
-  nvmath::vec2f m_startRotate;
-  nvmath::mat4f m_startMatrix;
-  int           m_startZoomWheel;
-  float         m_startZoomOrtho;
+  glm::vec2 m_startPan;
+  glm::vec2 m_startZoom;
+  glm::vec2 m_startRotate;
+  glm::mat4 m_startMatrix;
+  int       m_startZoomWheel;
+  float     m_startZoomOrtho;
 
   int m_lastButtonFlags;
   int m_lastWheel;

@@ -105,7 +105,7 @@ inline VkSubmitInfo makeSubmitInfo(uint32_t numCmds, VkCommandBuffer* cmds, uint
 class CommandPool
 {
 public:
-  CommandPool(CommandPool const&) = delete;
+  CommandPool(CommandPool const&)            = delete;
   CommandPool& operator=(CommandPool const&) = delete;
 
   CommandPool() {}
@@ -247,7 +247,7 @@ static const uint32_t DEFAULT_RING_SIZE = 3;
 class RingFences
 {
 public:
-  RingFences(RingFences const&) = delete;
+  RingFences(RingFences const&)            = delete;
   RingFences& operator=(RingFences const&) = delete;
 
   RingFences() {}
@@ -325,7 +325,7 @@ private:
 class RingCommandPool
 {
 public:
-  RingCommandPool(RingCommandPool const&) = delete;
+  RingCommandPool(RingCommandPool const&)            = delete;
   RingCommandPool& operator=(RingCommandPool const&) = delete;
 
   RingCommandPool(VkDevice                 device,
@@ -438,7 +438,7 @@ private:
   std::vector<VkCommandBuffer>      m_commands;
 
 public:
-  BatchSubmission(BatchSubmission const&) = delete;
+  BatchSubmission(BatchSubmission const&)            = delete;
   BatchSubmission& operator=(BatchSubmission const&) = delete;
 
   BatchSubmission() {}
@@ -473,7 +473,7 @@ public:
 class FencedCommandPools : protected RingFences, protected RingCommandPool, protected BatchSubmission
 {
 public:
-  FencedCommandPools(FencedCommandPools const&) = delete;
+  FencedCommandPools(FencedCommandPools const&)            = delete;
   FencedCommandPools& operator=(FencedCommandPools const&) = delete;
 
   FencedCommandPools() {}
@@ -513,10 +513,10 @@ public:
     RingCommandPool::reset();
   }
 
-  void enqueue(uint32_t num, const VkCommandBuffer* cmdbuffers) { BatchSubmission::enqueue(num, cmdbuffers); }
-  void enqueue(VkCommandBuffer cmdbuffer) { BatchSubmission::enqueue(cmdbuffer); }
-  void enqueueSignal(VkSemaphore sem) { BatchSubmission::enqueueSignal(sem); }
-  void enqueueWait(VkSemaphore sem, VkPipelineStageFlags flag) { BatchSubmission::enqueueWait(sem, flag); }
+  void     enqueue(uint32_t num, const VkCommandBuffer* cmdbuffers) { BatchSubmission::enqueue(num, cmdbuffers); }
+  void     enqueue(VkCommandBuffer cmdbuffer) { BatchSubmission::enqueue(cmdbuffer); }
+  void     enqueueSignal(VkSemaphore sem) { BatchSubmission::enqueueSignal(sem); }
+  void     enqueueWait(VkSemaphore sem, VkPipelineStageFlags flag) { BatchSubmission::enqueueWait(sem, flag); }
   VkResult execute(uint32_t deviceMask = 0) { return BatchSubmission::execute(getFence(), deviceMask); }
 
   void waitIdle() const { BatchSubmission::waitIdle(); }

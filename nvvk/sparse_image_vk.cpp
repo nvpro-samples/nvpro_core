@@ -19,14 +19,14 @@
 #include "sparse_image_vk.hpp"
 
 // Compute the number of pages of size `granularity` would be required to represent a texture of size `extent`
-static inline nvmath::vec3ui alignedDivision(const VkExtent3D& extent, const VkExtent3D& granularity)
+static inline glm::uvec3 alignedDivision(const VkExtent3D& extent, const VkExtent3D& granularity)
 {
-  nvmath::vec3ui res;
+  glm::uvec3 res;
   if(granularity.width == 0 || granularity.height == 0 || granularity.depth == 0)
   {
     LOGE("alignedDivision: invalid granularity\n");
     assert(false);
-    return nvmath::vec3ui(0u);
+    return glm::uvec3(0u);
   }
   res.x = (extent.width + granularity.width - 1) / granularity.width;
   res.y = (extent.height + granularity.height - 1) / granularity.height;
@@ -349,11 +349,11 @@ std::vector<uint32_t> nvvk::SparseImage::pageChildIndices(const SparseImagePage&
   }
 
   // Compute the size of the child mip level in texels, defined by originalSize/(2^level)
-  nvmath::vec3ui mipSize(std::max(size.width >> (p.mipLevel - 1), 1u), std::max(size.height >> (p.mipLevel - 1), 1u),
-                         std::max(size.depth >> (p.mipLevel - 1), 1u));
+  glm::uvec3 mipSize(std::max(size.width >> (p.mipLevel - 1), 1u), std::max(size.height >> (p.mipLevel - 1), 1u),
+                     std::max(size.depth >> (p.mipLevel - 1), 1u));
   // Compute the location of the beginning of the child list in the next mip level, where each dimension contains
   // twice as many pages as the parent level
-  nvmath::vec3ui location(2 * p.offset.x / p.extent.width, 2 * p.offset.y / p.extent.height, 2 * p.offset.z / p.extent.depth);
+  glm::uvec3 location(2 * p.offset.x / p.extent.width, 2 * p.offset.y / p.extent.height, 2 * p.offset.z / p.extent.depth);
 
 
   uint32_t pageWidth  = p.extent.width;
@@ -411,7 +411,7 @@ nvvk::SparseImagePage nvvk::SparseImage::createPageInfo(uint32_t pageIndex, uint
                            std::max(size.depth >> mipLevel, 1u)};
 
   // Compute the number of pages required in each dimension for the mip level
-  nvmath::vec3ui sparseBindCounts = alignedDivision(mipResolution, imageGranularity);
+  glm::uvec3 sparseBindCounts = alignedDivision(mipResolution, imageGranularity);
 
   // Compute the page index in each dimension and deduce the offset of the page
   // in texels based on the page granularity
@@ -422,7 +422,7 @@ nvvk::SparseImagePage nvvk::SparseImage::createPageInfo(uint32_t pageIndex, uint
                     int32_t(z * imageGranularity.depth)};
 
   // Compute the size of the last page on each dimension in the case the image has non-power-of-two dimension
-  nvmath::vec3ui lastBlockExtent;
+  glm::uvec3 lastBlockExtent;
   lastBlockExtent.x = (mipResolution.width % imageGranularity.width) ? mipResolution.width % imageGranularity.width :
                                                                        imageGranularity.width;
   lastBlockExtent.y = (mipResolution.height % imageGranularity.height) ? mipResolution.height % imageGranularity.height :

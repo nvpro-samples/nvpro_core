@@ -21,7 +21,9 @@
 #define DH_LIGHTING_H 1
 
 #ifdef __cplusplus
-using vec3 = nvmath::vec3f;
+namespace nvvkhl_shaders {
+
+using vec3 = glm::vec3;
 #endif  // __cplusplus
 
 const int eLightTypeNone        = 0;
@@ -68,17 +70,21 @@ inline Light defaultLight()
 {
   Light l;
   l.position              = vec3{5.0F, 5.F, 5.F};
-  l.direction             = nvmath::normalize(vec3{0.0F, -.7F, -.7F});
+  l.direction             = glm::normalize(vec3{0.0F, -.7F, -.7F});
   l.type                  = eLightTypeDirectional;
-  l.angularSizeOrInvRange = nv_to_rad * 0.53F;
+  l.angularSizeOrInvRange = glm::radians(0.53F);
   l.color                 = {1.0F, 1.0F, 1.0F};
   l.intensity             = 0.F;  // Dark
-  l.innerAngle            = nv_to_rad * 10.F;
-  l.outerAngle            = nv_to_rad * 30.F;
+  l.innerAngle            = glm::radians(10.F);
+  l.outerAngle            = glm::radians(30.F);
   l.radius                = 1.0F;
 
   return l;
 }
 #endif  //__cplusplus
+
+#ifdef __cplusplus
+}  // namespace nvvkhl_shaders
+#endif
 
 #endif  // DH_LIGHTING_H

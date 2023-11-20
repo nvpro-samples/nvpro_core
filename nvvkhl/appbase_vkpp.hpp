@@ -155,7 +155,7 @@ public:
   //--------------------------------------------------------------------------------------------------
   // Fit the camera to the Bounding box
   //
-  void fitCamera(const nvmath::vec3f& boxMin, const nvmath::vec3f& boxMax, bool instantFit = true);
+  void fitCamera(const glm::vec3& boxMin, const glm::vec3& boxMax, bool instantFit = true);
 
   // Return true if the window is minimized
   bool isMinimized(bool doSleeping = true);
@@ -248,4 +248,4 @@ protected:
   bool m_show_gui{true};
 };
 
-}  // namespace nvvk
+}  // namespace nvvkhl

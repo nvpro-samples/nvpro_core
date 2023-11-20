@@ -19,8 +19,8 @@
 
 
 //-------------------------------------------------------------------------------------------------
-// This file takes the incoming GltfShadeMaterial (material uploaded in a buffer) and 
-// evaluates it, basically sample the textures and return the struct PbrMaterial 
+// This file takes the incoming GltfShadeMaterial (material uploaded in a buffer) and
+// evaluates it, basically sample the textures and return the struct PbrMaterial
 // which is used by the Bsdf functions to evaluate and sample the material
 //
 
@@ -185,16 +185,15 @@ PbrMaterial evaluateMaterial(in GltfShadeMaterial material, in vec3 normal, in v
   pbrMat.attenuationDistance = material.attenuationDistance;
   pbrMat.thinWalled          = material.thicknessFactor == 0;
   // KHR_materials_clearcoat
-  pbrMat.clearcoat = material.clearcoatFactor;
-  pbrMat.clearcoatRoughness= material.clearcoatRoughness;
+  pbrMat.clearcoat          = material.clearcoatFactor;
+  pbrMat.clearcoatRoughness = material.clearcoatRoughness;
   if(material.clearcoatTexture > -1)
   {
     pbrMat.clearcoat *= textureLod(texturesMap[nonuniformEXT(material.clearcoatTexture)], texCoord, 0).r;
   }
   if(material.clearcoatRoughnessTexture > -1)
   {
-    pbrMat.clearcoatRoughness *=
-        textureLod(texturesMap[nonuniformEXT(material.clearcoatRoughnessTexture)], texCoord, 0).g;
+    pbrMat.clearcoatRoughness *= textureLod(texturesMap[nonuniformEXT(material.clearcoatRoughnessTexture)], texCoord, 0).g;
   }
   pbrMat.clearcoatRoughness = max(pbrMat.clearcoatRoughness, 0.001);
 

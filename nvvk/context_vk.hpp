@@ -143,7 +143,7 @@ struct ContextCreateInfo
   // or use this function.
   void addRequestedQueue(VkQueueFlags flags, uint32_t count = 1, float priority = 1.0f);
 
-  // this callback is run after extension and version related feature structs were queried for their support 
+  // this callback is run after extension and version related feature structs were queried for their support
   // from the physical device and prior using them for device creation. It allows custom logic for disabling
   // certain features.
   // Be aware that enabling a feature is not legal within this function, only disabling.
@@ -284,7 +284,7 @@ Especially in the context of NVLink connected cards this is useful.
 class Context
 {
 public:
-  Context(Context const&) = delete;
+  Context(Context const&)            = delete;
   Context& operator=(Context const&) = delete;
 
   Context() = default;
@@ -476,7 +476,7 @@ private:
 
   // optional maxFamilyCounts overrides the device's max queue count per queue family
   // optional priorities overrides default priority 1.0 and must be sized physical device's queue family count * maxQueueCount
-  void       initQueueList(QueueScoreList& list, const uint32_t* maxFamilyCounts, const float* priorities, uint32_t maxQueueCount) const;
+  void initQueueList(QueueScoreList& list, const uint32_t* maxFamilyCounts, const float* priorities, uint32_t maxQueueCount) const;
   QueueScore removeQueueListItem(QueueScoreList& list, VkQueueFlags flags, float priority) const;
 
   static VKAPI_ATTR VkBool32 VKAPI_CALL debugMessengerCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -502,14 +502,14 @@ private:
   void initDebugUtils();
   bool hasDebugUtils() const { return m_createDebugUtilsMessengerEXT != nullptr; }
 
-  VkResult    fillFilteredNameArray(std::vector<std::string>&             used,
-                                    const std::vector<VkLayerProperties>& properties,
-                                    const ContextCreateInfo::EntryArray&  requested);
-  VkResult    fillFilteredNameArray(std::vector<std::string>&                 used,
-                                    const std::vector<VkExtensionProperties>& properties,
-                                    const ContextCreateInfo::EntryArray&      requested,
-                                    std::vector<void*>&                       featureStructs);
-  bool        checkEntryArray(const std::vector<VkExtensionProperties>& properties, const ContextCreateInfo::EntryArray& requested, bool bVerbose);
+  VkResult fillFilteredNameArray(std::vector<std::string>&             used,
+                                 const std::vector<VkLayerProperties>& properties,
+                                 const ContextCreateInfo::EntryArray&  requested);
+  VkResult fillFilteredNameArray(std::vector<std::string>&                 used,
+                                 const std::vector<VkExtensionProperties>& properties,
+                                 const ContextCreateInfo::EntryArray&      requested,
+                                 std::vector<void*>&                       featureStructs);
+  bool checkEntryArray(const std::vector<VkExtensionProperties>& properties, const ContextCreateInfo::EntryArray& requested, bool bVerbose);
   static void initPhysicalInfo(PhysicalDeviceInfo& info, VkPhysicalDevice physicalDevice, uint32_t versionMajor, uint32_t versionMinor);
 };
 

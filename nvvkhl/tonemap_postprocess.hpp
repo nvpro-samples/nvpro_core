@@ -73,8 +73,8 @@ struct TonemapperPostProcess
 
   bool onUI();  // Display UI of the tonemapper
 
-  void        setSettings(const Tonemapper& settings) { m_settings = settings; }
-  Tonemapper& settings() { return m_settings; };  // returning access to setting values
+  void                        setSettings(const nvvkhl_shaders::Tonemapper& settings) { m_settings = settings; }
+  nvvkhl_shaders::Tonemapper& settings() { return m_settings; };  // returning access to setting values
 
 private:
   nvvk::Context*                   m_ctx{nullptr};
@@ -84,9 +84,9 @@ private:
   std::unique_ptr<nvvk::DescriptorSetContainer> m_dsetGraphics;  // Holding the descriptor set information
   std::unique_ptr<nvvk::DescriptorSetContainer> m_dsetCompute;   // Holding the descriptor set information
 
-  VkPipeline m_graphicsPipeline{VK_NULL_HANDLE};  // The graphic pipeline to render
-  VkPipeline m_computePipeline{VK_NULL_HANDLE};   // The graphic pipeline to render
-  Tonemapper m_settings;
+  VkPipeline                 m_graphicsPipeline{VK_NULL_HANDLE};  // The graphic pipeline to render
+  VkPipeline                 m_computePipeline{VK_NULL_HANDLE};   // The graphic pipeline to render
+  nvvkhl_shaders::Tonemapper m_settings;
 
   // To use VK_KHR_push_descriptor
   std::unique_ptr<VkDescriptorImageInfo> m_iimage;

@@ -176,7 +176,10 @@ std::string ShaderFileManager::manualInclude(std::string const& filename, std::s
   return manualIncludeText(source, filenameFound, prepend, foundVersion);
 }
 
-std::string ShaderFileManager::manualIncludeText(std::string const& sourceText, std::string const& textFilename, std::string const& prepend, bool foundVersion)
+std::string ShaderFileManager::manualIncludeText(std::string const& sourceText,
+                                                 std::string const& textFilename,
+                                                 std::string const& prepend,
+                                                 bool               foundVersion)
 {
   if(sourceText.empty())
   {
@@ -249,7 +252,7 @@ std::string ShaderFileManager::manualIncludeText(std::string const& sourceText, 
             text += std::string("\n") + markerString(lineCount + 1, textFilename, 0);
           }
         }
-        continue; // Skip adding the original #include line.
+        continue;  // Skip adding the original #include line.
       }
     }
 

@@ -176,7 +176,7 @@ public:
   void setSetupIF(SetupInterface* setupIF);
 
 
-  ShaderModuleManager(ShaderModuleManager const&) = delete;
+  ShaderModuleManager(ShaderModuleManager const&)            = delete;
   ShaderModuleManager& operator=(ShaderModuleManager const&) = delete;
 
   // Constructors reference-count the shared shaderc compiler, and
@@ -198,10 +198,7 @@ public:
       init(device);
   }
 
-  ~ShaderModuleManager()
-  {
-    deinit();
-  }
+  ~ShaderModuleManager() { deinit(); }
 
   // Shaderc has its own interface for handling include files that I
   // have to subclass; this needs access to protected

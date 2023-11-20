@@ -22,7 +22,7 @@
 // - Display basic information in the window title
 
 #include <filesystem>
-#include "imgui_camera_widget.h"
+#include "imgui/imgui_camera_widget.h"
 #include "nvh/cameramanipulator.hpp"
 #include "nvh/gltfscene.hpp"
 
@@ -38,12 +38,12 @@ static void setCameraFromScene(const std::string& m_filename, const nvh::GltfSce
   if(!m_scene.m_cameras.empty())
   {
     const auto& c = m_scene.m_cameras[0];
-    CameraManip.setCamera({c.eye, c.center, c.up, static_cast<float>(rad2deg(c.cam.perspective.yfov))});
-    ImGuiH::SetHomeCamera({c.eye, c.center, c.up, static_cast<float>(rad2deg(c.cam.perspective.yfov))});
+    CameraManip.setCamera({c.eye, c.center, c.up, static_cast<float>(glm::degrees(c.cam.perspective.yfov))});
+    ImGuiH::SetHomeCamera({c.eye, c.center, c.up, static_cast<float>(glm::degrees(c.cam.perspective.yfov))});
 
     for(const auto& cam : m_scene.m_cameras)
     {
-      ImGuiH::AddCamera({cam.eye, cam.center, cam.up, static_cast<float>(rad2deg(cam.cam.perspective.yfov))});
+      ImGuiH::AddCamera({cam.eye, cam.center, cam.up, static_cast<float>(glm::degrees(cam.cam.perspective.yfov))});
     }
   }
   else
@@ -53,7 +53,7 @@ static void setCameraFromScene(const std::string& m_filename, const nvh::GltfSce
     ImGuiH::SetHomeCamera(CameraManip.getCamera());
   }
 
-  CameraManip.setClipPlanes(nvmath::vec2f(0.001F * m_scene.m_dimensions.radius, 100.0F * m_scene.m_dimensions.radius));
+  CameraManip.setClipPlanes(glm::vec2(0.001F * m_scene.m_dimensions.radius, 100.0F * m_scene.m_dimensions.radius));
 }
 
 }  // namespace nvvkhl

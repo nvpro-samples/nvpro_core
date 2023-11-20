@@ -22,10 +22,11 @@
 #define DH_SKY_H 1
 
 #ifdef __cplusplus
-using namespace nvmath;
-using mat4 = nvmath::mat4f;
-using vec3 = nvmath::vec3f;
 #define inout  // Not used
+namespace nvvkhl_shaders {
+using mat4 = glm::mat4;
+using vec2 = glm::vec2;
+using vec3 = glm::vec3;
 #else
 #define static
 #define inline
@@ -44,12 +45,11 @@ using vec3 = nvmath::vec3f;
 #define END_BINDING()
 #endif
 
-
-
 START_BINDING(SkyBindings)
 eSkyOutImage = 0,
 eSkyParam = 1
 END_BINDING();
+// clang-format on
 
 
 struct ProceduralSkyShaderParameters
@@ -96,6 +96,7 @@ inline ProceduralSkyShaderParameters initSkyShaderParameters()
   return p;
 }
 
+#ifndef __cplusplus
 inline vec3 proceduralSky(ProceduralSkyShaderParameters params, vec3 direction, float angularSizeOfPixel)
 {
   float elevation   = asin(clamp(dot(direction, params.directionUp), -1.0F, 1.0F));
@@ -117,5 +118,10 @@ inline vec3 proceduralSky(ProceduralSkyShaderParameters params, vec3 direction, 
 
   return environment + light;
 }
+#endif
+
+#ifdef __cplusplus
+}  // namespace nvvkhl_shaders
+#endif
 
 #endif  // DH_SKY_H

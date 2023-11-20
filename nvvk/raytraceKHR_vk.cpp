@@ -169,8 +169,7 @@ void nvvk::RaytracingBuilderKHR::buildBlas(const std::vector<BlasInput>& input, 
     });
     const float  fractionSmaller = (asTotalSize == 0) ? 0 : (asTotalSize - compactSize) / float(asTotalSize);
     LOGI("%sRT BLAS: reducing from: %" PRIu64 " to: %" PRIu64 " = %" PRIu64 " (%2.2f%s smaller) \n",
-         nvh::ScopedTimer::indent().c_str(), asTotalSize,
-         compactSize, asTotalSize - compactSize, fractionSmaller * 100.f, "%");
+         nvh::ScopedTimer::indent().c_str(), asTotalSize, compactSize, asTotalSize - compactSize, fractionSmaller * 100.f, "%");
   }
 
   // Keeping all the created acceleration structures
@@ -286,7 +285,7 @@ void nvvk::RaytracingBuilderKHR::destroyNonCompacted(std::vector<uint32_t> indic
 
 void nvvk::RaytracingBuilderKHR::buildTlas(const std::vector<VkAccelerationStructureInstanceKHR>& instances,
                                            VkBuildAccelerationStructureFlagsKHR flags /*= VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR*/,
-                                           bool                                 update /*= false*/)
+                                           bool update /*= false*/)
 {
   buildTlas(instances, flags, update, false);
 }
@@ -294,7 +293,7 @@ void nvvk::RaytracingBuilderKHR::buildTlas(const std::vector<VkAccelerationStruc
 #ifdef VK_NV_ray_tracing_motion_blur
 void nvvk::RaytracingBuilderKHR::buildTlas(const std::vector<VkAccelerationStructureMotionInstanceNV>& instances,
                                            VkBuildAccelerationStructureFlagsKHR flags /*= VK_BUILD_ACCELERATION_STRUCTURE_MOTION_BIT_NV*/,
-                                           bool                                 update /*= false*/)
+                                           bool update /*= false*/)
 {
   buildTlas(instances, flags, update, true);
 }

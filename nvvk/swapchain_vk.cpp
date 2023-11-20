@@ -132,7 +132,7 @@ VkExtent2D SwapChain::update(int width, int height, bool vsync)
       {
         swapchainPresentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
       }
-      if (swapchainPresentMode == m_preferredVsyncOffMode)
+      if(swapchainPresentMode == m_preferredVsyncOffMode)
       {
         break;
       }

@@ -22,9 +22,11 @@
 #define DH_SCN_DESC_H 1
 
 #ifdef __cplusplus
-using mat4 = nvmath::mat4f;
-using vec4 = nvmath::vec4f;
-using vec3 = nvmath::vec3f;
+namespace nvvkhl_shaders {
+
+using mat4 = glm::mat4;
+using vec4 = glm::vec4;
+using vec3 = glm::vec3;
 #endif  // __cplusplus
 
 
@@ -104,5 +106,9 @@ struct GltfShadeMaterial
   int   clearcoatTexture;
   int   clearcoatRoughnessTexture;
 };
+
+#ifdef __cplusplus
+}  // namespace nvvkhl_shaders
+#endif
 
 #endif

@@ -23,7 +23,7 @@
 #include <memory>
 #include <vulkan/vulkan_core.h>
 
-#include "nvmath/nvmath.h"
+#include <glm/glm.hpp>
 #include "nvvk/context_vk.hpp"
 
 #include "imgui.h"

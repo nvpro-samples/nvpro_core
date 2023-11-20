@@ -4,10 +4,9 @@
 
 struct ImDrawData;
 
-namespace ImGui
-{
-  void InitGL();
-  void ShutdownGL();
+namespace ImGui {
+void InitGL();
+void ShutdownGL();
 
-  void RenderDrawDataGL(const ImDrawData* drawData);
-}
+void RenderDrawDataGL(const ImDrawData* drawData);
+}  // namespace ImGui

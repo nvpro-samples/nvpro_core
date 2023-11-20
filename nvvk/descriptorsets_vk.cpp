@@ -452,8 +452,8 @@ VkWriteDescriptorSet DescriptorSetBindings::makeWriteArray(VkDescriptorSet dstSe
 }
 #endif
 #if VK_EXT_inline_uniform_block
-VkWriteDescriptorSet DescriptorSetBindings::makeWriteArray(VkDescriptorSet                                  dstSet,
-                                                           uint32_t                                         dstBinding,
+VkWriteDescriptorSet DescriptorSetBindings::makeWriteArray(VkDescriptorSet dstSet,
+                                                           uint32_t        dstBinding,
                                                            const VkWriteDescriptorSetInlineUniformBlockEXT* pInline) const
 {
   VkWriteDescriptorSet writeSet = makeWriteArray(dstSet, dstBinding);

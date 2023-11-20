@@ -250,7 +250,7 @@ private:
   void deinitResources();
 
 public:
-  SwapChain(SwapChain const&) = delete;
+  SwapChain(SwapChain const&)            = delete;
   SwapChain& operator=(SwapChain const&) = delete;
 
   SwapChain() {}

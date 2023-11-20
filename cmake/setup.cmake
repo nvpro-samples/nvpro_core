@@ -269,7 +269,6 @@ endmacro()
 #
 macro(_add_package_ImGUI)
   Message(STATUS "--> using package ImGUI")
-  include_directories(${BASE_DIRECTORY}/nvpro_core/imgui)
 
   set(USING_IMGUI ON)
   get_directory_property(hasParent PARENT_DIRECTORY)
@@ -278,35 +277,6 @@ macro(_add_package_ImGUI)
   endif()
 
 endmacro()
-
-
-#####################################################################################
-# FreeImage
-#
-macro(_add_package_FreeImage)
-  Message(STATUS "--> using package FreeImage")
-  find_package(FreeImage)
-  if(FREEIMAGE_FOUND)
-    add_definitions(-DNVP_SUPPORTS_FREEIMAGE)
-    include_directories(${FREEIMAGE_INCLUDE_DIR})
-    LIST(APPEND PACKAGE_SOURCE_FILES 
-      ${FREEIMAGE_HEADERS}
-    )
-    LIST(APPEND LIBRARIES_OPTIMIZED ${FREEIMAGE_LIB})
-    LIST(APPEND LIBRARIES_DEBUG ${FREEIMAGE_LIB})
-    # source_group(AntTweakBar FILES 
-    #   ${ANTTWEAKBAR_HEADERS}
-    # )
-  endif()
-endmacro()
-# this macro is needed for the samples to add this package, although not needed
-# this happens when the nvpro_core library was built with these stuff in it
-# so many samples can share the same library for many purposes
-macro(_optional_package_FreeImage)
-  if(FREEIMAGE_FOUND)
-    _add_package_FreeImage()
-  endif(FREEIMAGE_FOUND)
-endmacro(_optional_package_FreeImage)
 
 #####################################################################################
 # Optional OptiX package
@@ -402,16 +372,16 @@ macro(_add_package_VulkanSDK)
       LIST(APPEND LIBRARIES_OPTIMIZED ${Vulkan_LIBRARY})
       LIST(APPEND LIBRARIES_DEBUG ${Vulkan_LIBRARY})
 
-      # CMake 3.24+ finds glslangValidator and glslc for us.
-      # On < 3.24, find it manually:
-      if(${CMAKE_VERSION} VERSION_LESS "3.24.0")
+      # CMake 3.21+ finds glslangValidator and glslc for us.
+      # On < 3.21, find it manually:
+      if((NOT Vulkan_GLSLANG_VALIDATOR_EXECUTABLE) OR (NOT Vulkan_GLSLC_EXECUTABLE))
         get_filename_component(_VULKAN_LIB_DIR ${Vulkan_LIBRARY} DIRECTORY)
-        find_file(Vulkan_GLSLANG_VALIDATOR_EXECUTABLE
-          NAMES glslangValidator.exe glslangValidator
-          PATHS ${_VULKAN_LIB_DIR}/../Bin)
-        find_file(Vulkan_GLSLC_EXECUTABLE
-          NAMES glslc.exe glslc
-          PATHS ${_VULKAN_LIB_DIR}/../Bin)
+        find_program(Vulkan_GLSLANG_VALIDATOR_EXECUTABLE
+          NAMES glslangValidator
+          HINTS ${_VULKAN_LIB_DIR}/../Bin)
+        find_program(Vulkan_GLSLC_EXECUTABLE
+          NAMES glslc
+          HINTS ${_VULKAN_LIB_DIR}/../Bin)
       endif()
  else()
      Message(STATUS "--> NOT using package VulkanSDK")
@@ -457,10 +427,10 @@ macro(_add_package_ShaderC)
     if(WIN32)
       find_file(VULKANSDK_SHADERC_LIB
         NAMES shaderc_shared.lib
-        PATHS ${_VULKAN_LIB_DIR})
+        HINTS ${_VULKAN_LIB_DIR})
       find_file(VULKANSDK_SHADERC_DLL
         NAMES shaderc_shared.dll
-        PATHS ${_VULKAN_LIB_DIR}/../Bin)
+        HINTS ${_VULKAN_LIB_DIR}/../Bin)
       add_definitions(-DSHADERC_SHAREDLIB)
       if(NOT VULKANSDK_SHADERC_DLL)
         message(FATAL_ERROR "Windows platform requires VulkanSDK with shaderc_shared.lib/dll (since SDK 1.2.135.0)")
@@ -469,7 +439,7 @@ macro(_add_package_ShaderC)
       if(NOT Vulkan_shaderc_combined_LIBRARY)
         find_file(Vulkan_shaderc_combined_LIBRARY
           NAMES libshaderc_combined.a
-          PATHS ${_VULKAN_LIB_DIR})
+          HINTS ${_VULKAN_LIB_DIR})
       endif()
       set(VULKANSDK_SHADERC_LIB ${Vulkan_shaderc_combined_LIBRARY})
     endif()
@@ -717,6 +687,7 @@ macro(_add_package_KTX)
       set(ZSTD_BUILD_PROGRAMS OFF)
       set(ZSTD_BUILD_SHARED OFF)
       set(ZSTD_BUILD_STATIC ON)
+      set(ZSTD_BUILD_TESTS OFF) # Since our filtered repository omits tests
       set(ZSTD_USE_STATIC_RUNTIME ON)
       add_subdirectory(${_ZSTD_DIR}/build/cmake ${CMAKE_BINARY_DIR}/zstd)
       target_sources(libzstd_static INTERFACE $<BUILD_INTERFACE:${_ZSTD_DIR}/lib/zstd.h>)
@@ -744,11 +715,12 @@ macro(_add_package_KTX)
   set(_BASISU_DIR ${BASE_DIRECTORY}/nvpro_core/third_party/basis_universal)
   if(NOT TARGET basisu AND EXISTS ${_BASISU_DIR})
     if(NOT EXISTS ${_BASISU_DIR}/transcoder)
-      message(WARNING "It looks like the basis_universal submodule hasn't been downloaded; try running git submodule update --init --recursive in the nvpro_core directory.")
+      message(WARNING "It looks like the basis_universal folder hasn't been downloaded. Try making a fresh clone of nvpro_core.")
     else()
       file(GLOB _BASISU_FILES "${_BASISU_DIR}/transcoder/*.*" "${_BASISU_DIR}/encoder/*.*")
       add_library(basisu STATIC "${_BASISU_FILES}")
       target_include_directories(basisu INTERFACE "${_BASISU_DIR}/transcoder" "${_BASISU_DIR}/encoder")
+      target_include_directories(basisu PRIVATE "${_BASISU_DIR}")
     endif()
   endif()
   if(TARGET basisu)
@@ -937,11 +909,6 @@ macro(_finalize_target _PROJNAME)
       install(FILES ${VULKANSDK_SHADERC_DLL} CONFIGURATIONS Release DESTINATION bin_${ARCH})
       install(FILES ${VULKANSDK_SHADERC_DLL} CONFIGURATIONS Debug DESTINATION bin_${ARCH}_debug)
     endif()
-  endif()
-  if(FREEIMAGE_FOUND)
-    _copy_files_to_target( ${_PROJNAME} "${FREEIMAGE_DLL}")
-    install(FILES ${FREEIMAGE_DLL} CONFIGURATIONS Release DESTINATION bin_${ARCH})
-    install(FILES ${FREEIMAGE_DLL} CONFIGURATIONS Debug DESTINATION bin_${ARCH}_debug)
   endif()
   if(OPTIX_FOUND)
     _copy_files_to_target( ${_PROJNAME} "${OPTIX_DLL}")

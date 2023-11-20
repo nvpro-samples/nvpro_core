@@ -288,7 +288,7 @@ public:
   virtual void onFileDrop(const char* filename) {}
   void         setViewport(const VkCommandBuffer& cmdBuf);
   void         initGUI(uint32_t subpassID = 0);
-  void         fitCamera(const nvmath::vec3f& boxMin, const nvmath::vec3f& boxMax, bool instantFit = true);
+  void         fitCamera(const glm::vec3& boxMin, const glm::vec3& boxMax, bool instantFit = true);
   bool         isMinimized(bool doSleeping = true);
   void         setTitle(const std::string& title) { glfwSetWindowTitle(m_window, title.c_str()); }
   void         useNvlink(bool useNvlink) { m_useNvlink = useNvlink; }
@@ -371,4 +371,4 @@ protected:
 };
 
 
-}  // namespace nvvk
+}  // namespace nvvkhl

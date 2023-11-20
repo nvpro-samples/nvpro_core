@@ -81,7 +81,7 @@ public:
   DMAMemoryHandle(DMAMemoryHandle&&)      = default;
 
   DMAMemoryHandle& operator=(const DMAMemoryHandle&) = default;
-  DMAMemoryHandle& operator=(DMAMemoryHandle&&) = default;
+  DMAMemoryHandle& operator=(DMAMemoryHandle&&)      = default;
 
   const AllocationID& getAllocationID() const { return m_allocation; };
 
@@ -109,7 +109,7 @@ DMAMemoryHandle* castDMAMemoryHandle(MemHandle memHandle)
   return dmaMemHandle;
 }
 
-MemHandle DeviceMemoryAllocator::allocMemory(const MemAllocateInfo& allocInfo, VkResult *pResult)
+MemHandle DeviceMemoryAllocator::allocMemory(const MemAllocateInfo& allocInfo, VkResult* pResult)
 {
   BakedAllocateInfo bakedInfo;
   fillBakedAllocateInfo(getMemoryProperties(), allocInfo, bakedInfo);
@@ -119,18 +119,18 @@ MemHandle DeviceMemoryAllocator::allocMemory(const MemAllocateInfo& allocInfo, V
   state.priority = allocInfo.getPriority();
 
   VkResult result;
-  bool isDedicatedAllocation = allocInfo.getDedicatedBuffer() || allocInfo.getDedicatedImage();
+  bool     isDedicatedAllocation = allocInfo.getDedicatedBuffer() || allocInfo.getDedicatedImage();
 
   auto dmaHandle = allocInternal(allocInfo.getMemoryRequirements(), allocInfo.getMemoryProperties(),
-                                !allocInfo.getTilingOptimal() /*isLinear*/,
-                                isDedicatedAllocation ? &bakedInfo.dedicatedInfo : nullptr, result, true, state);
+                                 !allocInfo.getTilingOptimal() /*isLinear*/,
+                                 isDedicatedAllocation ? &bakedInfo.dedicatedInfo : nullptr, result, true, state);
 
-  if (pResult)
+  if(pResult)
   {
     *pResult = result;
   }
 
-  if (dmaHandle)
+  if(dmaHandle)
   {
     DMAMemoryHandle* dmaMemHandle = new DMAMemoryHandle(dmaHandle);
 
@@ -188,7 +188,7 @@ nvvk::AllocationID DeviceMemoryAllocator::getAllocationID(MemHandle memHandle) c
 }
 
 
-void* DeviceMemoryAllocator::map(MemHandle memHandle, VkDeviceSize offset, VkDeviceSize size, VkResult *pResult)
+void* DeviceMemoryAllocator::map(MemHandle memHandle, VkDeviceSize offset, VkDeviceSize size, VkResult* pResult)
 {
   auto dmaHandle = castDMAMemoryHandle(memHandle);
   assert(dmaHandle);
@@ -283,7 +283,7 @@ void DeviceMemoryAllocator::init(VkDevice device, VkPhysicalDevice physicalDevic
   m_device         = device;
   m_physicalDevice = physicalDevice;
   // always default to NVVK_DEFAULT_MEMORY_BLOCKSIZE
-  m_blockSize      = blockSize ? blockSize : NVVK_DEFAULT_MEMORY_BLOCKSIZE;
+  m_blockSize = blockSize ? blockSize : NVVK_DEFAULT_MEMORY_BLOCKSIZE;
 
   vkGetPhysicalDeviceMemoryProperties(physicalDevice, &m_memoryProperties);
 
@@ -505,9 +505,9 @@ AllocationID DeviceMemoryAllocator::allocInternal(const VkMemoryRequirements&   
       Block& block = m_blocks[i];
 
       // Ignore invalid or blocks with the wrong memory type
-      if(!block.mem || block.memoryTypeIndex != memInfo.memoryTypeIndex || isLinear != block.isLinear || block.priority != priority
-         || block.allocateFlags != state.allocateFlags || block.allocateDeviceMask != state.allocateDeviceMask
-         || (!block.mappable && mappable))
+      if(!block.mem || block.memoryTypeIndex != memInfo.memoryTypeIndex || isLinear != block.isLinear
+         || block.priority != priority || block.allocateFlags != state.allocateFlags
+         || block.allocateDeviceMask != state.allocateDeviceMask || (!block.mappable && mappable))
       {
         continue;
       }
@@ -683,7 +683,7 @@ void DeviceMemoryAllocator::free(AllocationID allocationID)
   }
 }
 
-void* DeviceMemoryAllocator::map(AllocationID allocationID, VkResult *pResult)
+void* DeviceMemoryAllocator::map(AllocationID allocationID, VkResult* pResult)
 {
   const AllocationInfo& info  = getInfo(allocationID);
   Block&                block = getBlock(info.block);
@@ -694,7 +694,7 @@ void* DeviceMemoryAllocator::map(AllocationID allocationID, VkResult *pResult)
   if(!block.mapped)
   {
     VkResult result = vkMapMemory(m_device, block.mem, 0, block.allocationSize, 0, (void**)&block.mapped);
-    if (pResult)
+    if(pResult)
     {
       *pResult = result;
     }
@@ -847,7 +847,7 @@ VkAccelerationStructureNV DeviceMemoryAllocator::createAccStructure(const VkAcce
     return VK_NULL_HANDLE;
   }
 
-  VkMemoryRequirements2                           memReqs = {VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2};
+  VkMemoryRequirements2 memReqs = {VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2};
   VkAccelerationStructureMemoryRequirementsInfoNV memInfo{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_INFO_NV};
   memInfo.accelerationStructure = accel;
   vkGetAccelerationStructureMemoryRequirementsNV(m_device, &memInfo, &memReqs);

@@ -24,7 +24,7 @@
 #ifndef NVH_ALIGNEMENT_HPP
 #define NVH_ALIGNEMENT_HPP 1
 
-#include <stddef.h> // for size_t
+#include <stddef.h>  // for size_t
 
 namespace nvh {
 template <class integral>

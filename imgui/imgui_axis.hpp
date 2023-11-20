@@ -18,12 +18,12 @@
  */
 
 #include "imgui.h"
-#include "nvmath/nvmath.h"
+#include <glm/glm.hpp>
 
 // The API
 namespace ImGuiH {
 
 // This utility is adding the 3D axis at `pos`, using the matrix `modelView`
-IMGUI_API void Axis(ImVec2 pos, const nvmath::mat4f& modelView, float size = 20.f);
+IMGUI_API void Axis(ImVec2 pos, const glm::mat4& modelView, float size = 20.f);
 
 };  // namespace ImGuiH

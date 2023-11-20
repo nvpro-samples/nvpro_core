@@ -261,7 +261,7 @@ bool ShaderModuleManager::setupShaderModule(ShaderModule& module)
     if(definition.filetype == FILETYPE_GLSL)
     {
       std::lock_guard<std::mutex> guard(s_shadercCompilerMutex);
-      shaderc_shader_kind shaderkind = (shaderc_shader_kind)m_usedSetupIF->getTypeShadercKind(definition.type);
+      shaderc_shader_kind         shaderkind = (shaderc_shader_kind)m_usedSetupIF->getTypeShadercKind(definition.type);
       shaderc_compile_options_t options = (shaderc_compile_options_t)m_usedSetupIF->getShadercCompileOption(s_shadercCompiler);
       if(!options)
       {

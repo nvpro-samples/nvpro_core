@@ -64,7 +64,7 @@ MemAllocateInfo::MemAllocateInfo(VkDevice device, VkImage image, VkMemoryPropert
   m_memReqs  = memReqs.memoryRequirements;
   m_memProps = memProps;
 
-  if(dedicatedRegs.requiresDedicatedAllocation || (dedicatedRegs.prefersDedicatedAllocation &&  allowDedicatedAllocation))
+  if(dedicatedRegs.requiresDedicatedAllocation || (dedicatedRegs.prefersDedicatedAllocation && allowDedicatedAllocation))
   {
     setDedicatedImage(image);
   }

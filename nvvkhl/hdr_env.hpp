@@ -67,7 +67,7 @@ private:
   float      m_integral{1.F};
   float      m_average{1.F};
   bool       m_valid{false};
-  VkExtent2D m_hdrImageSize{1,1};
+  VkExtent2D m_hdrImageSize{1, 1};
 
   // Resources
   nvvk::Texture         m_texHdr;

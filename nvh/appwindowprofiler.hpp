@@ -145,7 +145,7 @@ public:
   int  run(const std::string& name, int argc, const char** argv, int width, int height, bool requireGLContext);
   void leave();
 
-  void        parseConfigFile(const char* filename);
+  void parseConfigFile(const char* filename);
 
   // handles special strings (returns empty string if
   // could not do the replacement properly)

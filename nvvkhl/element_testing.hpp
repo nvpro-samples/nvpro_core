@@ -16,6 +16,7 @@
  * SPDX-FileCopyrightText: Copyright (c) 2014-2022 NVIDIA CORPORATION
  * SPDX-License-Identifier: Apache-2.0
  */
+#pragma once
 
 #include "application.hpp"
 
@@ -72,7 +73,7 @@ public:
 
       // Trapping in the callback the validation errors that could show up. If errors are found errorCode will return 1, otherwise 0
       dbg_messenger_create_info.pfnUserCallback = [](VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-                                                     VkDebugUtilsMessageTypeFlagsEXT        messageType,
+                                                     VkDebugUtilsMessageTypeFlagsEXT /*messageType*/,
                                                      const VkDebugUtilsMessengerCallbackDataEXT* callbackData, void* userData) {
         ElementTesting* testing = reinterpret_cast<ElementTesting*>(userData);
         if(messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
@@ -101,7 +102,7 @@ public:
     }
   }
 
-  void onRender(VkCommandBuffer cmd) override
+  void onRender(VkCommandBuffer /*cmd*/) override
   {
     if(!m_settings.enabled)
       return;

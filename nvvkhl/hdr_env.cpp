@@ -30,7 +30,7 @@
 
 #include "hdr_env.hpp"
 
-#include "nvmath/nvmath.h"
+#include <glm/glm.hpp>
 #include "stb_image.h"
 #include "nvh/fileoperations.hpp"
 #include "nvvk/debug_util_vk.hpp"
@@ -43,7 +43,11 @@
 
 namespace nvvkhl {
 // Forward declaration
-std::vector<EnvAccel> createEnvironmentAccel(float*& pixels, const uint32_t& width, const uint32_t& height, float& average, float& integral);
+std::vector<nvvkhl_shaders::EnvAccel> createEnvironmentAccel(float*&         pixels,
+                                                             const uint32_t& width,
+                                                             const uint32_t& height,
+                                                             float&          average,
+                                                             float&          integral);
 
 HdrEnv::HdrEnv(nvvk::Context* ctx, nvvk::ResourceAllocator* allocator, uint32_t queueFamilyIndex)
 {
@@ -176,8 +180,8 @@ void HdrEnv::createDescriptorSetLayout()
   nvvk::DescriptorSetBindings bind;
   VkShaderStageFlags          flags = VK_SHADER_STAGE_ALL;
 
-  bind.addBinding(EnvBindings::eHdr, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, flags);  // HDR image
-  bind.addBinding(EnvBindings::eImpSamples, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, flags);   // importance sampling
+  bind.addBinding(nvvkhl_shaders::EnvBindings::eHdr, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, flags);  // HDR image
+  bind.addBinding(nvvkhl_shaders::EnvBindings::eImpSamples, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, flags);  // importance sampling
 
   m_descPool = bind.createPool(m_device, 1);
   CREATE_NAMED_VK(m_descSetLayout, bind.createLayout(m_device));
@@ -185,8 +189,8 @@ void HdrEnv::createDescriptorSetLayout()
 
   std::vector<VkWriteDescriptorSet> writes;
   VkDescriptorBufferInfo            accel_imp_smpl{m_accelImpSmpl.buffer, 0, VK_WHOLE_SIZE};
-  writes.emplace_back(bind.makeWrite(m_descSet, EnvBindings::eHdr, &m_texHdr.descriptor));
-  writes.emplace_back(bind.makeWrite(m_descSet, EnvBindings::eImpSamples, &accel_imp_smpl));
+  writes.emplace_back(bind.makeWrite(m_descSet, nvvkhl_shaders::EnvBindings::eHdr, &m_texHdr.descriptor));
+  writes.emplace_back(bind.makeWrite(m_descSet, nvvkhl_shaders::EnvBindings::eImpSamples, &accel_imp_smpl));
 
   vkUpdateDescriptorSets(m_device, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
 }
@@ -202,7 +206,7 @@ void HdrEnv::createDescriptorSetLayout()
 // This will later allow the sampling shader to uniformly select a texel in the environment, and
 // select either that texel or its alias depending on their relative intensities
 //
-inline float buildAliasmap(const std::vector<float>& data, std::vector<EnvAccel>& accel)
+inline float buildAliasmap(const std::vector<float>& data, std::vector<nvvkhl_shaders::EnvAccel>& accel)
 {
   auto size = static_cast<uint32_t>(data.size());
 
@@ -284,18 +288,22 @@ inline float luminance(const float* color)
 // See:  https://arxiv.org/pdf/1901.05423.pdf
 // And store the PDF into the ALPHA channel of pixels
 //
-inline std::vector<EnvAccel> createEnvironmentAccel(float*& pixels, const uint32_t& width, const uint32_t& height, float& average, float& integral)
+inline std::vector<nvvkhl_shaders::EnvAccel> createEnvironmentAccel(float*&         pixels,
+                                                                    const uint32_t& width,
+                                                                    const uint32_t& height,
+                                                                    float&          average,
+                                                                    float&          integral)
 {
   const uint32_t rx = width;
   const uint32_t ry = height;
 
   // Create importance sampling data
-  std::vector<EnvAccel> env_accel(rx * ry);
-  std::vector<float>    importance_data(rx * ry);
-  float                 cos_theta0 = 1.0F;
-  const float           step_phi   = static_cast<float>(2.0F * M_PI) / static_cast<float>(rx);
-  const float           step_theta = static_cast<float>(M_PI) / static_cast<float>(ry);
-  double                total      = 0.0;
+  std::vector<nvvkhl_shaders::EnvAccel> env_accel(rx * ry);
+  std::vector<float>                    importance_data(rx * ry);
+  float                                 cos_theta0 = 1.0F;
+  const float                           step_phi   = static_cast<float>(2.0F * M_PI) / static_cast<float>(rx);
+  const float                           step_theta = static_cast<float>(M_PI) / static_cast<float>(ry);
+  double                                total      = 0.0;
 
   // For each texel of the environment map, we compute the related solid angle
   // subtended by the texel, and store the weighted luminance in importance_data,

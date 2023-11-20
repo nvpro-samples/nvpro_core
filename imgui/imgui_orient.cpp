@@ -383,17 +383,17 @@ IMGUI_API bool ImOrient::Draw(const char* label, bool show_info /*= false*/)
               coord = coord.RotY();
               norm  = norm.RotY();
             }
-            coord                = quat.Rotate(coord);
-            coord                = AxisTransform.Transform(coord);
-            norm                 = quat.Rotate(norm);
-            norm                 = AxisTransform.Transform(norm);
+            coord = quat.Rotate(coord);
+            coord = AxisTransform.Transform(coord);
+            norm  = quat.Rotate(norm);
+            norm  = AxisTransform.Transform(norm);
             s_ArrowTriProj[j][i] = ImVec2(QuatPX(coord.x, inner_size, inner_size), QuatPY(coord.y, inner_size, inner_size));
-            float fade           = (m == 0 && coord.z < 0) ? ImClamp(2.0f * coord.z * coord.z, 0.0f, 1.0f) : 0;
-            float alphaFade      = 1.0f;
-            alphaFade            = alpha.Value.w;
+            float fade      = (m == 0 && coord.z < 0) ? ImClamp(2.0f * coord.z * coord.z, 0.0f, 1.0f) : 0;
+            float alphaFade = 1.0f;
+            alphaFade       = alpha.Value.w;
             alphaFade *= (1.0f - fade);
             ImColor alphaFadeCol(1.0f, 1.0f, 1.0f, alphaFade);
-            ImU32   col           = (l == 0) ? 0xffff0000 : ((l == 1) ? 0xff00ff00 : 0xff0000ff);
+            ImU32   col = (l == 0) ? 0xffff0000 : ((l == 1) ? 0xff00ff00 : 0xff0000ff);
             s_ArrowColLight[j][i] = ColorBlend(0xff000000, col, fabsf(ImClamp(norm.z, -1.0f, 1.0f))) & ImU32(alphaFadeCol);
           }
           DrawTriangles(draw_list, inner_pos, s_ArrowTriProj[j], s_ArrowColLight[j], ntri, cullDir);

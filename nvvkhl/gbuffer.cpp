@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2023, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@
 
 #include <utility>
 #include "application.hpp"
-#include "imgui/backends/imgui_impl_vulkan.h"
+#include "third_party/imgui/backends/imgui_impl_vulkan.h"
 #include "nvvk/images_vk.hpp"
 #include "nvvk/debug_util_vk.hpp"
 #include "nvvk/commands_vk.hpp"
@@ -91,6 +91,7 @@ void nvvkhl::GBuffer::create(const VkExtent2D& size, std::vector<VkFormat> color
     }
   }
 
+  if(m_depthFormat != VK_FORMAT_UNDEFINED)
   {  // Depth buffer
     VkImageCreateInfo info = nvvk::makeImage2DCreateInfo(m_imageSize, m_depthFormat,
                                                          VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
@@ -98,6 +99,7 @@ void nvvkhl::GBuffer::create(const VkExtent2D& size, std::vector<VkFormat> color
     dutil.setObjectName(m_res.gBufferDepth.image, "G-Depth");
   }
 
+  if(m_depthFormat != VK_FORMAT_UNDEFINED)
   {  // Image depth view
     VkImageViewCreateInfo info = nvvk::makeImage2DViewCreateInfo(m_res.gBufferDepth.image, m_depthFormat);
     info.subresourceRange      = {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1};

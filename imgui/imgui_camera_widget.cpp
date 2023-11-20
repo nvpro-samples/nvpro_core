@@ -272,7 +272,9 @@ void CurrentCameraTab(nvh::CameraManipulator& cameraM, nvh::CameraManipulator::C
   changed |= PropertyEditor::entry(
       "Y is UP", [&] { return ImGui::Checkbox("##Y", &y_is_up); }, "Is Y pointing up or Z?");
   if(PropertyEditor::entry(
-         "FOV", [&] { return ImGui::SliderFloat("##Y", &camera.fov, 1.F, 179.F, "%.1f deg", ImGuiSliderFlags_Logarithmic); }, "Field of view in degrees"))
+         "FOV",
+         [&] { return ImGui::SliderFloat("##Y", &camera.fov, 1.F, 179.F, "%.1f deg", ImGuiSliderFlags_Logarithmic); },
+         "Field of view in degrees"))
   {
     instantSet = true;
     changed    = true;
@@ -280,7 +282,7 @@ void CurrentCameraTab(nvh::CameraManipulator& cameraM, nvh::CameraManipulator::C
 
   if(PropertyEditor::treeNode("Clip planes"))
   {
-    nvmath::vec2f clip = cameraM.getClipPlanes();
+    glm::vec2 clip = cameraM.getClipPlanes();
     PropertyEditor::entry("Near", [&] { return ImGui::InputFloat("##CN", &clip.x); });
     changed |= ImGui::IsItemDeactivatedAfterEdit();
     PropertyEditor::entry("Far", [&] { return ImGui::InputFloat("##CF", &clip.y); });
@@ -289,7 +291,7 @@ void CurrentCameraTab(nvh::CameraManipulator& cameraM, nvh::CameraManipulator::C
     cameraM.setClipPlanes(clip);
   }
 
-  camera.up = y_is_up ? nvmath::vec3f(0, 1, 0) : nvmath::vec3f(0, 0, 1);
+  camera.up = y_is_up ? glm::vec3(0, 1, 0) : glm::vec3(0, 0, 1);
 
   if(cameraM.isAnimated())
   {
@@ -322,9 +324,9 @@ void CurrentCameraTab(nvh::CameraManipulator& cameraM, nvh::CameraManipulator::C
                           &val[4], &val[5], &val[6], &val[7], &val[8]);
     if(result == 9)  // 9 value properly scanned
     {
-      camera.eye = nvmath::vec3f{val[0], val[1], val[2]};
-      camera.ctr = nvmath::vec3f{val[3], val[4], val[5]};
-      camera.up  = nvmath::vec3f{val[6], val[7], val[8]};
+      camera.eye = glm::vec3{val[0], val[1], val[2]};
+      camera.ctr = glm::vec3{val[3], val[4], val[5]};
+      camera.up  = glm::vec3{val[6], val[7], val[8]};
       changed    = true;
     }
   }

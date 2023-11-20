@@ -29,6 +29,10 @@
 #include <thread>
 #include "parallel_work.hpp"
 
+#include <glm/gtx/norm.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
+
 namespace nvh {
 
 #define EXTENSION_ATTRIB_IRAY "NV_attributes_iray"
@@ -49,8 +53,8 @@ void GltfScene::importMaterials(const tinygltf::Model& tmodel)
     gmat.alphaMode                = tmat.alphaMode == "MASK" ? 1 : (tmat.alphaMode == "BLEND" ? 2 : 0);
     gmat.doubleSided              = tmat.doubleSided ? 1 : 0;
     gmat.emissiveFactor           = tmat.emissiveFactor.size() == 3 ?
-                                        nvmath::vec3f(tmat.emissiveFactor[0], tmat.emissiveFactor[1], tmat.emissiveFactor[2]) :
-                                        nvmath::vec3f(0.f);
+                                        glm::vec3(tmat.emissiveFactor[0], tmat.emissiveFactor[1], tmat.emissiveFactor[2]) :
+                                        glm::vec3(0.f);
     gmat.emissiveTexture          = tmat.emissiveTexture.index;
     gmat.normalTexture            = tmat.normalTexture.index;
     gmat.normalTextureScale       = static_cast<float>(tmat.normalTexture.scale);
@@ -60,7 +64,7 @@ void GltfScene::importMaterials(const tinygltf::Model& tmodel)
     // PbrMetallicRoughness
     auto& tpbr = tmat.pbrMetallicRoughness;
     gmat.baseColorFactor =
-        nvmath::vec4f(tpbr.baseColorFactor[0], tpbr.baseColorFactor[1], tpbr.baseColorFactor[2], tpbr.baseColorFactor[3]);
+        glm::vec4(tpbr.baseColorFactor[0], tpbr.baseColorFactor[1], tpbr.baseColorFactor[2], tpbr.baseColorFactor[3]);
     gmat.baseColorTexture         = tpbr.baseColorTexture.index;
     gmat.metallicFactor           = static_cast<float>(tpbr.metallicFactor);
     gmat.metallicRoughnessTexture = tpbr.metallicRoughnessTexture.index;
@@ -103,9 +107,9 @@ void GltfScene::importMaterials(const tinygltf::Model& tmodel)
       getInt(ext, "texCoord", tt.texCoord);
 
       // Computing the transformation
-      auto translation = nvmath::mat3f(1, 0, tt.offset.x, 0, 1, tt.offset.y, 0, 0, 1);
-      auto rotation = nvmath::mat3f(cos(tt.rotation), sin(tt.rotation), 0, -sin(tt.rotation), cos(tt.rotation), 0, 0, 0, 1);
-      auto scale     = nvmath::mat3f(tt.scale.x, 0, 0, 0, tt.scale.y, 0, 0, 0, 1);
+      auto translation = glm::mat3(1, 0, tt.offset.x, 0, 1, tt.offset.y, 0, 0, 1);
+      auto rotation = glm::mat3(cos(tt.rotation), sin(tt.rotation), 0, -sin(tt.rotation), cos(tt.rotation), 0, 0, 0, 1);
+      auto scale    = glm::mat3(tt.scale.x, 0, 0, 0, tt.scale.y, 0, 0, 0, 1);
       tt.uvTransform = scale * rotation * translation;
     }
 
@@ -264,13 +268,13 @@ void GltfScene::importDrawableNodes(const tinygltf::Model& tmodel, GltfAttribute
       m_tangents.size(),
       [&](uint64_t i) {
         auto& t = m_tangents[i];
-        if(nvmath::nv_sq_norm(nvmath::vec3f(t)) < 0.01F || std::abs(t.w) < 0.5F)
+        if(glm::length2(glm::vec3(t)) < 0.01F || std::abs(t.w) < 0.5F)
         {
           const auto& n   = m_normals[i];
           const float sgn = n.z > 0.0F ? 1.0F : -1.0F;
           const float a   = -1.0F / (sgn + n.z);
           const float b   = n.x * n.y * a;
-          t               = nvmath::vec4f(1.0f + sgn * n.x * n.x * a, sgn * b, -sgn * n.x, sgn);
+          t               = glm::vec4(1.0f + sgn * n.x * n.x * a, sgn * b, -sgn * n.x, sgn);
         }
       },
       num_threads);
@@ -278,7 +282,7 @@ void GltfScene::importDrawableNodes(const tinygltf::Model& tmodel, GltfAttribute
   // Transforming the scene hierarchy to a flat list
   for(auto nodeIdx : tscene.nodes)
   {
-    processNode(tmodel, nodeIdx, nvmath::mat4f(1));
+    processNode(tmodel, nodeIdx, glm::mat4(1));
   }
 
   computeSceneDimensions();
@@ -293,12 +297,12 @@ void GltfScene::importDrawableNodes(const tinygltf::Model& tmodel, GltfAttribute
 //--------------------------------------------------------------------------------------------------
 //
 //
-void GltfScene::processNode(const tinygltf::Model& tmodel, int& nodeIdx, const nvmath::mat4f& parentMatrix)
+void GltfScene::processNode(const tinygltf::Model& tmodel, int& nodeIdx, const glm::mat4& parentMatrix)
 {
   const auto& tnode = tmodel.nodes[nodeIdx];
 
-  nvmath::mat4f matrix      = getLocalMatrix(tnode);
-  nvmath::mat4f worldMatrix = parentMatrix * matrix;
+  glm::mat4 matrix      = getLocalMatrix(tnode);
+  glm::mat4 worldMatrix = parentMatrix * matrix;
 
   if(tnode.mesh > -1)
   {
@@ -446,7 +450,7 @@ void GltfScene::processMesh(const tinygltf::Model&     tmodel,
   {
     // POSITION
     {
-      const bool hadPosition = getAttribute<nvmath::vec3f>(tmodel, tmesh, m_positions, "POSITION");
+      const bool hadPosition = getAttribute<glm::vec3>(tmodel, tmesh, m_positions, "POSITION");
       if(!hadPosition)
       {
         LOGE("This glTF file is invalid: it had a primitive with no POSITION attribute.\n");
@@ -457,11 +461,11 @@ void GltfScene::processMesh(const tinygltf::Model&     tmodel,
       resultMesh.vertexCount = static_cast<uint32_t>(accessor.count);
       if(!accessor.minValues.empty())
       {
-        resultMesh.posMin = nvmath::vec3f(accessor.minValues[0], accessor.minValues[1], accessor.minValues[2]);
+        resultMesh.posMin = glm::vec3(accessor.minValues[0], accessor.minValues[1], accessor.minValues[2]);
       }
       else
       {
-        resultMesh.posMin = nvmath::vec3f(std::numeric_limits<float>::max());
+        resultMesh.posMin = glm::vec3(std::numeric_limits<float>::max());
         for(const auto& p : m_positions)
         {
           for(int i = 0; i < 3; i++)
@@ -473,11 +477,11 @@ void GltfScene::processMesh(const tinygltf::Model&     tmodel,
       }
       if(!accessor.maxValues.empty())
       {
-        resultMesh.posMax = nvmath::vec3f(accessor.maxValues[0], accessor.maxValues[1], accessor.maxValues[2]);
+        resultMesh.posMax = glm::vec3(accessor.maxValues[0], accessor.maxValues[1], accessor.maxValues[2]);
       }
       else
       {
-        resultMesh.posMax = nvmath::vec3f(-std::numeric_limits<float>::max());
+        resultMesh.posMax = glm::vec3(-std::numeric_limits<float>::max());
         for(const auto& p : m_positions)
           for(int i = 0; i < 3; i++)
           {
@@ -490,7 +494,7 @@ void GltfScene::processMesh(const tinygltf::Model&     tmodel,
     // NORMAL
     if(hasFlag(requestedAttributes, GltfAttributes::Normal))
     {
-      bool normalCreated = getAttribute<nvmath::vec3f>(tmodel, tmesh, m_normals, "NORMAL");
+      bool normalCreated = getAttribute<glm::vec3>(tmodel, tmesh, m_normals, "NORMAL");
 
       if(!normalCreated && hasFlag(forceRequested, GltfAttributes::Normal))
         createNormals(resultMesh);
@@ -499,9 +503,9 @@ void GltfScene::processMesh(const tinygltf::Model&     tmodel,
     // TEXCOORD_0
     if(hasFlag(requestedAttributes, GltfAttributes::Texcoord_0))
     {
-      bool texcoordCreated = getAttribute<nvmath::vec2f>(tmodel, tmesh, m_texcoords0, "TEXCOORD_0");
+      bool texcoordCreated = getAttribute<glm::vec2>(tmodel, tmesh, m_texcoords0, "TEXCOORD_0");
       if(!texcoordCreated)
-        texcoordCreated = getAttribute<nvmath::vec2f>(tmodel, tmesh, m_texcoords0, "TEXCOORD");
+        texcoordCreated = getAttribute<glm::vec2>(tmodel, tmesh, m_texcoords0, "TEXCOORD");
       if(!texcoordCreated && hasFlag(forceRequested, GltfAttributes::Texcoord_0))
         createTexcoords(resultMesh);
     }
@@ -510,7 +514,7 @@ void GltfScene::processMesh(const tinygltf::Model&     tmodel,
     // TANGENT
     if(hasFlag(requestedAttributes, GltfAttributes::Tangent))
     {
-      bool tangentCreated = getAttribute<nvmath::vec4f>(tmodel, tmesh, m_tangents, "TANGENT");
+      bool tangentCreated = getAttribute<glm::vec4>(tmodel, tmesh, m_tangents, "TANGENT");
 
       if(!tangentCreated && hasFlag(forceRequested, GltfAttributes::Tangent))
         createTangents(resultMesh);
@@ -519,7 +523,7 @@ void GltfScene::processMesh(const tinygltf::Model&     tmodel,
     // COLOR_0
     if(hasFlag(requestedAttributes, GltfAttributes::Color_0))
     {
-      bool colorCreated = getAttribute<nvmath::vec4f>(tmodel, tmesh, m_colors0, "COLOR_0");
+      bool colorCreated = getAttribute<glm::vec4>(tmodel, tmesh, m_colors0, "COLOR_0");
       if(!colorCreated && hasFlag(forceRequested, GltfAttributes::Color_0))
         createColors(resultMesh);
     }
@@ -536,7 +540,7 @@ void GltfScene::processMesh(const tinygltf::Model&     tmodel,
 void GltfScene::createNormals(GltfPrimMesh& resultMesh)
 {
   // Need to compute the normals
-  std::vector<nvmath::vec3f> geonormal(resultMesh.vertexCount);
+  std::vector<glm::vec3> geonormal(resultMesh.vertexCount);
   for(size_t i = 0; i < resultMesh.indexCount; i += 3)
   {
     uint32_t    ind0 = m_indices[resultMesh.firstIndex + i + 0];
@@ -545,15 +549,15 @@ void GltfScene::createNormals(GltfPrimMesh& resultMesh)
     const auto& pos0 = m_positions[ind0 + resultMesh.vertexOffset];
     const auto& pos1 = m_positions[ind1 + resultMesh.vertexOffset];
     const auto& pos2 = m_positions[ind2 + resultMesh.vertexOffset];
-    const auto  v1   = nvmath::normalize(pos1 - pos0);  // Many normalize, but when objects are really small the
-    const auto  v2   = nvmath::normalize(pos2 - pos0);  // cross will go below nv_eps and the normal will be (0,0,0)
-    const auto  n    = nvmath::cross(v1, v2);
+    const auto  v1   = glm::normalize(pos1 - pos0);  // Many normalize, but when objects are really small the
+    const auto  v2   = glm::normalize(pos2 - pos0);  // cross will go below nv_eps and the normal will be (0,0,0)
+    const auto  n    = glm::cross(v1, v2);
     geonormal[ind0] += n;
     geonormal[ind1] += n;
     geonormal[ind2] += n;
   }
   for(auto& n : geonormal)
-    n = nvmath::normalize(n);
+    n = glm::normalize(n);
   m_normals.insert(m_normals.end(), geonormal.begin(), geonormal.end());
 }
 
@@ -561,7 +565,7 @@ void GltfScene::createTexcoords(GltfPrimMesh& resultMesh)
 {
 
   // Set them all to zero
-  //      m_texcoords0.insert(m_texcoords0.end(), resultMesh.vertexCount, nvmath::vec2f(0, 0));
+  //      m_texcoords0.insert(m_texcoords0.end(), resultMesh.vertexCount, glm::vec2(0, 0));
 
   // Cube map projection
   for(uint32_t i = 0; i < resultMesh.vertexCount; i++)
@@ -646,8 +650,8 @@ void GltfScene::createTangents(GltfPrimMesh& resultMesh)
   // #TODO - Should calculate tangents using default MikkTSpace algorithms
   // See: https://github.com/mmikk/MikkTSpace
 
-  std::vector<nvmath::vec3f> tangent(resultMesh.vertexCount);
-  std::vector<nvmath::vec3f> bitangent(resultMesh.vertexCount);
+  std::vector<glm::vec3> tangent(resultMesh.vertexCount);
+  std::vector<glm::vec3> bitangent(resultMesh.vertexCount);
 
   // Current implementation
   // http://foundationsofgameenginedev.com/FGED2-sample.pdf
@@ -675,11 +679,11 @@ void GltfScene::createTangents(GltfPrimMesh& resultMesh)
     const auto& uv1 = m_texcoords0[gi1];
     const auto& uv2 = m_texcoords0[gi2];
 
-    nvmath::vec3f e1 = p1 - p0;
-    nvmath::vec3f e2 = p2 - p0;
+    glm::vec3 e1 = p1 - p0;
+    glm::vec3 e2 = p2 - p0;
 
-    nvmath::vec2f duvE1 = uv1 - uv0;
-    nvmath::vec2f duvE2 = uv2 - uv0;
+    glm::vec2 duvE1 = uv1 - uv0;
+    glm::vec2 duvE2 = uv2 - uv0;
 
     float r = 1.0F;
     float a = duvE1.x * duvE2.y - duvE2.x * duvE1.y;
@@ -688,8 +692,8 @@ void GltfScene::createTangents(GltfPrimMesh& resultMesh)
       r = 1.0f / a;
     }
 
-    nvmath::vec3f t = (e1 * duvE2.y - e2 * duvE1.y) * r;
-    nvmath::vec3f b = (e2 * duvE1.x - e1 * duvE2.x) * r;
+    glm::vec3 t = (e1 * duvE2.y - e2 * duvE1.y) * r;
+    glm::vec3 b = (e2 * duvE1.x - e1 * duvE2.x) * r;
 
 
     tangent[i0] += t;
@@ -708,19 +712,19 @@ void GltfScene::createTangents(GltfPrimMesh& resultMesh)
     const auto& n = m_normals[resultMesh.vertexOffset + a];
 
     // Gram-Schmidt orthogonalize
-    nvmath::vec3f otangent = nvmath::normalize(t - (nvmath::dot(n, t) * n));
+    glm::vec3 otangent = glm::normalize(t - (glm::dot(n, t) * n));
 
     // In case the tangent is invalid
-    if(otangent == nvmath::vec3f(0, 0, 0))
+    if(otangent == glm::vec3(0, 0, 0))
     {
       if(fabsf(n.x) > fabsf(n.y))
-        otangent = nvmath::vec3f(n.z, 0, -n.x) / sqrtf(n.x * n.x + n.z * n.z);
+        otangent = glm::vec3(n.z, 0, -n.x) / sqrtf(n.x * n.x + n.z * n.z);
       else
-        otangent = nvmath::vec3f(0, -n.z, n.y) / sqrtf(n.y * n.y + n.z * n.z);
+        otangent = glm::vec3(0, -n.z, n.y) / sqrtf(n.y * n.y + n.z * n.z);
     }
 
     // Calculate handedness
-    float handedness = (nvmath::dot(nvmath::cross(n, t), b) < 0.0F) ? 1.0F : -1.0F;
+    float handedness = (glm::dot(glm::cross(n, t), b) < 0.0F) ? 1.0F : -1.0F;
     m_tangents.emplace_back(otangent.x, otangent.y, otangent.z, handedness);
   }
 }
@@ -728,36 +732,32 @@ void GltfScene::createTangents(GltfPrimMesh& resultMesh)
 void GltfScene::createColors(GltfPrimMesh& resultMesh)
 {
   // Set them all to one
-  m_colors0.insert(m_colors0.end(), resultMesh.vertexCount, nvmath::vec4f(1, 1, 1, 1));
+  m_colors0.insert(m_colors0.end(), resultMesh.vertexCount, glm::vec4(1, 1, 1, 1));
 }
 
 //--------------------------------------------------------------------------------------------------
 // Return the matrix of the node
 //
-nvmath::mat4f getLocalMatrix(const tinygltf::Node& tnode)
+glm::mat4 getLocalMatrix(const tinygltf::Node& tnode)
 {
-  nvmath::mat4f mtranslation{1};
-  nvmath::mat4f mscale{1};
-  nvmath::mat4f mrot{1};
-  nvmath::mat4f matrix{1};
-  nvmath::quatf mrotation;
+  glm::mat4 mtranslation{1};
+  glm::mat4 mscale{1};
+  glm::mat4 mrot{1};
+  glm::mat4 matrix{1};
+  glm::quat mrotation;
 
   if(!tnode.translation.empty())
-    mtranslation.as_translation(nvmath::vec3f(tnode.translation[0], tnode.translation[1], tnode.translation[2]));
+    mtranslation = glm::translate(glm::mat4(1), glm::vec3(tnode.translation[0], tnode.translation[1], tnode.translation[2]));
   if(!tnode.scale.empty())
-    mscale.as_scale(nvmath::vec3f(tnode.scale[0], tnode.scale[1], tnode.scale[2]));
+    mscale = glm::scale(glm::mat4(1), glm::vec3(tnode.scale[0], tnode.scale[1], tnode.scale[2]));
   if(!tnode.rotation.empty())
   {
-    mrotation[0] = static_cast<float>(tnode.rotation[0]);
-    mrotation[1] = static_cast<float>(tnode.rotation[1]);
-    mrotation[2] = static_cast<float>(tnode.rotation[2]);
-    mrotation[3] = static_cast<float>(tnode.rotation[3]);
-    mrotation.to_matrix(mrot);
+    mrotation = glm::make_quat(tnode.rotation.data());
+    mrot      = glm::mat4_cast(mrotation);
   }
   if(!tnode.matrix.empty())
   {
-    for(int i = 0; i < 16; ++i)
-      matrix.mat_array[i] = static_cast<float>(tnode.matrix[i]);
+    matrix = glm::make_mat4(tnode.matrix.data());
   }
   return mtranslation * mrot * mscale * matrix;
 }
@@ -902,12 +902,12 @@ void GltfScene::computeCamera()
   {
     if(camera.eye == camera.center)  // Applying the rule only for uninitialized camera.
     {
-      camera.worldMatrix.get_translation(camera.eye);
-      float distance = nvmath::length(m_dimensions.center - camera.eye);
-      auto  rotMat   = camera.worldMatrix.get_rot_mat3();
-      camera.center  = {0, 0, -distance};
-      camera.center  = camera.eye + (rotMat * camera.center);
-      camera.up      = {0, 1, 0};
+      camera.eye         = glm::vec3(camera.worldMatrix[3]);
+      float     distance = glm::length(m_dimensions.center - camera.eye);
+      glm::mat3 rotMat   = glm::mat3(camera.worldMatrix);
+      camera.center      = {0, 0, -distance};
+      camera.center      = camera.eye + (rotMat * camera.center);
+      camera.up          = {0, 1, 0};
     }
   }
 }
@@ -1025,8 +1025,7 @@ void GltfScene::exportDrawableNodes(tinygltf::Model& tmodel, GltfAttributes requ
     olCol.len = appendData(tBuffer, m_colors0);
   }
 
-  nvmath::matrix4<double> identityMat;
-  identityMat.identity();
+  glm::dmat4 identityMat(1);
 
   // Nodes
   std::vector<tinygltf::Node> tnodes;
@@ -1047,8 +1046,10 @@ void GltfScene::exportDrawableNodes(tinygltf::Model& tmodel, GltfAttributes requ
       std::vector<double> matrix(16);
       for(int i = 0; i < 16; i++)
       {
-        isIdentity &= (identityMat.get_value()[i] == n.worldMatrix.get_value()[i]);
-        matrix[i] = n.worldMatrix.get_value()[i];
+        int row = i / 4;
+        int col = i % 4;
+        isIdentity &= (identityMat[row][col] == n.worldMatrix[row][col]);
+        matrix[i] = n.worldMatrix[row][col];
       }
       if(!isIdentity)
         node->matrix = matrix;
@@ -1073,10 +1074,14 @@ void GltfScene::exportDrawableNodes(tinygltf::Model& tmodel, GltfAttributes requ
     node.camera = 0;
     node.matrix.resize(16);
     for(int i = 0; i < 16; i++)
-      node.matrix[i] = m_cameras[0].worldMatrix.get_value()[i];
+    {
+      int row        = i / 4;
+      int col        = i % 4;
+      node.matrix[i] = m_cameras[0].worldMatrix[row][col];
+    }
 
     // Add extension with pos, interest and up
-    auto fct = [](const std::string& name, nvmath::vec3f val) {
+    auto fct = [](const std::string& name, glm::vec3 val) {
       tinygltf::Value::Array tarr;
       tarr.emplace_back(val.x);
       tarr.emplace_back(val.y);
@@ -1175,7 +1180,7 @@ void GltfScene::exportDrawableNodes(tinygltf::Model& tmodel, GltfAttributes requ
       tmodel.bufferViews.emplace_back();
       auto& tBufferView      = tmodel.bufferViews.back();
       tBufferView.buffer     = 0;
-      tBufferView.byteOffset = olPos.offset + pm.vertexOffset * sizeof(nvmath::vec3f);
+      tBufferView.byteOffset = olPos.offset + pm.vertexOffset * sizeof(glm::vec3);
       tBufferView.byteStride = 3 * sizeof(float);
       tBufferView.byteLength = pm.vertexCount * tBufferView.byteStride;
 
@@ -1200,7 +1205,7 @@ void GltfScene::exportDrawableNodes(tinygltf::Model& tmodel, GltfAttributes requ
       tmodel.bufferViews.emplace_back();
       auto& tBufferView      = tmodel.bufferViews.back();
       tBufferView.buffer     = 0;
-      tBufferView.byteOffset = olNrm.offset + pm.vertexOffset * sizeof(nvmath::vec3f);
+      tBufferView.byteOffset = olNrm.offset + pm.vertexOffset * sizeof(glm::vec3);
       tBufferView.byteStride = 3 * sizeof(float);
       tBufferView.byteLength = pm.vertexCount * tBufferView.byteStride;
 
@@ -1222,7 +1227,7 @@ void GltfScene::exportDrawableNodes(tinygltf::Model& tmodel, GltfAttributes requ
       tmodel.bufferViews.emplace_back();
       auto& tBufferView      = tmodel.bufferViews.back();
       tBufferView.buffer     = 0;
-      tBufferView.byteOffset = olTex.offset + pm.vertexOffset * sizeof(nvmath::vec2f);
+      tBufferView.byteOffset = olTex.offset + pm.vertexOffset * sizeof(glm::vec2);
       tBufferView.byteStride = 2 * sizeof(float);
       tBufferView.byteLength = pm.vertexCount * tBufferView.byteStride;
 
@@ -1244,7 +1249,7 @@ void GltfScene::exportDrawableNodes(tinygltf::Model& tmodel, GltfAttributes requ
       tmodel.bufferViews.emplace_back();
       auto& tBufferView      = tmodel.bufferViews.back();
       tBufferView.buffer     = 0;
-      tBufferView.byteOffset = olTan.offset + pm.vertexOffset * sizeof(nvmath::vec4f);
+      tBufferView.byteOffset = olTan.offset + pm.vertexOffset * sizeof(glm::vec4);
       tBufferView.byteStride = 4 * sizeof(float);
       tBufferView.byteLength = pm.vertexCount * tBufferView.byteStride;
 
@@ -1266,7 +1271,7 @@ void GltfScene::exportDrawableNodes(tinygltf::Model& tmodel, GltfAttributes requ
       tmodel.bufferViews.emplace_back();
       auto& tBufferView      = tmodel.bufferViews.back();
       tBufferView.buffer     = 0;
-      tBufferView.byteOffset = olCol.offset + pm.vertexOffset * sizeof(nvmath::vec4f);
+      tBufferView.byteOffset = olCol.offset + pm.vertexOffset * sizeof(glm::vec4);
       tBufferView.byteStride = 4 * sizeof(float);
       tBufferView.byteLength = pm.vertexCount * tBufferView.byteStride;
 

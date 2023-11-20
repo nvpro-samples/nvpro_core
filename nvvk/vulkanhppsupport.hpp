@@ -33,7 +33,7 @@
 namespace nvvk {
 bool checkResult(vk::Result result, const char* message);
 bool checkResult(vk::Result result, const char* file, int32_t line);
-}
+}  // namespace nvvk
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -43,7 +43,7 @@ namespace nvvkpp {
 class CommandPool : public nvvk::CommandPool
 {
 public:
-  CommandPool(CommandPool const&) = delete;
+  CommandPool(CommandPool const&)            = delete;
   CommandPool& operator=(CommandPool const&) = delete;
 
   CommandPool() {}
@@ -70,8 +70,8 @@ public:
 
 
   // ensure proper cycle is set prior this
-  VkCommandBuffer createCommandBuffer(vk::CommandBufferLevel      level = vk::CommandBufferLevel::ePrimary,
-                                      bool                        begin = true,
+  VkCommandBuffer createCommandBuffer(vk::CommandBufferLevel level = vk::CommandBufferLevel::ePrimary,
+                                      bool                   begin = true,
                                       vk::CommandBufferUsageFlags flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit,
                                       const vk::CommandBufferInheritanceInfo* pInheritanceInfo = nullptr)
   {
@@ -140,7 +140,7 @@ private:
 class RingCommandPool : public nvvk::RingCommandPool
 {
 public:
-  RingCommandPool(RingCommandPool const&) = delete;
+  RingCommandPool(RingCommandPool const&)            = delete;
   RingCommandPool& operator=(RingCommandPool const&) = delete;
 
   RingCommandPool(VkDevice                 device,
@@ -163,8 +163,8 @@ public:
   }
 
   // ensure proper cycle is set prior this
-  VkCommandBuffer createCommandBuffer(vk::CommandBufferLevel      level,
-                                      bool                        begin = true,
+  VkCommandBuffer createCommandBuffer(vk::CommandBufferLevel level,
+                                      bool                   begin = true,
                                       vk::CommandBufferUsageFlags flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit,
                                       const vk::CommandBufferInheritanceInfo* pInheritanceInfo = nullptr)
   {
@@ -186,7 +186,7 @@ public:
 class BatchSubmission : public nvvk::BatchSubmission
 {
 public:
-  BatchSubmission(BatchSubmission const&) = delete;
+  BatchSubmission(BatchSubmission const&)            = delete;
   BatchSubmission& operator=(BatchSubmission const&) = delete;
 
   BatchSubmission() {}
@@ -209,7 +209,7 @@ public:
 class FencedCommandPools : public nvvk::FencedCommandPools
 {
 public:
-  FencedCommandPools(FencedCommandPools const&) = delete;
+  FencedCommandPools(FencedCommandPools const&)            = delete;
   FencedCommandPools& operator=(FencedCommandPools const&) = delete;
 
   FencedCommandPools() {}
@@ -233,10 +233,7 @@ public:
     nvvk::FencedCommandPools::init(device, queue, queueFamilyIndex, (VkCommandPoolCreateFlags)flags, ringSize);
   }
 
-  void enqueue(vk::CommandBuffer cmdbuffer)
-  {
-    BatchSubmission::enqueue(cmdbuffer);
-  }
+  void enqueue(vk::CommandBuffer cmdbuffer) { BatchSubmission::enqueue(cmdbuffer); }
   void enqueue(uint32_t num, const vk::CommandBuffer* cmdbuffers)
   {
     nvvk::FencedCommandPools::enqueue(num, (const VkCommandBuffer*)cmdbuffers);
@@ -248,8 +245,8 @@ public:
 
 
   // ensure proper cycle is set prior this
-  VkCommandBuffer createCommandBuffer(vk::CommandBufferLevel      level = vk::CommandBufferLevel::ePrimary,
-                                      bool                        begin = true,
+  VkCommandBuffer createCommandBuffer(vk::CommandBufferLevel level = vk::CommandBufferLevel::ePrimary,
+                                      bool                   begin = true,
                                       vk::CommandBufferUsageFlags flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit,
                                       const vk::CommandBufferInheritanceInfo* pInheritanceInfo = nullptr)
   {
@@ -474,7 +471,7 @@ public:
 class DescriptorSetContainer : public nvvk::DescriptorSetContainer
 {
 public:
-  DescriptorSetContainer(DescriptorSetContainer const&) = delete;
+  DescriptorSetContainer(DescriptorSetContainer const&)            = delete;
   DescriptorSetContainer& operator=(DescriptorSetContainer const&) = delete;
 
   DescriptorSetContainer() {}
@@ -623,11 +620,11 @@ inline vk::ImageCreateInfo makeImage2DCreateInfo(vk::Extent2D        size,
                                      static_cast<VkImageUsageFlags>(usage), mipmaps);
 }
 
-inline vk::ImageViewCreateInfo makeImage2DViewCreateInfo(vk::Image            image,
-                                                         vk::Format           format,
+inline vk::ImageViewCreateInfo makeImage2DViewCreateInfo(vk::Image  image,
+                                                         vk::Format format,
                                                          vk::ImageAspectFlags aspectFlags = vk::ImageAspectFlagBits::eColor,
-                                                         uint32_t             levels      = VK_REMAINING_MIP_LEVELS,
-                                                         const void*          pNextImageView = nullptr)
+                                                         uint32_t    levels         = VK_REMAINING_MIP_LEVELS,
+                                                         const void* pNextImageView = nullptr)
 {
   return nvvk::makeImage2DViewCreateInfo(static_cast<VkImage>(image), static_cast<VkFormat>(format),
                                          static_cast<VkImageAspectFlags>(aspectFlags), levels, pNextImageView);
@@ -1233,7 +1230,7 @@ public:
     nvvk::RaytracingBuilderNV::buildBlas(geoms, static_cast<VkBuildAccelerationStructureFlagsNV>(flags));
   }
 
-  void buildTlas(const std::vector<Instance>&          instances,
+  void buildTlas(const std::vector<Instance>& instances,
                  vk::BuildAccelerationStructureFlagsNV flags = vk::BuildAccelerationStructureFlagBitsNV::ePreferFastTrace)
   {
     nvvk::RaytracingBuilderNV::buildTlas(instances, static_cast<VkBuildAccelerationStructureFlagsNV>(flags));
@@ -1283,7 +1280,7 @@ inline vk::RenderPass createRenderPass(vk::Device                     device,
 class ResourceAllocator : public nvvk::ResourceAllocator
 {
 public:
-  ResourceAllocator(ResourceAllocator const&) = delete;
+  ResourceAllocator(ResourceAllocator const&)            = delete;
   ResourceAllocator& operator=(ResourceAllocator const&) = delete;
 
   ResourceAllocator() = default;
@@ -1524,13 +1521,13 @@ protected:
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-inline vk::SamplerCreateInfo makeSamplerCreateInfo(vk::Filter             magFilter = vk::Filter::eLinear,
-                                                   vk::Filter             minFilter = vk::Filter::eLinear,
+inline vk::SamplerCreateInfo makeSamplerCreateInfo(vk::Filter magFilter = vk::Filter::eLinear,
+                                                   vk::Filter minFilter = vk::Filter::eLinear,
                                                    vk::SamplerAddressMode addressModeU = vk::SamplerAddressMode::eClampToEdge,
                                                    vk::SamplerAddressMode addressModeV = vk::SamplerAddressMode::eClampToEdge,
                                                    vk::SamplerAddressMode addressModeW = vk::SamplerAddressMode::eClampToEdge,
-                                                   vk::Bool32             anisotropyEnable = VK_FALSE,
-                                                   float                  maxAnisotropy    = 16,
+                                                   vk::Bool32            anisotropyEnable = VK_FALSE,
+                                                   float                 maxAnisotropy    = 16,
                                                    vk::SamplerMipmapMode mipmapMode    = vk::SamplerMipmapMode::eLinear,
                                                    float                 minLod        = 0.0f,
                                                    float                 maxLod        = FLT_MAX,

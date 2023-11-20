@@ -117,7 +117,7 @@ public:
     uint32_t index = INVALID_ID_INDEX;
   };
 
-  StagingMemoryManager(StagingMemoryManager const&) = delete;
+  StagingMemoryManager(StagingMemoryManager const&)            = delete;
   StagingMemoryManager& operator=(StagingMemoryManager const&) = delete;
 
   StagingMemoryManager() { m_debugName = "nvvk::StagingMemManager:" + std::to_string((uint64_t)this); }
@@ -135,8 +135,8 @@ public:
 
   // if true (default) we free the memory completely when released
   // otherwise we would keep blocks for re-use around, unless freeUnused() is called
-  void setFreeUnusedOnRelease(bool state) 
-  { 
+  void setFreeUnusedOnRelease(bool state)
+  {
     m_subToDevice.setKeepLastBlockOnFree(!state);
     m_subFromDevice.setKeepLastBlockOnFree(!state);
   }
@@ -242,23 +242,24 @@ protected:
   // in the struct refers to the next free list item, or itself
   // when in use.
 
-  struct Entry {
+  struct Entry
+  {
     BufferSubAllocator::Handle handle;
     bool                       toDevice;
   };
 
   struct StagingSet
   {
-    uint32_t                                index     = INVALID_ID_INDEX;
-    VkFence                                 fence     = VK_NULL_HANDLE;
-    bool                                    manualSet = false;
+    uint32_t           index     = INVALID_ID_INDEX;
+    VkFence            fence     = VK_NULL_HANDLE;
+    bool               manualSet = false;
     std::vector<Entry> entries;
   };
 
-  VkDevice            m_device         = VK_NULL_HANDLE;
-  
-  BufferSubAllocator  m_subToDevice;
-  BufferSubAllocator  m_subFromDevice;
+  VkDevice m_device = VK_NULL_HANDLE;
+
+  BufferSubAllocator m_subToDevice;
+  BufferSubAllocator m_subFromDevice;
 
   std::vector<StagingSet> m_sets;
 

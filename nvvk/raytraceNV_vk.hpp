@@ -48,10 +48,10 @@ const VkAccelerationStructureNV& tlas = m.rtBuilder.getAccelerationStructure()
 #if VK_NV_ray_tracing
 
 #include "resourceallocator_vk.hpp"
-#include "commands_vk.hpp" // this is only needed here to satisfy some samples that rely on it
+#include "commands_vk.hpp"  // this is only needed here to satisfy some samples that rely on it
 #include "debug_util_vk.hpp"
-#include "nvh/nvprint.hpp" // this is only needed here to satisfy some samples that rely on it
-#include "nvmath/nvmath.h"
+#include "nvh/nvprint.hpp"  // this is only needed here to satisfy some samples that rely on it
+#include <glm/glm.hpp>
 
 // See https://www.khronos.org/registry/vulkan/specs/1.1-extensions/html/chap33.html#acceleration-structure
 struct VkGeometryInstanceNV
@@ -74,7 +74,7 @@ namespace nvvk {
 class RaytracingBuilderNV
 {
 public:
-  RaytracingBuilderNV(RaytracingBuilderNV const&) = delete;
+  RaytracingBuilderNV(RaytracingBuilderNV const&)            = delete;
   RaytracingBuilderNV& operator=(RaytracingBuilderNV const&) = delete;
 
   RaytracingBuilderNV() = default;
@@ -92,7 +92,7 @@ public:
     uint32_t                  hitGroupId{0};  // Hit group index in the SBT
     uint32_t                  mask{0xFF};     // Visibility mask, will be AND-ed with ray mask
     VkGeometryInstanceFlagsNV flags = VK_GEOMETRY_INSTANCE_TRIANGLE_CULL_DISABLE_BIT_NV;
-    nvmath::mat4f             transform{nvmath::mat4f(1)};  // Identity
+    glm::mat4                 transform{glm::mat4(1)};  // Identity
   };
 
 

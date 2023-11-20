@@ -34,7 +34,6 @@ namespace nvvk {
 #define NVVK_DEFAULT_MEMORY_BLOCKSIZE (VkDeviceSize(128) * 1024 * 1024)
 
 
-
 //////////////////////////////////////////////////////////////////////////
 /**
   This framework assumes that memory heaps exists that support:
@@ -166,7 +165,7 @@ class DeviceMemoryAllocator : public MemAllocator
 public:
   static const float DEFAULT_PRIORITY;
 
-  DeviceMemoryAllocator(DeviceMemoryAllocator const&) = delete;
+  DeviceMemoryAllocator(DeviceMemoryAllocator const&)            = delete;
   DeviceMemoryAllocator& operator=(DeviceMemoryAllocator const&) = delete;
 
 
@@ -191,10 +190,7 @@ public:
     init(device, physicalDevice, blockSize, maxSize);
   }
 
-  void init(VkDevice         device,
-            VkPhysicalDevice physicalDevice,
-            VkDeviceSize     blockSize = NVVK_DEFAULT_MEMORY_BLOCKSIZE,
-            VkDeviceSize     maxSize   = 0);
+  void init(VkDevice device, VkPhysicalDevice physicalDevice, VkDeviceSize blockSize = NVVK_DEFAULT_MEMORY_BLOCKSIZE, VkDeviceSize maxSize = 0);
 
   void setDebugName(const std::string& name) { m_debugName = name; }
 
@@ -224,18 +220,18 @@ public:
   VkDeviceSize                            getMaxAllocationSize() const;
 
   //////////////////////////////////////////////////////////////////////////
-  
+
   // Implement MemAllocator interface
-  virtual MemHandle allocMemory(const MemAllocateInfo& allocInfo, VkResult *pResult = nullptr) override;
+  virtual MemHandle allocMemory(const MemAllocateInfo& allocInfo, VkResult* pResult = nullptr) override;
   virtual void      freeMemory(MemHandle memHandle) override;
   virtual MemInfo   getMemoryInfo(MemHandle memHandle) const override;
-  virtual void*     map(MemHandle memHandle, VkDeviceSize offset = 0, VkDeviceSize size = VK_WHOLE_SIZE, VkResult *pResult = nullptr) override;
-  virtual void      unmap(MemHandle memHandle) override;
+  virtual void* map(MemHandle memHandle, VkDeviceSize offset = 0, VkDeviceSize size = VK_WHOLE_SIZE, VkResult* pResult = nullptr) override;
+  virtual void unmap(MemHandle memHandle) override;
 
   virtual VkDevice         getDevice() const override;
   virtual VkPhysicalDevice getPhysicalDevice() const override;
 
-  AllocationID      getAllocationID(MemHandle memHandle) const;
+  AllocationID getAllocationID(MemHandle memHandle) const;
 
   //////////////////////////////////////////////////////////////////////////
 
@@ -250,7 +246,7 @@ public:
   // ignored if setPrioritySupported is not enabled
   float setPriority(float priority = DEFAULT_PRIORITY)
   {
-    float old  = m_defaultState.priority;
+    float old               = m_defaultState.priority;
     m_defaultState.priority = priority;
     return old;
   }
@@ -282,7 +278,7 @@ public:
     }
   }
 
-  VkMemoryAllocateFlags getAllocateFlags()      const { return m_defaultState.allocateFlags; }
+  VkMemoryAllocateFlags getAllocateFlags() const { return m_defaultState.allocateFlags; }
   uint32_t              getAllocateDeviceMask() const { return m_defaultState.allocateDeviceMask; }
 
   // make individual raw allocations.
@@ -327,11 +323,11 @@ public:
 
   // can have multiple map/unmaps at once, but must be paired
   // internally will keep the vk mapping active as long as one map is active
-  void* map(AllocationID allocationID, VkResult *pResult = nullptr);
+  void* map(AllocationID allocationID, VkResult* pResult = nullptr);
   void  unmap(AllocationID allocationID);
 
   template <class T>
-  T* mapT(AllocationID allocationID, VkResult *pResult = nullptr)
+  T* mapT(AllocationID allocationID, VkResult* pResult = nullptr)
   {
     return (T*)map(allocationID, pResult);
   }
@@ -488,7 +484,7 @@ protected:
   VkPhysicalDeviceMemoryProperties m_memoryProperties;
   VkPhysicalDevice                 m_physicalDevice = NULL;
 
-  State              m_defaultState;
+  State m_defaultState;
 
   VkBufferUsageFlags m_defaultBufferUsageFlags  = 0;
   bool               m_forceDedicatedAllocation = false;

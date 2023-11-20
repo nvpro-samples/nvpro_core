@@ -20,9 +20,9 @@
 #include "nvvkhl/appbase_vk.hpp"
 #include "nvp/perproject_globals.hpp"
 // Imgui
-#include "imgui.h"
-#include "backends/imgui_impl_glfw.h"
-#include "imgui/backends/imgui_impl_vulkan.h"
+#include <imgui.h>
+#include <backends/imgui_impl_glfw.h>
+#include <backends/imgui_impl_vulkan.h>
 #include "imgui/imgui_camera_widget.h"
 #include "imgui/imgui_helper.h"
 
@@ -698,18 +698,7 @@ void nvvkhl::AppBaseVk::initGUI(uint32_t subpassID /*= 0*/)
   init_info.MSAASamples               = VK_SAMPLE_COUNT_1_BIT;  // <--- need argument?
   init_info.CheckVkResultFn           = nullptr;
   init_info.Allocator                 = nullptr;
-
-#ifdef VK_KHR_dynamic_rendering
-  VkPipelineRenderingCreateInfoKHR rfInfo{VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR};
-  if(m_useDynamicRendering)
-  {
-    rfInfo.colorAttachmentCount    = 1;
-    rfInfo.pColorAttachmentFormats = &m_colorFormat;
-    rfInfo.depthAttachmentFormat   = m_depthFormat;
-    rfInfo.stencilAttachmentFormat = m_depthFormat;
-    init_info.rinfo                = &rfInfo;
-  }
-#endif
+  init_info.UseDynamicRendering       = m_useDynamicRendering;
 
   ImGui_ImplVulkan_Init(&init_info, m_renderPass);
 
@@ -722,7 +711,7 @@ void nvvkhl::AppBaseVk::initGUI(uint32_t subpassID /*= 0*/)
 //--------------------------------------------------------------------------------------------------
 // Fit the camera to the Bounding box
 //
-void nvvkhl::AppBaseVk::fitCamera(const nvmath::vec3f& boxMin, const nvmath::vec3f& boxMax, bool instantFit /*= true*/)
+void nvvkhl::AppBaseVk::fitCamera(const glm::vec3& boxMin, const glm::vec3& boxMax, bool instantFit /*= true*/)
 {
   CameraManip.fit(boxMin, boxMax, instantFit, false, m_size.width / static_cast<float>(m_size.height));
 }

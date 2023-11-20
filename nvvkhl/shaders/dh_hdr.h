@@ -20,16 +20,17 @@
 #ifndef DH_HDR_H
 #define DH_HDR_H 1
 
-#ifdef __cplusplus
-using namespace nvmath;
-using mat4 = nvmath::mat4f;
-using vec4 = nvmath::vec4f;
-using vec3 = nvmath::vec3f;
-using vec2 = nvmath::vec2f;
-#endif  // __cplusplus
-
 #ifndef WORKGROUP_SIZE
 #define WORKGROUP_SIZE 16  // Grid size used by compute shaders
+#endif
+
+#ifdef __cplusplus
+namespace nvvkhl_shaders {
+
+using uint = uint32_t;
+using mat4 = glm::mat4;
+using vec4 = glm::vec4;
+using vec2 = glm::vec2;
 #endif
 
 // Environment acceleration structure - computed in hdr_env
@@ -81,5 +82,10 @@ END_BINDING();
 START_BINDING(EnvDomeDraw)
 eHdrImage = 0
 END_BINDING();
+// clang-format on
+
+#ifdef __cplusplus
+}  // namespace nvvkhl_shaders
+#endif
 
 #endif  // DH_HDR_H

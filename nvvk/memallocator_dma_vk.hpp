@@ -46,20 +46,26 @@ public:
   void deinit() { m_dma = nullptr; }
 
   // Implement MemAllocator interface
-  virtual MemHandle allocMemory(const MemAllocateInfo& allocInfo, VkResult* pResult = nullptr) override { return m_dma->allocMemory(allocInfo, pResult); }
-  virtual void      freeMemory(MemHandle memHandle) override { return m_dma->freeMemory(memHandle); }
-  virtual MemInfo   getMemoryInfo(MemHandle memHandle) const override { return m_dma->getMemoryInfo(memHandle); }
-  virtual void*     map(MemHandle memHandle, VkDeviceSize offset = 0, VkDeviceSize size = VK_WHOLE_SIZE, VkResult* pResult = nullptr) override { return m_dma->map(memHandle, offset, size, pResult); }
-  virtual void      unmap(MemHandle memHandle) override { return m_dma->unmap(memHandle); }
+  virtual MemHandle allocMemory(const MemAllocateInfo& allocInfo, VkResult* pResult = nullptr) override
+  {
+    return m_dma->allocMemory(allocInfo, pResult);
+  }
+  virtual void    freeMemory(MemHandle memHandle) override { return m_dma->freeMemory(memHandle); }
+  virtual MemInfo getMemoryInfo(MemHandle memHandle) const override { return m_dma->getMemoryInfo(memHandle); }
+  virtual void* map(MemHandle memHandle, VkDeviceSize offset = 0, VkDeviceSize size = VK_WHOLE_SIZE, VkResult* pResult = nullptr) override
+  {
+    return m_dma->map(memHandle, offset, size, pResult);
+  }
+  virtual void unmap(MemHandle memHandle) override { return m_dma->unmap(memHandle); }
 
   virtual VkDevice         getDevice() const override { return m_dma->getDevice(); }
-  virtual VkPhysicalDevice getPhysicalDevice() const override{ return m_dma->getPhysicalDevice(); }
+  virtual VkPhysicalDevice getPhysicalDevice() const override { return m_dma->getPhysicalDevice(); }
 
   // Utility function
   AllocationID getAllocationID(MemHandle memHandle) const { return m_dma->getAllocationID(memHandle); }
 
 private:
-  nvvk::DeviceMemoryAllocator*     m_dma;
+  nvvk::DeviceMemoryAllocator* m_dma;
 };
 
 }  // namespace nvvk

@@ -44,7 +44,6 @@ _optional_package_VulkanSDK()
 _optional_package_ShaderC()
 _optional_package_OpenGL()
 _optional_package_DirectX12()
-_optional_package_Freeimage()
 _optional_package_Optix()
 _optional_package_Cuda()
 _optional_package_NVToolsExt()
@@ -59,7 +58,6 @@ file(GLOB NVHELPERS_SOURCE nvh/*.cpp nvh/*.hpp nvh/*.inl nvh/*.h)
 if (NOT TARGET tinygltf)
   list(REMOVE_ITEM NVHELPERS_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/nvh/gltfscene.cpp)
   list(REMOVE_ITEM NVHELPERS_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/nvh/gltfscene.hpp)
-  list(REMOVE_ITEM FILEFORMATS_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/fileformats/tiny_gltf_freeimage.h)
 endif()
 
 set(library_name "nvpro_core")
@@ -94,7 +92,7 @@ if(USING_VULKANSDK)
       SOURCE_FILES ${SHD_SRC}
       HEADER_FILES ${SHD_HDR}
       DST "${CMAKE_CURRENT_SOURCE_DIR}/_autogen" 
-      VULKAN_TARGET "vulkan1.2"
+      VULKAN_TARGET "vulkan1.3"
       HEADER ON
       DEPENDENCY ${VULKAN_BUILD_DEPENDENCIES}
       FLAGS "-I${SHD_DIR}" "-I${CMAKE_CURRENT_SOURCE_DIR}" -g
@@ -130,6 +128,8 @@ if(USING_IMGUI)
       imgui/imgui_camera_widget.h 
       imgui/imgui_helper.cpp
       imgui/imgui_helper.h
+      imgui/imgui_icon.cpp
+      imgui/imgui_icon.h
       imgui/imgui_orient.cpp  
       imgui/imgui_orient.h
       ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp
@@ -141,10 +141,8 @@ if(USING_IMGUI)
     list(REMOVE_ITEM IMGUI_SOURCE imgui/imgui_camera_widget.cpp)
   endif()
 
-  # pickup our own backend directory
-  include_directories(${CMAKE_CURRENT_SOURCE_DIR}/imgui ${CMAKE_CURRENT_SOURCE_DIR}/imgui/backends)
-  
   if(USING_OPENGL)
+    # replaced with our own copy
     list(APPEND IMGUI_SOURCE 
          ${CMAKE_CURRENT_SOURCE_DIR}/imgui/backends/imgui_impl_gl.cpp
          ${CMAKE_CURRENT_SOURCE_DIR}/imgui/backends/imgui_impl_gl.h
@@ -152,15 +150,11 @@ if(USING_IMGUI)
   endif() 
  
   if(USING_VULKANSDK)
-    # replaced with our own copy
-    list(REMOVE_ITEM IMGUI_SOURCE ${IMGUI_DIR}/imgui/backends/imgui_impl_vulkan.cpp)
-    list(REMOVE_ITEM IMGUI_SOURCE ${IMGUI_DIR}/imgui/backends/imgui_impl_vulkan.h)
-
     list(APPEND IMGUI_SOURCE 
          ${CMAKE_CURRENT_SOURCE_DIR}/imgui/backends/imgui_vk_extra.cpp 
          ${CMAKE_CURRENT_SOURCE_DIR}/imgui/backends/imgui_vk_extra.h
-         ${CMAKE_CURRENT_SOURCE_DIR}/imgui/backends/imgui_impl_vulkan.cpp 
-         ${CMAKE_CURRENT_SOURCE_DIR}/imgui/backends/imgui_impl_vulkan.h)
+         ${IMGUI_DIR}/backends/imgui_impl_vulkan.cpp 
+         ${IMGUI_DIR}/backends/imgui_impl_vulkan.h)
   endif()
  
   if(USING_DIRECTX12)
@@ -255,6 +249,7 @@ target_link_libraries(nvpro_core
   glfw 
   imgui
   fmt
+  glm
   ${THIRDPARTY_LIBRARIES}
  )
 

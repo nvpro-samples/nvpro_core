@@ -4661,4 +4661,3 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 
 
 /* clang-format on */
-

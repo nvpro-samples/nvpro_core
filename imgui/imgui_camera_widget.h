@@ -10,7 +10,7 @@
 
 #pragma once
 #include "nvh/cameramanipulator.hpp"
-#include "nvmath/nvmath.h"
+#include <glm/glm.hpp>
 
 namespace ImGuiH {
 

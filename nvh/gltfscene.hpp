@@ -47,7 +47,7 @@
 */
 
 #pragma once
-#include "nvmath/nvmath.h"
+#include <glm/glm.hpp>
 #include "tiny_gltf.h"
 #include <algorithm>
 #include <cassert>
@@ -67,32 +67,32 @@ namespace nvh {
 #define KHR_MATERIALS_PBRSPECULARGLOSSINESS_EXTENSION_NAME "KHR_materials_pbrSpecularGlossiness"
 struct KHR_materials_pbrSpecularGlossiness
 {
-  nvmath::vec4f diffuseFactor{1.f, 1.f, 1.f, 1.f};
-  int           diffuseTexture{-1};
-  nvmath::vec3f specularFactor{1.f, 1.f, 1.f};
-  float         glossinessFactor{1.f};
-  int           specularGlossinessTexture{-1};
+  glm::vec4 diffuseFactor{1.f, 1.f, 1.f, 1.f};
+  int       diffuseTexture{-1};
+  glm::vec3 specularFactor{1.f, 1.f, 1.f};
+  float     glossinessFactor{1.f};
+  int       specularGlossinessTexture{-1};
 };
 
 // https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_materials_specular/README.md
 #define KHR_MATERIALS_SPECULAR_EXTENSION_NAME "KHR_materials_specular"
 struct KHR_materials_specular
 {
-  float         specularFactor{1.f};
-  int           specularTexture{-1};
-  nvmath::vec3f specularColorFactor{1.f, 1.f, 1.f};
-  int           specularColorTexture{-1};
+  float     specularFactor{1.f};
+  int       specularTexture{-1};
+  glm::vec3 specularColorFactor{1.f, 1.f, 1.f};
+  int       specularColorTexture{-1};
 };
 
 // https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_texture_transform
 #define KHR_TEXTURE_TRANSFORM_EXTENSION_NAME "KHR_texture_transform"
 struct KHR_texture_transform
 {
-  nvmath::vec2f offset{0.f, 0.f};
-  float         rotation{0.f};
-  nvmath::vec2f scale{1.f};
-  int           texCoord{0};
-  nvmath::mat3f uvTransform{1};  // Computed transform of offset, rotation, scale
+  glm::vec2 offset{0.f, 0.f};
+  float     rotation{0.f};
+  glm::vec2 scale{1.f};
+  int       texCoord{0};
+  glm::mat3 uvTransform{1};  // Computed transform of offset, rotation, scale
 };
 
 
@@ -111,10 +111,10 @@ struct KHR_materials_clearcoat
 #define KHR_MATERIALS_SHEEN_EXTENSION_NAME "KHR_materials_sheen"
 struct KHR_materials_sheen
 {
-  nvmath::vec3f colorFactor{0.f, 0.f, 0.f};
-  int           colorTexture{-1};
-  float         roughnessFactor{0.f};
-  int           roughnessTexture{-1};
+  glm::vec3 colorFactor{0.f, 0.f, 0.f};
+  int       colorTexture{-1};
+  float     roughnessFactor{0.f};
+  int       roughnessTexture{-1};
 };
 
 // https://github.com/DassaultSystemes-Technology/glTF/tree/KHR_materials_volume/extensions/2.0/Khronos/KHR_materials_transmission
@@ -136,9 +136,9 @@ struct KHR_materials_unlit
 #define KHR_MATERIALS_ANISOTROPY_EXTENSION_NAME "KHR_materials_anisotropy"
 struct KHR_materials_anisotropy
 {
-  float         factor{0.f};
-  nvmath::vec3f direction{1.f, 0.f, 0.f};
-  int           texture{-1};
+  float     factor{0.f};
+  glm::vec3 direction{1.f, 0.f, 0.f};
+  int       texture{-1};
 };
 
 
@@ -153,10 +153,10 @@ struct KHR_materials_ior
 #define KHR_MATERIALS_VOLUME_EXTENSION_NAME "KHR_materials_volume"
 struct KHR_materials_volume
 {
-  float         thicknessFactor{0};
-  int           thicknessTexture{-1};
-  float         attenuationDistance{std::numeric_limits<float>::max()};
-  nvmath::vec3f attenuationColor{1.f, 1.f, 1.f};
+  float     thicknessFactor{0};
+  int       thicknessTexture{-1};
+  float     attenuationDistance{std::numeric_limits<float>::max()};
+  glm::vec3 attenuationColor{1.f, 1.f, 1.f};
 };
 
 
@@ -190,17 +190,17 @@ struct GltfMaterial
   int shadingModel{0};  // 0: metallic-roughness, 1: specular-glossiness
 
   // pbrMetallicRoughness
-  nvmath::vec4f baseColorFactor{1.f, 1.f, 1.f, 1.f};
-  int           baseColorTexture{-1};
-  float         metallicFactor{1.f};
-  float         roughnessFactor{1.f};
-  int           metallicRoughnessTexture{-1};
+  glm::vec4 baseColorFactor{1.f, 1.f, 1.f, 1.f};
+  int       baseColorTexture{-1};
+  float     metallicFactor{1.f};
+  float     roughnessFactor{1.f};
+  int       metallicRoughnessTexture{-1};
 
-  int           emissiveTexture{-1};
-  nvmath::vec3f emissiveFactor{0, 0, 0};
-  int           alphaMode{0};
-  float         alphaCutoff{0.5f};
-  int           doubleSided{0};
+  int       emissiveTexture{-1};
+  glm::vec3 emissiveFactor{0, 0, 0};
+  int       alphaMode{0};
+  float     alphaCutoff{0.5f};
+  int       doubleSided{0};
 
   int   normalTexture{-1};
   float normalTextureScale{1.f};
@@ -228,7 +228,7 @@ struct GltfMaterial
 
 struct GltfNode
 {
-  nvmath::mat4f         worldMatrix{1};
+  glm::mat4             worldMatrix{1};
   int                   primMesh{0};
   const tinygltf::Node* tnode{nullptr};
 };
@@ -241,9 +241,9 @@ struct GltfPrimMesh
   uint32_t vertexCount{0};
   int      materialIndex{0};
 
-  nvmath::vec3f posMin{0, 0, 0};
-  nvmath::vec3f posMax{0, 0, 0};
-  std::string   name;
+  glm::vec3   posMin{0, 0, 0};
+  glm::vec3   posMax{0, 0, 0};
+  std::string name;
 
   // Tiny Reference
   const tinygltf::Mesh*      tmesh{nullptr};
@@ -267,10 +267,10 @@ struct GltfStats
 
 struct GltfCamera
 {
-  nvmath::mat4f worldMatrix{1};
-  nvmath::vec3f eye{0, 0, 0};
-  nvmath::vec3f center{0, 0, 0};
-  nvmath::vec3f up{0, 1, 0};
+  glm::mat4 worldMatrix{1};
+  glm::vec3 eye{0, 0, 0};
+  glm::vec3 center{0, 0, 0};
+  glm::vec3 up{0, 1, 0};
 
   tinygltf::Camera cam;
 };
@@ -278,7 +278,7 @@ struct GltfCamera
 // See: https://github.com/KhronosGroup/glTF/blob/master/extensions/2.0/Khronos/KHR_lights_punctual/README.md
 struct GltfLight
 {
-  nvmath::mat4f   worldMatrix{1};
+  glm::mat4       worldMatrix{1};
   tinygltf::Light light;
 };
 
@@ -340,32 +340,32 @@ struct GltfScene
   std::vector<GltfLight>    m_lights;
 
   // Attributes, all same length if valid
-  std::vector<nvmath::vec3f> m_positions;
-  std::vector<uint32_t>      m_indices;
-  std::vector<nvmath::vec3f> m_normals;
-  std::vector<nvmath::vec4f> m_tangents;
-  std::vector<nvmath::vec2f> m_texcoords0;
-  std::vector<nvmath::vec2f> m_texcoords1;
-  std::vector<nvmath::vec4f> m_colors0;
+  std::vector<glm::vec3> m_positions;
+  std::vector<uint32_t>  m_indices;
+  std::vector<glm::vec3> m_normals;
+  std::vector<glm::vec4> m_tangents;
+  std::vector<glm::vec2> m_texcoords0;
+  std::vector<glm::vec2> m_texcoords1;
+  std::vector<glm::vec4> m_colors0;
 
   // #TODO - Adding support for Skinning
   //using vec4us = vector4<unsigned short>;
   //std::vector<vec4us>        m_joints0;
-  //std::vector<nvmath::vec4f> m_weights0;
+  //std::vector<glm::vec4> m_weights0;
 
   // Size of the scene
   struct Dimensions
   {
-    nvmath::vec3f min = nvmath::vec3f(std::numeric_limits<float>::max());
-    nvmath::vec3f max = nvmath::vec3f(std::numeric_limits<float>::min());
-    nvmath::vec3f size{0.f};
-    nvmath::vec3f center{0.f};
-    float         radius{0};
+    glm::vec3 min = glm::vec3(std::numeric_limits<float>::max());
+    glm::vec3 max = glm::vec3(std::numeric_limits<float>::min());
+    glm::vec3 size{0.f};
+    glm::vec3 center{0.f};
+    float     radius{0};
   } m_dimensions;
 
 
 private:
-  void processNode(const tinygltf::Model& tmodel, int& nodeIdx, const nvmath::mat4f& parentMatrix);
+  void processNode(const tinygltf::Model& tmodel, int& nodeIdx, const glm::mat4& parentMatrix);
   void processMesh(const tinygltf::Model&     tmodel,
                    const tinygltf::Primitive& tmesh,
                    GltfAttributes             requestedAttributes,
@@ -390,7 +390,7 @@ private:
   void findUsedMeshes(const tinygltf::Model& tmodel, std::set<uint32_t>& usedMeshes, int nodeIdx);
 };
 
-nvmath::mat4f getLocalMatrix(const tinygltf::Node& tnode);
+glm::mat4 getLocalMatrix(const tinygltf::Node& tnode);
 
 // Return a vector of data for a tinygltf::Value
 template <typename T>
@@ -423,30 +423,30 @@ static inline void getInt(const tinygltf::Value& value, const std::string& name,
   }
 }
 
-static inline void getVec2(const tinygltf::Value& value, const std::string& name, nvmath::vec2f& val)
+static inline void getVec2(const tinygltf::Value& value, const std::string& name, glm::vec2& val)
 {
   if(value.Has(name))
   {
     auto s = getVector<float>(value.Get(name));
-    val    = nvmath::vec2f{s[0], s[1]};
+    val    = glm::vec2{s[0], s[1]};
   }
 }
 
-static inline void getVec3(const tinygltf::Value& value, const std::string& name, nvmath::vec3f& val)
+static inline void getVec3(const tinygltf::Value& value, const std::string& name, glm::vec3& val)
 {
   if(value.Has(name))
   {
     auto s = getVector<float>(value.Get(name));
-    val    = nvmath::vec3f{s[0], s[1], s[2]};
+    val    = glm::vec3{s[0], s[1], s[2]};
   }
 }
 
-static inline void getVec4(const tinygltf::Value& value, const std::string& name, nvmath::vec4f& val)
+static inline void getVec4(const tinygltf::Value& value, const std::string& name, glm::vec4& val)
 {
   if(value.Has(name))
   {
     auto s = getVector<float>(value.Get(name));
-    val    = nvmath::vec4f{s[0], s[1], s[2], s[3]};
+    val    = glm::vec4{s[0], s[1], s[2], s[3]};
   }
 }
 
@@ -567,7 +567,7 @@ void copyAccessorData(T*                        outData,
   const unsigned char* buffer = &tmodel.buffers[bufferView.buffer].data[accessor.byteOffset + bufferView.byteOffset];
 
   const size_t maxSafeCopySize = std::min(accessor.count - accessorFirstElement, outDataSizeInElements - outFirstElement);
-  numElementsToCopy            = std::min(numElementsToCopy, maxSafeCopySize);
+  numElementsToCopy = std::min(numElementsToCopy, maxSafeCopySize);
 
   if(bufferView.byteStride == 0)
   {
@@ -601,7 +601,7 @@ void copyAccessorData(std::vector<T>&           outData,
 
 // Appending to \p attribVec, all the values of \p accessor
 // Return false if the accessor is invalid.
-// T must be nvmath::vec2f, nvmath::vec3f, or nvmath::vec4f.
+// T must be glm::vec2, glm::vec3, or glm::vec4.
 template <typename T>
 static bool getAccessorData(const tinygltf::Model& tmodel, const tinygltf::Accessor& accessor, std::vector<T>& attribVec)
 {
@@ -694,7 +694,7 @@ static bool getAccessorData(const tinygltf::Model& tmodel, const tinygltf::Acces
 
 // Appending to \p attribVec, all the values of \p attribName
 // Return false if the attribute is missing or invalid.
-// T must be nvmath::vec2f, nvmath::vec3f, or nvmath::vec4f.
+// T must be glm::vec2, glm::vec3, or glm::vec4.
 template <typename T>
 static bool getAttribute(const tinygltf::Model& tmodel, const tinygltf::Primitive& primitive, std::vector<T>& attribVec, const std::string& attribName)
 {

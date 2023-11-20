@@ -255,7 +255,7 @@ public:
     if(m_Ranges)
     {
       m_Ranges = static_cast<Range*>(::malloc(m_Capacity * sizeof(Range)));
-      assert(m_Ranges); // Make sure allocation succeeded
+      assert(m_Ranges);  // Make sure allocation succeeded
       memcpy(m_Ranges, other.m_Ranges, m_Capacity * sizeof(Range));
     }
   }
@@ -536,7 +536,7 @@ public:
     {
       m_Capacity += m_Capacity;
       m_Ranges = (Range*)realloc(m_Ranges, m_Capacity * sizeof(Range));
-      assert(m_Ranges); // Make sure reallocation succeeded
+      assert(m_Ranges);  // Make sure reallocation succeeded
     }
 
     ::memmove(m_Ranges + index + 1, m_Ranges + index, (m_Count - index) * sizeof(Range));

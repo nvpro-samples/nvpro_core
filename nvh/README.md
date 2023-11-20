@@ -171,7 +171,7 @@ Note: There is a singleton `CameraManip` which can be use across the entire appl
 ``` c++
 // Retrieve/set camera information
 CameraManip.getLookat(eye, center, up);
-CameraManip.setLookat(eye, center, nvmath::vec3f(m_upVector == 0, m_upVector == 1, m_upVector == 2));
+CameraManip.setLookat(eye, center, glm::vec3(m_upVector == 0, m_upVector == 1, m_upVector == 2));
 CameraManip.getFov();
 CameraManip.setSpeed(navSpeed);
 CameraManip.setMode(navMode == 0 ? nvh::CameraManipulator::Examine : nvh::CameraManipulator::Fly);

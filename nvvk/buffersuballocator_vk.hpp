@@ -93,7 +93,7 @@ public:
     {
       struct
       {
-        uint64_t blockIndex : 11; // 2047 blocks, typical blockSize 64 MB or more, should be enough
+        uint64_t blockIndex : 11;  // 2047 blocks, typical blockSize 64 MB or more, should be enough
         uint64_t offset : BLOCKBITS;
         uint64_t size : BLOCKBITS;
         uint64_t dedicated : 1;  // 0 dedicated or not
@@ -142,7 +142,7 @@ public:
   };
 
   //////////////////////////////////////////////////////////////////////////
-  BufferSubAllocator(BufferSubAllocator const&) = delete;
+  BufferSubAllocator(BufferSubAllocator const&)            = delete;
   BufferSubAllocator& operator=(BufferSubAllocator const&) = delete;
 
   BufferSubAllocator() { m_debugName = "nvvk::BufferSubAllocator:" + std::to_string((uint64_t)this); }
@@ -215,7 +215,7 @@ public:
   VkBuffer getBlockBuffer(uint32_t blockIndex) const { return m_blocks[blockIndex].buffer; }
 
   float getUtilization(VkDeviceSize& allocatedSize, VkDeviceSize& usedSize) const;
-  bool fitsInAllocated(VkDeviceSize size, uint32_t alignment = BASE_ALIGNMENT) const;
+  bool  fitsInAllocated(VkDeviceSize size, uint32_t alignment = BASE_ALIGNMENT) const;
 
   void free(bool onlyEmpty);
 
@@ -237,19 +237,19 @@ protected:
     VkDeviceSize                         size   = 0;
     VkBuffer                             buffer = VK_NULL_HANDLE;
     nvh::TRangeAllocator<BASE_ALIGNMENT> range;
-    MemHandle                            memory = NullMemHandle;
-    uint8_t*                             mapping = nullptr;
-    VkDeviceAddress                      address = 0;
+    MemHandle                            memory      = NullMemHandle;
+    uint8_t*                             mapping     = nullptr;
+    VkDeviceAddress                      address     = 0;
     bool                                 isDedicated = false;
   };
 
   MemAllocator*         m_memAllocator = nullptr;
-  VkDevice              m_device = VK_NULL_HANDLE;
+  VkDevice              m_device       = VK_NULL_HANDLE;
   uint32_t              m_memoryTypeIndex;
   VkDeviceSize          m_blockSize;
   VkBufferUsageFlags    m_bufferUsageFlags;
   VkMemoryPropertyFlags m_memoryPropFlags;
-  std::vector<uint32_t>  m_sharingQueueFamilyIndices;
+  std::vector<uint32_t> m_sharingQueueFamilyIndices;
   bool                  m_mapped;
   bool                  m_keepLastBlock = false;
 

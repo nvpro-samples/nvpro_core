@@ -186,8 +186,7 @@ public:
 
   //--------------------------------------------------------------------------------------------------
   // Basic buffer creation
-  nvvk::Buffer createBuffer(const VkBufferCreateInfo&   info_,
-                            const VkMemoryPropertyFlags memUsage_ = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+  nvvk::Buffer createBuffer(const VkBufferCreateInfo& info_, const VkMemoryPropertyFlags memUsage_ = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
   //--------------------------------------------------------------------------------------------------
   // Simple buffer creation
@@ -295,7 +294,7 @@ public:
   void destroy(nvvk::Texture& t_);
   void destroy(nvvk::SparseImage& i_);
   // Destroy a sparse image page. Returns true if that page actually was present in memory
-  bool destroy(nvvk::SparseImage& i_, uint32_t pageIndex, uint32_t layer=0);
+  bool destroy(nvvk::SparseImage& i_, uint32_t pageIndex, uint32_t layer = 0);
 
   //--------------------------------------------------------------------------------------------------
   // Other

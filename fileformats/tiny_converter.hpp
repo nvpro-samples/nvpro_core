@@ -21,7 +21,7 @@
 
 #include <functional>
 
-#include "nvmath/nvmath.h"
+#include <glm/glm.hpp>
 
 #include "tiny_gltf.h"
 #include "tiny_obj_loader.h"
@@ -62,9 +62,9 @@ private:
 
   struct Vertex
   {
-    nvmath::vec3f pos;
-    nvmath::vec3f nrm;
-    nvmath::vec2f tex;
+    glm::vec3 pos;
+    glm::vec3 nrm;
+    glm::vec2 tex;
 
     bool operator==(const Vertex& l) const { return this->pos == l.pos && this->nrm == l.nrm && this->tex == l.tex; }
   };
@@ -94,18 +94,17 @@ private:
   {
     Bbox() = default;
 
-    void insert(const nvmath::vec3f& v)
+    void insert(const glm::vec3& v)
     {
       m_min = {std::min(m_min[0], v[0]), std::min(m_min[1], v[1]), std::min(m_min[2], v[2])};
       m_max = {std::max(m_max[0], v[0]), std::max(m_max[1], v[1]), std::max(m_max[2], v[2])};
     }
-    inline nvmath::vec3f min() { return m_min; }
-    inline nvmath::vec3f max() { return m_max; }
+    inline glm::vec3 min() { return m_min; }
+    inline glm::vec3 max() { return m_max; }
 
   private:
-    nvmath::vec3f m_min{std::numeric_limits<float>::max(), std::numeric_limits<float>::max(), std::numeric_limits<float>::max()};
-    nvmath::vec3f m_max{-std::numeric_limits<float>::max(), -std::numeric_limits<float>::max(),
-                        -std::numeric_limits<float>::max()};
+    glm::vec3 m_min{std::numeric_limits<float>::max(), std::numeric_limits<float>::max(), std::numeric_limits<float>::max()};
+    glm::vec3 m_max{-std::numeric_limits<float>::max(), -std::numeric_limits<float>::max(), -std::numeric_limits<float>::max()};
   };
 
   std::size_t makeHash(const Vertex& v)

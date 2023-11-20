@@ -22,6 +22,11 @@
 #ifndef _nvmathtypes_h_
 #define _nvmathtypes_h_
 
+#ifndef NVMATH_SUPPORTS_GLM
+#define NVMATH_SUPPORTS_GLM
+#endif
+
+
 #include <assert.h>
 #include <cmath>
 

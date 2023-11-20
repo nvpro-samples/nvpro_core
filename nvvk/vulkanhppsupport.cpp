@@ -29,7 +29,7 @@ bool checkResult(vk::Result result, const char* file, int32_t line)
 {
   return nvvk::checkResult((VkResult)result, file, line);
 }
-}
+}  // namespace nvvk
 
 namespace nvvkpp {
 

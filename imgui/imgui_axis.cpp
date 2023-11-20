@@ -24,7 +24,7 @@
 #include <math.h>
 
 #include "imgui_axis.hpp"
-#include "nvmath/nvmath.h"
+#include <glm/glm.hpp>
 
 //////////////////////////////////////////////////////////////////////////
 // This IMGUI widget draw axis in red, green and blue at the position
@@ -84,22 +84,22 @@ struct AxisGeom
     }
   }
 
-  std::vector<nvmath::vec3f> red;
-  std::vector<nvmath::vec3f> green;
-  std::vector<nvmath::vec3f> blue;
-  std::vector<int>           indices;
+  std::vector<glm::vec3> red;
+  std::vector<glm::vec3> green;
+  std::vector<glm::vec3> blue;
+  std::vector<int>       indices;
 
   // Return the transformed arrow
-  std::vector<nvmath::vec3f> transform(const std::vector<nvmath::vec3f>& in_vec, const ImVec2& pos, const nvmath::mat4f& modelView, float size)
+  std::vector<glm::vec3> transform(const std::vector<glm::vec3>& in_vec, const ImVec2& pos, const glm::mat4& modelView, float size)
   {
-    std::vector<nvmath::vec3f> temp(in_vec.size());
+    std::vector<glm::vec3> temp(in_vec.size());
 
     for(size_t i = 0; i < in_vec.size(); ++i)
     {
-      temp[i] = nvmath::vec3f(modelView * nvmath::vec4f(in_vec[i], 0.F));  // Rotate
-      temp[i].x *= size;                                                   // Scale
-      temp[i].y *= -size;                                                  // - invert Y
-      temp[i].x += pos.x;                                                  // Translate
+      temp[i] = glm::vec3(modelView * glm::vec4(in_vec[i], 0.F));  // Rotate
+      temp[i].x *= size;                                           // Scale
+      temp[i].y *= -size;                                          // - invert Y
+      temp[i].x += pos.x;                                          // Translate
       temp[i].y += pos.y;
     }
     return temp;
@@ -125,7 +125,7 @@ struct AxisGeom
   }
 
   // Draw the arrow
-  void draw(const std::vector<nvmath::vec3f>& vertex, ImU32 col)
+  void draw(const std::vector<glm::vec3>& vertex, ImU32 col)
   {
     auto         draw_list = ImGui::GetWindowDrawList();
     const ImVec2 uv        = ImGui::GetFontTexUvWhitePixel();
@@ -152,14 +152,14 @@ struct AxisGeom
 };
 
 
-void ImGuiH::Axis(ImVec2 pos, const nvmath::mat4f& modelView, float size /*= 20.f*/)
+void ImGuiH::Axis(ImVec2 pos, const glm::mat4& modelView, float size /*= 20.f*/)
 {
   static AxisGeom a;
 
   struct Arrow
   {
-    std::vector<nvmath::vec3f> v;
-    ImU32                      c{0};
+    std::vector<glm::vec3> v;
+    ImU32                  c{0};
   };
 
   size *= ImGui::GetWindowDpiScale();

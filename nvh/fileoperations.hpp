@@ -136,7 +136,8 @@ inline std::string getFileName(std::string const& fullPath)
 {
   // Determine the last occurrence of path separator
   std::size_t lastSeparator = fullPath.find_last_of("/\\");
-  if (lastSeparator == std::string::npos) {
+  if(lastSeparator == std::string::npos)
+  {
     // If no separator found, return fullPath as it is (considered as filename)
     return fullPath;
   }

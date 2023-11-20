@@ -59,7 +59,7 @@ inline std::string stringFormat(const char* msg, ...)
     int charsNeeded = vsnprintf(&str[0], str.size(), msg, list);  // charsNeeded doesn't count \0
     va_end(list);
 
-    if (charsNeeded < 0)
+    if(charsNeeded < 0)
     {
       assert(!"encoding error");
       return std::string();

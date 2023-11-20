@@ -55,7 +55,10 @@ public:
   // Convenience constructures that infer the allocation information from the image object directly.
   // If the driver _prefers_ a dedicated allocation for this particular image and allowDedicatedAllocation is true, a dedicated allocation will be requested.
   // If the driver _requires_ a dedicated allocation, a dedicated allocation will be requested regardless of 'allowDedicatedAllocation'.
-  MemAllocateInfo(VkDevice device, VkImage image, VkMemoryPropertyFlags memProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, bool allowDedicatedAllocation = true);
+  MemAllocateInfo(VkDevice              device,
+                  VkImage               image,
+                  VkMemoryPropertyFlags memProps                 = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                  bool                  allowDedicatedAllocation = true);
 
   // Determines which heap to allocate from
   MemAllocateInfo& setMemoryProperties(VkMemoryPropertyFlags flags);
@@ -114,10 +117,10 @@ struct BakedAllocateInfo
   // In lieu of proper copy operators, need to delete them as we store
   // addresses to members in other members. Copying such object would make them point to
   // wrong or out-of-scope addresses
-  BakedAllocateInfo(BakedAllocateInfo&& other) = delete;
+  BakedAllocateInfo(BakedAllocateInfo&& other)           = delete;
   BakedAllocateInfo operator=(BakedAllocateInfo&& other) = delete;
   BakedAllocateInfo(const BakedAllocateInfo&)            = delete;
-  BakedAllocateInfo operator=(const BakedAllocateInfo) = delete;
+  BakedAllocateInfo operator=(const BakedAllocateInfo)   = delete;
 
   VkMemoryAllocateInfo          memAllocInfo{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
   VkMemoryAllocateFlagsInfo     flagsInfo{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO};
@@ -125,7 +128,7 @@ struct BakedAllocateInfo
   VkExportMemoryAllocateInfo    exportInfo{VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO};
 };
 
-bool     fillBakedAllocateInfo(const VkPhysicalDeviceMemoryProperties& physMemProps, const MemAllocateInfo& info, BakedAllocateInfo& baked);
+bool fillBakedAllocateInfo(const VkPhysicalDeviceMemoryProperties& physMemProps, const MemAllocateInfo& info, BakedAllocateInfo& baked);
 uint32_t getMemoryType(const VkPhysicalDeviceMemoryProperties& memoryProperties, uint32_t typeBits, const VkMemoryPropertyFlags& properties);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

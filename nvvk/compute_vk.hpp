@@ -85,13 +85,13 @@ enum DispatcherBarrier
   eRaytracing = 8
 };
 
-template <typename TPushConstants, typename TBindingEnum>
+template <typename TPushConstants, typename TBindingEnum, uint32_t pipelineCount = 1u>
 struct PushComputeDispatcher
 {
-  VkPipelineLayout            layout{};
-  VkPipeline                  pipeline{};
-  VkDescriptorSetLayout       dsetLayout{};
-  nvvk::DescriptorSetBindings bindings;
+  VkPipelineLayout                      layout{};
+  std::array<VkPipeline, pipelineCount> pipelines{};
+  VkDescriptorSetLayout                 dsetLayout{};
+  nvvk::DescriptorSetBindings           bindings;
 
   std::unordered_map<TBindingEnum, std::unique_ptr<VkDescriptorBufferInfo>>                       bufferInfos;
   std::unordered_map<TBindingEnum, std::unique_ptr<VkWriteDescriptorSetAccelerationStructureKHR>> accelInfos;
@@ -100,8 +100,8 @@ struct PushComputeDispatcher
 
   TPushConstants pushConstants{};
 
-  std::vector<VkWriteDescriptorSet> writes;
-  VkShaderModule                    shaderModule;
+  std::vector<VkWriteDescriptorSet>         writes;
+  std::array<VkShaderModule, pipelineCount> shaderModules;
 
   bool addBufferBinding(TBindingEnum index)
   {
@@ -133,14 +133,14 @@ struct PushComputeDispatcher
       info->sType                      = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
       info->pNext                      = nullptr;
       info->accelerationStructureCount = 1;
-      info->pAccelerationStructures = acc;
+      info->pAccelerationStructures    = acc;
 
       writes.emplace_back(bindings.makeWrite(0, index, info));
       return true;
     }
     return false;
   }
-  bool addSampledImageBinding(TBindingEnum  index)
+  bool addSampledImageBinding(TBindingEnum index)
   {
     if(sampledImageInfos.find(index) == sampledImageInfos.end())
     {
@@ -192,14 +192,14 @@ struct PushComputeDispatcher
   }
 
 
-  bool setCode(VkDevice device, void* shaderCode, size_t codeSize)
+  bool setCode(VkDevice device, void* shaderCode, size_t codeSize, uint32_t pipelineIndex = 0u)
   {
     VkShaderModuleCreateInfo moduleCreateInfo{VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
     moduleCreateInfo.codeSize = codeSize;
     moduleCreateInfo.pCode    = reinterpret_cast<uint32_t*>(shaderCode);
 
-    VkResult r = vkCreateShaderModule(device, &moduleCreateInfo, nullptr, &shaderModule);
-    if(r != VK_SUCCESS || shaderModule == VK_NULL_HANDLE)
+    VkResult r = vkCreateShaderModule(device, &moduleCreateInfo, nullptr, &(shaderModules[pipelineIndex]));
+    if(r != VK_SUCCESS || shaderModules[pipelineIndex] == VK_NULL_HANDLE)
     {
       return false;
     }
@@ -228,19 +228,21 @@ struct PushComputeDispatcher
     stageCreateInfo.stage                           = VK_SHADER_STAGE_COMPUTE_BIT;
     stageCreateInfo.pName                           = "main";
 
-    stageCreateInfo.module = shaderModule;
 
-    VkComputePipelineCreateInfo createInfo{VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO};
-    createInfo.stage  = stageCreateInfo;
-    createInfo.layout = layout;
-
-
-    r = vkCreateComputePipelines(device, VK_NULL_HANDLE, 1, &createInfo, nullptr, &pipeline);
-    if(r != VK_SUCCESS || pipeline == VK_NULL_HANDLE)
+    for(uint32_t i = 0; i < pipelineCount; i++)
     {
-      return false;
+      stageCreateInfo.module = shaderModules[i];
+
+      VkComputePipelineCreateInfo createInfo{VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO};
+      createInfo.stage  = stageCreateInfo;
+      createInfo.layout = layout;
+      r                 = vkCreateComputePipelines(device, VK_NULL_HANDLE, 1, &createInfo, nullptr, &pipelines[i]);
+      if(r != VK_SUCCESS || pipelines[i] == VK_NULL_HANDLE)
+      {
+        return false;
+      }
+      vkDestroyShaderModule(device, shaderModules[i], nullptr);
     }
-    vkDestroyShaderModule(device, shaderModule, nullptr);
     return true;
   }
 
@@ -253,9 +255,9 @@ struct PushComputeDispatcher
 
   // Bind the pipeline resources. Used internally, or if the app uses a direct call to
   // vkCmdDispatch instead of the dispatch() method
-  void bind(VkCommandBuffer cmd, const TPushConstants* constants = nullptr)
+  void bind(VkCommandBuffer cmd, const TPushConstants* constants = nullptr, uint32_t pipelineIndex = 0u)
   {
-    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, pipelines[pipelineIndex]);
     if(constants != nullptr)
     {
       vkCmdPushConstants(cmd, layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(TPushConstants), constants);
@@ -269,18 +271,23 @@ struct PushComputeDispatcher
                        const TPushConstants* constants   = nullptr,
                        uint32_t              postBarrier = DispatcherBarrier::eCompute,
                        uint32_t              preBarrier  = DispatcherBarrier::eNone,
-                       uint32_t              blockSize   = NVVK_COMPUTE_DEFAULT_BLOCK_SIZE)
+                       uint32_t              blockSize   = NVVK_COMPUTE_DEFAULT_BLOCK_SIZE,
+                       // If pipelineIndex == ~0u, all pipelines will be executed sequentially. Otherwise, only dispatch the requested pipeline
+                       uint32_t pipelineIndex = ~0u)
   {
     uint32_t blockCount = getBlockCount(threadCount, blockSize);
-    dispatchBlocks(cmd, blockCount, constants, postBarrier, preBarrier);
+    dispatchBlocks(cmd, blockCount, constants, postBarrier, preBarrier, pipelineIndex);
   }
 
   void dispatchBlocks(VkCommandBuffer       cmd,
                       uint32_t              blockCount,
                       const TPushConstants* constants   = nullptr,
                       uint32_t              postBarrier = DispatcherBarrier::eCompute,
-                      uint32_t              preBarrier  = DispatcherBarrier::eNone)
+                      uint32_t              preBarrier  = DispatcherBarrier::eNone,
+                      // If pipelineIndex == ~0u, all pipelines will be executed sequentially. Otherwise, only dispatch the requested pipeline
+                      uint32_t pipelineIndex = ~0u)
   {
+
     if(preBarrier != eNone)
     {
       VkMemoryBarrier mb{VK_STRUCTURE_TYPE_MEMORY_BARRIER};
@@ -298,46 +305,54 @@ struct PushComputeDispatcher
       }
       if(preBarrier & eTransfer)
       {
-        mb.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_TRANSFER_WRITE_BIT;
+        mb.srcAccessMask |= VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_TRANSFER_WRITE_BIT;
         srcStage |= VK_PIPELINE_STAGE_TRANSFER_BIT;
       }
 
       vkCmdPipelineBarrier(cmd, srcStage, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 1, &mb, 0, nullptr, 0, nullptr);
     }
 
+    uint32_t currentPipeline = (pipelineIndex == ~0u) ? 0 : pipelineIndex;
+    uint32_t count           = (pipelineIndex == ~0u) ? pipelineCount : 1;
 
-    bind(cmd, constants);
-    vkCmdDispatch(cmd, blockCount, 1, 1);
-
-    if(postBarrier != eNone)
+    for(uint32_t i = 0; i < count; i++)
     {
-      VkMemoryBarrier mb{VK_STRUCTURE_TYPE_MEMORY_BARRIER};
-      mb.srcAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-      VkPipelineStageFlags dstStage{};
-      if((postBarrier & eCompute) || (postBarrier & eGraphics) || (postBarrier & eRaytracing))
-      {
-        mb.dstAccessMask |= VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-        if(postBarrier & eCompute)
-          dstStage |= VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
-        if(postBarrier & eGraphics)
-          dstStage |= VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
-        if(postBarrier & eRaytracing)
-          dstStage |= VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR;
-      }
-      if(postBarrier & eTransfer)
-      {
-        mb.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_TRANSFER_WRITE_BIT;
-        dstStage |= VK_PIPELINE_STAGE_TRANSFER_BIT;
-      }
+      bind(cmd, constants, currentPipeline + i);
+      vkCmdDispatch(cmd, blockCount, 1, 1);
 
-      vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, dstStage, 0, 1, &mb, 0, nullptr, 0, nullptr);
+      if(postBarrier != eNone)
+      {
+        VkMemoryBarrier mb{VK_STRUCTURE_TYPE_MEMORY_BARRIER};
+        mb.srcAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+        VkPipelineStageFlags dstStage{};
+        if((postBarrier & eCompute) || (postBarrier & eGraphics) || (postBarrier & eRaytracing))
+        {
+          mb.dstAccessMask |= VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+          if(postBarrier & eCompute)
+            dstStage |= VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+          if(postBarrier & eGraphics)
+            dstStage |= VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
+          if(postBarrier & eRaytracing)
+            dstStage |= VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR;
+        }
+        if(postBarrier & eTransfer)
+        {
+          mb.dstAccessMask |= VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_TRANSFER_WRITE_BIT;
+          dstStage |= VK_PIPELINE_STAGE_TRANSFER_BIT;
+        }
+
+        vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, dstStage, 0, 1, &mb, 0, nullptr, 0, nullptr);
+      }
     }
   }
 
   void destroy(VkDevice device)
   {
     vkDestroyPipelineLayout(device, layout, nullptr);
-    vkDestroyPipeline(device, pipeline, nullptr);
+    for(uint32_t i = 0; i < pipelineCount; i++)
+    {
+      vkDestroyPipeline(device, pipelines[i], nullptr);
+    }
     vkDestroyDescriptorSetLayout(device, dsetLayout, nullptr);
 
     bufferInfos.clear();

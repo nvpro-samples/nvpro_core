@@ -40,7 +40,7 @@ TonemapperPostProcess::TonemapperPostProcess(nvvk::Context* ctx, AllocVma* alloc
     , m_dsetGraphics(std::make_unique<nvvk::DescriptorSetContainer>(ctx->m_device))
     , m_dsetCompute(std::make_unique<nvvk::DescriptorSetContainer>(ctx->m_device))
 {
-  m_settings = defaultTonemapper();
+  m_settings = nvvkhl_shaders::defaultTonemapper();
 }
 
 TonemapperPostProcess::~TonemapperPostProcess()
@@ -56,11 +56,11 @@ void TonemapperPostProcess::createGraphicPipeline(VkFormat colorFormat, VkFormat
   m_mode = TmMode::eGraphic;
 
   auto& d = m_dsetGraphics;
-  d->addBinding(eTonemapperInput, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
+  d->addBinding(nvvkhl_shaders::eTonemapperInput, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
   d->initLayout(VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR);
   m_dutil->DBG_NAME(d->getLayout());
 
-  VkPushConstantRange push_constant_ranges = {VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(Tonemapper)};
+  VkPushConstantRange push_constant_ranges = {VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(nvvkhl_shaders::Tonemapper)};
 
   d->initPipeLayout(1, &push_constant_ranges);
   m_dutil->DBG_NAME(d->getPipeLayout());
@@ -91,12 +91,12 @@ void TonemapperPostProcess::createComputePipeline()
   nvvk::DebugUtil dbg(m_ctx->m_device);
 
   auto& d = m_dsetCompute;
-  d->addBinding(eTonemapperInput, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_COMPUTE_BIT);
-  d->addBinding(eTonemapperOutput, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT);
+  d->addBinding(nvvkhl_shaders::eTonemapperInput, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_COMPUTE_BIT);
+  d->addBinding(nvvkhl_shaders::eTonemapperOutput, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT);
   d->initLayout(VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR);
   m_dutil->DBG_NAME(d->getLayout());
 
-  VkPushConstantRange push_constant_ranges = {VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(Tonemapper)};
+  VkPushConstantRange push_constant_ranges = {VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(nvvkhl_shaders::Tonemapper)};
 
   d->initPipeLayout(1, &push_constant_ranges);
   m_dutil->DBG_NAME(d->getPipeLayout());
@@ -122,7 +122,7 @@ void TonemapperPostProcess::updateGraphicDescriptorSets(VkDescriptorImageInfo in
   assert(m_mode == TmMode::eGraphic);
   m_iimage = std::make_unique<VkDescriptorImageInfo>(inImage);
   m_writes.clear();
-  m_writes.emplace_back(m_dsetGraphics->makeWrite(0, eTonemapperInput, m_iimage.get()));
+  m_writes.emplace_back(m_dsetGraphics->makeWrite(0, nvvkhl_shaders::eTonemapperInput, m_iimage.get()));
 }
 
 void TonemapperPostProcess::updateComputeDescriptorSets(VkDescriptorImageInfo inImage, VkDescriptorImageInfo outImage)
@@ -131,8 +131,8 @@ void TonemapperPostProcess::updateComputeDescriptorSets(VkDescriptorImageInfo in
   m_iimage = std::make_unique<VkDescriptorImageInfo>(inImage);
   m_oimage = std::make_unique<VkDescriptorImageInfo>(outImage);
   m_writes.clear();
-  m_writes.emplace_back(m_dsetCompute->makeWrite(0, eTonemapperInput, m_iimage.get()));
-  m_writes.emplace_back(m_dsetCompute->makeWrite(0, eTonemapperOutput, m_oimage.get()));
+  m_writes.emplace_back(m_dsetCompute->makeWrite(0, nvvkhl_shaders::eTonemapperInput, m_iimage.get()));
+  m_writes.emplace_back(m_dsetCompute->makeWrite(0, nvvkhl_shaders::eTonemapperOutput, m_oimage.get()));
 }
 
 
@@ -140,7 +140,8 @@ void TonemapperPostProcess::runGraphic(VkCommandBuffer cmd)
 {
   assert(m_mode == TmMode::eGraphic);
   auto sdbg = m_dutil->DBG_SCOPE(cmd);
-  vkCmdPushConstants(cmd, m_dsetGraphics->getPipeLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(Tonemapper), &m_settings);
+  vkCmdPushConstants(cmd, m_dsetGraphics->getPipeLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, 0,
+                     sizeof(nvvkhl_shaders::Tonemapper), &m_settings);
 
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
   vkCmdPushDescriptorSetKHR(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_dsetGraphics->getPipeLayout(), 0,
@@ -152,7 +153,8 @@ void TonemapperPostProcess::runCompute(VkCommandBuffer cmd, const VkExtent2D& si
 {
   assert(m_mode == TmMode::eCompute);
   auto sdbg = m_dutil->DBG_SCOPE(cmd);
-  vkCmdPushConstants(cmd, m_dsetCompute->getPipeLayout(), VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(Tonemapper), &m_settings);
+  vkCmdPushConstants(cmd, m_dsetCompute->getPipeLayout(), VK_SHADER_STAGE_COMPUTE_BIT, 0,
+                     sizeof(nvvkhl_shaders::Tonemapper), &m_settings);
   vkCmdPushDescriptorSetKHR(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_dsetCompute->getPipeLayout(), 0,
                             static_cast<uint32_t>(m_writes.size()), m_writes.data());
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_computePipeline);
@@ -185,13 +187,13 @@ bool TonemapperPostProcess::onUI()
       PropertyEditor::entry("Saturation", [&]() { return ImGui::SliderFloat("##1", &m_settings.saturation, 0.0F, 2.0F); });
   changed |=
       PropertyEditor::entry("Vignette", [&]() { return ImGui::SliderFloat("##1", &m_settings.vignette, 0.0F, 1.0F); });
-  ImGui::BeginDisabled(m_settings.method == eTonemapFilmic);
+  ImGui::BeginDisabled(m_settings.method == nvvkhl_shaders::eTonemapFilmic);
   changed |= PropertyEditor::entry("Gamma", [&]() { return ImGui::SliderFloat("##1", &m_settings.gamma, 1.0F, 2.2F); });
   ImGui::EndDisabled();
   if(PropertyEditor::entry(
          " ", [&]() { return ImGui::SmallButton("reset"); }, "Resetting to the original values"))
   {
-    m_settings = Tonemapper{};
+    m_settings = nvvkhl_shaders::Tonemapper{};
     changed    = true;
   }
   PropertyEditor::end();

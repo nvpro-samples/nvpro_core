@@ -20,6 +20,8 @@
 
 #include "gizmos_vk.hpp"
 
+#include <glm/gtc/type_ptr.hpp>
+
 namespace nvvk {
 
 //#include "E:\temp\glsl\axis.vert.h"
@@ -124,7 +126,7 @@ static const uint32_t s_frag_spv[] = {
 //--------------------------------------------------------------------------------------------------
 //
 //
-void AxisVK::display(VkCommandBuffer cmdBuf, const nvmath::mat4f& transform, const VkExtent2D& screenSize)
+void AxisVK::display(VkCommandBuffer cmdBuf, const glm::mat4& transform, const VkExtent2D& screenSize)
 {
   vkCmdBindPipeline(cmdBuf, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineTriangleFan);
 
@@ -143,18 +145,18 @@ void AxisVK::display(VkCommandBuffer cmdBuf, const nvmath::mat4f& transform, con
 
   // Set the orthographic matrix in the bottom left corner
   {
-    const float         pixelW   = m_axisSize / screenSize.width;
-    const float         pixelH   = m_axisSize / screenSize.height;
-    const nvmath::mat4f matOrtho = {pixelW * .8f,  0.0f,          0.0f,  0.0f,  //
-                                    0.0f,          -pixelH * .8f, 0.0f,  0.0f,  //
-                                    0.0f,          0.0f,          -0.5f, 0.0f,  //
-                                    -1.f + pixelW, 1.f - pixelH,  0.5f,  1.0f};
+    const float     pixelW   = m_axisSize / screenSize.width;
+    const float     pixelH   = m_axisSize / screenSize.height;
+    const glm::mat4 matOrtho = {pixelW * .8f,  0.0f,          0.0f,  0.0f,  //
+                                0.0f,          -pixelH * .8f, 0.0f,  0.0f,  //
+                                0.0f,          0.0f,          -0.5f, 0.0f,  //
+                                -1.f + pixelW, 1.f - pixelH,  0.5f,  1.0f};
 
-    nvmath::mat4f modelView = transform;
-    modelView.set_translate({0, 0, 0});
-    modelView = matOrtho * modelView;
+    glm::mat4 modelView = transform;
+    modelView[3]        = glm::vec4(0, 0, 0, 1);
+    modelView           = matOrtho * modelView;
     // Push the matrix to the shader
-    vkCmdPushConstants(cmdBuf, m_pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(nvmath::mat4f), &modelView.a00);
+    vkCmdPushConstants(cmdBuf, m_pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), glm::value_ptr(modelView));
   }
 
   // Draw 3 times the tip of the arrow, the shader is flipping the orientation and setting the color
@@ -167,7 +169,7 @@ void AxisVK::display(VkCommandBuffer cmdBuf, const nvmath::mat4f& transform, con
 void AxisVK::createAxisObject(CreateAxisInfo& info)
 {
   // The shader need Push Constants: the transformation matrix
-  const VkPushConstantRange push_constants{VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(nvmath::mat4f)};
+  const VkPushConstantRange push_constants{VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4)};
 
   VkPipelineLayoutCreateInfo layout_info{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
   layout_info.pushConstantRangeCount = 1;
@@ -209,7 +211,7 @@ void AxisVK::createAxisObject(CreateAxisInfo& info)
     rfInfo.stencilAttachmentFormat = info.stencilFormat;
     gpg.createInfo.pNext           = &rfInfo;
   }
-  
+
   m_pipelineTriangleFan = gpg.createPipeline();
 
   // Creating the lines

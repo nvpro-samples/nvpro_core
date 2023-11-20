@@ -54,7 +54,7 @@ public:
   // Return the constructed acceleration structure
   VkAccelerationStructureKHR tlas();
 
- 
+
   void destroy();
 
 protected:

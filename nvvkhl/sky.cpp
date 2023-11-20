@@ -26,6 +26,8 @@
 #include "nvvk/context_vk.hpp"
 #include "nvvk/resourceallocator_vk.hpp"
 
+#include <glm/gtc/constants.hpp>
+using namespace glm;
 #include "sky.hpp"
 
 #include "nvvkhl/shaders/dh_comp.h"
@@ -36,12 +38,12 @@ template <typename T> inline T square(T a) {return a * a;}
 // clang-format on
 
 namespace nvvkhl {
-static ProceduralSkyShaderParameters fillShaderParameters(const SkyParameters& input)
+static nvvkhl_shaders::ProceduralSkyShaderParameters fillShaderParameters(const SkyParameters& input)
 {
-  ProceduralSkyShaderParameters output{};
+  nvvkhl_shaders::ProceduralSkyShaderParameters output{};
 
-  float light_angular_size = nvmath::clamp(input.angularSize, nv_to_rad * 0.1F, nv_to_rad * 90.F);
-  float light_solid_angle  = 4.0F * nv_pi * square(sinf(light_angular_size * 0.5F));
+  float light_angular_size = glm::clamp(input.angularSize, glm::radians(0.1F), glm::radians(90.F));
+  float light_solid_angle  = 4.0F * glm::pi<float>() * square(sinf(light_angular_size * 0.5F));
   float light_radiance     = input.intensity / light_solid_angle;
 
   if(input.maxLightRadiance > 0.F)
@@ -49,16 +51,16 @@ static ProceduralSkyShaderParameters fillShaderParameters(const SkyParameters& i
     light_radiance = std::min(light_radiance, input.maxLightRadiance);
   }
 
-  output.directionToLight   = nvmath::normalize(-input.direction);
+  output.directionToLight   = glm::normalize(-input.direction);
   output.angularSizeOfLight = light_angular_size;
   output.lightColor         = light_radiance * input.color;
-  output.glowSize           = nv_to_rad * nvmath::clamp(input.glowSize, 0.F, 90.F);
+  output.glowSize           = glm::radians(glm::clamp(input.glowSize, 0.F, 90.F));
   output.skyColor           = input.skyColor * input.brightness;
-  output.glowIntensity      = nvmath::clamp(input.glowIntensity, 0.F, 1.F);
+  output.glowIntensity      = glm::clamp(input.glowIntensity, 0.F, 1.F);
   output.horizonColor       = input.horizonColor * input.brightness;
-  output.horizonSize        = nv_to_rad * nvmath::clamp(input.horizonSize, 0.F, 90.F);
+  output.horizonSize        = glm::radians(glm::clamp(input.horizonSize, 0.F, 90.F));
   output.groundColor        = input.groundColor * input.brightness;
-  output.glowSharpness      = nvmath::clamp(input.glowSharpness, 1.F, 10.F);
+  output.glowSharpness      = glm::clamp(input.glowSharpness, 1.F, 10.F);
   output.directionUp        = normalize(input.directionUp);
 
   return output;
@@ -75,15 +77,15 @@ void SkyDome::setup(const VkDevice& device, nvvk::ResourceAllocator* allocator)
   m_alloc  = allocator;
   m_debug.setup(device);
 
-  m_skyInfoBuf = m_alloc->createBuffer(sizeof(ProceduralSkyShaderParameters),
+  m_skyInfoBuf = m_alloc->createBuffer(sizeof(nvvkhl_shaders::ProceduralSkyShaderParameters),
                                        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                                        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
   NAME2_VK(m_skyInfoBuf.buffer, "SkyInfo");
 
   // Descriptor: the output image and parameters
   nvvk::DescriptorSetBindings bind;
-  bind.addBinding(SkyBindings::eSkyOutImage, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT);
-  bind.addBinding(SkyBindings::eSkyParam, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_ALL);
+  bind.addBinding(nvvkhl_shaders::SkyBindings::eSkyOutImage, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT);
+  bind.addBinding(nvvkhl_shaders::SkyBindings::eSkyParam, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_ALL);
   m_skyDLayout = bind.createLayout(m_device);
   m_skyDPool   = bind.createPool(m_device);
   m_skyDSet    = nvvk::allocateDescriptorSet(m_device, m_skyDPool, m_skyDLayout);
@@ -91,12 +93,12 @@ void SkyDome::setup(const VkDevice& device, nvvk::ResourceAllocator* allocator)
   // Write parameters information
   std::vector<VkWriteDescriptorSet> writes = {};
   VkDescriptorBufferInfo            buf_info{m_skyInfoBuf.buffer, 0, VK_WHOLE_SIZE};
-  writes.emplace_back(bind.makeWrite(m_skyDSet, SkyBindings::eSkyParam, &buf_info));
+  writes.emplace_back(bind.makeWrite(m_skyDSet, nvvkhl_shaders::SkyBindings::eSkyParam, &buf_info));
   vkUpdateDescriptorSets(m_device, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
 
   // Creating the pipeline layout
-  VkPushConstantRange                push_constant_ranges = {VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(SkyPushConstant)};
-  std::vector<VkDescriptorSetLayout> layouts              = {m_skyDLayout};
+  VkPushConstantRange push_constant_ranges = {VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(nvvkhl_shaders::SkyPushConstant)};
+  std::vector<VkDescriptorSetLayout> layouts = {m_skyDLayout};
   VkPipelineLayoutCreateInfo         create_info{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
   create_info.setLayoutCount         = static_cast<uint32_t>(layouts.size());
   create_info.pSetLayouts            = layouts.data();
@@ -133,23 +135,23 @@ void SkyDome::setOutImage(const VkDescriptorImageInfo& outimage)
   vkUpdateDescriptorSets(m_device, 1, &wds, 0, nullptr);
 }
 
-void SkyDome::draw(const VkCommandBuffer& cmd, const nvmath::mat4f& view, const nvmath::mat4f& proj, const VkExtent2D& size)
+void SkyDome::draw(const VkCommandBuffer& cmd, const glm::mat4& view, const glm::mat4& proj, const VkExtent2D& size)
 {
   LABEL_SCOPE_VK(cmd);
 
   // This will be to have a world direction vector pointing to the pixel
-  nvmath::mat4f m = nvmath::invert(proj);
-  m.a30 = m.a31 = m.a32 = m.a33 = 0.0F;
+  glm::mat4 m = glm::inverse(proj);
+  m[3][0] = m[3][1] = m[3][2] = m[3][3] = 0.0F;
 
-  m = nvmath::invert(view) * m;
+  m = glm::inverse(view) * m;
 
   // Information to the compute shader
-  SkyPushConstant pc{};
+  nvvkhl_shaders::SkyPushConstant pc{};
   pc.mvp = m;
 
   // Execution
   std::vector<VkDescriptorSet> dst_sets = {m_skyDSet};
-  vkCmdPushConstants(cmd, m_skyPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(SkyPushConstant), &pc);
+  vkCmdPushConstants(cmd, m_skyPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(nvvkhl_shaders::SkyPushConstant), &pc);
   vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_skyPipelineLayout, 0,
                           static_cast<uint32_t>(dst_sets.size()), dst_sets.data(), 0, nullptr);
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_skyPipeline);
@@ -169,8 +171,8 @@ void SkyDome::destroy()
 
 void SkyDome::updateParameterBuffer(VkCommandBuffer cmd) const
 {
-  ProceduralSkyShaderParameters output = fillShaderParameters(m_skyParams);
-  vkCmdUpdateBuffer(cmd, m_skyInfoBuf.buffer, 0, sizeof(ProceduralSkyShaderParameters), &output);
+  nvvkhl_shaders::ProceduralSkyShaderParameters output = fillShaderParameters(m_skyParams);
+  vkCmdUpdateBuffer(cmd, m_skyInfoBuf.buffer, 0, sizeof(nvvkhl_shaders::ProceduralSkyShaderParameters), &output);
 
   // Make sure the buffer is available when using it
   VkMemoryBarrier mb{VK_STRUCTURE_TYPE_MEMORY_BARRIER};
@@ -180,10 +182,10 @@ void SkyDome::updateParameterBuffer(VkCommandBuffer cmd) const
                        VK_PIPELINE_STAGE_TRANSFER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 1, &mb, 0, nullptr, 0, nullptr);
 }
 
-Light SkyDome::getSun() const
+nvvkhl_shaders::Light SkyDome::getSun() const
 {
-  Light sun{};
-  sun.type                  = eLightTypeDirectional;
+  nvvkhl_shaders::Light sun{};
+  sun.type                  = nvvkhl_shaders::eLightTypeDirectional;
   sun.angularSizeOrInvRange = m_skyParams.angularSize;
   sun.direction             = m_skyParams.direction;
   sun.color                 = m_skyParams.color;
@@ -197,7 +199,7 @@ bool SkyDome::onUI()
 
   bool changed{false};
 
-  nvmath::vec3f dir = m_skyParams.direction;
+  glm::vec3 dir = m_skyParams.direction;
   changed |= ImGuiH::azimuthElevationSliders(dir, true, m_skyParams.directionUp.y == 1.0F);
   m_skyParams.direction = dir;
   // clang-format off

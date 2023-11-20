@@ -20,11 +20,10 @@
 #pragma once
 
 #include <nvh/nvprint.hpp>
-#include <nvmath/nvmath.h>
+#include <glm/glm.hpp>
 
 #include <cmath>
-
-using namespace nvmath;
+#include "glm/gtc/matrix_transform.hpp"
 
 //------------------------------------------------------------------------------------------
 /// \struct InertiaCamera
@@ -32,37 +31,39 @@ using namespace nvmath;
 ///
 /// InertiaCamera exposes a mix of pseudo polar rotation around a target point and
 /// some other movements to translate the target point, zoom in and out.
-/// 
+///
 /// Either the keyboard or mouse can be used for all of the moves.
 //------------------------------------------------------------------------------------------
 struct InertiaCamera
 {
-  vec3f curEyePos, curFocusPos, curObjectPos; ///< Current position of the motion
-  vec3f eyePos, focusPos, objectPos;          ///< expected posiions to reach
-  float tau;                                  ///< acceleration factor in the motion function
-  float epsilon;
-  float eyeD;
-  float focusD;
-  float objectD;
-  mat4f m4_view;                              ///< transformation matrix resulting from the computation
+  glm::vec3 curEyePos, curFocusPos, curObjectPos;  ///< Current position of the motion
+  glm::vec3 eyePos, focusPos, objectPos;           ///< expected posiions to reach
+  float     tau;                                   ///< acceleration factor in the motion function
+  float     epsilon;
+  float     eyeD;
+  float     focusD;
+  float     objectD;
+  glm::mat4 m4_view;  ///< transformation matrix resulting from the computation
   //------------------------------------------------------------------------------
   //
   //------------------------------------------------------------------------------
-  InertiaCamera(const vec3f eye = vec3f(0.0f, 1.0f, -3.0f), const vec3f focus = vec3f(0, 0, 0), const vec3f object = vec3f(0, 0, 0))
+  InertiaCamera(const glm::vec3 eye    = glm::vec3(0.0f, 1.0f, -3.0f),
+                const glm::vec3 focus  = glm::vec3(0, 0, 0),
+                const glm::vec3 object = glm::vec3(0, 0, 0))
   {
-    epsilon      = 0.001f;
-    tau          = 0.2f;
-    curEyePos    = eye;
-    eyePos       = eye;
-    curFocusPos  = focus;
-    focusPos     = focus;
-    curObjectPos = object;
-    objectPos    = object;
-    eyeD         = 0.0f;
-    focusD       = 0.0f;
-    objectD      = 0.0f;
-    m4_view.identity();
-    mat4f Lookat = nvmath::look_at(curEyePos, curFocusPos, vec3f(0, 1, 0));
+    epsilon          = 0.001f;
+    tau              = 0.2f;
+    curEyePos        = eye;
+    eyePos           = eye;
+    curFocusPos      = focus;
+    focusPos         = focus;
+    curObjectPos     = object;
+    objectPos        = object;
+    eyeD             = 0.0f;
+    focusD           = 0.0f;
+    objectD          = 0.0f;
+    m4_view          = glm::mat4(1);
+    glm::mat4 Lookat = glm::lookAt(curEyePos, curFocusPos, glm::vec3(0, 1, 0));
     m4_view *= Lookat;
   }
   //------------------------------------------------------------------------------
@@ -70,15 +71,15 @@ struct InertiaCamera
   //------------------------------------------------------------------------------
   void rotateH(float s, bool bPan = false)
   {
-    vec3f p  = eyePos;
-    vec3f o  = focusPos;
-    vec3f po = p - o;
-    float l  = po.norm();
-    vec3f dv = cross(po, vec3f(0, 1, 0));
+    glm::vec3 p  = eyePos;
+    glm::vec3 o  = focusPos;
+    glm::vec3 po = p - o;
+    float     l  = glm::length(po);
+    glm::vec3 dv = glm::cross(po, glm::vec3(0, 1, 0));
     dv *= s;
     p += dv;
     po       = p - o;
-    float l2 = po.norm();
+    float l2 = glm::length(po);
     l        = l2 - l;
     p -= (l / l2) * (po);
     eyePos = p;
@@ -90,23 +91,23 @@ struct InertiaCamera
   //------------------------------------------------------------------------------
   void rotateV(float s, bool bPan = false)
   {
-    vec3f p  = eyePos;
-    vec3f o  = focusPos;
-    vec3f po = p - o;
-    float l  = po.norm();
-    vec3f dv = cross(po, vec3f(0, -1, 0));
-    dv.normalize();
-    vec3f dv2 = cross(po, dv);
+    glm::vec3 p   = eyePos;
+    glm::vec3 o   = focusPos;
+    glm::vec3 po  = p - o;
+    float     l   = glm::length(po);
+    glm::vec3 dv  = glm::cross(po, glm::vec3(0, -1, 0));
+    dv            = glm::normalize(dv);
+    glm::vec3 dv2 = glm::cross(po, dv);
     dv2 *= s;
     p += dv2;
     po       = p - o;
-    float l2 = po.norm();
+    float l2 = glm::length(po);
 
     if(bPan)
       focusPos += dv2;
 
     // protect against gimbal lock
-    if(std::fabs(dot(po / l2, vec3f(0, 1, 0))) > 0.99)
+    if(std::fabs(dot(po / l2, glm::vec3(0, 1, 0))) > 0.99)
       return;
 
     l = l2 - l;
@@ -118,9 +119,9 @@ struct InertiaCamera
   //------------------------------------------------------------------------------
   void move(float s, bool bPan)
   {
-    vec3f p  = eyePos;
-    vec3f o  = focusPos;
-    vec3f po = p - o;
+    glm::vec3 p  = eyePos;
+    glm::vec3 o  = focusPos;
+    glm::vec3 po = p - o;
     po *= s;
     p -= po;
     if(bPan)
@@ -134,66 +135,66 @@ struct InertiaCamera
   {
     if(dt > (1.0f / 60.0f))
       dt = (1.0f / 60.0f);
-    bool         bContinue = false;
-    static vec3f eyeVel    = vec3f(0, 0, 0);
-    static vec3f eyeAcc    = vec3f(0, 0, 0);
-    eyeD                   = nv_norm(curEyePos - eyePos);
+    bool             bContinue = false;
+    static glm::vec3 eyeVel    = glm::vec3(0, 0, 0);
+    static glm::vec3 eyeAcc    = glm::vec3(0, 0, 0);
+    eyeD                       = glm::length(curEyePos - eyePos);
     if(eyeD > epsilon)
     {
-      bContinue = true;
-      vec3f dV  = curEyePos - eyePos;
-      eyeAcc    = (-2.0f / tau) * eyeVel - dV / (tau * tau);
+      bContinue    = true;
+      glm::vec3 dV = curEyePos - eyePos;
+      eyeAcc       = (-2.0f / tau) * eyeVel - dV / (tau * tau);
       // integrate
-      eyeVel += eyeAcc * vec3f(dt, dt, dt);
-      curEyePos += eyeVel * vec3f(dt, dt, dt);
+      eyeVel += eyeAcc * glm::vec3(dt, dt, dt);
+      curEyePos += eyeVel * glm::vec3(dt, dt, dt);
     }
     else
     {
-      eyeVel = vec3f(0, 0, 0);
-      eyeAcc = vec3f(0, 0, 0);
+      eyeVel = glm::vec3(0, 0, 0);
+      eyeAcc = glm::vec3(0, 0, 0);
     }
 
-    static vec3f focusVel = vec3f(0, 0, 0);
-    static vec3f focusAcc = vec3f(0, 0, 0);
-    focusD                = nv_norm(curFocusPos - focusPos);
+    static glm::vec3 focusVel = glm::vec3(0, 0, 0);
+    static glm::vec3 focusAcc = glm::vec3(0, 0, 0);
+    focusD                    = glm::length(curFocusPos - focusPos);
     if(focusD > epsilon)
     {
-      bContinue = true;
-      vec3f dV  = curFocusPos - focusPos;
-      focusAcc  = (-2.0f / tau) * focusVel - dV / (tau * tau);
+      bContinue    = true;
+      glm::vec3 dV = curFocusPos - focusPos;
+      focusAcc     = (-2.0f / tau) * focusVel - dV / (tau * tau);
       // integrate
-      focusVel += focusAcc * vec3f(dt, dt, dt);
-      curFocusPos += focusVel * vec3f(dt, dt, dt);
+      focusVel += focusAcc * glm::vec3(dt, dt, dt);
+      curFocusPos += focusVel * glm::vec3(dt, dt, dt);
     }
     else
     {
-      focusVel = vec3f(0, 0, 0);
-      focusAcc = vec3f(0, 0, 0);
+      focusVel = glm::vec3(0, 0, 0);
+      focusAcc = glm::vec3(0, 0, 0);
     }
 
-    static vec3f objectVel = vec3f(0, 0, 0);
-    static vec3f objectAcc = vec3f(0, 0, 0);
-    objectD                = nv_norm(curObjectPos - objectPos);
+    static glm::vec3 objectVel = glm::vec3(0, 0, 0);
+    static glm::vec3 objectAcc = glm::vec3(0, 0, 0);
+    objectD                    = glm::length(curObjectPos - objectPos);
     if(objectD > epsilon)
     {
-      bContinue = true;
-      vec3f dV  = curObjectPos - objectPos;
-      objectAcc = (-2.0f / tau) * objectVel - dV / (tau * tau);
+      bContinue    = true;
+      glm::vec3 dV = curObjectPos - objectPos;
+      objectAcc    = (-2.0f / tau) * objectVel - dV / (tau * tau);
       // integrate
-      objectVel += objectAcc * vec3f(dt, dt, dt);
-      curObjectPos += objectVel * vec3f(dt, dt, dt);
+      objectVel += objectAcc * glm::vec3(dt, dt, dt);
+      curObjectPos += objectVel * glm::vec3(dt, dt, dt);
     }
     else
     {
-      objectVel = vec3f(0, 0, 0);
-      objectAcc = vec3f(0, 0, 0);
+      objectVel = glm::vec3(0, 0, 0);
+      objectAcc = glm::vec3(0, 0, 0);
     }
     //
     // Camera View matrix
     //
-    vec3f up(0, 1, 0);
-    m4_view.identity();
-    mat4f Lookat = nvmath::look_at(curEyePos, curFocusPos, up);
+    glm::vec3 up(0, 1, 0);
+    m4_view          = glm::mat4(1);
+    glm::mat4 Lookat = glm::lookAt(curEyePos, curFocusPos, up);
     m4_view *= Lookat;
     return bContinue;
   }
@@ -202,7 +203,7 @@ struct InertiaCamera
   /// \arg *reset* set to true will directly update the actual positions without
   /// performing the animation for transitioning.
   //------------------------------------------------------------------------------
-  void look_at(const vec3f& eye, const vec3f& center /*, const vec3f& up*/, bool reset = false)
+  void look_at(const glm::vec3& eye, const glm::vec3& center /*, const glm::vec3& up*/, bool reset = false)
   {
     eyePos   = eye;
     focusPos = center;
@@ -210,22 +211,22 @@ struct InertiaCamera
     {
       curEyePos   = eye;
       curFocusPos = center;
-      vec3f up(0, 1, 0);
-      m4_view.identity();
-      mat4f Lookat = nvmath::look_at(curEyePos, curFocusPos, up);
+      glm::vec3 up(0, 1, 0);
+      m4_view          = glm::mat4(1);
+      glm::mat4 Lookat = glm::lookAt(curEyePos, curFocusPos, up);
       m4_view *= Lookat;
     }
   }
   //------------------------------------------------------------------------------
   /// \brief debug information of camera position and target position
-  /// Particularily useful to record a bunch of positions that can later be 
+  /// Particularily useful to record a bunch of positions that can later be
   /// reuses as "recorded" presets
   //------------------------------------------------------------------------------
   void print_look_at(bool cppLike = false)
   {
     if(cppLike)
     {
-      LOGI("{vec3f(%.2f, %.2f, %.2f), vec3f(%.2f, %.2f, %.2f)},\n", eyePos.x, eyePos.y, eyePos.z, focusPos.x,
+      LOGI("{glm::vec3(%.2f, %.2f, %.2f), glm::vec3(%.2f, %.2f, %.2f)},\n", eyePos.x, eyePos.y, eyePos.z, focusPos.x,
            focusPos.y, focusPos.z);
     }
     else

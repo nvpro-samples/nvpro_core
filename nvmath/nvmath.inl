@@ -1657,12 +1657,6 @@ inline T dot(const quaternion<T>& q1, const quaternion<T>& q2)
   return q1.x * q2.x + q1.y * q2.y + q1.z * q2.z + q1.w * q2.w;
 }
 
-#if !defined(_MSC_VER) || (defined(_MSC_VER) && (_MSC_VER < 1920))
-#ifndef acosf
-#define acosf acos
-#endif
-#endif
-
 template <class T>
 inline quaternion<T> slerp_quats(T s, const quaternion<T>& q1, const quaternion<T>& q2)
 {

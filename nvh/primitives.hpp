@@ -20,7 +20,8 @@
 #pragma once
 #include <vector>
 #include <cstdint>
-#include "nvmath/nvmath.h"
+#include <glm/glm.hpp>
+#include <glm/gtc/quaternion.hpp>
 
 // PrimitiveMesh:
 //  - Common primitive type, made of vertices: position, normal and texture coordinates.
@@ -33,14 +34,14 @@
 namespace nvh {
 struct PrimitiveVertex
 {
-  nvmath::vec3f p;  // Position
-  nvmath::vec3f n;  // Normal
-  nvmath::vec2f t;  // Texture Coordinates
+  glm::vec3 p;  // Position
+  glm::vec3 n;  // Normal
+  glm::vec2 t;  // Texture Coordinates
 };
 
 struct PrimitiveTriangle
 {
-  nvmath::vec3ui v;  // vertex indices
+  glm::uvec3 v;  // vertex indices
 };
 
 struct PrimitiveMesh
@@ -51,20 +52,20 @@ struct PrimitiveMesh
 
 struct Node
 {
-  nvmath::vec3f             translation{};         //
-  nvmath::quaternion<float> rotation{0, 0, 0, 1};  //
-  nvmath::vec3f             scale{1.0F};           //
-  nvmath::mat4f             matrix{1};             // Added with the above transformations
-  int                       material{0};
-  int                       mesh{-1};
+  glm::vec3 translation{};  //
+  glm::quat rotation{};     //
+  glm::vec3 scale{1.0F};    //
+  glm::mat4 matrix{1};      // Added with the above transformations
+  int       material{0};
+  int       mesh{-1};
 
-  nvmath::mat4f localMatrix() const
+  glm::mat4 localMatrix() const
   {
-    nvmath::mat4f mrot, mscale, mtrans;
-    rotation.to_matrix(mrot);
-    mscale.as_scale(scale);
-    mtrans.as_translation(translation);
-    return mtrans * mrot * mscale * matrix;
+    glm::mat4 translationMatrix = glm::translate(glm::mat4(1.0f), translation);
+    glm::mat4 rotationMatrix    = glm::mat4_cast(rotation);
+    glm::mat4 scaleMatrix       = glm::scale(glm::mat4(1.0f), scale);
+    glm::mat4 combinedMatrix    = translationMatrix * rotationMatrix * scaleMatrix * matrix;
+    return combinedMatrix;
   }
 };
 
@@ -79,6 +80,7 @@ PrimitiveMesh createSphereMesh(float radius = 0.5F, int subdivisions = 3);
 PrimitiveMesh createTorusMesh(float majorRadius = 0.5F, float minorRadius = 0.25F, int majorSegments = 32, int minorSegments = 16);
 
 std::vector<Node> mengerSpongeNodes(int level = 3, float probability = -1.f, int seed = 1);
+std::vector<Node> sunflower(int seeds = 3000);
 
 // Utilities
 PrimitiveMesh mergeNodes(const std::vector<Node>& nodes, const std::vector<PrimitiveMesh> meshes);

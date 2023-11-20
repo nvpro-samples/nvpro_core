@@ -96,7 +96,7 @@ public:
   }
 
   // This class is movable only
-  delayed_call(const delayed_call& other) = delete;
+  delayed_call(const delayed_call& other)            = delete;
   delayed_call& operator=(const delayed_call& other) = delete;
 
 private:

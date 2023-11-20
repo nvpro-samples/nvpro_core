@@ -317,7 +317,7 @@ Example:
 class DescriptorSetContainer
 {
 public:
-  DescriptorSetContainer(DescriptorSetContainer const&) = delete;
+  DescriptorSetContainer(DescriptorSetContainer const&)            = delete;
   DescriptorSetContainer& operator=(DescriptorSetContainer const&) = delete;
 
   DescriptorSetContainer() {}

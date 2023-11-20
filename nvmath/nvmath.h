@@ -22,6 +22,11 @@
 #ifndef _nvmath_h_
 #define _nvmath_h_
 
+#pragma message("Note: nvmath is about to be replaced by GLM and might be deprecated soon")
+#ifndef NVMATH_SUPPORTS_GLM
+#define NVMATH_SUPPORTS_GLM
+#endif
+
 #include "nvmath_types.h"
 #include <type_traits>
 

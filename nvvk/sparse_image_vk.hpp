@@ -22,11 +22,10 @@
 #include <unordered_map>
 #include <vulkan/vulkan_core.h>
 
-#include "nvmath/nvmath.h"
+#include <glm/glm.hpp>
 #include "nvvk/memorymanagement_vk.hpp"
 #include "nvh/nvprint.hpp"
 #include "nvh/container_utils.hpp"
-
 
 
 // Mip level indexing relies on 32-bit unsigned integers
@@ -214,11 +213,11 @@ struct SparseImage
   // Compute the index of a page within a mip level in the page list
   inline uint32_t indexInMip(const SparseImagePage& p)
   {
-    nvmath::vec3ui mipSize(std::max(size.width >> p.mipLevel, 1u), std::max(size.height >> p.mipLevel, 1u),
-                           std::max(size.depth >> p.mipLevel, 1u));
-    nvmath::vec3ui location(p.offset.x / mipSize.x, p.offset.y / mipSize.y, p.offset.z / mipSize.z);
-    uint32_t       pageWidth  = p.extent.width;
-    uint32_t       pageHeight = std::max(1u, p.extent.height);
+    glm::uvec3 mipSize(std::max(size.width >> p.mipLevel, 1u), std::max(size.height >> p.mipLevel, 1u),
+                       std::max(size.depth >> p.mipLevel, 1u));
+    glm::uvec3 location(p.offset.x / mipSize.x, p.offset.y / mipSize.y, p.offset.z / mipSize.z);
+    uint32_t   pageWidth  = p.extent.width;
+    uint32_t   pageHeight = std::max(1u, p.extent.height);
     if(pageWidth == 0 || pageHeight == 0)
     {
       LOGE("indexInMip: Invalid page dimensions");

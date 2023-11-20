@@ -34,7 +34,7 @@ public:
   DedicatedMemoryHandle(DedicatedMemoryHandle&&)      = default;
 
   DedicatedMemoryHandle& operator=(const DedicatedMemoryHandle&) = default;
-  DedicatedMemoryHandle& operator=(DedicatedMemoryHandle&&) = default;
+  DedicatedMemoryHandle& operator=(DedicatedMemoryHandle&&)      = default;
 
   VkDeviceMemory getMemory() const { return m_memory; }
   VkDeviceSize   getSize() const { return m_size; }
@@ -89,18 +89,18 @@ void DedicatedMemoryAllocator::deinit()
   m_device = NULL;
 }
 
-MemHandle DedicatedMemoryAllocator::allocMemory(const MemAllocateInfo& allocInfo, VkResult *pResult)
+MemHandle DedicatedMemoryAllocator::allocMemory(const MemAllocateInfo& allocInfo, VkResult* pResult)
 {
-  MemAllocateInfo   localInfo(allocInfo);
+  MemAllocateInfo localInfo(allocInfo);
   localInfo.setAllocationFlags(allocInfo.getAllocationFlags() | m_flags);
 
   BakedAllocateInfo bakedInfo;
   fillBakedAllocateInfo(m_physicalMemoryProperties, localInfo, bakedInfo);
 
   VkDeviceMemory memory = VK_NULL_HANDLE;
-  VkResult result = vkAllocateMemory(m_device, &bakedInfo.memAllocInfo, nullptr, &memory);
+  VkResult       result = vkAllocateMemory(m_device, &bakedInfo.memAllocInfo, nullptr, &memory);
   NVVK_CHECK(result);
-  if (pResult)
+  if(pResult)
   {
     *pResult = result;
   }
@@ -144,10 +144,10 @@ MemAllocator::MemInfo DedicatedMemoryAllocator::getMemoryInfo(MemHandle memHandl
   return MemInfo{dedicatedHandle->getMemory(), 0, dedicatedHandle->getSize()};
 }
 
-void* DedicatedMemoryAllocator::map(MemHandle memHandle, VkDeviceSize offset, VkDeviceSize size, VkResult *pResult)
+void* DedicatedMemoryAllocator::map(MemHandle memHandle, VkDeviceSize offset, VkDeviceSize size, VkResult* pResult)
 {
-  auto  dedicatedHandle = castDedicatedMemoryHandle(memHandle);
-  void* ptr             = nullptr;
+  auto     dedicatedHandle = castDedicatedMemoryHandle(memHandle);
+  void*    ptr             = nullptr;
   VkResult result = vkMapMemory(m_device, dedicatedHandle->getMemory(), offset, size, 0 /*VkMemoryFlags*/, &ptr);
 
   NVVK_CHECK(result);

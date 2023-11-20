@@ -54,7 +54,7 @@ struct ElementCamera : public nvvkhl::IAppElement
   //--------------------------------------------------------------------------------------------------
   // Fit the camera to the Bounding box
   //
-  void fitCamera(const nvmath::vec3f& boxMin, const nvmath::vec3f& boxMax, bool instantFit /*= true*/) const
+  void fitCamera(const glm::vec3& boxMin, const glm::vec3& boxMax, bool instantFit /*= true*/) const
   {
     float aspect_ratio = static_cast<float>(m_viewportSize.x / m_viewportSize.y);
     CameraManip.fit(boxMin, boxMax, instantFit, false, aspect_ratio);

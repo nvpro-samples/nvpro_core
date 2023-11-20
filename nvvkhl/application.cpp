@@ -42,8 +42,8 @@
 
 #include "application.hpp"
 
-#include "backends/imgui_impl_glfw.h"
-#include "imgui/backends/imgui_impl_vulkan.h"
+#include "third_party/imgui/backends/imgui_impl_glfw.h"
+#include "third_party/imgui/backends/imgui_impl_vulkan.h"
 #include "imgui/imgui_camera_widget.h"
 #include "imgui/imgui_helper.h"
 #include "nvp/nvpsystem.hpp"
@@ -65,6 +65,7 @@
 #endif
 #include <GLFW/glfw3.h>
 #include <GLFW/glfw3native.h>
+#include "imgui/imgui_icon.h"
 
 // Static
 uint32_t                                        nvvkhl::Application::m_currentFrameIndex{0};
@@ -224,6 +225,9 @@ void nvvkhl::Application::init(ApplicationCreateInfo& info)
   font_config.FontDataOwnedByAtlas = false;
   io.FontDefault = io.Fonts->AddFontFromMemoryTTF((void*)&g_Roboto_Regular[0], sizeof(g_Roboto_Regular),
                                                   14.0F * high_dpi_scale, &font_config);
+
+  // Add icon font
+  ImGuiH::addIconicFont();
 
   // Setup Platform/Renderer backends
   ImGui_ImplGlfw_InitForVulkan(m_windowHandle, true);
@@ -502,7 +506,7 @@ void nvvkhl::Application::createDock() const
 
   ImGui::PopStyleVar(2);
 
-  dockspace_flags = ImGuiDockNodeFlags_PassthruCentralNode | ImGuiDockNodeFlags_NoDockingInCentralNode;
+  dockspace_flags = ImGuiDockNodeFlags_PassthruCentralNode | ImGuiDockNodeFlags_NoDockingOverCentralNode;
   // Building the splitting of the dock space is done only once
   if(ImGui::DockBuilderGetNode(dockspace_id) == nullptr)
   {

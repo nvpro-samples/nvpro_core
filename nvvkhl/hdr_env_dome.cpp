@@ -24,7 +24,9 @@
 #include <cmath>
 #include <numeric>
 
-#include "nvmath/nvmath.h"
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
 #include "nvh/nvprint.hpp"
 #include "nvvk/commands_vk.hpp"
 #include "nvvk/descriptorsets_vk.hpp"
@@ -98,7 +100,7 @@ void HdrEnvDome::setOutImage(const VkDescriptorImageInfo& outimage)
 {
   VkWriteDescriptorSet wds{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
   wds.dstSet          = m_domeSet;
-  wds.dstBinding      = EnvDomeDraw::eHdrImage;
+  wds.dstBinding      = nvvkhl_shaders::EnvDomeDraw::eHdrImage;
   wds.descriptorCount = 1;
   wds.descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
   wds.pImageInfo      = &outimage;
@@ -113,13 +115,13 @@ void HdrEnvDome::createDrawPipeline()
 {
   // Descriptor: the output image
   nvvk::DescriptorSetBindings bind;
-  bind.addBinding(EnvDomeDraw::eHdrImage, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT);
+  bind.addBinding(nvvkhl_shaders::EnvDomeDraw::eHdrImage, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT);
   m_domeLayout = bind.createLayout(m_device);
   m_domePool   = bind.createPool(m_device);
   m_domeSet    = nvvk::allocateDescriptorSet(m_device, m_domePool, m_domeLayout);
 
   // Creating the pipeline layout
-  VkPushConstantRange push_constant_ranges = {VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(HdrDomePushConstant)};
+  VkPushConstantRange push_constant_ranges = {VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(nvvkhl_shaders::HdrDomePushConstant)};
   std::vector<VkDescriptorSetLayout> layouts{m_domeLayout, m_hdrEnvLayout};
   VkPipelineLayoutCreateInfo         create_info{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
   create_info.setLayoutCount         = static_cast<uint32_t>(layouts.size());
@@ -153,8 +155,8 @@ void HdrEnvDome::createDrawPipeline()
 // - color is the color multiplier of the HDR (intensity)
 //
 void HdrEnvDome::draw(const VkCommandBuffer& cmdBuf,
-                      const nvmath::mat4f&   view,
-                      const nvmath::mat4f&   proj,
+                      const glm::mat4&       view,
+                      const glm::mat4&       proj,
                       const VkExtent2D&      size,
                       const float*           color,
                       float                  rotation /*=0.f*/)
@@ -162,19 +164,21 @@ void HdrEnvDome::draw(const VkCommandBuffer& cmdBuf,
   LABEL_SCOPE_VK(cmdBuf);
 
   // This will be to have a world direction vector pointing to the pixel
-  nvmath::mat4f m = nvmath::invert(proj);
-  m.a30 = m.a31 = m.a32 = m.a33 = 0.0F;
-  m                             = nvmath::invert(view) * m;
+  glm::mat4 m = glm::inverse(proj);
+  m[3][0] = m[3][1] = m[3][2] = m[3][3] = 0.0F;
+
+  m = glm::inverse(view) * m;
 
   // Information to the compute shader
-  HdrDomePushConstant pc{};
+  nvvkhl_shaders::HdrDomePushConstant pc{};
   pc.mvp       = m;
-  pc.multColor = vec4(*color);
+  pc.multColor = glm::vec4(*color);
   pc.rotation  = rotation;
 
   // Execution
   std::vector<VkDescriptorSet> dst_sets{m_domeSet, m_hdrEnvSet};
-  vkCmdPushConstants(cmdBuf, m_domePipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(HdrDomePushConstant), &pc);
+  vkCmdPushConstants(cmdBuf, m_domePipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0,
+                     sizeof(nvvkhl_shaders::HdrDomePushConstant), &pc);
   vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_COMPUTE, m_domePipelineLayout, 0,
                           static_cast<uint32_t>(dst_sets.size()), dst_sets.data(), 0, nullptr);
   vkCmdBindPipeline(cmdBuf, VK_PIPELINE_BIND_POINT_COMPUTE, m_domePipeline);
@@ -209,18 +213,18 @@ void HdrEnvDome::createDescriptorSetLayout()
   nvvk::DescriptorSetBindings bind;
   VkShaderStageFlags          flags = VK_SHADER_STAGE_ALL;
 
-  bind.addBinding(EnvDomeBindings::eHdrBrdf, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, flags);      // HDR image
-  bind.addBinding(EnvDomeBindings::eHdrDiffuse, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, flags);   // HDR image
-  bind.addBinding(EnvDomeBindings::eHdrSpecular, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, flags);  // HDR image
+  bind.addBinding(nvvkhl_shaders::EnvDomeBindings::eHdrBrdf, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, flags);  // HDR image
+  bind.addBinding(nvvkhl_shaders::EnvDomeBindings::eHdrDiffuse, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, flags);  // HDR image
+  bind.addBinding(nvvkhl_shaders::EnvDomeBindings::eHdrSpecular, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, flags);  // HDR image
 
   m_hdrPool = bind.createPool(m_device, 1);
   CREATE_NAMED_VK(m_hdrLayout, bind.createLayout(m_device));
   CREATE_NAMED_VK(m_hdrSet, nvvk::allocateDescriptorSet(m_device, m_hdrPool, m_hdrLayout));
 
   std::vector<VkWriteDescriptorSet> writes;
-  writes.emplace_back(bind.makeWrite(m_hdrSet, EnvDomeBindings::eHdrBrdf, &m_textures.lutBrdf.descriptor));
-  writes.emplace_back(bind.makeWrite(m_hdrSet, EnvDomeBindings::eHdrDiffuse, &m_textures.diffuse.descriptor));
-  writes.emplace_back(bind.makeWrite(m_hdrSet, EnvDomeBindings::eHdrSpecular, &m_textures.glossy.descriptor));
+  writes.emplace_back(bind.makeWrite(m_hdrSet, nvvkhl_shaders::EnvDomeBindings::eHdrBrdf, &m_textures.lutBrdf.descriptor));
+  writes.emplace_back(bind.makeWrite(m_hdrSet, nvvkhl_shaders::EnvDomeBindings::eHdrDiffuse, &m_textures.diffuse.descriptor));
+  writes.emplace_back(bind.makeWrite(m_hdrSet, nvvkhl_shaders::EnvDomeBindings::eHdrSpecular, &m_textures.glossy.descriptor));
 
   vkUpdateDescriptorSets(m_device, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
 }
@@ -258,7 +262,7 @@ void HdrEnvDome::integrateBrdf(uint32_t dimension, nvvk::Texture& target)
 
     // The output image is the one we have just created
     nvvk::DescriptorSetBindings bind;
-    bind.addBinding(EnvDomeDraw::eHdrImage, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT);
+    bind.addBinding(nvvkhl_shaders::EnvDomeDraw::eHdrImage, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT);
     dst_layout = bind.createLayout(m_device);
     dst_pool   = bind.createPool(m_device);
     dst_set    = nvvk::allocateDescriptorSet(m_device, dst_pool, dst_layout);
@@ -309,7 +313,7 @@ void HdrEnvDome::prefilterHdr(uint32_t dim, nvvk::Texture& target, const VkShade
 {
   const VkExtent2D size{dim, dim};
   VkFormat         format   = VK_FORMAT_R16G16B16A16_SFLOAT;
-  const uint32_t   num_mips = doMipmap ? static_cast<uint32_t>(floor(log2(dim))) + 1 : 1;
+  const uint32_t   num_mips = doMipmap ? static_cast<uint32_t>(floor(::log2(dim))) + 1 : 1;
 
   nvh::ScopedTimer st("%s: %u", __FUNCTION__, num_mips);
 
@@ -345,7 +349,7 @@ void HdrEnvDome::prefilterHdr(uint32_t dim, nvvk::Texture& target, const VkShade
 
   // Descriptors
   nvvk::DescriptorSetBindings bind;
-  bind.addBinding(EnvDomeDraw::eHdrImage, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT);
+  bind.addBinding(nvvkhl_shaders::EnvDomeDraw::eHdrImage, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT);
   dst_layout = bind.createLayout(m_device);
   dst_pool   = bind.createPool(m_device);
   dst_set    = nvvk::allocateDescriptorSet(m_device, dst_pool, dst_layout);
@@ -355,7 +359,7 @@ void HdrEnvDome::prefilterHdr(uint32_t dim, nvvk::Texture& target, const VkShade
   vkUpdateDescriptorSets(m_device, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
 
   // Creating the pipeline
-  VkPushConstantRange                push_constant_range{VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(HdrPushBlock)};
+  VkPushConstantRange push_constant_range{VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(nvvkhl_shaders::HdrPushBlock)};
   std::vector<VkDescriptorSetLayout> layouts{dst_layout, m_hdrEnvLayout};
   VkPipelineLayoutCreateInfo         create_info{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
   create_info.setLayoutCount         = static_cast<uint32_t>(layouts.size());
@@ -413,20 +417,20 @@ void HdrEnvDome::renderToCube(const VkCommandBuffer& cmdBuf,
 {
   LABEL_SCOPE_VK(cmdBuf);
 
-  nvmath::mat4f mat_pers = nvmath::perspectiveVK(90.0F, 1.0F, 0.1F, 10.0F);
-  mat_pers               = nvmath::invert(mat_pers);
-  mat_pers.a30 = mat_pers.a31 = mat_pers.a32 = mat_pers.a33 = 0.0F;
+  glm::mat4 mat_pers = glm::perspectiveRH_ZO(glm::radians(90.0F), 1.0F, 0.1F, 10.0F);
+  mat_pers           = glm::inverse(mat_pers);
+  mat_pers[3][0] = mat_pers[3][1] = mat_pers[3][2] = mat_pers[3][3] = 0.0F;
 
-  std::array<nvmath::mat4f, 6> mv;
-  const nvmath::vec3f          pos(0.0F, 0.0F, 0.0F);
-  mv[0] = nvmath::look_at(pos, nvmath::vec3f(1.0F, 0.0F, 0.0F), nvmath::vec3f(0.0F, -1.0F, 0.0F));   // Positive X
-  mv[1] = nvmath::look_at(pos, nvmath::vec3f(-1.0F, 0.0F, 0.0F), nvmath::vec3f(0.0F, -1.0F, 0.0F));  // Negative X
-  mv[2] = nvmath::look_at(pos, nvmath::vec3f(0.0F, -1.0F, 0.0F), nvmath::vec3f(0.0F, 0.0F, -1.0F));  // Positive Y
-  mv[3] = nvmath::look_at(pos, nvmath::vec3f(0.0F, 1.0F, 0.0F), nvmath::vec3f(0.0F, 0.0F, 1.0F));    // Negative Y
-  mv[4] = nvmath::look_at(pos, nvmath::vec3f(0.0F, 0.0F, 1.0F), nvmath::vec3f(0.0F, -1.0F, 0.0F));   // Positive Z
-  mv[5] = nvmath::look_at(pos, nvmath::vec3f(0.0F, 0.0F, -1.0F), nvmath::vec3f(0.0F, -1.0F, 0.0F));  // Negative Z
+  std::array<glm::mat4, 6> mv;
+  const glm::vec3          pos(0.0F, 0.0F, 0.0F);
+  mv[0] = glm::lookAt(pos, glm::vec3(1.0F, 0.0F, 0.0F), glm::vec3(0.0F, -1.0F, 0.0F));   // Positive X
+  mv[1] = glm::lookAt(pos, glm::vec3(-1.0F, 0.0F, 0.0F), glm::vec3(0.0F, -1.0F, 0.0F));  // Negative X
+  mv[2] = glm::lookAt(pos, glm::vec3(0.0F, -1.0F, 0.0F), glm::vec3(0.0F, 0.0F, -1.0F));  // Positive Y
+  mv[3] = glm::lookAt(pos, glm::vec3(0.0F, 1.0F, 0.0F), glm::vec3(0.0F, 0.0F, 1.0F));    // Negative Y
+  mv[4] = glm::lookAt(pos, glm::vec3(0.0F, 0.0F, 1.0F), glm::vec3(0.0F, -1.0F, 0.0F));   // Positive Z
+  mv[5] = glm::lookAt(pos, glm::vec3(0.0F, 0.0F, -1.0F), glm::vec3(0.0F, -1.0F, 0.0F));  // Negative Z
   for(auto& m : mv)
-    m = nvmath::invert(m);
+    m = glm::inverse(m);
 
   // Change image layout for all cubemap faces to transfer destination
   VkImageSubresourceRange subresource_range{VK_IMAGE_ASPECT_COLOR_BIT, 0, numMips, 0, 6};
@@ -451,8 +455,8 @@ void HdrEnvDome::renderToCube(const VkCommandBuffer& cmdBuf,
   };
 
 
-  VkExtent3D   extent{dim, dim, 1};
-  HdrPushBlock push_block{};
+  VkExtent3D                   extent{dim, dim, 1};
+  nvvkhl_shaders::HdrPushBlock push_block{};
 
   for(uint32_t mip = 0; mip < numMips; mip++)
   {
@@ -462,9 +466,9 @@ void HdrEnvDome::renderToCube(const VkCommandBuffer& cmdBuf,
       float roughness       = static_cast<float>(mip) / static_cast<float>(numMips - 1);
       push_block.roughness  = roughness;
       push_block.mvp        = mv[f] * mat_pers;
-      push_block.size       = vec2f(vec2ui(extent.width, extent.height));
+      push_block.size       = glm::vec2(glm::uvec2(extent.width, extent.height));
       push_block.numSamples = 1024 / (mip + 1);
-      vkCmdPushConstants(cmdBuf, pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(HdrPushBlock), &push_block);
+      vkCmdPushConstants(cmdBuf, pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(nvvkhl_shaders::HdrPushBlock), &push_block);
 
       // Execute compute shader
       VkExtent2D group_counts = getGroupCounts({extent.width, extent.height});

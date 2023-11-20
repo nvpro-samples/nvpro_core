@@ -53,6 +53,6 @@ nvvk::AllocationGL ResourceAllocatorGLInterop::getAllocationGL(nvvk::MemHandle m
   return m_dmaGL->getAllocationGL(m_dmaGL->getAllocationID(memHandle));
 }
 
-} // namespace nvvkpp
+}  // namespace nvvkpp
 
 #endif

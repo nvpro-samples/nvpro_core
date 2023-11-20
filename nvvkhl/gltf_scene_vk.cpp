@@ -54,11 +54,11 @@ void nvvkhl::SceneVk::create(VkCommandBuffer cmd, const nvvkhl::Scene& scn)
   createTextureImages(cmd, scn.model(), basedir);
 
   // Buffer references
-  SceneDescription scene_desc{};
+  nvvkhl_shaders::SceneDescription scene_desc{};
   scene_desc.materialAddress = nvvk::getBufferDeviceAddress(m_ctx->m_device, m_bMaterial.buffer);
   scene_desc.primInfoAddress = nvvk::getBufferDeviceAddress(m_ctx->m_device, m_bPrimInfo.buffer);
   scene_desc.instInfoAddress = nvvk::getBufferDeviceAddress(m_ctx->m_device, m_bInstances.buffer);
-  m_bSceneDesc               = m_alloc->createBuffer(cmd, sizeof(SceneDescription), &scene_desc,
+  m_bSceneDesc               = m_alloc->createBuffer(cmd, sizeof(nvvkhl_shaders::SceneDescription), &scene_desc,
                                                      VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);
   m_dutil->DBG_NAME(m_bSceneDesc.buffer);
 }
@@ -70,11 +70,11 @@ void nvvkhl::SceneVk::createMaterialBuffer(VkCommandBuffer cmd, const nvh::GltfS
 {
   nvh::ScopedTimer st(__FUNCTION__);
 
-  std::vector<GltfShadeMaterial> shade_materials;
+  std::vector<nvvkhl_shaders::GltfShadeMaterial> shade_materials;
   shade_materials.reserve(scn.m_materials.size());
   for(const auto& m : scn.m_materials)
   {
-    GltfShadeMaterial s{};
+    nvvkhl_shaders::GltfShadeMaterial s{};
     s.emissiveFactor               = m.emissiveFactor;
     s.emissiveTexture              = m.emissiveTexture;
     s.khrDiffuseFactor             = m.specularGlossiness.diffuseFactor;
@@ -124,12 +124,12 @@ void nvvkhl::SceneVk::createInstanceInfoBuffer(VkCommandBuffer cmd, const nvh::G
 {
   nvh::ScopedTimer st(__FUNCTION__);
 
-  std::vector<InstanceInfo> inst_info;
+  std::vector<nvvkhl_shaders::InstanceInfo> inst_info;
   for(const auto& node : scn.m_nodes)
   {
-    InstanceInfo info{};
+    nvvkhl_shaders::InstanceInfo info{};
     info.objectToWorld = node.worldMatrix;
-    info.worldToObject = nvmath::invert(node.worldMatrix);
+    info.worldToObject = glm::inverse(node.worldMatrix);
     inst_info.emplace_back(info);
   }
   m_bInstances = m_alloc->createBuffer(cmd, inst_info, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);
@@ -145,8 +145,8 @@ void nvvkhl::SceneVk::createVertexBuffer(VkCommandBuffer cmd, const nvh::GltfSce
 {
   nvh::ScopedTimer st(__FUNCTION__);
 
-  std::vector<PrimMeshInfo> prim_info;  // The array of all primitive information
-  uint32_t                  prim_idx{0};
+  std::vector<nvvkhl_shaders::PrimMeshInfo> prim_info;  // The array of all primitive information
+  uint32_t                                  prim_idx{0};
 
   auto usage_flag = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT
                     | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
@@ -170,19 +170,19 @@ void nvvkhl::SceneVk::createVertexBuffer(VkCommandBuffer cmd, const nvh::GltfSce
     if(it == cache_primitive.end())
     {
       // Filling in parallel the vector of vertex used on the GPU
-      std::vector<Vertex> vertices(prim_mesh.vertexCount);
+      std::vector<nvvkhl_shaders::Vertex> vertices(prim_mesh.vertexCount);
       for(uint32_t v_ctx = 0; v_ctx < prim_mesh.vertexCount; v_ctx++)
       {
-        size_t               idx = prim_mesh.vertexOffset + v_ctx;
-        const nvmath::vec3f& p   = scn.m_positions[idx];
-        const nvmath::vec3f& n   = scn.m_normals[idx];
-        const nvmath::vec4f& t   = scn.m_tangents[idx];
-        const nvmath::vec2f& u   = scn.m_texcoords0[idx];
+        size_t           idx = prim_mesh.vertexOffset + v_ctx;
+        const glm::vec3& p   = scn.m_positions[idx];
+        const glm::vec3& n   = scn.m_normals[idx];
+        const glm::vec4& t   = scn.m_tangents[idx];
+        const glm::vec2& u   = scn.m_texcoords0[idx];
 
-        Vertex& v  = vertices[v_ctx];
-        v.position = nvmath::vec4f(p, u.x);  // Adding texcoord to the end of position and normal vector
-        v.normal   = nvmath::vec4f(n, u.y);
-        v.tangent  = t;
+        nvvkhl_shaders::Vertex& v = vertices[v_ctx];
+        v.position                = glm::vec4(p, u.x);  // Adding texcoord to the end of position and normal vector
+        v.normal                  = glm::vec4(n, u.y);
+        v.tangent                 = t;
       }
 
       // Buffer of Vertex per primitive

@@ -19,7 +19,7 @@
 
 
 #pragma once
-#include "nvmath/nvmath.h"
+#include <glm/glm.hpp>
 
 #include <cstdint>  // so uint32_t is available for device_host.h below
 #include "shaders/dh_sky.h"
@@ -36,21 +36,21 @@ class Context;
 namespace nvvkhl {
 struct SkyParameters
 {
-  vec3  skyColor{0.17F, 0.37F, 0.65F};
-  vec3  horizonColor{0.50F, 0.70F, 0.92F};
-  vec3  groundColor{0.62F, 0.59F, 0.55F};
-  vec3  directionUp{0.F, 1.F, 0.F};
-  float brightness       = 0.3F;   // scaler for sky brightness
-  float horizonSize      = 30.F;   // +/- degrees
-  float glowSize         = 5.F;    // degrees, starting from the edge of the light disk
-  float glowIntensity    = 0.1F;   // [0-1] relative to light intensity
-  float glowSharpness    = 4.F;    // [1-10] is the glow power exponent
-  float maxLightRadiance = 100.F;  // clamp for light radiance derived from its angular size, 0 = no clamp
+  glm::vec3 skyColor{0.17F, 0.37F, 0.65F};
+  glm::vec3 horizonColor{0.50F, 0.70F, 0.92F};
+  glm::vec3 groundColor{0.62F, 0.59F, 0.55F};
+  glm::vec3 directionUp{0.F, 1.F, 0.F};
+  float     brightness       = 0.3F;   // scaler for sky brightness
+  float     horizonSize      = 30.F;   // +/- degrees
+  float     glowSize         = 5.F;    // degrees, starting from the edge of the light disk
+  float     glowIntensity    = 0.1F;   // [0-1] relative to light intensity
+  float     glowSharpness    = 4.F;    // [1-10] is the glow power exponent
+  float     maxLightRadiance = 100.F;  // clamp for light radiance derived from its angular size, 0 = no clamp
   // Sun
-  float angularSize = nv_to_rad * 0.53F;
-  float intensity   = 1.0F;
-  vec3  direction   = nvmath::normalize(vec3{0.0F, -.7F, -.7F});
-  vec3  color       = {1.0F, 1.0F, 1.0F};
+  float     angularSize = glm::radians(0.53F);
+  float     intensity   = 1.0F;
+  glm::vec3 direction   = glm::normalize(glm::vec3{0.0F, -.7F, -.7F});
+  glm::vec3 color       = {1.0F, 1.0F, 1.0F};
 };
 
 
@@ -60,12 +60,12 @@ public:
   SkyDome(nvvk::Context* ctx, nvvk::ResourceAllocator* allocator);
   void setup(const VkDevice& device, nvvk::ResourceAllocator* allocator);
   void setOutImage(const VkDescriptorImageInfo& outimage);
-  void draw(const VkCommandBuffer& cmd, const nvmath::mat4f& view, const nvmath::mat4f& proj, const VkExtent2D& size);
+  void draw(const VkCommandBuffer& cmd, const glm::mat4& view, const glm::mat4& proj, const VkExtent2D& size);
   void destroy();
   void updateParameterBuffer(VkCommandBuffer cmd) const;
   bool onUI();
 
-  Light                 getSun() const;
+  nvvkhl_shaders::Light getSun() const;
   VkDescriptorSetLayout getDescriptorSetLayout() const { return m_skyDLayout; };
   VkDescriptorSet       getDescriptorSet() const { return m_skyDSet; };
   SkyParameters&        skyParams() { return m_skyParams; }

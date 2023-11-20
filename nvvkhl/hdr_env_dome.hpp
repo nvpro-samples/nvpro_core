@@ -24,7 +24,7 @@
 #include <array>
 #include <vector>
 
-#include "nvmath/nvmath.h"
+#include <glm/glm.hpp>
 #include "nvvk/debug_util_vk.hpp"
 #include "nvvk/images_vk.hpp"
 #include "nvvk/resourceallocator_vk.hpp"
@@ -55,12 +55,7 @@ public:
   void setup(const VkDevice& device, const VkPhysicalDevice& physicalDevice, uint32_t familyIndex, nvvk::ResourceAllocator* allocator);
   void create(VkDescriptorSet dstSet, VkDescriptorSetLayout dstSetLayout);
   void setOutImage(const VkDescriptorImageInfo& outimage);
-  void draw(const VkCommandBuffer& cmdBuf,
-            const nvmath::mat4f&   view,
-            const nvmath::mat4f&   proj,
-            const VkExtent2D&      size,
-            const float*           color,
-            float                  rotation = 0.F);
+  void draw(const VkCommandBuffer& cmdBuf, const glm::mat4& view, const glm::mat4& proj, const VkExtent2D& size, const float* color, float rotation = 0.F);
   void destroy();
 
   inline VkDescriptorSetLayout getDescLayout() const { return m_hdrLayout; }

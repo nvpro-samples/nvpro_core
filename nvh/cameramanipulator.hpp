@@ -22,7 +22,8 @@
 
 #pragma warning(disable : 4201)
 #include <array>
-#include <nvmath/nvmath.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include <string>
 
 namespace nvh {
@@ -56,7 +57,7 @@ namespace nvh {
   \code{.cpp}
   // Retrieve/set camera information
   CameraManip.getLookat(eye, center, up);
-  CameraManip.setLookat(eye, center, nvmath::vec3f(m_upVector == 0, m_upVector == 1, m_upVector == 2));
+  CameraManip.setLookat(eye, center, glm::vec3(m_upVector == 0, m_upVector == 1, m_upVector == 2));
   CameraManip.getFov();
   CameraManip.setSpeed(navSpeed);
   CameraManip.setMode(navMode == 0 ? nvh::CameraManipulator::Examine : nvh::CameraManipulator::Fly);
@@ -87,10 +88,10 @@ public:
 
   struct Camera
   {
-    nvmath::vec3f eye = nvmath::vec3f(10, 10, 10);
-    nvmath::vec3f ctr = nvmath::vec3f(0, 0, 0);
-    nvmath::vec3f up  = nvmath::vec3f(0, 1, 0);
-    float         fov = 60.0f;
+    glm::vec3 eye = glm::vec3(10, 10, 10);
+    glm::vec3 ctr = glm::vec3(0, 0, 0);
+    glm::vec3 up  = glm::vec3(0, 1, 0);
+    float     fov = 60.0f;
 
     bool operator!=(const Camera& rhr) const
     {
@@ -111,7 +112,7 @@ public:
 
   // Set the camera to look at the interest point
   // instantSet = true will not interpolate to the new position
-  void setLookat(const nvmath::vec3f& eye, const nvmath::vec3f& center, const nvmath::vec3f& up, bool instantSet = true);
+  void setLookat(const glm::vec3& eye, const glm::vec3& center, const glm::vec3& up, bool instantSet = true);
 
   // This should be called in an application loop to update the camera matrix if this one is animated: new position, key movement
   void updateAnim();
@@ -126,10 +127,10 @@ public:
   void   setCamera(Camera camera, bool instantSet = true);
 
   // Retrieve the position, interest and up vector of the camera
-  void          getLookat(nvmath::vec3f& eye, nvmath::vec3f& center, nvmath::vec3f& up) const;
-  nvmath::vec3f getEye() const { return m_current.eye; }
-  nvmath::vec3f getCenter() const { return m_current.ctr; }
-  nvmath::vec3f getUp() const { return m_current.up; }
+  void      getLookat(glm::vec3& eye, glm::vec3& center, glm::vec3& up) const;
+  glm::vec3 getEye() const { return m_current.eye; }
+  glm::vec3 getCenter() const { return m_current.ctr; }
+  glm::vec3 getUp() const { return m_current.up; }
 
   // Set the manipulator mode, from Examiner, to walk, to fly, ...
   void setMode(Modes mode) { m_mode = mode; }
@@ -138,12 +139,12 @@ public:
   Modes getMode() const { return m_mode; }
 
   // Retrieving the transformation matrix of the camera
-  const nvmath::mat4f& getMatrix() const { return m_matrix; }
+  const glm::mat4& getMatrix() const { return m_matrix; }
 
   // Set the position, interest from the matrix.
   // instantSet = true will not interpolate to the new position
   // centerDistance is the distance of the center from the eye
-  void setMatrix(const nvmath::mat4f& mat_, bool instantSet = true, float centerDistance = 1.f);
+  void setMatrix(const glm::mat4& mat_, bool instantSet = true, float centerDistance = 1.f);
 
   // Changing the default speed movement
   void setSpeed(float speed) { m_speed = speed; }
@@ -167,12 +168,12 @@ public:
   int getWidth() const { return m_width; }
   int getHeight() const { return m_height; }
 
-  // Field of view
+  // Field of view in degrees
   void  setFov(float _fov);
   float getFov() { return m_current.fov; }
 
-  void                 setClipPlanes(nvmath::vec2f clip) { m_clipPlanes = clip; }
-  const nvmath::vec2f& getClipPlanes() const { return m_clipPlanes; }
+  void             setClipPlanes(glm::vec2 clip) { m_clipPlanes = clip; }
+  const glm::vec2& getClipPlanes() const { return m_clipPlanes; }
 
 
   // Animation duration
@@ -184,14 +185,14 @@ public:
   const std::string& getHelp();
 
   // Fitting the camera position and interest to see the bounding box
-  void fit(const nvmath::vec3f& boxMin, const nvmath::vec3f& boxMax, bool instantFit = true, bool tight = false, float aspect = 1.0f);
+  void fit(const glm::vec3& boxMin, const glm::vec3& boxMax, bool instantFit = true, bool tight = false, float aspect = 1.0f);
 
 protected:
   CameraManipulator();
 
 private:
   // Update the internal matrix.
-  void update() { m_matrix = nvmath::look_at(m_current.eye, m_current.ctr, m_current.up); }
+  void update() { m_matrix = glm::lookAt(m_current.eye, m_current.ctr, m_current.up); }
 
   // Do panning: movement parallels to the screen
   void pan(float dx, float dy);
@@ -203,31 +204,31 @@ private:
 
   double getSystemTime();
 
-  nvmath::vec3f computeBezier(float t, nvmath::vec3f& p0, nvmath::vec3f& p1, nvmath::vec3f& p2);
-  void          findBezierPoints();
+  glm::vec3 computeBezier(float t, glm::vec3& p0, glm::vec3& p1, glm::vec3& p2);
+  void      findBezierPoints();
 
 protected:
-  nvmath::mat4f m_matrix = nvmath::mat4f(1);
+  glm::mat4 m_matrix = glm::mat4(1);
 
   Camera m_current;   // Current camera position
   Camera m_goal;      // Wish camera position
   Camera m_snapshot;  // Current camera the moment a set look-at is done
 
   // Animation
-  std::array<nvmath::vec3f, 3> m_bezier;
-  double                       m_start_time = 0;
-  double                       m_duration   = 0.5;
-  bool                         m_anim_done{true};
-  nvmath::vec3f                m_key_vec{0, 0, 0};
+  std::array<glm::vec3, 3> m_bezier;
+  double                   m_start_time = 0;
+  double                   m_duration   = 0.5;
+  bool                     m_anim_done{true};
+  glm::vec3                m_key_vec{0, 0, 0};
 
   // Screen
   int m_width  = 1;
   int m_height = 1;
 
   // Other
-  float         m_speed      = 3.f;
-  nvmath::vec2f m_mouse      = nvmath::vec2f(0.f, 0.f);
-  nvmath::vec2f m_clipPlanes = nvmath::vec2f(0.001f, 100000000.f);
+  float     m_speed      = 3.f;
+  glm::vec2 m_mouse      = glm::vec2(0.f, 0.f);
+  glm::vec2 m_clipPlanes = glm::vec2(0.001f, 100000000.f);
 
   bool  m_button = false;  // Button pressed
   bool  m_moving = false;  // Mouse is moving

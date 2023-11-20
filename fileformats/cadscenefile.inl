@@ -34,6 +34,9 @@
 #include <thread>
 #include <vector>
 
+#include <glm/glm.hpp>
+#include <glm/gtc/quaternion.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #define CADSCENEFILE_MAGIC 1567262451
 
@@ -1392,8 +1395,8 @@ CSFAPI int CSFile_loadReadOnly(CSFile** outcsf, const char* filename, CSFileMemo
   CSFile_versionFixHeader(csf);
   csf->materials = mem->allocT(sizeof(CSFMaterial) * csf->numMaterials, (const CSFMaterial*)(base + csf->materialsOFFSET));
   csf->geometries = mem->allocT(sizeof(CSFGeometry) * csf->numGeometries, (const CSFGeometry*)(base + csf->geometriesOFFSET));
-  csf->nodes = mem->allocT(sizeof(CSFNode) * csf->numNodes, (const CSFNode*)(base + csf->nodesOFFSET));
-  csf->pointers = 0;
+  csf->nodes       = mem->allocT(sizeof(CSFNode) * csf->numNodes, (const CSFNode*)(base + csf->nodesOFFSET));
+  csf->pointers    = 0;
   csf->numPointers = 0;
   if(CSFile_getGeometryMetas(csf))
   {
@@ -2759,14 +2762,14 @@ bool FileMapping::open(const char* fileName, MappingType mappingType, size_t fil
       write(m_unix.file, "", 1);
       lseek(m_unix.file, 0, SEEK_SET);
     }
-    m_fileSize = m_mappingSize;
+    m_fileSize   = m_mappingSize;
     m_mappingPtr = mmap(0, m_mappingSize, mappingType == MAPPING_READONLY ? PROT_READ : (PROT_READ | PROT_WRITE),
                         MAP_SHARED, m_unix.file, 0);
     if(m_mappingPtr == MAP_FAILED)
     {
       ::close(m_unix.file);
       m_unix.file = -1;
-      m_isValid = false;
+      m_isValid   = false;
     }
   }
 #endif
@@ -2815,7 +2818,7 @@ void FileMapping::close()
     ::close(m_unix.file);
 
     m_mappingPtr = nullptr;
-    m_unix.file = -1;
+    m_unix.file  = -1;
 #endif
 
     m_isValid = false;
@@ -2841,7 +2844,7 @@ void FileMapping::close() {}
 #if CSF_SUPPORT_GLTF2
 
 #include "cgltf.h"
-#include <nvmath/nvmath.h>
+#include <glm/glm.hpp>
 #include <unordered_map>
 
 void CSFile_countGLTFNodes(CSFile* csf, const cgltf_data* gltfModel, const cgltf_node* node)
@@ -2870,9 +2873,9 @@ int CSFile_addGLTFNode(CSFile* csf, const cgltf_data* gltfModel, const uint32_t*
   }
   else
   {
-    nvmath::vec3f translation = {0, 0, 0};
-    nvmath::quatf rotation    = {0, 0, 0, 0};
-    nvmath::vec3f scale       = {1, 1, 1};
+    glm::vec3 translation = {0, 0, 0};
+    glm::quat rotation    = {0, 0, 0, 0};
+    glm::vec3 scale       = {1, 1, 1};
 
     if(node->has_translation)
     {
@@ -2897,16 +2900,16 @@ int CSFile_addGLTFNode(CSFile* csf, const cgltf_data* gltfModel, const uint32_t*
     }
 
 
-    nvmath::mat4f mtranslation, mscale, mrot;
-    nvmath::quatf mrotation;
-    mtranslation.as_translation(translation);
-    mscale.as_scale(scale);
-    rotation.to_matrix(mrot);
+    glm::mat4 mtranslation, mscale, mrot;
+    mtranslation = glm::translate(glm::mat4(1), translation);
+    mscale       = glm::scale(glm::mat4(1), scale);
+    mrot         = glm::mat4_cast(rotation);
 
-    nvmath::mat4f matrix = mtranslation * mrot * mscale;
+    glm::mat4 matrix    = mtranslation * mrot * mscale;
+    float*    mat_array = glm::value_ptr(matrix);
     for(int i = 0; i < 16; i++)
     {
-      csfnode.objectTM[i] = matrix.mat_array[i];
+      csfnode.objectTM[i] = mat_array[i];
     }
   }
 

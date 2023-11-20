@@ -53,7 +53,7 @@ public:
     return *this;
   }
 
-  FileMapping(const FileMapping&) = delete;
+  FileMapping(const FileMapping&)                  = delete;
   FileMapping& operator=(const FileMapping& other) = delete;
   FileMapping() {}
 
