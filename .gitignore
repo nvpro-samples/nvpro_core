@@ -151,6 +151,8 @@ Desktop.ini
 *.egg-info
 dist
 build
+# Don't ignore Zstd's build folder, since that's where it includes its CMake files
+!third_party/zstd/build
 eggs
 parts
 bin

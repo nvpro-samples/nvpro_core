@@ -162,10 +162,12 @@ def rebuild(repository: dict):
         paths = glob.glob(globspec, root_dir=clone_folder_absolute, recursive=True)
         for path in paths:
             rm_recursive_if_exists(os.path.join(clone_folder_absolute, path))
-    # Sometimes nvpro_core's .gitignore would ignore files from subrepos.
-    # In our case, we want to add -f to add all files in these folders, even
-    # if they would normally be ignored.
-    run(["git", "add", "-f", clone_folder_absolute])
+    # Sometimes nvpro_core ignores files from subrepos. But adding `-f` is not
+    # the best solution, because if we do that, it'll trip up the bulk-update
+    # script later.
+    # Instead, if you run into this, fix nvpro_core's .gitignore. (You can add
+    # ! at the start of lines to make .gitignore not apply to certain directories.)
+    run(["git", "add", clone_folder_absolute])
 
 
 if __name__ == "__main__":
