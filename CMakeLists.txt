@@ -46,6 +46,7 @@ _optional_package_OpenGL()
 _optional_package_DirectX12()
 _optional_package_Optix()
 _optional_package_Cuda()
+_optional_package_NVML()
 _optional_package_NVToolsExt()
 
 # process the rest of some cmake code that needs to be done after the packages
@@ -248,6 +249,7 @@ target_link_libraries(nvpro_core
   ${PLATFORM_LIBRARIES} 
   glfw 
   imgui
+  implot
   fmt
   glm
   ${THIRDPARTY_LIBRARIES}

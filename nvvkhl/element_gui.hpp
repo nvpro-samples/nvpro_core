@@ -22,6 +22,7 @@
 // - Display basic information in the window title
 
 #include "imgui.h"
+#include "implot.h"
 
 #include "application.hpp"
 #include "GLFW/glfw3.h"
@@ -48,7 +49,8 @@ public:
     static bool close_app{false};
     bool        v_sync = m_app->isVsync();
 #ifndef NDEBUG
-    static bool show_demo{false};
+    static bool s_showDemo{false};
+    static bool s_showDemoPlot{false};
 #endif
     if(ImGui::BeginMenu("File"))
     {
@@ -58,14 +60,19 @@ public:
       }
       ImGui::EndMenu();
     }
-    if(ImGui::BeginMenu("Tools"))
+    if(ImGui::BeginMenu("View"))
     {
       ImGui::MenuItem("V-Sync", "Ctrl+Shift+V", &v_sync);
-#ifndef NDEBUG
-      ImGui::MenuItem("Show Demo", nullptr, &show_demo);
-#endif  // !NDEBUG
       ImGui::EndMenu();
     }
+#ifndef NDEBUG
+    if(ImGui::BeginMenu("Debug"))
+    {
+      ImGui::MenuItem("Show ImGui Demo", nullptr, &s_showDemo);
+      ImGui::MenuItem("Show ImPlot Demo", nullptr, &s_showDemoPlot);
+      ImGui::EndMenu();
+    }
+#endif  // !NDEBUG
 
     // Shortcuts
     if(ImGui::IsKeyPressed(ImGuiKey_Q) && ImGui::IsKeyDown(ImGuiKey_LeftCtrl))
@@ -83,9 +90,13 @@ public:
       m_app->close();
     }
 #ifndef NDEBUG
-    if(show_demo)
+    if(s_showDemo)
     {
-      ImGui::ShowDemoWindow(&show_demo);
+      ImGui::ShowDemoWindow(&s_showDemo);
+    }
+    if(s_showDemoPlot)
+    {
+      ImPlot::ShowDemoWindow(&s_showDemoPlot);
     }
 #endif  // !NDEBUG
 

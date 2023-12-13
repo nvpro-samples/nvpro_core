@@ -19,7 +19,8 @@
 
 #pragma once
 
-#include "imgui.h"
+#include <imgui.h>
+#include <imgui_internal.h>
 #include "nvh/cameramanipulator.hpp"
 #include "nvvkhl/application.hpp"
 
@@ -34,21 +35,43 @@ namespace nvvkhl {
 
 struct ElementCamera : public nvvkhl::IAppElement
 {
+  // Return true if the current window is active
+  bool isWindowHovered(ImGuiWindow* ref_window, ImGuiHoveredFlags flags)
+  {
+    ImGuiContext& g = *ImGui::GetCurrentContext();
+    if(g.HoveredWindow != ref_window)
+      return false;
+    if(!ImGui::IsWindowContentHoverable(ref_window, ImGuiFocusedFlags_RootWindow))
+      return false;
+    if(g.ActiveId != 0 && !g.ActiveIdAllowOverlap && g.ActiveId != ref_window->MoveId)
+      return false;
+
+    // Cancel if over the title bar
+    {
+      if(g.IO.ConfigWindowsMoveFromTitleBarOnly)
+        if(!(ref_window->Flags & ImGuiWindowFlags_NoTitleBar) || ref_window->DockIsActive)
+          if(ref_window->TitleBarRect().Contains(g.IO.MousePos))
+            return false;
+    }
+
+    return true;
+  }
+
   void onUIRender() override
   {
     CameraManip.updateAnim();  // This makes the camera to transition smoothly to the new position
 
-    ImGui::Begin("Viewport");
-    ImVec2 m_viewportSize = ImGui::GetContentRegionAvail();
-    CameraManip.setWindowSize(static_cast<int>(m_viewportSize.x), static_cast<int>(m_viewportSize.y));
+    ImGuiWindow* viewportWindow = ImGui::FindWindowByName("Viewport");
+    if(!viewportWindow)
+      return;
 
     // If the mouse cursor is over the "Viewport", check for all inputs that can manipulate
     // the camera.
-    if(ImGui::IsWindowHovered(ImGuiFocusedFlags_RootWindow))
+    if(isWindowHovered(viewportWindow, ImGuiFocusedFlags_RootWindow))
     {
+      CameraManip.setWindowSize(static_cast<int>(viewportWindow->Size.x), static_cast<int>(viewportWindow->Size.y));
       updateCamera();
     }
-    ImGui::End();
   }
 
   //--------------------------------------------------------------------------------------------------

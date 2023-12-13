@@ -229,7 +229,7 @@ struct ElementLogger : public nvvkhl::IAppElement
 
   void onUIMenu() override
   {
-    if(ImGui::BeginMenu("Help"))
+    if(ImGui::BeginMenu("View"))
     {
       ImGui::MenuItem("Log Window", "Ctrl+Shift+L", &m_showLog);
       ImGui::EndMenu();
