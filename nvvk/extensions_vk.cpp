@@ -22,7 +22,7 @@
 #include "nvh/nvprint.hpp"
 
 /* NVVK_GENERATE_VERSION_INFO */
-// Generated using Vulkan 261
+// Generated using Vulkan 268
 /* NVVK_GENERATE_VERSION_INFO */
 
 /* clang-format off */
@@ -577,6 +577,13 @@ static PFN_vkGetMemoryWin32HandleNV pfn_vkGetMemoryWin32HandleNV= 0;
 #if defined(VK_NV_fragment_shading_rate_enums)
 static PFN_vkCmdSetFragmentShadingRateEnumNV pfn_vkCmdSetFragmentShadingRateEnumNV= 0;
 #endif /* VK_NV_fragment_shading_rate_enums */
+#if defined(VK_NV_low_latency2)
+static PFN_vkGetLatencyTimingsNV pfn_vkGetLatencyTimingsNV= 0;
+static PFN_vkLatencySleepNV pfn_vkLatencySleepNV= 0;
+static PFN_vkQueueNotifyOutOfBandNV pfn_vkQueueNotifyOutOfBandNV= 0;
+static PFN_vkSetLatencyMarkerNV pfn_vkSetLatencyMarkerNV= 0;
+static PFN_vkSetLatencySleepModeNV pfn_vkSetLatencySleepModeNV= 0;
+#endif /* VK_NV_low_latency2 */
 #if defined(VK_NV_memory_decompression)
 static PFN_vkCmdDecompressMemoryIndirectCountNV pfn_vkCmdDecompressMemoryIndirectCountNV= 0;
 static PFN_vkCmdDecompressMemoryNV pfn_vkCmdDecompressMemoryNV= 0;
@@ -3246,6 +3253,43 @@ VKAPI_ATTR void VKAPI_CALL vkCmdSetFragmentShadingRateEnumNV(
   pfn_vkCmdSetFragmentShadingRateEnumNV(commandBuffer, shadingRate, combinerOps); 
 }
 #endif /* VK_NV_fragment_shading_rate_enums */
+#if defined(VK_NV_low_latency2)
+VKAPI_ATTR void VKAPI_CALL vkGetLatencyTimingsNV(
+	VkDevice device, 
+	VkSwapchainKHR swapchain, 
+	uint32_t* pTimingCount, 
+	VkGetLatencyMarkerInfoNV* pLatencyMarkerInfo) 
+{ 
+  pfn_vkGetLatencyTimingsNV(device, swapchain, pTimingCount, pLatencyMarkerInfo); 
+}
+VKAPI_ATTR VkResult VKAPI_CALL vkLatencySleepNV(
+	VkDevice device, 
+	VkSwapchainKHR swapchain, 
+	const VkLatencySleepInfoNV* pSleepInfo) 
+{ 
+  return pfn_vkLatencySleepNV(device, swapchain, pSleepInfo); 
+}
+VKAPI_ATTR void VKAPI_CALL vkQueueNotifyOutOfBandNV(
+	VkQueue queue, 
+	const VkOutOfBandQueueTypeInfoNV* pQueueTypeInfo) 
+{ 
+  pfn_vkQueueNotifyOutOfBandNV(queue, pQueueTypeInfo); 
+}
+VKAPI_ATTR void VKAPI_CALL vkSetLatencyMarkerNV(
+	VkDevice device, 
+	VkSwapchainKHR swapchain, 
+	const VkSetLatencyMarkerInfoNV* pLatencyMarkerInfo) 
+{ 
+  pfn_vkSetLatencyMarkerNV(device, swapchain, pLatencyMarkerInfo); 
+}
+VKAPI_ATTR VkResult VKAPI_CALL vkSetLatencySleepModeNV(
+	VkDevice device, 
+	VkSwapchainKHR swapchain, 
+	const VkLatencySleepModeInfoNV* pSleepModeInfo) 
+{ 
+  return pfn_vkSetLatencySleepModeNV(device, swapchain, pSleepModeInfo); 
+}
+#endif /* VK_NV_low_latency2 */
 #if defined(VK_NV_memory_decompression)
 VKAPI_ATTR void VKAPI_CALL vkCmdDecompressMemoryIndirectCountNV(
 	VkCommandBuffer commandBuffer, 
@@ -4512,6 +4556,13 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #if defined(VK_NV_fragment_shading_rate_enums)
   pfn_vkCmdSetFragmentShadingRateEnumNV = (PFN_vkCmdSetFragmentShadingRateEnumNV)getDeviceProcAddr(device, "vkCmdSetFragmentShadingRateEnumNV");
 #endif /* VK_NV_fragment_shading_rate_enums */
+#if defined(VK_NV_low_latency2)
+  pfn_vkGetLatencyTimingsNV = (PFN_vkGetLatencyTimingsNV)getDeviceProcAddr(device, "vkGetLatencyTimingsNV");
+  pfn_vkLatencySleepNV = (PFN_vkLatencySleepNV)getDeviceProcAddr(device, "vkLatencySleepNV");
+  pfn_vkQueueNotifyOutOfBandNV = (PFN_vkQueueNotifyOutOfBandNV)getDeviceProcAddr(device, "vkQueueNotifyOutOfBandNV");
+  pfn_vkSetLatencyMarkerNV = (PFN_vkSetLatencyMarkerNV)getDeviceProcAddr(device, "vkSetLatencyMarkerNV");
+  pfn_vkSetLatencySleepModeNV = (PFN_vkSetLatencySleepModeNV)getDeviceProcAddr(device, "vkSetLatencySleepModeNV");
+#endif /* VK_NV_low_latency2 */
 #if defined(VK_NV_memory_decompression)
   pfn_vkCmdDecompressMemoryIndirectCountNV = (PFN_vkCmdDecompressMemoryIndirectCountNV)getDeviceProcAddr(device, "vkCmdDecompressMemoryIndirectCountNV");
   pfn_vkCmdDecompressMemoryNV = (PFN_vkCmdDecompressMemoryNV)getDeviceProcAddr(device, "vkCmdDecompressMemoryNV");

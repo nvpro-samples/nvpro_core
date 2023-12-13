@@ -481,6 +481,9 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #if defined(VK_NV_fragment_shading_rate_enums)
 #define NVVK_HAS_VK_NV_fragment_shading_rate_enums
 #endif /* VK_NV_fragment_shading_rate_enums */
+#if defined(VK_NV_low_latency2)
+#define NVVK_HAS_VK_NV_low_latency2
+#endif /* VK_NV_low_latency2 */
 #if defined(VK_NV_memory_decompression)
 #define NVVK_HAS_VK_NV_memory_decompression
 #endif /* VK_NV_memory_decompression */
@@ -523,36 +526,28 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #if defined(VK_EXT_extended_dynamic_state3) || defined(VK_EXT_shader_object)
 #define NVVK_HAS_VK_EXT_extended_dynamic_state3
 #endif /* VK_EXT_extended_dynamic_state3 || VK_EXT_shader_object */
-#if defined(VK_EXT_extended_dynamic_state3) && defined(VK_NV_clip_space_w_scaling)                                     \
-    || defined(VK_EXT_shader_object) && defined(VK_NV_clip_space_w_scaling)
+#if defined(VK_EXT_extended_dynamic_state3) && defined(VK_NV_clip_space_w_scaling) || defined(VK_EXT_shader_object) && defined(VK_NV_clip_space_w_scaling)
 #define NVVK_HAS_VK_EXT_extended_dynamic_state3
 #endif /* VK_EXT_extended_dynamic_state3 && VK_NV_clip_space_w_scaling || VK_EXT_shader_object && VK_NV_clip_space_w_scaling */
-#if defined(VK_EXT_extended_dynamic_state3) && defined(VK_NV_viewport_swizzle)                                         \
-    || defined(VK_EXT_shader_object) && defined(VK_NV_viewport_swizzle)
+#if defined(VK_EXT_extended_dynamic_state3) && defined(VK_NV_viewport_swizzle) || defined(VK_EXT_shader_object) && defined(VK_NV_viewport_swizzle)
 #define NVVK_HAS_VK_EXT_extended_dynamic_state3
 #endif /* VK_EXT_extended_dynamic_state3 && VK_NV_viewport_swizzle || VK_EXT_shader_object && VK_NV_viewport_swizzle */
-#if defined(VK_EXT_extended_dynamic_state3) && defined(VK_NV_fragment_coverage_to_color)                               \
-    || defined(VK_EXT_shader_object) && defined(VK_NV_fragment_coverage_to_color)
+#if defined(VK_EXT_extended_dynamic_state3) && defined(VK_NV_fragment_coverage_to_color) || defined(VK_EXT_shader_object) && defined(VK_NV_fragment_coverage_to_color)
 #define NVVK_HAS_VK_EXT_extended_dynamic_state3
 #endif /* VK_EXT_extended_dynamic_state3 && VK_NV_fragment_coverage_to_color || VK_EXT_shader_object && VK_NV_fragment_coverage_to_color */
-#if defined(VK_EXT_extended_dynamic_state3) && defined(VK_NV_framebuffer_mixed_samples)                                \
-    || defined(VK_EXT_shader_object) && defined(VK_NV_framebuffer_mixed_samples)
+#if defined(VK_EXT_extended_dynamic_state3) && defined(VK_NV_framebuffer_mixed_samples) || defined(VK_EXT_shader_object) && defined(VK_NV_framebuffer_mixed_samples)
 #define NVVK_HAS_VK_EXT_extended_dynamic_state3
 #endif /* VK_EXT_extended_dynamic_state3 && VK_NV_framebuffer_mixed_samples || VK_EXT_shader_object && VK_NV_framebuffer_mixed_samples */
-#if defined(VK_EXT_extended_dynamic_state3) && defined(VK_NV_shading_rate_image)                                       \
-    || defined(VK_EXT_shader_object) && defined(VK_NV_shading_rate_image)
+#if defined(VK_EXT_extended_dynamic_state3) && defined(VK_NV_shading_rate_image) || defined(VK_EXT_shader_object) && defined(VK_NV_shading_rate_image)
 #define NVVK_HAS_VK_EXT_extended_dynamic_state3
 #endif /* VK_EXT_extended_dynamic_state3 && VK_NV_shading_rate_image || VK_EXT_shader_object && VK_NV_shading_rate_image */
-#if defined(VK_EXT_extended_dynamic_state3) && defined(VK_NV_representative_fragment_test)                             \
-    || defined(VK_EXT_shader_object) && defined(VK_NV_representative_fragment_test)
+#if defined(VK_EXT_extended_dynamic_state3) && defined(VK_NV_representative_fragment_test) || defined(VK_EXT_shader_object) && defined(VK_NV_representative_fragment_test)
 #define NVVK_HAS_VK_EXT_extended_dynamic_state3
 #endif /* VK_EXT_extended_dynamic_state3 && VK_NV_representative_fragment_test || VK_EXT_shader_object && VK_NV_representative_fragment_test */
-#if defined(VK_EXT_extended_dynamic_state3) && defined(VK_NV_coverage_reduction_mode)                                  \
-    || defined(VK_EXT_shader_object) && defined(VK_NV_coverage_reduction_mode)
+#if defined(VK_EXT_extended_dynamic_state3) && defined(VK_NV_coverage_reduction_mode) || defined(VK_EXT_shader_object) && defined(VK_NV_coverage_reduction_mode)
 #define NVVK_HAS_VK_EXT_extended_dynamic_state3
 #endif /* VK_EXT_extended_dynamic_state3 && VK_NV_coverage_reduction_mode || VK_EXT_shader_object && VK_NV_coverage_reduction_mode */
-#if defined(VK_EXT_full_screen_exclusive) && defined(VK_KHR_device_group)                                              \
-    || defined(VK_EXT_full_screen_exclusive) && defined(VK_VERSION_1_1)
+#if defined(VK_EXT_full_screen_exclusive) && defined(VK_KHR_device_group) || defined(VK_EXT_full_screen_exclusive) && defined(VK_VERSION_1_1)
 #define NVVK_HAS_VK_EXT_full_screen_exclusive
 #endif /* VK_EXT_full_screen_exclusive && VK_KHR_device_group || VK_EXT_full_screen_exclusive && VK_VERSION_1_1 */
 #if defined(VK_EXT_host_image_copy) || defined(VK_EXT_image_compression_control)
@@ -561,9 +556,7 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #if defined(VK_EXT_shader_object) || defined(VK_EXT_vertex_input_dynamic_state)
 #define NVVK_HAS_VK_EXT_shader_object
 #endif /* VK_EXT_shader_object || VK_EXT_vertex_input_dynamic_state */
-#if defined(VK_KHR_descriptor_update_template) && defined(VK_KHR_push_descriptor)                                      \
-    || defined(VK_KHR_push_descriptor) && defined(VK_VERSION_1_1)                                                      \
-    || defined(VK_KHR_push_descriptor) && defined(VK_KHR_descriptor_update_template)
+#if defined(VK_KHR_descriptor_update_template) && defined(VK_KHR_push_descriptor) || defined(VK_KHR_push_descriptor) && defined(VK_VERSION_1_1) || defined(VK_KHR_push_descriptor) && defined(VK_KHR_descriptor_update_template)
 #define NVVK_HAS_VK_KHR_descriptor_update_template
 #endif /* VK_KHR_descriptor_update_template && VK_KHR_push_descriptor || VK_KHR_push_descriptor && VK_VERSION_1_1 || VK_KHR_push_descriptor && VK_KHR_descriptor_update_template */
 #if defined(VK_KHR_device_group) && defined(VK_KHR_surface) || defined(VK_KHR_swapchain) && defined(VK_VERSION_1_1)
