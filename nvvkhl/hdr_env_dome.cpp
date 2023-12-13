@@ -163,15 +163,9 @@ void HdrEnvDome::draw(const VkCommandBuffer& cmdBuf,
 {
   LABEL_SCOPE_VK(cmdBuf);
 
-  // This will be to have a world direction vector pointing to the pixel
-  glm::mat4 m = glm::inverse(proj);
-  m[3][0] = m[3][1] = m[3][2] = m[3][3] = 0.0F;
-
-  m = glm::inverse(view) * m;
-
   // Information to the compute shader
   nvvkhl_shaders::HdrDomePushConstant pc{};
-  pc.mvp       = m;
+  pc.mvp       = glm::inverse(view) * glm::inverse(proj); // This will be to have a world direction vector pointing to the pixel
   pc.multColor = glm::vec4(*color);
   pc.rotation  = rotation;
 

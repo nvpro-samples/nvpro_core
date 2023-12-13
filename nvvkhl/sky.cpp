@@ -139,15 +139,9 @@ void SkyDome::draw(const VkCommandBuffer& cmd, const glm::mat4& view, const glm:
 {
   LABEL_SCOPE_VK(cmd);
 
-  // This will be to have a world direction vector pointing to the pixel
-  glm::mat4 m = glm::inverse(proj);
-  m[3][0] = m[3][1] = m[3][2] = m[3][3] = 0.0F;
-
-  m = glm::inverse(view) * m;
-
   // Information to the compute shader
   nvvkhl_shaders::SkyPushConstant pc{};
-  pc.mvp = m;
+  pc.mvp = glm::inverse(view) * glm::inverse(proj); // This will be to have a world direction vector pointing to the pixel
 
   // Execution
   std::vector<VkDescriptorSet> dst_sets = {m_skyDSet};
