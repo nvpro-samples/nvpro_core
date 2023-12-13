@@ -254,7 +254,7 @@ bool Context::initInstance(const ContextCreateInfo& info)
     {
       LOGI("___________________________\n");
       LOGI("Available Instance Layers :\n");
-      for(auto it : layerProperties)
+      for(const VkLayerProperties& it : layerProperties)
       {
         LOGI("%s (v. %d.%d.%d %x) : %s\n", it.layerName, VK_VERSION_MAJOR(it.specVersion),
              VK_VERSION_MINOR(it.specVersion), VK_VERSION_PATCH(it.specVersion), it.implementationVersion, it.description);
@@ -276,7 +276,7 @@ bool Context::initInstance(const ContextCreateInfo& info)
     {
       LOGI("\n");
       LOGI("Available Instance Extensions :\n");
-      for(auto it : extensionProperties)
+      for(const VkExtensionProperties& it : extensionProperties)
       {
         LOGI("%s (v. %d)\n", it.extensionName, it.specVersion);
       }
@@ -417,6 +417,15 @@ bool Context::initDevice(uint32_t deviceIndex, const ContextCreateInfo& info)
     m_physicalDevice = physicalDevices[deviceIndex];
   }
 
+  if(info.verboseCompatibleDevices)
+  {
+    VkPhysicalDeviceProperties props;
+    vkGetPhysicalDeviceProperties(m_physicalDevice, &props);
+    LOGI("Using Device:\n");
+    printPhysicalDeviceProperties(props);
+  }
+
+
   initPhysicalInfo(m_physicalInfo, m_physicalDevice, info.apiMajor, info.apiMinor);
 
 
@@ -519,7 +528,7 @@ bool Context::initDevice(uint32_t deviceIndex, const ContextCreateInfo& info)
   {
     LOGI("_____________________________\n");
     LOGI("Available Device Extensions :\n");
-    for(auto it : extensionProperties)
+    for(const VkExtensionProperties& it : extensionProperties)
     {
       LOGI("%s (v. %d)\n", it.extensionName, it.specVersion);
     }
@@ -1045,7 +1054,7 @@ std::vector<uint32_t> Context::getCompatibleDevices(const ContextCreateInfo& inf
   if(info.verboseCompatibleDevices)
   {
     LOGI("____________________\n");
-    LOGI("Compatible Devices :\n");
+    LOGI("Devices : %d\n", nbElems);
   }
 
   uint32_t compatible = 0;
@@ -1058,25 +1067,35 @@ std::vector<uint32_t> Context::getCompatibleDevices(const ContextCreateInfo& inf
 
     bool discreteGpu = props.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
 
-    // Note: all physical devices in a group are identical
-    if(hasMandatoryExtensions(physicalDevice, info, info.verboseCompatibleDevices))
+    if(info.verboseCompatibleDevices)
+      LOGI("%d: %s\n", elemId, props.deviceName);
+
+    // Check if the device has all the requested extensions
+    const std::vector<VkExtensionProperties> extensionProperties = getDeviceExtensions(physicalDevice);
+    const std::vector<std::string> missingExtensions = checkEntryArray(extensionProperties, info.deviceExtensions);
+
+    if(missingExtensions.empty())
     {
+      if(info.verboseCompatibleDevices)
+        LOGI("  - Compatible \n");
       compatibleDevices.emplace_back(discreteGpu, elemId);
+      compatible++;
+    }
+    else
+    {
       if(info.verboseCompatibleDevices)
       {
-
-        LOGI("%d: %s\n", compatible, props.deviceName);
-        compatible++;
+        LOGI("  - Missing extensions: ");
+        for(auto& e : missingExtensions)
+          LOGI("%s ", e.c_str());
+        LOGI("\n");
       }
     }
-    else if(info.verboseCompatibleDevices)
-    {
-      LOGI("Skipping physical device %s\n", props.deviceName);
-    }
   }
+
   if(info.verboseCompatibleDevices)
   {
-    LOGI("Physical devices found : ");
+    LOGI("Compatible physical devices found : ");
     if(compatible > 0)
     {
       LOGI("%d\n", compatible);
@@ -1096,47 +1115,29 @@ std::vector<uint32_t> Context::getCompatibleDevices(const ContextCreateInfo& inf
   return sortedDevices;
 }
 
-//--------------------------------------------------------------------------------------------------
-// Return true if all extensions in info, marked as required are available on the physicalDevice
-//
-bool Context::hasMandatoryExtensions(VkPhysicalDevice physicalDevice, const ContextCreateInfo& info, bool bVerbose)
+// Check if all requested and not optional device extensions are present.
+std::vector<std::string> Context::checkEntryArray(const std::vector<VkExtensionProperties>& properties,
+                                                  const ContextCreateInfo::EntryArray&      requested)
 {
-  std::vector<VkExtensionProperties> extensionProperties;
-
-  uint32_t count;
-  NVVK_CHECK(vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &count, nullptr));
-  extensionProperties.resize(count);
-  NVVK_CHECK(vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &count, extensionProperties.data()));
-  extensionProperties.resize(std::min(extensionProperties.size(), size_t(count)));
-
-  return checkEntryArray(extensionProperties, info.deviceExtensions, bVerbose);
-}
-
-bool Context::checkEntryArray(const std::vector<VkExtensionProperties>& properties, const ContextCreateInfo::EntryArray& requested, bool bVerbose)
-{
-  for(const auto& itr : requested)
+  std::vector<std::string> missingExtensions;
+  for(const auto& requestedExtension : requested)
   {
     bool found = false;
+    if(requestedExtension.optional)
+      continue;  // Looking only for non-optional extensions
     for(const auto& property : properties)
     {
-      if(strcmp(itr.name.c_str(), property.extensionName) == 0)
+      if(strcmp(requestedExtension.name.c_str(), property.extensionName) == 0)
       {
         found = true;
         break;
       }
     }
-
-    if(!found && !itr.optional)
-    {
-      if(bVerbose)
-      {
-        LOGW("Could NOT locate mandatory extension '%s'\n", itr.name.c_str());
-      }
-      return false;
-    }
+    if(!found)
+      missingExtensions.push_back(requestedExtension.name);
   }
 
-  return true;
+  return missingExtensions;
 }
 
 std::vector<VkPhysicalDevice> Context::getPhysicalDevices()
@@ -1191,5 +1192,60 @@ std::vector<VkExtensionProperties> Context::getDeviceExtensions(VkPhysicalDevice
   extensionProperties.resize(std::min(extensionProperties.size(), size_t(count)));
   return extensionProperties;
 }
+
+std::string getVendorName(uint32_t vendorID)
+{
+  switch(vendorID)
+  {
+    case 0x1002:
+      return ("AMD");
+    case 0x1010:
+      return ("ImgTec");
+    case 0x10DE:
+      return ("NVIDIA");
+    case 0x13B5:
+      return ("ARM");
+    case 0x5143:
+      return ("Qualcomm");
+    case 0x8086:
+      return ("INTEL");
+  }
+  return ("Unknown Vendor");
+}
+
+std::string getVersionString(uint32_t version)
+{
+  char str[64];
+  sprintf(str, "%d.%d.%d", VK_VERSION_MAJOR(version), VK_VERSION_MINOR(version), VK_VERSION_PATCH(version));
+  return std::string(str);
+}
+
+std::string getDeviceType(uint32_t deviceType)
+{
+  switch(deviceType)
+  {
+    case VK_PHYSICAL_DEVICE_TYPE_OTHER:
+      return ("Other");
+    case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
+      return ("Integrated GPU");
+    case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
+      return ("Discrete GPU");
+    case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
+      return ("Virtual GPU");
+    case VK_PHYSICAL_DEVICE_TYPE_CPU:
+      return ("CPU");
+  }
+  return ("Unknown");
+}
+
+void Context::printPhysicalDeviceProperties(const VkPhysicalDeviceProperties& properties)
+{
+  LOGI(" - Device Name    : %s\n", properties.deviceName);
+  LOGI(" - Vendor         : %s\n", getVendorName(properties.vendorID).c_str());
+  LOGI(" - Driver Version : %s\n", getVersionString(properties.driverVersion).c_str());
+  LOGI(" - API Version    : %s\n", getVersionString(properties.apiVersion).c_str());
+  LOGI(" - Device Type    : %s\n", getDeviceType(properties.deviceType).c_str());
+}
+
 
 }  // namespace nvvk
