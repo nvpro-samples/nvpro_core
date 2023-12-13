@@ -445,6 +445,7 @@ public:
   std::vector<VkExtensionProperties>           getInstanceExtensions();
   std::vector<VkLayerProperties>               getInstanceLayers();
   std::vector<VkExtensionProperties>           getDeviceExtensions(VkPhysicalDevice physicalDevice);
+  void printPhysicalDeviceProperties(const VkPhysicalDeviceProperties& properties);
   bool hasMandatoryExtensions(VkPhysicalDevice physicalDevice, const ContextCreateInfo& info, bool bVerbose);
 
   // Returns if GCTQueue supports present
@@ -502,14 +503,15 @@ private:
   void initDebugUtils();
   bool hasDebugUtils() const { return m_createDebugUtilsMessengerEXT != nullptr; }
 
-  VkResult fillFilteredNameArray(std::vector<std::string>&             used,
-                                 const std::vector<VkLayerProperties>& properties,
-                                 const ContextCreateInfo::EntryArray&  requested);
-  VkResult fillFilteredNameArray(std::vector<std::string>&                 used,
-                                 const std::vector<VkExtensionProperties>& properties,
-                                 const ContextCreateInfo::EntryArray&      requested,
-                                 std::vector<void*>&                       featureStructs);
-  bool checkEntryArray(const std::vector<VkExtensionProperties>& properties, const ContextCreateInfo::EntryArray& requested, bool bVerbose);
+  VkResult                 fillFilteredNameArray(std::vector<std::string>&             used,
+                                                 const std::vector<VkLayerProperties>& properties,
+                                                 const ContextCreateInfo::EntryArray&  requested);
+  VkResult                 fillFilteredNameArray(std::vector<std::string>&                 used,
+                                                 const std::vector<VkExtensionProperties>& properties,
+                                                 const ContextCreateInfo::EntryArray&      requested,
+                                                 std::vector<void*>&                       featureStructs);
+  std::vector<std::string> checkEntryArray(const std::vector<VkExtensionProperties>& properties,
+                                           const ContextCreateInfo::EntryArray&      requested);
   static void initPhysicalInfo(PhysicalDeviceInfo& info, VkPhysicalDevice physicalDevice, uint32_t versionMajor, uint32_t versionMinor);
 };
 

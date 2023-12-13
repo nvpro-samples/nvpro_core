@@ -320,7 +320,7 @@ void ImGuiH::showDemoIcons()
     if(((i + 1) % 20) != 0)
       ImGui::SameLine();
     ImGui::PopFont();
-    ImGui::SetItemTooltip(text_icon_[i]);
+    ImGui::SetItemTooltip("%s", text_icon_[i]);
   }
   ImGui::End();
 }

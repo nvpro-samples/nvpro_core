@@ -165,16 +165,17 @@ public:
   void wheel(int value, const Inputs& inputs);
 
   // Retrieve the screen dimension
-  int getWidth() const { return m_width; }
-  int getHeight() const { return m_height; }
+  int   getWidth() const { return m_width; }
+  int   getHeight() const { return m_height; }
+  float getAspectRatio() const { return static_cast<float>(m_width) / static_cast<float>(m_height); }
 
   // Field of view in degrees
   void  setFov(float _fov);
   float getFov() { return m_current.fov; }
 
+  // Clip planes
   void             setClipPlanes(glm::vec2 clip) { m_clipPlanes = clip; }
   const glm::vec2& getClipPlanes() const { return m_clipPlanes; }
-
 
   // Animation duration
   double getAnimationDuration() const { return m_duration; }

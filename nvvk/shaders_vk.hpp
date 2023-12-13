@@ -58,6 +58,12 @@ inline VkShaderModule createShaderModule(VkDevice device, const std::vector<char
   return createShaderModule(device, (const uint32_t*)code.data(), code.size());
 }
 
+inline VkShaderModule createShaderModule(VkDevice device, const std::vector<uint8_t>& code)
+{
+  return createShaderModule(device, (const uint32_t*)code.data(), code.size());
+}
+
+
 inline VkShaderModule createShaderModule(VkDevice device, const std::vector<uint32_t>& code)
 {
   return createShaderModule(device, code.data(), 4 * code.size());

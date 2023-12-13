@@ -234,7 +234,7 @@ protected:
 
   inline bool isSectionRecurring(SectionID slot) const { return m_data->entries[slot].level != LEVEL_SINGLESHOT; }
 
-private:
+protected:
   //////////////////////////////////////////////////////////////////////////
 
   static const uint32_t LEVEL_SINGLESHOT = ~0;
