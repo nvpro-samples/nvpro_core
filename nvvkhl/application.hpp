@@ -68,14 +68,15 @@ struct IAppElement;
 // Information for creating the application
 struct ApplicationCreateInfo
 {
-  std::string                  name{"Vulkan App"};  // Name of the GLFW
-  int32_t                      width{-1};           // Width of the Window
-  int32_t                      height{-1};          // Height of the window
-  bool                         vSync{true};         // Is V-Sync on by default?
-  bool                         useMenu{true};       // Is the application will have a menubar?
-  bool                         useDockMenu{false};  // Is there an extra menubar ?
-  nvvk::ContextCreateInfo      vkSetup{};           // Vulkan creation context information (see nvvk::Context)
-  std::vector<int>             ignoreDbgMessages;   // Turn off debug messages
+  std::string                  name{"Vulkan App"};           // Name of the GLFW
+  int32_t                      width{-1};                    // Width of the Window
+  int32_t                      height{-1};                   // Height of the window
+  bool                         vSync{true};                  // Is V-Sync on by default?
+  bool                         useMenu{true};                // Is the application will have a menubar?
+  bool                         useDockMenu{false};           // Is there an extra menubar ?
+  bool                         hasUndockableViewport{true};  // Create and use a default viewport
+  nvvk::ContextCreateInfo      vkSetup{};                    // Vulkan creation context information (see nvvk::Context)
+  std::vector<int>             ignoreDbgMessages;            // Turn off debug messages
   ImVec4                       clearColor{0.F, 0.F, 0.F, 1.F};
   std::function<void(ImGuiID)> dockSetup;  // Allow to configure the dock layout
 };
@@ -140,14 +141,15 @@ private:
   std::shared_ptr<nvvk::Context>            m_context;
   std::vector<std::shared_ptr<IAppElement>> m_elements;
 
-  bool        m_running{false};           // Is currently running
-  bool        m_useMenubar{true};         // Will use a menubar
-  bool        m_useDockMenubar{false};    // Will use an exta menubar
-  bool        m_vsyncWanted{true};        // Wanting swapchain with vsync
-  bool        m_vsyncSet{true};           // Vsync currently set
-  int         m_minImageCount{2};         // Nb frames in-flight
-  bool        m_swapChainRebuild{false};  // Need to rebuild swapchain?
-  std::string m_iniFilename;              // Holds on .ini name
+  bool        m_running{false};               // Is currently running
+  bool        m_useMenubar{true};             // Will use a menubar
+  bool        m_useDockMenubar{false};        // Will use an exta menubar
+  bool        m_vsyncWanted{true};            // Wanting swapchain with vsync
+  bool        m_vsyncSet{true};               // Vsync currently set
+  int         m_minImageCount{2};             // Nb frames in-flight
+  bool        m_swapChainRebuild{false};      // Need to rebuild swapchain?
+  bool        m_hasUndockableViewport{true};  // Using a default viewport
+  std::string m_iniFilename;                  // Holds on .ini name
   ImVec4      m_clearColor{0.0F, 0.0F, 0.0F, 1.0F};
 
   VkCommandPool          m_cmdPool{VK_NULL_HANDLE};         //

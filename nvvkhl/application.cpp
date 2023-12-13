@@ -39,17 +39,19 @@
 #include <iostream>
 #include <filesystem>
 #include <imgui_internal.h>
+#include <implot.h>
 
 #include "application.hpp"
 
-#include "third_party/imgui/backends/imgui_impl_glfw.h"
-#include "third_party/imgui/backends/imgui_impl_vulkan.h"
+#include "backends/imgui_impl_glfw.h"
+#include "backends/imgui_impl_vulkan.h"
 #include "imgui/imgui_camera_widget.h"
 #include "imgui/imgui_helper.h"
-#include "nvp/nvpsystem.hpp"
-#include "nvp/perproject_globals.hpp"
+#include "imgui/imgui_icon.h"
+#include "nvpsystem.hpp"
 #include "nvvk/context_vk.hpp"
 #include "nvvk/error_vk.hpp"
+#include "perproject_globals.hpp"
 
 
 #ifdef LINUX
@@ -65,7 +67,6 @@
 #endif
 #include <GLFW/glfw3.h>
 #include <GLFW/glfw3native.h>
-#include "imgui/imgui_icon.h"
 
 // Static
 uint32_t                                        nvvkhl::Application::m_currentFrameIndex{0};
@@ -117,8 +118,9 @@ void nvvkhl::Application::init(ApplicationCreateInfo& info)
                   / std::filesystem::path(std::string("log_") + getProjectName() + std::string(".txt"));
   auto path_ini = std::filesystem::path(NVPSystem::exePath()) / std::filesystem::path(getProjectName() + std::string(".ini"));
 
-  m_clearColor = info.clearColor;
-  m_dockSetup  = info.dockSetup;
+  m_clearColor            = info.clearColor;
+  m_dockSetup             = info.dockSetup;
+  m_hasUndockableViewport = info.hasUndockableViewport;
 
   // setup some basic things for the sample, logging file for example
   nvprintSetLogFileName(path_log.string().c_str());
@@ -215,6 +217,7 @@ void nvvkhl::Application::init(ApplicationCreateInfo& info)
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
   io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;      // Enable Docking
   io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;    // Enable Multi-Viewport / Platform Windows
+  io.ConfigWindowsMoveFromTitleBarOnly = true;
 
   // Setup Dear ImGui style
   ImGuiH::setStyle();
@@ -257,6 +260,9 @@ void nvvkhl::Application::init(ApplicationCreateInfo& info)
 
   // Read camera setting
   ImGuiH::SetCameraJsonFile(getProjectName());
+
+  // Implot
+  ImPlot::CreateContext();
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -280,6 +286,11 @@ void nvvkhl::Application::shutdown()
       func();
     }
     free_queue.clear();
+  }
+
+  if(ImPlot::GetCurrentContext() != nullptr)
+  {
+    ImPlot::DestroyContext();
   }
 
   if(ImGui::GetCurrentContext() != nullptr)
@@ -389,8 +400,6 @@ void nvvkhl::Application::run()
     {
       createDock();
 
-      ImGui::Begin("DockSpace NVVKHL");
-
       // Adding menu
       if(m_useMenubar)
       {
@@ -406,23 +415,30 @@ void nvvkhl::Application::run()
       }
 
       // Setting up the viewport and getting information
-      ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0F, 0.0F));
-      ImGui::PushStyleColor(ImGuiCol_WindowBg, m_clearColor);
-      ImGui::Begin("Viewport");
-      ImVec2 viewport_size         = ImGui::GetContentRegionAvail();
-      bool   viewport_size_changed = (static_cast<uint32_t>(viewport_size.x) != m_viewportSize.width
-                                    || static_cast<uint32_t>(viewport_size.y) != m_viewportSize.height);
-      ImGui::End();
-      ImGui::PopStyleVar();
-      ImGui::PopStyleColor();
-
-      if(viewport_size_changed)
+      ImGuiWindow* viewportWindow = ImGui::FindWindowByName("Viewport");
+      if(m_hasUndockableViewport || viewportWindow)
       {
-        m_viewportSize.width  = static_cast<uint32_t>(viewport_size.x);
-        m_viewportSize.height = static_cast<uint32_t>(viewport_size.y);
-        for(auto& e : m_elements)
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0F, 0.0F));
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, m_clearColor);
+
+        ImGui::Begin("Viewport");
+        ImVec2 viewport_size         = ImGui::GetContentRegionAvail();
+        bool   viewport_size_changed = (static_cast<uint32_t>(viewport_size.x) != m_viewportSize.width
+                                      || static_cast<uint32_t>(viewport_size.y) != m_viewportSize.height);
+        bool   viewport_valid        = viewport_size.x > 0 && viewport_size.y > 0;
+        ImGui::End();
+        ImGui::PopStyleVar();
+        ImGui::PopStyleColor();
+
+        // Callback if the viewport changed sizes
+        if(viewport_size_changed && viewport_valid)
         {
-          e->onResize(m_viewportSize.width, m_viewportSize.height);
+          m_viewportSize.width  = static_cast<uint32_t>(viewport_size.x);
+          m_viewportSize.height = static_cast<uint32_t>(viewport_size.y);
+          for(auto& e : m_elements)
+          {
+            e->onResize(m_viewportSize.width, m_viewportSize.height);
+          }
         }
       }
 
@@ -431,8 +447,6 @@ void nvvkhl::Application::run()
       {
         e->onUIRender();
       }
-
-      ImGui::End();
     }
 
     // Rendering
@@ -506,7 +520,10 @@ void nvvkhl::Application::createDock() const
 
   ImGui::PopStyleVar(2);
 
-  dockspace_flags = ImGuiDockNodeFlags_PassthruCentralNode | ImGuiDockNodeFlags_NoDockingOverCentralNode;
+  dockspace_flags = ImGuiDockNodeFlags_PassthruCentralNode;
+  if(m_hasUndockableViewport)
+    dockspace_flags |= ImGuiDockNodeFlags_NoDockingOverCentralNode;
+
   // Building the splitting of the dock space is done only once
   if(ImGui::DockBuilderGetNode(dockspace_id) == nullptr)
   {
@@ -518,7 +535,8 @@ void nvvkhl::Application::createDock() const
 
     // Disable tab bar for custom toolbar
     ImGuiDockNode* node = ImGui::DockBuilderGetNode(dock_main_id);
-    node->LocalFlags |= ImGuiDockNodeFlags_NoTabBar;
+    if(m_hasUndockableViewport)
+      node->LocalFlags |= ImGuiDockNodeFlags_NoTabBar;
 
     if(m_dockSetup)
     {
