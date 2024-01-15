@@ -165,7 +165,7 @@ void HdrEnvDome::draw(const VkCommandBuffer& cmdBuf,
 
   // Information to the compute shader
   nvvkhl_shaders::HdrDomePushConstant pc{};
-  pc.mvp       = glm::inverse(view) * glm::inverse(proj); // This will be to have a world direction vector pointing to the pixel
+  pc.mvp = glm::inverse(view) * glm::inverse(proj);  // This will be to have a world direction vector pointing to the pixel
   pc.multColor = glm::vec4(*color);
   pc.rotation  = rotation;
 
@@ -412,8 +412,8 @@ void HdrEnvDome::renderToCube(const VkCommandBuffer& cmdBuf,
   LABEL_SCOPE_VK(cmdBuf);
 
   glm::mat4 mat_pers = glm::perspectiveRH_ZO(glm::radians(90.0F), 1.0F, 0.1F, 10.0F);
-  mat_pers           = glm::inverse(mat_pers);
-  mat_pers[3][0] = mat_pers[3][1] = mat_pers[3][2] = mat_pers[3][3] = 0.0F;
+  mat_pers[1][1] *= -1.0F;
+  mat_pers = glm::inverse(mat_pers);
 
   std::array<glm::mat4, 6> mv;
   const glm::vec3          pos(0.0F, 0.0F, 0.0F);
