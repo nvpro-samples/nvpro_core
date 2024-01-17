@@ -31,6 +31,7 @@
 #include <chrono>
 #include "imgui_internal.h"
 #include "nvh/parallel_work.hpp"
+#include "imgui/imgui_icon.h"
 
 // Time during which a selected row will flash, in ms
 #define SELECTED_FLASH_DURATION 800.0
@@ -50,7 +51,7 @@
 // Above this threshold the user has to click on the "Apply" button to apply the filter to preserve
 // interactivity
 #define FILTER_AUTO_UPDATE_THRESHOLD 1024 * 1024
-
+namespace nvvkhl {
 
 static const ImVec4 highlightColor = ImVec4(118.f / 255.f, 185.f / 255.f, 0.f, 1.f);
 
@@ -95,6 +96,16 @@ static void sanitizeExtent(glm::uvec3& extent)
   extent = glm::max({1, 1, 1}, extent);
 }
 
+
+static void tooltip(const std::string& text, ImGuiHoveredFlags flags = ImGuiHoveredFlags_DelayNormal)
+{
+  if(ImGui::IsItemHovered(flags) && ImGui::BeginTooltip())
+  {
+    ImGui::Text(text.c_str());
+    ImGui::EndTooltip();
+  }
+}
+
 void ElementInspector::onAttach(nvvkhl::Application* app)
 {
   m_app = app;
@@ -107,40 +118,60 @@ void ElementInspector::onAttach(nvvkhl::Application* app)
   samplerInfo.minFilter    = VK_FILTER_NEAREST;
 
   vkCreateSampler(m_app->getDevice(), &samplerInfo, nullptr, &m_sampler);
+  m_isAttached = true;
 }
 
 void ElementInspector::onDetach()
 {
+
+  if(!m_isAttached)
+  {
+    return;
+  }
+
   NVVK_CHECK(vkDeviceWaitIdle(m_app->getDevice()));
 
   deinit();
+  m_isAttached = false;
 }
 
 void ElementInspector::onUIRender()
 {
-
+  if(!m_isAttached)
+  {
+    return;
+  }
   m_childIndex = 1;
 
   ImGui::Begin("Inspector");
 
   {
     imguiPushActiveButtonStyle(m_settings.isPaused);
-    if(ImGui::Button("Pause"))
+
+    ImGuiH::getIconicFont()->Scale *= 2;
+    ImGui::PushFont(ImGuiH::getIconicFont());
+
+    if(ImGui::Button(m_settings.isPaused ? ImGuiH::icon_media_pause : ImGuiH::icon_media_play,
+                     {SQUARE_BUTTON_SIZE / 2, SQUARE_BUTTON_SIZE / 2}))
     {
       m_settings.isPaused = !m_settings.isPaused;
     }
+    ImGui::PopFont();
+    ImGuiH::getIconicFont()->Scale /= 2;
     imguiPopActiveButtonStyle();
+    tooltip("Pause inspection, effectively freezing the displayed values");
 
     if(!m_inspectedComputeVariables.empty())
     {
       imguiPopActiveButtonStyle();
       ImGui::SameLine();
       imguiPushActiveButtonStyle(m_settings.showInactiveBlocks);
-      if(ImGui::Button("Show blocks with inactive inspection"))
+      if(ImGui::Button("Show inactive\n blocks", {SQUARE_BUTTON_SIZE * 2, SQUARE_BUTTON_SIZE / 2}))
       {
         m_settings.showInactiveBlocks = !m_settings.showInactiveBlocks;
       }
       imguiPopActiveButtonStyle();
+      tooltip("If enabled, blocks for which no inspection is enabled will be shown with inactive buttons");
     }
     ImGui::SameLine();
     if(m_isFilterTimeout)
@@ -152,6 +183,8 @@ void ElementInspector::onUIRender()
     {
       ImGui::Text("Filter timeout in seconds");
     }
+    tooltip("If filtering a column takes more than the specified time, an error will be logged and filtering will be cancelled");
+
     ImGui::SameLine();
     ImGui::PushItemWidth(ImGui::GetFontSize() * 4);
     ImGui::InputFloat("##FilterTimeout", &m_settings.filterTimeoutInSeconds, 0.f, 0.f, "%.1f");
@@ -247,7 +280,7 @@ void ElementInspector::onUIRender()
 
       imguiPopActiveButtonStyle();
 
-      if(ImGui::IsItemHovered() && m_inspectedBuffers[bufferIndex].isInspected)
+      if(ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal) && m_inspectedBuffers[bufferIndex].isInspected)
       {
         if(ImGui::BeginTooltip())
         {
@@ -610,6 +643,7 @@ void ElementInspector::imGuiBuffer(InspectedBuffer& buf,
       if(is1d)
       {
         ImGui::Text("Display Range");
+        tooltip("Reduce the range of displayed values");
         ImGui::SameLine();
 
         int32_t rangeMin = buf.viewMin + coordDisplayOffset.x;
@@ -730,9 +764,9 @@ void ElementInspector::imGuiBuffer(InspectedBuffer& buf,
       }
       if(ImGui::Button("Go to..."))
       {
-
         ImGui::OpenPopup("Go to entry");
       }
+      tooltip("Jump to a specific entry");
     }
 
     uint32_t visibleColumns = 0;
@@ -765,12 +799,14 @@ void ElementInspector::imGuiBuffer(InspectedBuffer& buf,
           buf.format[i].hexDisplay = !buf.format[i].hexDisplay;
         }
         imguiPopActiveButtonStyle();
+        tooltip("Display values as hexadecimal");
         ImGui::SameLine();
         imguiPushActiveButtonStyle(buf.filter.hasFilter[i]);
         if(ImGui::Button(fmt::format("Filter##Buffer{}{}", buf.name, i).c_str()))
         {
           buf.filter.hasFilter[i] = !buf.filter.hasFilter[i];
         }
+        tooltip("Filter the values in the column");
         imguiPopActiveButtonStyle();
       }
     }
@@ -1223,7 +1259,7 @@ void ElementInspector::imGuiBlock(uint32_t absoluteBlockIndex, InspectedComputeV
 }
 
 
-uint32_t wangHash(uint32_t seed)
+inline uint32_t wangHash(uint32_t seed)
 {
   seed = (seed ^ 61) ^ (seed >> 16);
   seed *= 9;
@@ -1235,7 +1271,7 @@ uint32_t wangHash(uint32_t seed)
 
 
 template <typename T>
-uint32_t colorFromValue(const T& v)
+inline uint32_t colorFromValue(const T& v)
 {
   const size_t          sizeInBytes = sizeof(T);
   const size_t          sizeInU32   = (sizeInBytes + 3) / 4;
@@ -1424,6 +1460,10 @@ void ElementInspector::imGuiWarp(uint32_t                   absoluteBlockIndex,
 
 void ElementInspector::onUIMenu()
 {
+  if(!m_isAttached)
+  {
+    return;
+  }
   if(ImGui::BeginMenu("File"))
   {
     if(ImGui::MenuItem("Exit", "Ctrl+Q"))
@@ -1436,6 +1476,10 @@ void ElementInspector::onUIMenu()
 
 void ElementInspector::init(const InitInfo& info)
 {
+  if(!m_isAttached)
+  {
+    return;
+  }
   m_alloc = info.allocator;
   m_inspectedImages.resize(info.imageCount);
   m_inspectedBuffers.resize(info.bufferCount);
@@ -1447,6 +1491,10 @@ void ElementInspector::init(const InitInfo& info)
 
 void ElementInspector::deinit()
 {
+  if(!m_isAttached)
+  {
+    return;
+  }
   for(size_t i = 0; i < m_inspectedImages.size(); i++)
   {
     deinitImageInspection(i);
@@ -1462,11 +1510,26 @@ void ElementInspector::deinit()
     deinitComputeInspection(i);
   }
 
+  for(size_t i = 0; i < m_inspectedFragmentVariables.size(); i++)
+  {
+    deinitFragmentInspection(i);
+  }
+
+  for(size_t i = 0; i < m_inspectedCustomVariables.size(); i++)
+  {
+    deinitCustomInspection(i);
+  }
+
   vkDestroySampler(m_app->getDevice(), m_sampler, nullptr);
+  m_sampler = VK_NULL_HANDLE;
 }
 
 void ElementInspector::initImageInspection(uint32_t index, const ImageInspectionInfo& info)
 {
+  if(!m_isAttached)
+  {
+    return;
+  }
   checkFormatFlag(info.format);
   InspectedImage& inspectedImage = m_inspectedImages[index];
 
@@ -1475,6 +1538,7 @@ void ElementInspector::initImageInspection(uint32_t index, const ImageInspection
   {
     inspectedImage.isAllocated = false;
     m_alloc->destroy(inspectedImage.image);
+    m_alloc->destroy(inspectedImage.hostBuffer);
     vkDestroyImageView(m_app->getDevice(), inspectedImage.view, nullptr);
   }
 
@@ -1498,6 +1562,10 @@ void ElementInspector::initImageInspection(uint32_t index, const ImageInspection
 
 void ElementInspector::deinitImageInspection(uint32_t index)
 {
+  if(!m_isAttached)
+  {
+    return;
+  }
   InspectedImage& inspectedImage = m_inspectedImages[index];
   if(!inspectedImage.isAllocated)
   {
@@ -1513,6 +1581,10 @@ void ElementInspector::deinitImageInspection(uint32_t index)
 
 void ElementInspector::initBufferInspection(uint32_t index, const BufferInspectionInfo& info)
 {
+  if(!m_isAttached)
+  {
+    return;
+  }
   checkFormatFlag(info.format);
   createInspectedBuffer(m_inspectedBuffers[index], info.sourceBuffer, info.name, info.format, info.entryCount,
                         info.comment, info.minEntry, info.viewMin, info.viewMax);
@@ -1520,11 +1592,19 @@ void ElementInspector::initBufferInspection(uint32_t index, const BufferInspecti
 
 void ElementInspector::deinitBufferInspection(uint32_t index)
 {
+  if(!m_isAttached)
+  {
+    return;
+  }
   destroyInspectedBuffer(m_inspectedBuffers[index]);
 }
 
 void ElementInspector::inspectImage(VkCommandBuffer cmd, uint32_t index, VkImageLayout currentLayout)
 {
+  if(!m_isAttached)
+  {
+    return;
+  }
   if(m_settings.isPaused)
   {
     return;
@@ -1705,6 +1785,10 @@ std::string ElementInspector::bufferEntryToString(const uint8_t* contents, const
 
 void ElementInspector::inspectBuffer(VkCommandBuffer cmd, uint32_t index)
 {
+  if(!m_isAttached)
+  {
+    return;
+  }
   if(m_settings.isPaused)
   {
     return;
@@ -1749,6 +1833,10 @@ void ElementInspector::inspectBuffer(VkCommandBuffer cmd, uint32_t index)
 
 void ElementInspector::initComputeInspection(uint32_t index, const ComputeInspectionInfo& info)
 {
+  if(!m_isAttached)
+  {
+    return;
+  }
   checkFormatFlag(info.format);
   InspectedComputeVariables& var = m_inspectedComputeVariables[index];
 
@@ -1814,6 +1902,10 @@ void ElementInspector::initComputeInspection(uint32_t index, const ComputeInspec
 
 void ElementInspector::deinitComputeInspection(uint32_t index)
 {
+  if(!m_isAttached)
+  {
+    return;
+  }
   InspectedComputeVariables& inspectedComputeVariable = m_inspectedComputeVariables[index];
   destroyInspectedBuffer(inspectedComputeVariable);
   m_alloc->destroy(inspectedComputeVariable.deviceBuffer);
@@ -1822,6 +1914,10 @@ void ElementInspector::deinitComputeInspection(uint32_t index)
 
 void ElementInspector::inspectComputeVariables(VkCommandBuffer cmd, uint32_t index)
 {
+  if(!m_isAttached)
+  {
+    return;
+  }
   if(m_settings.isPaused)
   {
     return;
@@ -1867,16 +1963,28 @@ void ElementInspector::inspectComputeVariables(VkCommandBuffer cmd, uint32_t ind
 
 VkBuffer ElementInspector::getComputeInspectionBuffer(uint32_t index)
 {
+  if(!m_isAttached)
+  {
+    return VK_NULL_HANDLE;
+  }
   return m_inspectedComputeVariables[index].deviceBuffer.buffer;
 }
 
 VkBuffer ElementInspector::getComputeMetadataBuffer(uint32_t index)
 {
+  if(!m_isAttached)
+  {
+    return VK_NULL_HANDLE;
+  }
   return m_inspectedComputeVariables[index].metadata.buffer;
 }
 
 void ElementInspector::initCustomInspection(uint32_t index, const CustomInspectionInfo& info)
 {
+  if(!m_isAttached)
+  {
+    return;
+  }
   checkFormatFlag(info.format);
   InspectedCustomVariables& var = m_inspectedCustomVariables[index];
 
@@ -1931,6 +2039,10 @@ void ElementInspector::initCustomInspection(uint32_t index, const CustomInspecti
 
 void ElementInspector::deinitCustomInspection(uint32_t index)
 {
+  if(!m_isAttached)
+  {
+    return;
+  }
   InspectedCustomVariables& inspectedCustomVariable = m_inspectedCustomVariables[index];
   destroyInspectedBuffer(inspectedCustomVariable);
   m_alloc->destroy(inspectedCustomVariable.deviceBuffer);
@@ -1939,6 +2051,10 @@ void ElementInspector::deinitCustomInspection(uint32_t index)
 
 void ElementInspector::inspectCustomVariables(VkCommandBuffer cmd, uint32_t index)
 {
+  if(!m_isAttached)
+  {
+    return;
+  }
   if(m_settings.isPaused)
   {
     return;
@@ -1984,17 +2100,29 @@ void ElementInspector::inspectCustomVariables(VkCommandBuffer cmd, uint32_t inde
 
 VkBuffer ElementInspector::getCustomInspectionBuffer(uint32_t index)
 {
+  if(!m_isAttached)
+  {
+    return VK_NULL_HANDLE;
+  }
   return m_inspectedCustomVariables[index].deviceBuffer.buffer;
 }
 
 VkBuffer ElementInspector::getCustomMetadataBuffer(uint32_t index)
 {
+  if(!m_isAttached)
+  {
+    return VK_NULL_HANDLE;
+  }
   return m_inspectedCustomVariables[index].metadata.buffer;
 }
 
 
 void ElementInspector::initFragmentInspection(uint32_t index, const FragmentInspectionInfo& info)
 {
+  if(!m_isAttached)
+  {
+    return;
+  }
   checkFormatFlag(info.format);
   InspectedFragmentVariables& var = m_inspectedFragmentVariables[index];
 
@@ -2056,6 +2184,10 @@ void ElementInspector::initFragmentInspection(uint32_t index, const FragmentInsp
 
 void ElementInspector::deinitFragmentInspection(uint32_t index)
 {
+  if(!m_isAttached)
+  {
+    return;
+  }
   InspectedFragmentVariables& inspectedFragmentVariable = m_inspectedFragmentVariables[index];
   destroyInspectedBuffer(inspectedFragmentVariable);
   m_alloc->destroy(inspectedFragmentVariable.deviceBuffer);
@@ -2065,6 +2197,10 @@ void ElementInspector::deinitFragmentInspection(uint32_t index)
 
 void ElementInspector::clearFragmentVariables(VkCommandBuffer cmd, uint32_t index)
 {
+  if(!m_isAttached)
+  {
+    return;
+  }
   if(m_settings.isPaused)
   {
     return;
@@ -2089,6 +2225,10 @@ void ElementInspector::clearFragmentVariables(VkCommandBuffer cmd, uint32_t inde
 
 void ElementInspector::inspectFragmentVariables(VkCommandBuffer cmd, uint32_t index)
 {
+  if(!m_isAttached)
+  {
+    return;
+  }
   if(m_settings.isPaused)
   {
     return;
@@ -2133,13 +2273,63 @@ void ElementInspector::inspectFragmentVariables(VkCommandBuffer cmd, uint32_t in
   var.isInspected = true;
 }
 
+void ElementInspector::updateMinMaxFragmentInspection(VkCommandBuffer cmd, uint32_t index, const glm::uvec2& minFragment, const glm::uvec2& maxFragment)
+{
+  if(!m_isAttached)
+  {
+    return;
+  }
+  if(m_settings.isPaused)
+  {
+    return;
+  }
+
+
+  InspectedFragmentVariables& var = m_inspectedFragmentVariables[index];
+
+  if((maxFragment - minFragment) != (var.maxFragment - var.minFragment))
+  {
+    LOGE("New min to max range must be the same as the previous min to max range\n");
+    return;
+  }
+
+  var.minFragment = minFragment;
+  var.maxFragment = maxFragment;
+
+  nvvkhl_shaders::InspectorFragmentMetadata metadata;
+  metadata.u32PerThread = var.u32PerThread;
+  metadata.minFragment  = var.minFragment;
+  metadata.maxFragment  = var.maxFragment;
+  metadata.renderSize   = var.renderSize;
+
+  vkCmdUpdateBuffer(cmd, var.metadata.buffer, 0, sizeof(nvvkhl_shaders::InspectorFragmentMetadata), &metadata);
+
+  VkMemoryBarrier mb{VK_STRUCTURE_TYPE_MEMORY_BARRIER};
+  mb.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_TRANSFER_WRITE_BIT;
+  VkPipelineStageFlags srcStage{};
+
+  mb.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT | VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_TRANSFER_WRITE_BIT;
+
+  srcStage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+
+  vkCmdPipelineBarrier(cmd, srcStage, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 1, &mb, 0, nullptr, 0, nullptr);
+}
+
 VkBuffer ElementInspector::getFragmentInspectionBuffer(uint32_t index)
 {
+  if(!m_isAttached)
+  {
+    return VK_NULL_HANDLE;
+  }
   return m_inspectedFragmentVariables[index].deviceBuffer.buffer;
 }
 
 VkBuffer ElementInspector::getFragmentMetadataBuffer(uint32_t index)
 {
+  if(!m_isAttached)
+  {
+    return VK_NULL_HANDLE;
+  }
   return m_inspectedFragmentVariables[index].metadata.buffer;
 }
 
@@ -2282,3 +2472,4 @@ bool ElementInspector::Filter::filterPasses(const uint8_t* data)
   }
   return true;
 }
+}  // namespace nvvkhl
