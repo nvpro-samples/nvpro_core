@@ -196,6 +196,10 @@ private:
   {
     VkImage     image{};
     VkImageView imageView{};
+  };
+
+  struct SemaphoreEntry
+  {
     // be aware semaphore index may not match active image index
     VkSemaphore readSemaphore{};
     VkSemaphore writtenSemaphore{};
@@ -216,6 +220,7 @@ private:
   VkSwapchainKHR m_swapchain{};
 
   std::vector<Entry>                m_entries;
+  std::vector<SemaphoreEntry>       m_semaphores;
   std::vector<VkImageMemoryBarrier> m_barriers;
 
   // index for current image, returned by vkAcquireNextImageKHR
@@ -317,6 +322,9 @@ public:
 private:
   bool acquireCustom(VkSemaphore semaphore, bool* pRecreated = nullptr, SwapChainAcquireState* pOut = nullptr);
   bool acquireCustom(VkSemaphore semaphore, int width, int height, bool* pRecreated, SwapChainAcquireState* pOut = nullptr);
+
+  // add one to avoid accidentally missing proper fence wait prior acquire
+  uint32_t getSemaphoreCycleCount() const { return m_imageCount + 1; }
 
 public:
   // all present functions bump semaphore cycle

@@ -192,14 +192,20 @@ VkExtent2D SwapChain::update(int width, int height, bool vsync)
     for(auto it : m_entries)
     {
       vkDestroyImageView(m_device, it.imageView, nullptr);
+    }
+
+    for(auto it : m_semaphores)
+    {
       vkDestroySemaphore(m_device, it.readSemaphore, nullptr);
       vkDestroySemaphore(m_device, it.writtenSemaphore, nullptr);
     }
+
     vkDestroySwapchainKHR(m_device, oldSwapchain, nullptr);
   }
 
   err = vkGetSwapchainImagesKHR(m_device, m_swapchain, &m_imageCount, nullptr);
   assert(!err);
+
 
   m_entries.resize(m_imageCount);
   m_barriers.resize(m_imageCount);
@@ -231,14 +237,6 @@ VkExtent2D SwapChain::update(int width, int height, bool vsync)
     err = vkCreateImageView(m_device, &viewCreateInfo, nullptr, &entry.imageView);
     assert(!err);
 
-    // semaphore
-    VkSemaphoreCreateInfo semCreateInfo = {VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
-
-    err = vkCreateSemaphore(m_device, &semCreateInfo, nullptr, &entry.readSemaphore);
-    assert(!err);
-    err = vkCreateSemaphore(m_device, &semCreateInfo, nullptr, &entry.writtenSemaphore);
-    assert(!err);
-
     // initial barriers
     VkImageSubresourceRange range = {0};
     range.aspectMask              = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -260,10 +258,24 @@ VkExtent2D SwapChain::update(int width, int height, bool vsync)
 
     debugUtil.setObjectName(entry.image, "swapchainImage:" + std::to_string(i));
     debugUtil.setObjectName(entry.imageView, "swapchainImageView:" + std::to_string(i));
+  }
+
+  m_semaphores.resize(getSemaphoreCycleCount());
+
+  for(uint32_t i = 0; i < getSemaphoreCycleCount(); i++)
+  {
+    SemaphoreEntry& entry = m_semaphores[i];
+    // semaphore
+    VkSemaphoreCreateInfo semCreateInfo = {VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
+
+    err = vkCreateSemaphore(m_device, &semCreateInfo, nullptr, &entry.readSemaphore);
+    assert(!err);
+    err = vkCreateSemaphore(m_device, &semCreateInfo, nullptr, &entry.writtenSemaphore);
+    assert(!err);
+
     debugUtil.setObjectName(entry.readSemaphore, "swapchainReadSemaphore:" + std::to_string(i));
     debugUtil.setObjectName(entry.writtenSemaphore, "swapchainWrittenSemaphore:" + std::to_string(i));
   }
-
 
   m_updateWidth  = width;
   m_updateHeight = height;
@@ -290,6 +302,10 @@ void SwapChain::deinitResources()
   for(auto it : m_entries)
   {
     vkDestroyImageView(m_device, it.imageView, nullptr);
+  }
+
+  for(auto it : m_semaphores)
+  {
     vkDestroySemaphore(m_device, it.readSemaphore, nullptr);
     vkDestroySemaphore(m_device, it.writtenSemaphore, nullptr);
   }
@@ -381,12 +397,12 @@ bool SwapChain::acquireCustom(VkSemaphore argSemaphore, int width, int height, b
 
 VkSemaphore SwapChain::getActiveWrittenSemaphore() const
 {
-  return m_entries[(m_currentSemaphore % m_imageCount)].writtenSemaphore;
+  return m_semaphores[(m_currentSemaphore % getSemaphoreCycleCount())].writtenSemaphore;
 }
 
 VkSemaphore SwapChain::getActiveReadSemaphore() const
 {
-  return m_entries[(m_currentSemaphore % m_imageCount)].readSemaphore;
+  return m_semaphores[(m_currentSemaphore % getSemaphoreCycleCount())].readSemaphore;
 }
 
 VkImage SwapChain::getActiveImage() const
@@ -419,7 +435,7 @@ void SwapChain::present(VkQueue queue)
 
 void SwapChain::presentCustom(VkPresentInfoKHR& presentInfo)
 {
-  VkSemaphore& written = m_entries[(m_currentSemaphore % m_imageCount)].writtenSemaphore;
+  VkSemaphore& written = m_semaphores[(m_currentSemaphore % getSemaphoreCycleCount())].writtenSemaphore;
 
   presentInfo                    = {VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
   presentInfo.swapchainCount     = 1;

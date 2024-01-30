@@ -522,6 +522,7 @@ void nvvkhl::AppBase::initGUI(uint32_t subpassID)
 
   std::vector<vk::DescriptorPoolSize> poolSize{{vk::DescriptorType::eSampler, 1}, {vk::DescriptorType::eCombinedImageSampler, 1}};
   vk::DescriptorPoolCreateInfo poolInfo{{}, 2, poolSize};
+  poolInfo.flags  = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
   m_imguiDescPool = m_device.createDescriptorPool(poolInfo);
 
   // Setup Platform/Renderer backends
@@ -541,14 +542,8 @@ void nvvkhl::AppBase::initGUI(uint32_t subpassID)
   init_info.Allocator                 = nullptr;
   ImGui_ImplVulkan_Init(&init_info, m_renderPass);
 
-
   // Upload Fonts
-  auto cmdbuf = m_device.allocateCommandBuffers({m_cmdPool, vk::CommandBufferLevel::ePrimary, 1})[0];
-  cmdbuf.begin(vk::CommandBufferBeginInfo{vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
-  ImGui_ImplVulkan_CreateFontsTexture(cmdbuf);
-  cmdbuf.end();
-  m_queue.submit(vk::SubmitInfo{0, nullptr, nullptr, 1, &cmdbuf}, vk::Fence());
-  m_device.waitIdle();
+  ImGui_ImplVulkan_CreateFontsTexture();
 }
 
 void nvvkhl::AppBase::fitCamera(const glm::vec3& boxMin, const glm::vec3& boxMax, bool instantFit)

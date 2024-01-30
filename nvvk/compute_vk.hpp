@@ -288,6 +288,18 @@ struct PushComputeDispatcher
                       uint32_t pipelineIndex = ~0u)
   {
 
+    dispatchBlocks(cmd, {blockCount, 1, 1}, constants, postBarrier, preBarrier, pipelineIndex);
+  }
+
+  void dispatchBlocks(VkCommandBuffer       cmd,
+                      glm::uvec3            blockCount,
+                      const TPushConstants* constants   = nullptr,
+                      uint32_t              postBarrier = DispatcherBarrier::eCompute,
+                      uint32_t              preBarrier  = DispatcherBarrier::eNone,
+                      // If pipelineIndex == ~0u, all pipelines will be executed sequentially. Otherwise, only dispatch the requested pipeline
+                      uint32_t pipelineIndex = ~0u)
+  {
+
     if(preBarrier != eNone)
     {
       VkMemoryBarrier mb{VK_STRUCTURE_TYPE_MEMORY_BARRIER};
@@ -318,7 +330,7 @@ struct PushComputeDispatcher
     for(uint32_t i = 0; i < count; i++)
     {
       bind(cmd, constants, currentPipeline + i);
-      vkCmdDispatch(cmd, blockCount, 1, 1);
+      vkCmdDispatch(cmd, blockCount.x, blockCount.y, blockCount.z);
 
       if(postBarrier != eNone)
       {
@@ -345,6 +357,7 @@ struct PushComputeDispatcher
       }
     }
   }
+
 
   void destroy(VkDevice device)
   {

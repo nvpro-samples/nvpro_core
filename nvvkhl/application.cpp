@@ -250,14 +250,6 @@ void nvvkhl::Application::init(ApplicationCreateInfo& info)
   init_info.CheckVkResultFn           = checkVkResult;
   ImGui_ImplVulkan_Init(&init_info, wd->RenderPass);
 
-
-  // Upload Fonts
-  VkCommandBuffer cmd = createTempCmdBuffer();
-  ImGui_ImplVulkan_CreateFontsTexture(cmd);
-  submitAndWaitTempCmdBuffer(cmd);
-  ImGui_ImplVulkan_DestroyFontUploadObjects();
-
-
   // Read camera setting
   ImGuiH::SetCameraJsonFile(getProjectName());
 
@@ -707,7 +699,8 @@ void nvvkhl::Application::framePresent()
     return;
   }
   checkVkResult(err);
-  wd->SemaphoreIndex = (wd->SemaphoreIndex + 1) % wd->ImageCount;  // Now we can use the next set of semaphores
+  wd->FrameIndex     = (wd->FrameIndex + 1) % wd->ImageCount;          // This is for the next vkWaitForFences()
+  wd->SemaphoreIndex = (wd->SemaphoreIndex + 1) % wd->SemaphoreCount;  // Now we can use the next set of semaphores
 }
 
 

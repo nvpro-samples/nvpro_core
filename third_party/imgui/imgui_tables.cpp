@@ -1,4 +1,4 @@
-// dear imgui, v1.90 WIP
+// dear imgui, v1.90.2 WIP
 // (tables and columns code)
 
 /*
@@ -48,7 +48,8 @@ Index of this file:
 // - TableUpdateLayout() [Internal]             followup to BeginTable(): setup everything: widths, columns positions, clipping rectangles. Automatically called by the FIRST call to TableNextRow() or TableHeadersRow().
 //    | TableSetupDrawChannels()                - setup ImDrawList channels
 //    | TableUpdateBorders()                    - detect hovering columns for resize, ahead of contents submission
-//    | TableDrawContextMenu()                  - draw right-click context menu
+//    | TableBeginContextMenuPopup()
+//    | - TableDrawDefaultContextMenu()         - draw right-click context menu contents
 //-----------------------------------------------------------------------------
 // - TableHeadersRow() or TableHeader()         user submit a headers row (optional)
 //    | TableSortSpecsClickColumn()             - when left-clicked: alter sort order and sort direction
@@ -321,12 +322,16 @@ bool    ImGui::BeginTableEx(const char* name, ImGuiID id, int columns_count, ImG
     const ImVec2 avail_size = GetContentRegionAvail();
     const ImVec2 actual_outer_size = CalcItemSize(outer_size, ImMax(avail_size.x, 1.0f), use_child_window ? ImMax(avail_size.y, 1.0f) : 0.0f);
     const ImRect outer_rect(outer_window->DC.CursorPos, outer_window->DC.CursorPos + actual_outer_size);
-    const bool outer_window_is_measuring_size = (outer_window->AutoFitFramesX > 0) || (outer_window->AutoFitFramesY > 0); // Doesn't apply to auto-fitting windows!
+    const bool outer_window_is_measuring_size = (outer_window->AutoFitFramesX > 0) || (outer_window->AutoFitFramesY > 0); // Doesn't apply to AlwaysAutoResize windows!
     if (use_child_window && IsClippedEx(outer_rect, 0) && !outer_window_is_measuring_size)
     {
         ItemSize(outer_rect);
         return false;
     }
+
+    // [DEBUG] Debug break requested by user
+    if (g.DebugBreakInTable == id)
+        IM_DEBUG_BREAK();
 
     // Acquire storage for the table
     ImGuiTable* table = g.Tables.GetOrAddByKey(id);
@@ -1190,10 +1195,14 @@ void ImGui::TableUpdateLayout(ImGuiTable* table)
         if (g.ActiveId == 0 || (table->IsActiveIdInTable || g.DragDropActive))
             table->HighlightColumnHeader = table->HoveredColumnBody;
 
-    // [Part 11] Context menu
-    if (TableBeginContextMenuPopup(table))
+    // [Part 11] Default context menu
+    // - To append to this menu: you can call TableBeginContextMenuPopup()/.../EndPopup().
+    // - To modify or replace this: set table->IsContextPopupNoDefaultContents = true, then call TableBeginContextMenuPopup()/.../EndPopup().
+    // - You may call TableDrawDefaultContextMenu() with selected flags to display specific sections of the default menu,
+    //   e.g. TableDrawDefaultContextMenu(table, table->Flags & ~ImGuiTableFlags_Hideable) will display everything EXCEPT columns visibility options.
+    if (table->DisableDefaultContextMenu == false && TableBeginContextMenuPopup(table))
     {
-        TableDrawContextMenu(table);
+        TableDrawDefaultContextMenu(table, table->Flags);
         EndPopup();
     }
 
@@ -3257,7 +3266,8 @@ void ImGui::TableAngledHeadersRowEx(float angle, float max_label_width)
 // [SECTION] Tables: Context Menu
 //-------------------------------------------------------------------------
 // - TableOpenContextMenu() [Internal]
-// - TableDrawContextMenu() [Internal]
+// - TableBeginContextMenuPopup() [Internal]
+// - TableDrawDefaultContextMenu() [Internal]
 //-------------------------------------------------------------------------
 
 // Use -1 to open menu not specific to a given column.
@@ -3293,7 +3303,13 @@ bool ImGui::TableBeginContextMenuPopup(ImGuiTable* table)
 
 // Output context menu into current window (generally a popup)
 // FIXME-TABLE: Ideally this should be writable by the user. Full programmatic access to that data?
-void ImGui::TableDrawContextMenu(ImGuiTable* table)
+// Sections to display are pulled from 'flags_for_section_to_display', which is typically == table->Flags.
+// - ImGuiTableFlags_Resizable   -> display Sizing menu items
+// - ImGuiTableFlags_Reorderable -> display "Reset Order"
+////- ImGuiTableFlags_Sortable   -> display sorting options (disabled)
+// - ImGuiTableFlags_Hideable    -> display columns visibility menu items
+// It means if you have a custom context menus you can call this section and omit some sections, and add your own.
+void ImGui::TableDrawDefaultContextMenu(ImGuiTable* table, ImGuiTableFlags flags_for_section_to_display)
 {
     ImGuiContext& g = *GImGui;
     ImGuiWindow* window = g.CurrentWindow;
@@ -3305,7 +3321,7 @@ void ImGui::TableDrawContextMenu(ImGuiTable* table)
     ImGuiTableColumn* column = (column_n != -1) ? &table->Columns[column_n] : NULL;
 
     // Sizing
-    if (table->Flags & ImGuiTableFlags_Resizable)
+    if (flags_for_section_to_display & ImGuiTableFlags_Resizable)
     {
         if (column != NULL)
         {
@@ -3325,7 +3341,7 @@ void ImGui::TableDrawContextMenu(ImGuiTable* table)
     }
 
     // Ordering
-    if (table->Flags & ImGuiTableFlags_Reorderable)
+    if (flags_for_section_to_display & ImGuiTableFlags_Reorderable)
     {
         if (MenuItem(LocalizeGetMsg(ImGuiLocKey_TableResetOrder), NULL, false, !table->IsDefaultDisplayOrder))
             table->IsResetDisplayOrderRequest = true;
@@ -3339,7 +3355,7 @@ void ImGui::TableDrawContextMenu(ImGuiTable* table)
     // Sorting
     // (modify TableOpenContextMenu() to add _Sortable flag if enabling this)
 #if 0
-    if ((table->Flags & ImGuiTableFlags_Sortable) && column != NULL && (column->Flags & ImGuiTableColumnFlags_NoSort) == 0)
+    if ((flags_for_section_to_display & ImGuiTableFlags_Sortable) && column != NULL && (column->Flags & ImGuiTableColumnFlags_NoSort) == 0)
     {
         if (want_separator)
             Separator();
@@ -3354,7 +3370,7 @@ void ImGui::TableDrawContextMenu(ImGuiTable* table)
 #endif
 
     // Hiding / Visibility
-    if (table->Flags & ImGuiTableFlags_Hideable)
+    if (flags_for_section_to_display & ImGuiTableFlags_Hideable)
     {
         if (want_separator)
             Separator();
@@ -3790,7 +3806,8 @@ static const char* DebugNodeTableGetSizingPolicyDesc(ImGuiTableFlags sizing_poli
 
 void ImGui::DebugNodeTable(ImGuiTable* table)
 {
-    const bool is_active = (table->LastFrameActive >= GetFrameCount() - 2); // Note that fully clipped early out scrolling tables will appear as inactive here.
+    ImGuiContext& g = *GImGui;
+    const bool is_active = (table->LastFrameActive >= g.FrameCount - 2); // Note that fully clipped early out scrolling tables will appear as inactive here.
     if (!is_active) { PushStyleColor(ImGuiCol_Text, GetStyleColorVec4(ImGuiCol_TextDisabled)); }
     bool open = TreeNode(table, "Table 0x%08X (%d columns, in '%s')%s", table->ID, table->ColumnsCount, table->OuterWindow->Name, is_active ? "" : " *Inactive*");
     if (!is_active) { PopStyleColor(); }
@@ -3802,6 +3819,13 @@ void ImGui::DebugNodeTable(ImGuiTable* table)
         return;
     if (table->InstanceCurrent > 0)
         Text("** %d instances of same table! Some data below will refer to last instance.", table->InstanceCurrent + 1);
+    if (g.IO.ConfigDebugIsDebuggerPresent)
+    {
+        if (DebugBreakButton("**DebugBreak**", "in BeginTable()"))
+            g.DebugBreakInTable = table->ID;
+        SameLine();
+    }
+
     bool clear_settings = SmallButton("Clear settings");
     BulletText("OuterRect: Pos: (%.1f,%.1f) Size: (%.1f,%.1f) Sizing: '%s'", table->OuterRect.Min.x, table->OuterRect.Min.y, table->OuterRect.GetWidth(), table->OuterRect.GetHeight(), DebugNodeTableGetSizingPolicyDesc(table->Flags));
     BulletText("ColumnsGivenWidth: %.1f, ColumnsAutoFitWidth: %.1f, InnerWidth: %.1f%s", table->ColumnsGivenWidth, table->ColumnsAutoFitWidth, table->InnerWidth, table->InnerWidth == 0.0f ? " (auto)" : "");

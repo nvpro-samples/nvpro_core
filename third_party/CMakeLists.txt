@@ -77,6 +77,7 @@ target_include_directories(glm INTERFACE ${GLM_DIR})
 target_compile_definitions(glm INTERFACE
     GLM_FORCE_RADIANS
     GLM_ENABLE_EXPERIMENTAL
+    GLM_FORCE_XYZW_ONLY
 )
 # if(NOT CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
 #     target_compile_definitions(glm INTERFACE GLM_FORCE_CXX2A)

@@ -18,6 +18,7 @@
 
 // CHANGELOG
 // (minor and older changes stripped away, please see git history for details)
+//  2024-01-17: Explicitly fill all of WGPUDepthStencilState since standard removed defaults.
 //  2023-07-13: Use WGPUShaderModuleWGSLDescriptor's code instead of source. use WGPUMipmapFilterMode_Linear instead of WGPUFilterMode_Linear. (#6602)
 //  2023-04-11: Align buffer sizes. Use WGSL shaders instead of precompiled SPIR-V.
 //  2023-04-11: Reorganized backend to pull data from a single structure to facilitate usage with multiple-contexts (all g_XXXX access changed to bd->XXXX).
@@ -331,7 +332,9 @@ static void ImGui_ImplWGPU_SetupRenderState(ImDrawData* draw_data, WGPURenderPas
 void ImGui_ImplWGPU_RenderDrawData(ImDrawData* draw_data, WGPURenderPassEncoder pass_encoder)
 {
     // Avoid rendering when minimized
-    if (draw_data->DisplaySize.x <= 0.0f || draw_data->DisplaySize.y <= 0.0f)
+    int fb_width = (int)(draw_data->DisplaySize.x * draw_data->FramebufferScale.x);
+    int fb_height = (int)(draw_data->DisplaySize.y * draw_data->FramebufferScale.y);
+    if (fb_width <= 0 || fb_height <= 0 || draw_data->CmdListsCount == 0)
         return;
 
     // FIXME: Assuming that this only gets called once per frame!
@@ -450,6 +453,12 @@ void ImGui_ImplWGPU_RenderDrawData(ImDrawData* draw_data, WGPURenderPassEncoder 
                 // Project scissor/clipping rectangles into framebuffer space
                 ImVec2 clip_min((pcmd->ClipRect.x - clip_off.x) * clip_scale.x, (pcmd->ClipRect.y - clip_off.y) * clip_scale.y);
                 ImVec2 clip_max((pcmd->ClipRect.z - clip_off.x) * clip_scale.x, (pcmd->ClipRect.w - clip_off.y) * clip_scale.y);
+
+                // Clamp to viewport as wgpuRenderPassEncoderSetScissorRect() won't accept values that are off bounds
+                if (clip_min.x < 0.0f) { clip_min.x = 0.0f; }
+                if (clip_min.y < 0.0f) { clip_min.y = 0.0f; }
+                if (clip_max.x > fb_width) { clip_max.x = (float)fb_width; }
+                if (clip_max.y > fb_height) { clip_max.y = (float)fb_height; }
                 if (clip_max.x <= clip_min.x || clip_max.y <= clip_min.y)
                     continue;
 
@@ -603,9 +612,9 @@ bool ImGui_ImplWGPU_CreateDeviceObjects()
     // Vertex input configuration
     WGPUVertexAttribute attribute_desc[] =
     {
-        { WGPUVertexFormat_Float32x2, (uint64_t)IM_OFFSETOF(ImDrawVert, pos), 0 },
-        { WGPUVertexFormat_Float32x2, (uint64_t)IM_OFFSETOF(ImDrawVert, uv),  1 },
-        { WGPUVertexFormat_Unorm8x4,  (uint64_t)IM_OFFSETOF(ImDrawVert, col), 2 },
+        { WGPUVertexFormat_Float32x2, (uint64_t)offsetof(ImDrawVert, pos), 0 },
+        { WGPUVertexFormat_Float32x2, (uint64_t)offsetof(ImDrawVert, uv),  1 },
+        { WGPUVertexFormat_Unorm8x4,  (uint64_t)offsetof(ImDrawVert, col), 2 },
     };
 
     WGPUVertexBufferLayout buffer_layouts[1];
@@ -648,7 +657,13 @@ bool ImGui_ImplWGPU_CreateDeviceObjects()
     depth_stencil_state.depthWriteEnabled = false;
     depth_stencil_state.depthCompare = WGPUCompareFunction_Always;
     depth_stencil_state.stencilFront.compare = WGPUCompareFunction_Always;
+    depth_stencil_state.stencilFront.failOp = WGPUStencilOperation_Keep;
+    depth_stencil_state.stencilFront.depthFailOp = WGPUStencilOperation_Keep;
+    depth_stencil_state.stencilFront.passOp = WGPUStencilOperation_Keep;
     depth_stencil_state.stencilBack.compare = WGPUCompareFunction_Always;
+    depth_stencil_state.stencilBack.failOp = WGPUStencilOperation_Keep;
+    depth_stencil_state.stencilBack.depthFailOp = WGPUStencilOperation_Keep;
+    depth_stencil_state.stencilBack.passOp = WGPUStencilOperation_Keep;
 
     // Configure disabled depth-stencil state
     graphics_pipeline_desc.depthStencil = (bd->depthStencilFormat == WGPUTextureFormat_Undefined) ? nullptr :  &depth_stencil_state;

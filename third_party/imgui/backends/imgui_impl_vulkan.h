@@ -72,6 +72,7 @@ struct ImGui_ImplVulkan_InitInfo
     // Allocation, Debugging
     const VkAllocationCallbacks*    Allocator;
     void                            (*CheckVkResultFn)(VkResult err);
+    VkDeviceSize                    MinAllocationSize;      // Minimum allocation size. Set to 1024*1024 to satisfy zealous best practices validation layer and waste a little memory.
 };
 
 // Called by user code
@@ -79,8 +80,8 @@ IMGUI_IMPL_API bool         ImGui_ImplVulkan_Init(ImGui_ImplVulkan_InitInfo* inf
 IMGUI_IMPL_API void         ImGui_ImplVulkan_Shutdown();
 IMGUI_IMPL_API void         ImGui_ImplVulkan_NewFrame();
 IMGUI_IMPL_API void         ImGui_ImplVulkan_RenderDrawData(ImDrawData* draw_data, VkCommandBuffer command_buffer, VkPipeline pipeline = VK_NULL_HANDLE);
-IMGUI_IMPL_API bool         ImGui_ImplVulkan_CreateFontsTexture(VkCommandBuffer command_buffer);
-IMGUI_IMPL_API void         ImGui_ImplVulkan_DestroyFontUploadObjects();
+IMGUI_IMPL_API bool         ImGui_ImplVulkan_CreateFontsTexture();
+IMGUI_IMPL_API void         ImGui_ImplVulkan_DestroyFontsTexture();
 IMGUI_IMPL_API void         ImGui_ImplVulkan_SetMinImageCount(uint32_t min_image_count); // To override MinImageCount after initialization (e.g. if swap chain is recreated)
 
 // Register a texture (VkDescriptorSet == ImTextureID)
@@ -155,6 +156,7 @@ struct ImGui_ImplVulkanH_Window
     VkClearValue        ClearValue;
     uint32_t            FrameIndex;             // Current frame being rendered to (0 <= FrameIndex < FrameInFlightCount)
     uint32_t            ImageCount;             // Number of simultaneous in-flight frames (returned by vkGetSwapchainImagesKHR, usually derived from min_image_count)
+    uint32_t            SemaphoreCount;         // Number of simultaneous in-flight frames + 1, to be able to use it in vkAcquireNextImageKHR
     uint32_t            SemaphoreIndex;         // Current set of swapchain wait semaphores we're using (needs to be distinct from per frame data)
     ImGui_ImplVulkanH_Frame*            Frames;
     ImGui_ImplVulkanH_FrameSemaphores*  FrameSemaphores;

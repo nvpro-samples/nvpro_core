@@ -678,6 +678,7 @@ void nvvkhl::AppBaseVk::initGUI(uint32_t subpassID /*= 0*/)
 
   std::vector<VkDescriptorPoolSize> poolSize{{VK_DESCRIPTOR_TYPE_SAMPLER, 1}, {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1}};
   VkDescriptorPoolCreateInfo poolInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
+  poolInfo.flags         = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
   poolInfo.maxSets       = 1000;
   poolInfo.poolSizeCount = 2;
   poolInfo.pPoolSizes    = poolSize.data();
@@ -703,9 +704,7 @@ void nvvkhl::AppBaseVk::initGUI(uint32_t subpassID /*= 0*/)
   ImGui_ImplVulkan_Init(&init_info, m_renderPass);
 
   // Upload Fonts
-  VkCommandBuffer cmdbuf = createTempCmdBuffer();
-  ImGui_ImplVulkan_CreateFontsTexture(cmdbuf);
-  submitTempCmdBuffer(cmdbuf);
+  ImGui_ImplVulkan_CreateFontsTexture();
 }
 
 //--------------------------------------------------------------------------------------------------

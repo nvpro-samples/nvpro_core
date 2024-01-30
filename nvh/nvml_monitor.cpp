@@ -30,6 +30,99 @@
 // For convenience the library is also linked in automatically using the #pragma command.
 #pragma comment(lib, "Cfgmgr32.lib")
 #endif
+
+
+static const uint64_t mibSize = 1000000ull;
+
+#define CHECK_NVML_CALL()                                                                                              \
+  if(res != NVML_SUCCESS)                                                                                              \
+  {                                                                                                                    \
+    LOGE("NVML Error %s\n", nvmlErrorString(res));                                                                     \
+  }
+
+#define CHECK_NVML(fun)                                                                                                \
+  {                                                                                                                    \
+    nvmlReturn_t res = fun;                                                                                            \
+    if(res != NVML_SUCCESS)                                                                                            \
+    {                                                                                                                  \
+      LOGE("NVML Error in %s: %s\n", #fun, nvmlErrorString(res));                                                      \
+    }                                                                                                                  \
+  }
+
+#define CHECK_NVML_SUPPORT(fun, field)                                                                                 \
+  {                                                                                                                    \
+    nvmlReturn_t res = fun;                                                                                            \
+    if(res != NVML_SUCCESS)                                                                                            \
+    {                                                                                                                  \
+      field.isSupported = false;                                                                                       \
+    }                                                                                                                  \
+    else                                                                                                               \
+    {                                                                                                                  \
+      field.isSupported = true;                                                                                        \
+    }                                                                                                                  \
+  }
+
+
+static const std::string brandToString(nvmlBrandType_t brand)
+{
+  switch(brand)
+  {
+    case NVML_BRAND_UNKNOWN:
+      return "Unknown";
+
+    case NVML_BRAND_QUADRO:
+      return "Quadro";
+    case NVML_BRAND_TESLA:
+      return "Tesla";
+    case NVML_BRAND_NVS:
+      return "NVS";
+    case NVML_BRAND_GRID:
+      return "Grid";
+    case NVML_BRAND_GEFORCE:
+      return "GeForce";
+    case NVML_BRAND_TITAN:
+      return "Titan";
+    case NVML_BRAND_NVIDIA_VAPPS:
+      return "NVIDIA Virtual Applications";
+
+    case NVML_BRAND_NVIDIA_VPC:
+      return "NVIDIA Virtual PC";
+    case NVML_BRAND_NVIDIA_VCS:
+      return "NVIDIA Virtual Compute Server";
+    case NVML_BRAND_NVIDIA_VWS:
+      return "NVIDIA RTX Virtual Workstation";
+    case NVML_BRAND_NVIDIA_CLOUD_GAMING:
+      return "NVIDIA Cloud Gaming";
+    case NVML_BRAND_QUADRO_RTX:
+      return "Quadro RTX";
+    case NVML_BRAND_NVIDIA_RTX:
+      return "NVIDIA RTX";
+    case NVML_BRAND_NVIDIA:
+      return "NVIDIA";
+    case NVML_BRAND_GEFORCE_RTX:
+      return "GeForce RTX";
+    case NVML_BRAND_TITAN_RTX:
+      return "Titan RTX";
+  }
+  return "Unknown";
+}
+
+static const std::string computeModeToString(nvmlComputeMode_t computeMode)
+{
+  switch(computeMode)
+  {
+    case NVML_COMPUTEMODE_DEFAULT:
+      return "Default";
+    case NVML_COMPUTEMODE_EXCLUSIVE_THREAD:
+      return "Exclusive thread";
+    case NVML_COMPUTEMODE_PROHIBITED:
+      return "Compute prohibited";
+    case NVML_COMPUTEMODE_EXCLUSIVE_PROCESS:
+      return "Exclusive process";
+    default:
+      return "Unknown";
+  }
+}
 #endif
 
 //-------------------------------------------------------------------------------------------------
@@ -47,8 +140,12 @@ nvvkhl::NvmlMonitor::NvmlMonitor(uint32_t interval /*= 100*/, uint32_t limit /*=
     return;
   if(nvmlDeviceGetCount(&m_physicalGpuCount) != NVML_SUCCESS)
     return;
-  m_gpuMeasure.resize(m_physicalGpuCount);
-  m_gpuInfo.resize(m_physicalGpuCount);
+
+  m_deviceInfo.resize(m_physicalGpuCount);
+  m_deviceMemory.resize(m_physicalGpuCount);
+  m_deviceUtilization.resize(m_physicalGpuCount);
+  m_devicePerformanceState.resize(m_physicalGpuCount);
+  m_devicePowerState.resize(m_physicalGpuCount);
 
   // System Info
   m_sysInfo.cpu.resize(m_maxElements);
@@ -63,35 +160,16 @@ nvvkhl::NvmlMonitor::NvmlMonitor(uint32_t interval /*= 100*/, uint32_t limit /*=
   for(int i = 0; i < (int)m_physicalGpuCount; i++)
   {
     // Sizing the data
-    m_gpuMeasure[i].memory.resize(m_maxElements);
-    m_gpuMeasure[i].load.resize(m_maxElements);
+    m_deviceMemory[i].init(m_maxElements);
+    m_deviceUtilization[i].init(m_maxElements);
+    m_devicePerformanceState[i].init(m_maxElements);
+    m_devicePowerState[i].init(m_maxElements);
 
     // Retrieving general capabilities
     nvmlDevice_t device;
-    nvmlMemory_t memory;
 
-    // Find the memory of each cards
     result = nvmlDeviceGetHandleByIndex(i, &device);
-    if(NVML_SUCCESS != result)
-      return;
-    nvmlDeviceGetMemoryInfo(device, &memory);
-    m_gpuInfo[i].maxMem = memory.total;
-
-    // name
-    char name[96];
-    result = nvmlDeviceGetName(device, name, 96);
-    if(NVML_SUCCESS == result)
-      m_gpuInfo[i].name = name;
-
-#ifdef _WIN32
-    // Find the model: TCC or WDDM
-    nvmlDriverModel_t currentDriverModel;
-    nvmlDriverModel_t pendingDriverModel;
-    result = nvmlDeviceGetDriverModel(device, &currentDriverModel, &pendingDriverModel);
-    if(NVML_SUCCESS != result)
-      return;
-    m_gpuInfo[i].driverModel = currentDriverModel;
-#endif
+    m_deviceInfo[i].refresh(device);
   }
   m_valid = true;
 #endif
@@ -199,12 +277,332 @@ void nvvkhl::NvmlMonitor::refresh()
   {
     nvmlDevice_t device;
     nvmlReturn_t result = nvmlDeviceGetHandleByIndex(gpu_id, &device);
-    if(result == NVML_SUCCESS)
-    {
-      m_gpuMeasure[gpu_id].memory[m_offset] = getMemory(device);
-      m_gpuMeasure[gpu_id].load[m_offset]   = getLoad(device);
-    }
+
+    m_deviceMemory[gpu_id].refresh(device, m_offset);
+    m_deviceUtilization[gpu_id].refresh(device, m_offset);
+    m_devicePerformanceState[gpu_id].refresh(device, m_offset);
+    m_devicePowerState[gpu_id].refresh(device, m_offset);
   }
 
 #endif  //  NVP_SUPPORTS_NVML
+}
+
+void nvvkhl::NvmlMonitor::DeviceInfo::refresh(void* dev)
+{
+#if defined(NVP_SUPPORTS_NVML)
+  nvmlDevice_t device = reinterpret_cast<nvmlDevice_t>(dev);
+
+
+  CHECK_NVML_SUPPORT(nvmlDeviceGetBoardId(device, &boardId.get()), boardId);
+
+  partNumber.get().resize(NVML_DEVICE_PART_NUMBER_BUFFER_SIZE);
+  CHECK_NVML_SUPPORT(nvmlDeviceGetBoardPartNumber(device, partNumber.get().data(), partNumber.get().size()), partNumber);
+
+  nvmlBrandType_t brandType;
+  CHECK_NVML_SUPPORT(nvmlDeviceGetBrand(device, &brandType), brand);
+  brand.get() = brandToString(brandType);
+
+  nvmlBridgeChipHierarchy_t bridgeChipHierarchy{};
+  CHECK_NVML_SUPPORT(nvmlDeviceGetBridgeChipInfo(device, &bridgeChipHierarchy), bridgeHierarchy);
+  bridgeHierarchy.get().resize(bridgeChipHierarchy.bridgeCount);
+  for(int i = 0; i < bridgeChipHierarchy.bridgeCount; i++)
+  {
+    bridgeHierarchy.get()[i].first = ((bridgeChipHierarchy.bridgeChipInfo[i].type == NVML_BRIDGE_CHIP_PLX) ? "PLX" : "BRO4");
+    bridgeHierarchy.get()[i].second = fmt::format("#{}", bridgeChipHierarchy.bridgeChipInfo[i].fwVersion);
+  }
+
+
+  CHECK_NVML_SUPPORT(nvmlDeviceGetCpuAffinity(device, 1, (unsigned long*)&cpuAffinity.get()), cpuAffinity);
+
+  nvmlComputeMode_t cMode;
+  CHECK_NVML_SUPPORT(nvmlDeviceGetComputeMode(device, &cMode), computeMode);
+  computeMode = computeModeToString(cMode);
+
+  CHECK_NVML_SUPPORT(nvmlDeviceGetCudaComputeCapability(device, &computeCapabilityMajor.get(), &computeCapabilityMinor.get()),
+                     computeCapabilityMajor);
+  computeCapabilityMinor.isSupported = computeCapabilityMajor.isSupported;
+
+  CHECK_NVML_SUPPORT(nvmlDeviceGetCurrPcieLinkGeneration(device, &pcieLinkGen.get()), pcieLinkGen);
+  CHECK_NVML_SUPPORT(nvmlDeviceGetCurrPcieLinkWidth(device, &pcieLinkWidth.get()), pcieLinkWidth);
+
+  CHECK_NVML_SUPPORT(nvmlDeviceGetDefaultApplicationsClock(device, NVML_CLOCK_GRAPHICS, &clockDefaultGraphics.get()),
+                     clockDefaultGraphics);
+  CHECK_NVML_SUPPORT(nvmlDeviceGetMaxClockInfo(device, NVML_CLOCK_GRAPHICS, &clockMaxGraphics.get()), clockMaxGraphics);
+  CHECK_NVML_SUPPORT(nvmlDeviceGetMaxCustomerBoostClock(device, NVML_CLOCK_GRAPHICS, &clockBoostGraphics.get()), clockBoostGraphics);
+
+
+  CHECK_NVML_SUPPORT(nvmlDeviceGetDefaultApplicationsClock(device, NVML_CLOCK_SM, &clockDefaultSM.get()), clockDefaultSM);
+  CHECK_NVML_SUPPORT(nvmlDeviceGetMaxClockInfo(device, NVML_CLOCK_SM, &clockMaxSM.get()), clockMaxSM);
+  CHECK_NVML_SUPPORT(nvmlDeviceGetMaxCustomerBoostClock(device, NVML_CLOCK_SM, &clockBoostSM.get()), clockBoostSM);
+
+  CHECK_NVML_SUPPORT(nvmlDeviceGetDefaultApplicationsClock(device, NVML_CLOCK_MEM, &clockDefaultMem.get()), clockDefaultMem);
+  CHECK_NVML_SUPPORT(nvmlDeviceGetMaxClockInfo(device, NVML_CLOCK_MEM, &clockMaxMem.get()), clockMaxMem);
+  CHECK_NVML_SUPPORT(nvmlDeviceGetMaxCustomerBoostClock(device, NVML_CLOCK_MEM, &clockBoostMem.get()), clockBoostMem);
+
+  CHECK_NVML_SUPPORT(nvmlDeviceGetDefaultApplicationsClock(device, NVML_CLOCK_VIDEO, &clockDefaultVideo.get()), clockDefaultVideo);
+  CHECK_NVML_SUPPORT(nvmlDeviceGetMaxClockInfo(device, NVML_CLOCK_VIDEO, &clockMaxVideo.get()), clockMaxVideo);
+  CHECK_NVML_SUPPORT(nvmlDeviceGetMaxCustomerBoostClock(device, NVML_CLOCK_VIDEO, &clockBoostVideo.get()), clockBoostVideo);
+
+#ifdef _WIN32
+  nvmlDriverModel_t currentDM, pendingDM;
+  CHECK_NVML_SUPPORT(nvmlDeviceGetDriverModel(device, &currentDM, &pendingDM), currentDriverModel);
+  currentDriverModel             = (currentDM == NVML_DRIVER_WDDM) ? "WDDM" : "TCC";
+  pendingDriverModel             = (pendingDM == NVML_DRIVER_WDDM) ? "WDDM" : "TCC";
+  pendingDriverModel.isSupported = currentDriverModel.isSupported;
+#endif
+
+  nvmlEnableState_t currentES, pendingES;
+  CHECK_NVML_SUPPORT(nvmlDeviceGetEccMode(device, &currentES, &pendingES), currentEccMode);
+  currentEccMode             = (currentES == NVML_FEATURE_ENABLED);
+  pendingEccMode             = (pendingES == NVML_FEATURE_ENABLED);
+  pendingEccMode.isSupported = currentEccMode.isSupported;
+
+  CHECK_NVML_SUPPORT(nvmlDeviceGetEncoderCapacity(device, NVML_ENCODER_QUERY_H264, &encoderCapacityH264.get()), encoderCapacityH264);
+  CHECK_NVML_SUPPORT(nvmlDeviceGetEncoderCapacity(device, NVML_ENCODER_QUERY_HEVC, &encoderCapacityHEVC.get()), encoderCapacityHEVC);
+
+  infoROMImageVersion.get().resize(NVML_DEVICE_INFOROM_VERSION_BUFFER_SIZE);
+  CHECK_NVML_SUPPORT(nvmlDeviceGetInforomImageVersion(device, infoROMImageVersion.get().data(),
+                                                      infoROMImageVersion.get().size()),
+                     infoROMImageVersion);
+
+  infoROMOEMVersion.get().resize(NVML_DEVICE_INFOROM_VERSION_BUFFER_SIZE);
+  infoROMECCVersion.get().resize(NVML_DEVICE_INFOROM_VERSION_BUFFER_SIZE);
+  infoROMPowerVersion.get().resize(NVML_DEVICE_INFOROM_VERSION_BUFFER_SIZE);
+  CHECK_NVML_SUPPORT(nvmlDeviceGetInforomVersion(device, NVML_INFOROM_OEM, infoROMOEMVersion.get().data(),
+                                                 infoROMOEMVersion.get().size()),
+                     infoROMOEMVersion);
+  CHECK_NVML_SUPPORT(nvmlDeviceGetInforomVersion(device, NVML_INFOROM_ECC, infoROMECCVersion.get().data(),
+                                                 infoROMECCVersion.get().size()),
+                     infoROMECCVersion);
+  CHECK_NVML_SUPPORT(nvmlDeviceGetInforomVersion(device, NVML_INFOROM_POWER, infoROMPowerVersion.get().data(),
+                                                 infoROMPowerVersion.get().size()),
+                     infoROMPowerVersion);
+
+  CHECK_NVML_SUPPORT(nvmlDeviceGetMaxPcieLinkGeneration(device, &maxLinkGen.get()), maxLinkGen);
+  CHECK_NVML_SUPPORT(nvmlDeviceGetMaxPcieLinkWidth(device, &maxLinkWidth.get()), maxLinkWidth);
+  CHECK_NVML_SUPPORT(nvmlDeviceGetMinorNumber(device, &minorNumber.get()), minorNumber);
+  CHECK_NVML_SUPPORT(nvmlDeviceGetMultiGpuBoard(device, &multiGpuBool.get()), multiGpuBool);
+  deviceName.get().resize(NVML_DEVICE_NAME_V2_BUFFER_SIZE);
+  CHECK_NVML_SUPPORT(nvmlDeviceGetName(device, deviceName.get().data(), deviceName.get().size()), deviceName);
+
+  CHECK_NVML_SUPPORT(nvmlDeviceGetSupportedClocksThrottleReasons(device, reinterpret_cast<long long unsigned int*>(
+                                                                             &supportedClocksThrottleReasons.get())),
+                     supportedClocksThrottleReasons);
+
+  vbiosVersion.get().resize(NVML_DEVICE_VBIOS_VERSION_BUFFER_SIZE);
+  CHECK_NVML_SUPPORT(nvmlDeviceGetVbiosVersion(device, vbiosVersion.get().data(), vbiosVersion.get().size()), vbiosVersion);
+
+  CHECK_NVML_SUPPORT(nvmlDeviceGetTemperatureThreshold(device, NVML_TEMPERATURE_THRESHOLD_SHUTDOWN,
+                                                       &tempThresholdShutdown.get()),
+                     tempThresholdShutdown);
+  CHECK_NVML_SUPPORT(nvmlDeviceGetTemperatureThreshold(device, NVML_TEMPERATURE_THRESHOLD_SLOWDOWN,
+                                                       &tempThresholdHWSlowdown.get()),
+                     tempThresholdHWSlowdown);
+  CHECK_NVML_SUPPORT(nvmlDeviceGetTemperatureThreshold(device, NVML_TEMPERATURE_THRESHOLD_MEM_MAX,
+                                                       &tempThresholdSWSlowdown.get()),
+                     tempThresholdSWSlowdown);
+  CHECK_NVML_SUPPORT(nvmlDeviceGetTemperatureThreshold(device, NVML_TEMPERATURE_THRESHOLD_GPU_MAX,
+                                                       &tempThresholdDropBelowBaseClock.get()),
+                     tempThresholdDropBelowBaseClock);
+
+  CHECK_NVML_SUPPORT(nvmlDeviceGetPowerManagementLimit(device, &powerLimit.get()), powerLimit);
+  // Milliwatt to watt
+  powerLimit.get() /= 1000;
+
+  uint32_t supportedClockCount = 0;
+  if(nvmlDeviceGetSupportedMemoryClocks(device, &supportedClockCount, nullptr) == NVML_ERROR_INSUFFICIENT_SIZE)
+  {
+    supportedMemoryClocks.isSupported = true;
+    supportedMemoryClocks.get().resize(supportedClockCount);
+    nvmlDeviceGetSupportedMemoryClocks(device, &supportedClockCount, supportedMemoryClocks.get().data());
+  }
+
+  for(size_t i = 0; i < supportedMemoryClocks.get().size(); i++)
+  {
+    supportedClockCount = 0;
+    if(nvmlDeviceGetSupportedGraphicsClocks(device, supportedMemoryClocks.get()[i], &supportedClockCount, nullptr) == NVML_ERROR_INSUFFICIENT_SIZE)
+    {
+      supportedGraphicsClocks.isSupported = true;
+      auto& graphicsClocks                = supportedGraphicsClocks.get()[supportedMemoryClocks.get()[i]];
+      graphicsClocks.resize(supportedClockCount);
+      nvmlDeviceGetSupportedGraphicsClocks(device, supportedMemoryClocks.get()[i], &supportedClockCount, graphicsClocks.data());
+    }
+  }
+#endif
+}
+
+void nvvkhl::NvmlMonitor::DeviceMemory::init(uint32_t maxElements)
+{
+  memoryFree.get().resize(maxElements);
+  memoryUsed.get().resize(maxElements);
+
+  bar1Free.get().resize(maxElements);
+  bar1Used.get().resize(maxElements);
+}
+
+void nvvkhl::NvmlMonitor::DeviceMemory::refresh(void* dev, uint32_t offset)
+{
+#if defined(NVP_SUPPORTS_NVML)
+  nvmlDevice_t device = reinterpret_cast<nvmlDevice_t>(dev);
+
+  nvmlBAR1Memory_t bar1Memory{};
+  nvmlMemory_t     memory{};
+  CHECK_NVML_SUPPORT(nvmlDeviceGetBAR1MemoryInfo(device, &bar1Memory), bar1Total);
+
+  bar1Total              = bar1Memory.bar1Total / mibSize;
+  bar1Used.get()[offset] = bar1Memory.bar1Used / mibSize;
+  bar1Used.isSupported   = bar1Total.isSupported;
+
+  bar1Free.get()[offset] = bar1Memory.bar1Free / mibSize;
+  bar1Free.isSupported   = bar1Total.isSupported;
+
+  CHECK_NVML_SUPPORT(nvmlDeviceGetMemoryInfo(device, &memory), memoryTotal);
+  memoryTotal              = memory.total / mibSize;
+  memoryUsed.get()[offset] = memory.used / mibSize;
+  memoryUsed.isSupported   = memoryTotal.isSupported;
+  memoryFree.get()[offset] = memory.free / mibSize;
+  memoryFree.isSupported   = memoryTotal.isSupported;
+#endif
+}
+
+void nvvkhl::NvmlMonitor::DeviceUtilization::init(uint32_t maxElements)
+{
+  gpuUtilization.get().resize(maxElements);
+  memUtilization.get().resize(maxElements);
+  ;
+  computeProcesses.get().resize(maxElements);
+  ;
+  graphicsProcesses.get().resize(maxElements);
+  ;
+}
+
+void nvvkhl::NvmlMonitor::DeviceUtilization::refresh(void* dev, uint32_t offset)
+{
+#if defined(NVP_SUPPORTS_NVML)
+  nvmlDevice_t device = reinterpret_cast<nvmlDevice_t>(dev);
+
+  nvmlUtilization_t utilization;
+  CHECK_NVML_SUPPORT(nvmlDeviceGetUtilizationRates(device, &utilization), gpuUtilization);
+  gpuUtilization.get()[offset] = utilization.gpu;
+  memUtilization.get()[offset] = utilization.memory;
+  memUtilization.isSupported   = gpuUtilization.isSupported;
+
+
+  computeProcesses.get()[offset]  = 0;
+  graphicsProcesses.get()[offset] = 0;
+  CHECK_NVML_SUPPORT(nvmlDeviceGetComputeRunningProcesses(device, &computeProcesses.get()[offset], nullptr), computeProcesses);
+  CHECK_NVML_SUPPORT(nvmlDeviceGetGraphicsRunningProcesses(device, &graphicsProcesses.get()[offset], nullptr), graphicsProcesses);
+#endif
+}
+
+void nvvkhl::NvmlMonitor::DevicePerformanceState::init(uint32_t maxElements)
+{
+  clockGraphics.get().resize(maxElements);
+  clockSM.get().resize(maxElements);
+  clockMem.get().resize(maxElements);
+  clockVideo.get().resize(maxElements);
+  throttleReasons.get().resize(maxElements);
+}
+
+void nvvkhl::NvmlMonitor::DevicePerformanceState::refresh(void* dev, uint32_t offset)
+{
+#if defined(NVP_SUPPORTS_NVML)
+  nvmlDevice_t device = reinterpret_cast<nvmlDevice_t>(dev);
+
+  CHECK_NVML_SUPPORT(nvmlDeviceGetClockInfo(device, NVML_CLOCK_GRAPHICS, &clockGraphics.get()[offset]), clockGraphics);
+  CHECK_NVML_SUPPORT(nvmlDeviceGetClockInfo(device, NVML_CLOCK_SM, &clockSM.get()[offset]), clockSM);
+  CHECK_NVML_SUPPORT(nvmlDeviceGetClockInfo(device, NVML_CLOCK_MEM, &clockMem.get()[offset]), clockMem);
+  CHECK_NVML_SUPPORT(nvmlDeviceGetClockInfo(device, NVML_CLOCK_VIDEO, &clockVideo.get()[offset]), clockVideo);
+
+  CHECK_NVML_SUPPORT(nvmlDeviceGetCurrentClocksThrottleReasons(device, reinterpret_cast<unsigned long long*>(
+                                                                           &throttleReasons.get()[offset])),
+                     throttleReasons);
+#endif
+}
+
+std::vector<std::string> nvvkhl::NvmlMonitor::DevicePerformanceState::getThrottleReasonStrings(uint64_t reason)
+{
+  std::vector<std::string> reasonStrings;
+#if defined(NVP_SUPPORTS_NVML)
+
+
+  if(reason & nvmlClocksThrottleReasonGpuIdle)
+  {
+    reasonStrings.push_back("Idle");
+  }
+
+  if(reason & nvmlClocksThrottleReasonApplicationsClocksSetting)
+  {
+    reasonStrings.push_back("App clock setting");
+  }
+  if(reason & nvmlClocksThrottleReasonSwPowerCap)
+  {
+    reasonStrings.push_back("SW power cap");
+  }
+  if(reason & nvmlClocksThrottleReasonHwSlowdown)
+  {
+    reasonStrings.push_back("HW slowdown");
+  }
+  if(reason & nvmlClocksThrottleReasonSyncBoost)
+  {
+    reasonStrings.push_back("Sync boost");
+  }
+  if(reason & nvmlClocksThrottleReasonSwThermalSlowdown)
+  {
+    reasonStrings.push_back("SW Thermal slowdown");
+  }
+  if(reason & nvmlClocksThrottleReasonHwThermalSlowdown)
+  {
+    reasonStrings.push_back("HW Thermal slowdown");
+  }
+  if(reason & nvmlClocksThrottleReasonHwPowerBrakeSlowdown)
+  {
+    reasonStrings.push_back("Power brake slowdown");
+  }
+  if(reasonStrings.empty())
+  {
+    reasonStrings.push_back("Full speed");
+  }
+#endif
+  return reasonStrings;
+}
+
+const std::vector<uint64_t>& nvvkhl::NvmlMonitor::DevicePerformanceState::getAllThrottleReasonList()
+{
+  static std::vector<uint64_t> s_reasonList =
+#if defined(NVP_SUPPORTS_NVML)
+      {nvmlClocksThrottleReasonGpuIdle,
+       nvmlClocksThrottleReasonApplicationsClocksSetting,
+       nvmlClocksThrottleReasonSwPowerCap,
+       nvmlClocksThrottleReasonHwSlowdown,
+       nvmlClocksThrottleReasonSyncBoost,
+       nvmlClocksThrottleReasonSwThermalSlowdown,
+       nvmlClocksThrottleReasonHwThermalSlowdown,
+       nvmlClocksThrottleReasonHwPowerBrakeSlowdown,
+       nvmlClocksThrottleReasonNone};
+
+#else
+      {};
+#endif
+  return s_reasonList;
+}
+
+void nvvkhl::NvmlMonitor::DevicePowerState::init(uint32_t maxElements)
+{
+  power.get().resize(maxElements);
+  temperature.get().resize(maxElements);
+  fanSpeed.get().resize(maxElements);
+}
+
+void nvvkhl::NvmlMonitor::DevicePowerState::refresh(void* dev, uint32_t offset)
+{
+#if defined(NVP_SUPPORTS_NVML)
+  nvmlDevice_t device = reinterpret_cast<nvmlDevice_t>(dev);
+
+  CHECK_NVML_SUPPORT(nvmlDeviceGetTemperature(device, NVML_TEMPERATURE_GPU, &temperature.get()[offset]), temperature);
+  CHECK_NVML_SUPPORT(nvmlDeviceGetPowerUsage(device, &power.get()[offset]), power);
+  // Milliwatt to watt
+  power.get()[offset] /= 1000;
+  CHECK_NVML_SUPPORT(nvmlDeviceGetFanSpeed(device, &fanSpeed.get()[offset]), fanSpeed);
+#endif
 }

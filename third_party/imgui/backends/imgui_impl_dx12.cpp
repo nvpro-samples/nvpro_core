@@ -667,9 +667,9 @@ bool    ImGui_ImplDX12_CreateDeviceObjects()
         // Create the input layout
         static D3D12_INPUT_ELEMENT_DESC local_layout[] =
         {
-            { "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT,   0, (UINT)IM_OFFSETOF(ImDrawVert, pos), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-            { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,   0, (UINT)IM_OFFSETOF(ImDrawVert, uv),  D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-            { "COLOR",    0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, (UINT)IM_OFFSETOF(ImDrawVert, col), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            { "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT,   0, (UINT)offsetof(ImDrawVert, pos), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,   0, (UINT)offsetof(ImDrawVert, uv),  D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            { "COLOR",    0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, (UINT)offsetof(ImDrawVert, col), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
         };
         psoDesc.InputLayout = { local_layout, 3 };
     }
@@ -899,7 +899,7 @@ static void ImGui_ImplDX12_CreateWindow(ImGuiViewport* viewport)
     sd1.SampleDesc.Quality = 0;
     sd1.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
     sd1.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
-    sd1.Scaling = DXGI_SCALING_STRETCH;
+    sd1.Scaling = DXGI_SCALING_NONE;
     sd1.Stereo = FALSE;
 
     IDXGIFactory4* dxgi_factory = nullptr;

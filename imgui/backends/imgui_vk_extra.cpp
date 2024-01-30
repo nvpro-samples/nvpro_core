@@ -34,6 +34,7 @@ void ImGui::InitVK(VkDevice device, VkPhysicalDevice physicalDevice, VkQueue que
 
   std::vector<VkDescriptorPoolSize> poolSize{{VK_DESCRIPTOR_TYPE_SAMPLER, 1}, {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1}};
   VkDescriptorPoolCreateInfo poolInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
+  poolInfo.flags         = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
   poolInfo.maxSets       = 2;
   poolInfo.poolSizeCount = static_cast<uint32_t>(poolSize.size());
   poolInfo.pPoolSizes    = poolSize.data();
@@ -77,8 +78,7 @@ void ImGui::InitVK(VkDevice device, VkPhysicalDevice physicalDevice, VkQueue que
   err             = vkBeginCommandBuffer(cmd, &beginInfo);
   check_vk_result(err);
 
-  // Creation of the font
-  ImGui_ImplVulkan_CreateFontsTexture(cmd);
+  ImGui_ImplVulkan_CreateFontsTexture();
 
   err = vkEndCommandBuffer(cmd);
   check_vk_result(err);
@@ -99,6 +99,6 @@ void ImGui::InitVK(VkDevice device, VkPhysicalDevice physicalDevice, VkQueue que
 void ImGui::ShutdownVK()
 {
   ImGui_ImplVulkan_InitInfo* v = &g_VulkanInitInfo;
-  vkDestroyDescriptorPool(v->Device, v->DescriptorPool, v->Allocator);
   ImGui_ImplVulkan_Shutdown();
+  vkDestroyDescriptorPool(v->Device, v->DescriptorPool, v->Allocator);
 }

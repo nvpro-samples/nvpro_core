@@ -194,6 +194,8 @@ private:
         curIndex = addEntries(entryNode.child, curIndex + 1, endIndex, nextLevel);
       }
       nodes.push_back(entryNode);
+      if(nextLevel < currentLevel)
+        return curIndex;
     }
     return endIndex;
   }
@@ -243,7 +245,12 @@ private:
       ImGui::TableHeadersRow();
 
       displayTableNode(m_node);
-      displayTableNode(m_single);
+
+      // Display only if an element
+      if(!m_single.child.empty())
+      {
+        displayTableNode(m_single);
+      }
 
       ImGui::EndTable();
     }

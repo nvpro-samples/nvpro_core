@@ -3260,7 +3260,9 @@ VKAPI_ATTR void VKAPI_CALL vkGetLatencyTimingsNV(
 	uint32_t* pTimingCount, 
 	VkGetLatencyMarkerInfoNV* pLatencyMarkerInfo) 
 { 
+#if VK_HEADER_VERSION < 275
   pfn_vkGetLatencyTimingsNV(device, swapchain, pTimingCount, pLatencyMarkerInfo); 
+#endif
 }
 VKAPI_ATTR VkResult VKAPI_CALL vkLatencySleepNV(
 	VkDevice device, 
