@@ -23,6 +23,7 @@
 #include <chrono>
 
 #if defined(NVP_SUPPORTS_NVML)
+#define NVML_NO_UNVERSIONED_FUNC_DEFS
 #include <nvml.h>
 #ifdef _WIN32
 // The cfgmgr32 header is necessary for interrogating driver information in the registry.

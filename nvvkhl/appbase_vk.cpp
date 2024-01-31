@@ -700,6 +700,7 @@ void nvvkhl::AppBaseVk::initGUI(uint32_t subpassID /*= 0*/)
   init_info.CheckVkResultFn           = nullptr;
   init_info.Allocator                 = nullptr;
   init_info.UseDynamicRendering       = m_useDynamicRendering;
+  init_info.ColorAttachmentFormat     = m_swapChain.getFormat(); // needed for dynamic rendering
 
   ImGui_ImplVulkan_Init(&init_info, m_renderPass);
 
