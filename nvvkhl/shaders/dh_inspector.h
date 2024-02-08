@@ -41,6 +41,7 @@ using uvec2 = glm::uvec2;
 #else
 #extension GL_EXT_shader_explicit_arithmetic_types : require
 #extension GL_EXT_shader_atomic_int64 : require
+#extension GL_KHR_shader_subgroup_basic : require
 #endif
 
 #define WARP_SIZE 32
@@ -126,6 +127,7 @@ layout(set = INSPECTOR_DESCRIPTOR_SET, binding = INSPECTOR_METADATA_BINDING) rea
 
 void inspect32BitValue(uint32_t index, uint32_t v)
 {
+
   if(clamp(gl_WorkGroupID, inspectorMetadata.minBlock, inspectorMetadata.maxBlock) != gl_WorkGroupID)
   {
     return;

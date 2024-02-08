@@ -5,16 +5,18 @@ stb
 
 single-file public domain (or MIT licensed) libraries for C/C++
 
+# This project discusses security-relevant bugs in public in Github Issues and Pull Requests, and it may take significant time for security fixes to be implemented or merged. If this poses an unreasonable risk to your project, do not use stb libraries.
+
 Noteworthy:
 
 * image loader: [stb_image.h](stb_image.h)
 * image writer: [stb_image_write.h](stb_image_write.h)
-* image resizer: [stb_image_resize.h](stb_image_resize.h)
+* image resizer: [stb_image_resize2.h](stb_image_resize2.h)
 * font text rasterizer: [stb_truetype.h](stb_truetype.h)
 * typesafe containers: [stb_ds.h](stb_ds.h)
 
-Most libraries by stb, except: stb_dxt by Fabian "ryg" Giesen, stb_image_resize
-by Jorge L. "VinoBS" Rodriguez, and stb_sprintf by Jeff Roberts.
+Most libraries by stb, except: stb_dxt by Fabian "ryg" Giesen, original stb_image_resize
+by Jorge L. "VinoBS" Rodriguez, and stb_image_resize2 and stb_sprintf by Jeff Roberts.
 
 <a name="stb_libs"></a>
 
@@ -22,10 +24,10 @@ library    | lastest version | category | LoC | description
 --------------------- | ---- | -------- | --- | --------------------------------
 **[stb_vorbis.c](stb_vorbis.c)** | 1.22 | audio | 5584 | decode ogg vorbis files from file/memory to float/16-bit signed output
 **[stb_hexwave.h](stb_hexwave.h)** | 0.5 | audio | 680 | audio waveform synthesizer
-**[stb_image.h](stb_image.h)** | 2.28 | graphics | 7987 | image loading/decoding from file/memory: JPG, PNG, TGA, BMP, PSD, GIF, HDR, PIC
+**[stb_image.h](stb_image.h)** | 2.29 | graphics | 7985 | image loading/decoding from file/memory: JPG, PNG, TGA, BMP, PSD, GIF, HDR, PIC
 **[stb_truetype.h](stb_truetype.h)** | 1.26 | graphics | 5077 | parse, decode, and rasterize characters from truetype fonts
 **[stb_image_write.h](stb_image_write.h)** | 1.16 | graphics | 1724 | image writing to disk: PNG, TGA, BMP
-**[stb_image_resize.h](stb_image_resize.h)** | 0.97 | graphics | 2634 | resize images larger/smaller with good quality
+**[stb_image_resize2.h](stb_image_resize2.h)** | 2.04 | graphics | 10325 | resize images larger/smaller with good quality
 **[stb_rect_pack.h](stb_rect_pack.h)** | 1.01 | graphics | 623 | simple 2D rectangle packer with decent quality
 **[stb_perlin.h](stb_perlin.h)** | 0.5 | graphics | 428 | perlin's revised simplex noise w/ different seeds
 **[stb_ds.h](stb_ds.h)** | 0.67 | utility | 1895 | typesafe dynamic array and hash tables for C, will compile in C++
@@ -43,7 +45,7 @@ library    | lastest version | category | LoC | description
 **[stb_include.h](stb_include.h)** | 0.02 | misc | 295 | implement recursive #include support, particularly for GLSL
 
 Total libraries: 21
-Total lines of C code: 43117
+Total lines of C code: 50806
 
 
 FAQ

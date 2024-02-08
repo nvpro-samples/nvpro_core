@@ -368,7 +368,7 @@ private:
         std::max(m_config.testMaxFrames, m_profiler ? nvh::Profiler::CONFIG_DELAY + nvh::Profiler::FRAME_DELAY : 0);
 
     closingApp |= elapseTime >= m_config.testMaxTime;
-    closingApp |= m_currentFrame >= maxFrames;
+    closingApp |= m_currentFrame >= static_cast<int>(maxFrames);
     if(closingApp)
     {
       if(!m_config.screenshotFilename.empty())

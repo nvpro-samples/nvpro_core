@@ -33,8 +33,6 @@
 #endif
 
 
-static const uint64_t mibSize = 1000000ull;
-
 #define CHECK_NVML_CALL()                                                                                              \
   if(res != NVML_SUCCESS)                                                                                              \
   {                                                                                                                    \
@@ -450,18 +448,18 @@ void nvvkhl::NvmlMonitor::DeviceMemory::refresh(void* dev, uint32_t offset)
   nvmlMemory_t     memory{};
   CHECK_NVML_SUPPORT(nvmlDeviceGetBAR1MemoryInfo(device, &bar1Memory), bar1Total);
 
-  bar1Total              = bar1Memory.bar1Total / mibSize;
-  bar1Used.get()[offset] = bar1Memory.bar1Used / mibSize;
+  bar1Total              = bar1Memory.bar1Total;
+  bar1Used.get()[offset] = bar1Memory.bar1Used;
   bar1Used.isSupported   = bar1Total.isSupported;
 
-  bar1Free.get()[offset] = bar1Memory.bar1Free / mibSize;
+  bar1Free.get()[offset] = bar1Memory.bar1Free;
   bar1Free.isSupported   = bar1Total.isSupported;
 
   CHECK_NVML_SUPPORT(nvmlDeviceGetMemoryInfo(device, &memory), memoryTotal);
-  memoryTotal              = memory.total / mibSize;
-  memoryUsed.get()[offset] = memory.used / mibSize;
+  memoryTotal              = memory.total;
+  memoryUsed.get()[offset] = memory.used;
   memoryUsed.isSupported   = memoryTotal.isSupported;
-  memoryFree.get()[offset] = memory.free / mibSize;
+  memoryFree.get()[offset] = memory.free;
   memoryFree.isSupported   = memoryTotal.isSupported;
 #endif
 }

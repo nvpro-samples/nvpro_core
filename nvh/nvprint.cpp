@@ -231,7 +231,33 @@ void nvprintLevel(int level, const char* msg) noexcept
       // a large table of all consoles it knows about. For now, we assume
       // all consoles support colors, and all pipes do not.
 #ifdef WIN32
-      const bool supportsColor = _isatty(_fileno(stderr)) && _isatty(_fileno(stdout));
+      bool supportsColor = _isatty(_fileno(stderr)) && _isatty(_fileno(stdout));
+      // This enables ANSI escape codes from the app side.
+      // We do this because on Windows 10, cmd.exe is a console, but only
+      // supports ANSI escape codes by default if the
+      // HKEY_CURRENT_USER\Console\VirtualTerminalLevel registry key is
+      // nonzero, which we don't want to assume.
+      // See https://github.com/nvpro-samples/vk_raytrace/issues/28.
+      // On failure, turn off colors.
+      if(supportsColor)
+      {
+        for(DWORD stdHandleIndex : {STD_OUTPUT_HANDLE, STD_ERROR_HANDLE})
+        {
+          const HANDLE consoleHandle = GetStdHandle(stdHandleIndex);
+          if(INVALID_HANDLE_VALUE == consoleHandle)
+          {
+            supportsColor = false;
+            break;
+          }
+          DWORD consoleMode = 0;
+          if(0 == GetConsoleMode(consoleHandle, &consoleMode))
+          {
+            supportsColor = false;
+            break;
+          }
+          SetConsoleMode(consoleHandle, consoleMode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+        }
+      }
 #else
       const bool supportsColor = isatty(fileno(stderr)) && isatty(fileno(stdout));
 #endif

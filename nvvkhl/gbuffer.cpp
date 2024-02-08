@@ -72,8 +72,8 @@ void nvvkhl::GBuffer::create(const VkExtent2D& size, std::vector<VkFormat> color
   for(uint32_t c = 0; c < num_color; c++)
   {
     {  // Color image
-      VkImageUsageFlags flags = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
-      VkImageCreateInfo info = nvvk::makeImage2DCreateInfo(m_imageSize, m_colorFormat[c], flags);
+      VkImageUsageFlags usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
+      VkImageCreateInfo info = nvvk::makeImage2DCreateInfo(m_imageSize, m_colorFormat[c], usage);
       m_res.gBufferColor[c]  = m_alloc->createImage(info);
       dutil.setObjectName(m_res.gBufferColor[c].image, "G-Color" + std::to_string(c));
     }

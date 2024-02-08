@@ -32,6 +32,7 @@ namespace nvvkhl {
 #define SAMPLING_INTERVAL 100  // Sampling every 100 ms
 
 #define THROTTLE_COOLDOWN_TIME 5000
+#define MIB_SIZE 1'000'000
 
 //-----------------------------------------------------------------------------
 int metricFormatter(double value, char* buff, int size, void* data)
@@ -354,7 +355,7 @@ struct ElementNvml : public nvvkhl::IAppElement
         int         cpuOffset = (int(mouse.x) + offset) % (int)cpuMeasure.cpu.size();
 
         char buff[32];
-        metricFormatter(deviceMemory.memoryUsed.get()[gpuOffset], buff, 32, (void*)"iB");
+        metricFormatter(static_cast<double>(deviceMemory.memoryUsed.get()[gpuOffset]), buff, 32, (void*)"iB");
 
         ImGui::BeginTooltip();
         ImGui::Text("Load: %d%%", deviceUtilization.gpuUtilization.get()[gpuOffset]);
@@ -529,9 +530,10 @@ struct ElementNvml : public nvvkhl::IAppElement
 
     const int offset = m_nvmlMonitor->getOffset();
 
-    std::string bar1Line = fmt::format("BAR1: {}MiB ({}%)", memory.bar1Used.get()[offset],
+
+    std::string bar1Line = fmt::format("BAR1: {}MiB ({}%)", memory.bar1Used.get()[offset] / MIB_SIZE,
                                        (memory.bar1Used.get()[offset] * 100) / memory.bar1Total.get());
-    std::string memLine  = fmt::format("Memory: {}MiB ({}%)", memory.memoryUsed.get()[offset],
+    std::string memLine  = fmt::format("Memory: {}MiB ({}%)", memory.memoryUsed.get()[offset] / MIB_SIZE,
                                        (memory.memoryUsed.get()[offset] * 100) / memory.memoryTotal.get());
 
     static ImPlotFlags     s_plotFlags     = ImPlotFlags_NoBoxSelect | ImPlotFlags_NoMouseText | ImPlotFlags_Crosshairs;
@@ -549,16 +551,14 @@ struct ElementNvml : public nvvkhl::IAppElement
     {
       ImPlot::SetupLegend(ImPlotLocation_NorthWest, ImPlotLegendFlags_NoButtons);
       ImPlot::SetupAxes(nullptr, "Bytes", s_axesFlags | ImPlotAxisFlags_NoDecorations, s_axesFlags);
-      ImPlot::SetupAxesLimits(0, SAMPLING_NUM, 0, memory.memoryTotal.get());
+      ImPlot::SetupAxesLimits(0, SAMPLING_NUM, 0, static_cast<double>(memory.memoryTotal.get()));
 
       ImPlot::PushStyleVar(ImPlotStyleVar_FillAlpha, 0.25f);
-
       ImPlot::SetAxes(ImAxis_X1, ImAxis_Y1);
       ImPlot::SetNextFillStyle(s_graphicsColor);
       // Cast to unsigned long long for Linux compilation, where ImPlot functions are not instantiated with uint64_t
       ImPlot::PlotShaded(memLine.c_str(), reinterpret_cast<const unsigned long long*>(memory.memoryUsed.get().data()),
                          (int)memory.memoryUsed.get().size(), -INFINITY, 1.0, 0.0, 0, offset + 1);
-
       ImPlot::PopStyleVar();
 
       if(ImPlot::IsPlotHovered())
@@ -566,7 +566,7 @@ struct ElementNvml : public nvvkhl::IAppElement
         ImPlotPoint mouse       = ImPlot::GetPlotMousePos();
         int         mouseOffset = (int(mouse.x) + offset) % (int)memory.memoryUsed.get().size();
         ImGui::BeginTooltip();
-        ImGui::Text("Used Memory: %ldMiB", memory.memoryUsed.get()[mouseOffset]);
+        ImGui::Text("Used Memory: %ldMiB", memory.memoryUsed.get()[mouseOffset] / MIB_SIZE);
         ImGui::EndTooltip();
       }
 
@@ -577,7 +577,7 @@ struct ElementNvml : public nvvkhl::IAppElement
     {
       ImPlot::SetupLegend(ImPlotLocation_NorthWest, ImPlotLegendFlags_NoButtons);
       ImPlot::SetupAxes(nullptr, "Bytes", s_axesFlags | ImPlotAxisFlags_NoDecorations, s_axesFlags);
-      ImPlot::SetupAxesLimits(0, SAMPLING_NUM, 0, memory.bar1Total.get());
+      ImPlot::SetupAxesLimits(0, SAMPLING_NUM, 0, static_cast<double>(memory.bar1Total.get()));
 
       ImPlot::PushStyleVar(ImPlotStyleVar_FillAlpha, 0.25f);
 
@@ -594,7 +594,7 @@ struct ElementNvml : public nvvkhl::IAppElement
         int         mouseOffset = (int(mouse.x) + offset) % (int)memory.bar1Used.get().size();
 
         ImGui::BeginTooltip();
-        ImGui::Text("Used BAR1 Memory: %ldMiB", memory.bar1Used.get()[mouseOffset]);
+        ImGui::Text("Used BAR1 Memory: %ldMiB", memory.bar1Used.get()[mouseOffset] / MIB_SIZE);
         ImGui::EndTooltip();
       }
 
@@ -720,9 +720,10 @@ struct ElementNvml : public nvvkhl::IAppElement
         maxValue           = std::max(maxValue, r);
       }
 
-      ImPlot::SetupAxesLimits(0, SAMPLING_NUM, 0, maxValue);
+      ImPlot::SetupAxesLimits(0, SAMPLING_NUM, 0, static_cast<double>(maxValue));
       ImPlot::SetupAxisScale(ImAxis_Y1, ImPlotScale_SymLog);
-      ImPlot::SetupAxisTicks(ImAxis_Y1, throttleValues.data(), throttleValues.size(), throttleCharPtr.data(), false);
+      ImPlot::SetupAxisTicks(ImAxis_Y1, throttleValues.data(), static_cast<int>(throttleValues.size()),
+                             throttleCharPtr.data(), false);
 
       ImPlot::PushStyleVar(ImPlotStyleVar_FillAlpha, 0.25f);
 
@@ -991,7 +992,7 @@ struct ElementNvml : public nvvkhl::IAppElement
           bool     selected = false;
           if(ImGui::Selectable(fmt::format("{}MHz", memClock).c_str(), &selected))
           {
-            m_selectedMemClock = i;
+            m_selectedMemClock = static_cast<uint32_t>(i);
           }
         }
         ImGui::EndCombo();
@@ -1013,7 +1014,7 @@ struct ElementNvml : public nvvkhl::IAppElement
           bool selected = false;
           if(ImGui::Selectable(fmt::format("{}MHz", clocks[i]).c_str(), &selected))
           {
-            m_selectedGraphicsClock = i;
+            m_selectedGraphicsClock = static_cast<uint32_t>(i);
           }
         }
 

@@ -1297,24 +1297,4 @@ bool hoverScrolling(T& data, T min_val = T(0), T max_val = T(0), float inc = 1.0
 }  // namespace ImGuiH
 
 
-namespace ImGui {
-
-struct ImPlotMulti
-{
-  ImGuiPlotType plot_type{ImGuiPlotType_Lines};
-  const char*   name{nullptr};
-  ImColor       color{0xFFFFFFFF};
-  float         thickness{1.0};
-  const float*  data{nullptr};
-  int           values_count{0};
-  int           values_offset{0};
-  float         scale_min{FLT_MIN};
-  float         scale_max{FLT_MAX};
-};
-
-void PlotMultiEx(const char* label, int num_datas, ImPlotMulti* datas, const char* overlay_text, ImVec2 frame_size);
-
-
-}  // namespace ImGui
-
 #endif

@@ -71,7 +71,7 @@
     initInfo.fragmentCount = fragmentInspectionCount;
     initInfo.customCount   = customInspectionCount;
     initInfo.device = m_app->getDevice();
-    initInfo.transferQueueFamilyIndex = m_app->getQueueGCT().familyIndex;
+    initInfo.graphicsQueueFamilyIndex = m_app->getQueueGCT().familyIndex;
 
     g_inspectorElement->init(initInfo);
    ...
@@ -322,13 +322,16 @@
 */
 
 namespace nvvkhl {
+
+class ElementInspectorInternal;
+
 class ElementInspector : public nvvkhl::IAppElement
 {
 public:
-  ElementInspector()           = default;
-  ~ElementInspector() override = default;
+  ElementInspector();
+  ~ElementInspector() override;
 
-  enum BufferValueType
+  enum ValueType
   {
     eUint8,
     eUint16,
@@ -340,6 +343,143 @@ public:
     eInt64,
     eFloat16,
     eFloat32,
+
+    eU8Vec2,
+    eU8Vec3,
+    eU8Vec4,
+
+    eU16Vec2,
+    eU16Vec3,
+    eU16Vec4,
+
+    eU32Vec2,
+    eU32Vec3,
+    eU32Vec4,
+
+    eU64Vec2,
+    eU64Vec3,
+    eU64Vec4,
+
+
+    eS8Vec2,
+    eS8Vec3,
+    eS8Vec4,
+
+    eS16Vec2,
+    eS16Vec3,
+    eS16Vec4,
+
+    eS32Vec2,
+    eS32Vec3,
+    eS32Vec4,
+
+    eS64Vec2,
+    eS64Vec3,
+    eS64Vec4,
+
+    eF16Vec2,
+    eF16Vec3,
+    eF16Vec4,
+
+    eF32Vec2,
+    eF32Vec3,
+    eF32Vec4,
+
+
+    eU8Mat2x2,
+    eU8Mat2x3,
+    eU8Mat2x4,
+    eU16Mat2x2,
+    eU16Mat2x3,
+    eU16Mat2x4,
+    eU32Mat2x2,
+    eU32Mat2x3,
+    eU32Mat2x4,
+    eU64Mat2x2,
+    eU64Mat2x3,
+    eU64Mat2x4,
+    eU8Mat3x2,
+    eU8Mat3x3,
+    eU8Mat3x4,
+    eU16Mat3x2,
+    eU16Mat3x3,
+    eU16Mat3x4,
+    eU32Mat3x2,
+    eU32Mat3x3,
+    eU32Mat3x4,
+    eU64Mat3x2,
+    eU64Mat3x3,
+    eU64Mat3x4,
+    eU8Mat4x2,
+    eU8Mat4x3,
+    eU8Mat4x4,
+    eU16Mat4x2,
+    eU16Mat4x3,
+    eU16Mat4x4,
+    eU32Mat4x2,
+    eU32Mat4x3,
+    eU32Mat4x4,
+    eU64Mat4x2,
+    eU64Mat4x3,
+    eU64Mat4x4,
+
+    eS8Mat2x2,
+    eS8Mat2x3,
+    eS8Mat2x4,
+    eS16Mat2x2,
+    eS16Mat2x3,
+    eS16Mat2x4,
+    eS32Mat2x2,
+    eS32Mat2x3,
+    eS32Mat2x4,
+    eS64Mat2x2,
+    eS64Mat2x3,
+    eS64Mat2x4,
+    eS8Mat3x2,
+    eS8Mat3x3,
+    eS8Mat3x4,
+    eS16Mat3x2,
+    eS16Mat3x3,
+    eS16Mat3x4,
+    eS32Mat3x2,
+    eS32Mat3x3,
+    eS32Mat3x4,
+    eS64Mat3x2,
+    eS64Mat3x3,
+    eS64Mat3x4,
+    eS8Mat4x2,
+    eS8Mat4x3,
+    eS8Mat4x4,
+    eS16Mat4x2,
+    eS16Mat4x3,
+    eS16Mat4x4,
+    eS32Mat4x2,
+    eS32Mat4x3,
+    eS32Mat4x4,
+    eS64Mat4x2,
+    eS64Mat4x3,
+    eS64Mat4x4,
+
+    eF16Mat2x2,
+    eF16Mat2x3,
+    eF16Mat2x4,
+    eF32Mat2x2,
+    eF32Mat2x3,
+    eF32Mat2x4,
+    eF16Mat3x2,
+    eF16Mat3x3,
+    eF16Mat3x4,
+    eF32Mat3x2,
+    eF32Mat3x3,
+    eF32Mat3x4,
+    eF16Mat4x2,
+    eF16Mat4x3,
+    eF16Mat4x4,
+    eF32Mat4x2,
+    eF32Mat4x3,
+    eF32Mat4x4,
+
+
   };
 
   enum ValueFormatFlagBits
@@ -353,9 +493,9 @@ public:
 
   struct ValueFormat
   {
-    BufferValueType type{eUint32};
-    std::string     name;
-    bool            hexDisplay{false};
+    ValueType   type{eUint32};
+    std::string name;
+    bool        hexDisplay{false};
     // One of ValueFormatFlagBits
     ValueFormatFlag flags{eVisible};
   };
@@ -374,7 +514,7 @@ public:
   struct InitInfo
   {
     VkDevice                 device{VK_NULL_HANDLE};
-    uint32_t                 transferQueueFamilyIndex{~0u};
+    uint32_t                 graphicsQueueFamilyIndex{~0u};
     nvvk::ResourceAllocator* allocator{nullptr};
     uint32_t                 imageCount{0u};
     uint32_t                 bufferCount{0u};
@@ -384,7 +524,6 @@ public:
   };
 
   void init(const InitInfo& info);
-
   void deinit();
 
   struct ImageInspectionInfo
@@ -397,8 +536,9 @@ public:
   };
 
   void initImageInspection(uint32_t index, const ImageInspectionInfo& info);
-
   void deinitImageInspection(uint32_t index);
+  bool updateImageFormat(uint32_t index, const std::vector<nvvkhl::ElementInspector::ValueFormat>& newFormat);
+  void inspectImage(VkCommandBuffer cmd, uint32_t index, VkImageLayout currentLayout);
 
   struct BufferInspectionInfo
   {
@@ -414,39 +554,13 @@ public:
 
   void initBufferInspection(uint32_t index, const BufferInspectionInfo& info);
   void deinitBufferInspection(uint32_t index);
+  void inspectBuffer(VkCommandBuffer cmd, uint32_t index);
+  bool updateBufferFormat(uint32_t index, const std::vector<nvvkhl::ElementInspector::ValueFormat>& newFormat);
 
-
-  void inspectImage(VkCommandBuffer cmd, uint32_t index, VkImageLayout currentLayout);
-
-
-  static uint32_t formatSizeInBytes(const std::vector<ValueFormat>& format);
-  void            inspectBuffer(VkCommandBuffer cmd, uint32_t index);
-
-
-  static inline void appendStructToFormat(std::vector<ValueFormat>&       format,
-                                          const std::vector<ValueFormat>& addedStruct,
-                                          const std::string               addedStructName,
-                                          bool                            forceHidden = false)
-  {
-    size_t originalSize = format.size();
-    format.insert(format.end(), addedStruct.begin(), addedStruct.end());
-    for(size_t i = originalSize; i < format.size(); i++)
-    {
-      if(addedStruct.size() == 1)
-      {
-        // Discard the input field name and only keep the struct name if the added struct has only one field
-        format[i].name = fmt::format("{}", addedStructName);
-      }
-      else
-      {
-        format[i].name = fmt::format("{}.{}", addedStructName, format[i].name);
-      }
-      if(forceHidden)
-      {
-        format[i].flags = ElementInspector::eHidden;
-      }
-    }
-  }
+  static void appendStructToFormat(std::vector<ValueFormat>&       format,
+                                   const std::vector<ValueFormat>& addedStruct,
+                                   const std::string               addedStructName,
+                                   bool                            forceHidden = false);
 
   struct ComputeInspectionInfo
   {
@@ -463,10 +577,9 @@ public:
   };
 
   void initComputeInspection(uint32_t index, const ComputeInspectionInfo& info);
-
   void deinitComputeInspection(uint32_t index);
-
   void inspectComputeVariables(VkCommandBuffer cmd, uint32_t index);
+  bool updateComputeFormat(uint32_t index, const std::vector<nvvkhl::ElementInspector::ValueFormat>& newFormat);
 
   VkBuffer getComputeInspectionBuffer(uint32_t index);
   VkBuffer getComputeMetadataBuffer(uint32_t index);
@@ -486,6 +599,7 @@ public:
   void deinitCustomInspection(uint32_t index);
   void inspectCustomVariables(VkCommandBuffer cmd, uint32_t index);
 
+  bool     updateCustomFormat(uint32_t index, const std::vector<ValueFormat>& newFormat);
   VkBuffer getCustomInspectionBuffer(uint32_t index);
   VkBuffer getCustomMetadataBuffer(uint32_t index);
 
@@ -501,414 +615,29 @@ public:
   };
 
   void initFragmentInspection(uint32_t index, const FragmentInspectionInfo& info);
-
   void deinitFragmentInspection(uint32_t index);
+  void updateMinMaxFragmentInspection(VkCommandBuffer cmd, uint32_t index, const glm::uvec2& minFragment, const glm::uvec2& maxFragment);
 
   void clearFragmentVariables(VkCommandBuffer cmd, uint32_t index);
   void inspectFragmentVariables(VkCommandBuffer cmd, uint32_t index);
 
-  void updateMinMaxFragmentInspection(VkCommandBuffer cmd, uint32_t index, const glm::uvec2& minFragment, const glm::uvec2& maxFragment);
 
+  bool     updateFragmentFormat(uint32_t index, const std::vector<ValueFormat>& newFormat);
   VkBuffer getFragmentInspectionBuffer(uint32_t index);
   VkBuffer getFragmentMetadataBuffer(uint32_t index);
 
 
-  static inline std::vector<ValueFormat> formatRGBA8(const std::string& name = "")
-  {
-    if(name.empty())
-    {
-      return {
-          {eUint8, "r"},
-          {eUint8, "g"},
-          {eUint8, "b"},
-          {eUint8, "a"},
-      };
-    }
-    else
-    {
-      return {
-          {eUint8, name + ".r"},
-          {eUint8, name + ".g"},
-          {eUint8, name + ".b"},
-          {eUint8, name + ".a"},
-      };
-    }
-  }
-
-  static inline std::vector<ValueFormat> formatRGBA32(const std::string& name = "")
-  {
-    if(name.empty())
-    {
-      return {
-          {eFloat32, "r"},
-          {eFloat32, "g"},
-          {eFloat32, "b"},
-          {eFloat32, "a"},
-      };
-    }
-    else
-    {
-      return {
-          {eFloat32, name + ".r"},
-          {eFloat32, name + ".g"},
-          {eFloat32, name + ".b"},
-          {eFloat32, name + ".a"},
-      };
-    }
-  }
-
-  static inline std::vector<ValueFormat> formatVector4(BufferValueType type, const std::string& name)
-  {
-    if(name == "")
-    {
-      return {{type, "x"}, {type, "y"}, {type, "z"}, {type, "w"}};
-    }
-    else
-    {
-      return {
-          {type, name + ".x"},
-          {type, name + ".y"},
-          {type, name + ".z"},
-          {type, name + ".w"},
-      };
-    }
-  }
-
-  static inline std::vector<ValueFormat> formatVector3(BufferValueType type, const std::string& name)
-  {
-    if(name == "")
-    {
-      return {{type, "x"}, {type, "y"}, {type, "z"}};
-    }
-    else
-    {
-      return {{type, name + ".x"}, {type, name + ".y"}, {type, name + ".z"}};
-    }
-  }
-
-  static inline std::vector<ValueFormat> formatVector2(BufferValueType type, const std::string& name)
-  {
-    if(name == "")
-    {
-      return {{type, "x"}, {type, "y"}};
-    }
-    else
-    {
-      return {{type, name + ".x"}, {type, name + ".y"}};
-    }
-  }
-
-  static inline std::vector<ValueFormat> formatValue(BufferValueType type, const std::string& name)
-  {
-    return {{type, name}};
-  }
-
-  static inline std::vector<ValueFormat> formatInt32(const std::string& name = "value")
-  {
-    return formatValue(eInt32, name);
-  }
-
-  static inline std::vector<ValueFormat> formatUint32(const std::string& name = "value")
-  {
-    return formatValue(eUint32, name);
-  }
-  static inline std::vector<ValueFormat> formatFloat32(const std::string& name = "value")
-  {
-    return formatValue(eFloat32, name);
-  }
-
+  static std::vector<ValueFormat> formatRGBA8(const std::string& name = "");
+  static std::vector<ValueFormat> formatRGBA32(const std::string& name = "");
+  static std::vector<ValueFormat> formatVector4(ValueType type, const std::string& name);
+  static std::vector<ValueFormat> formatVector3(ValueType type, const std::string& name);
+  static std::vector<ValueFormat> formatVector2(ValueType type, const std::string& name);
+  static std::vector<ValueFormat> formatValue(ValueType type, const std::string& name);
+  static std::vector<ValueFormat> formatInt32(const std::string& name = "value");
+  static std::vector<ValueFormat> formatUint32(const std::string& name = "value");
+  static std::vector<ValueFormat> formatFloat32(const std::string& name = "value");
 
 private:
-  nvvk::ResourceAllocator* m_alloc{nullptr};
-
-  struct Settings
-  {
-    bool  isPaused{false};
-    bool  showInactiveBlocks{false};
-    float filterTimeoutInSeconds{2.f};
-  };
-
-  Settings m_settings;
-  bool     m_isFilterTimeout{false};
-
-  struct Filter
-  {
-    const std::vector<ValueFormat>& format;
-    std::vector<uint8_t>            dataMin;
-    std::vector<uint8_t>            dataMax;
-
-    std::vector<uint8_t> requestedDataMin;
-    std::vector<uint8_t> requestedDataMax;
-    bool                 updateRequested{false};
-
-    std::vector<bool> hasFilter;
-
-    Filter(const std::vector<ValueFormat>& f)
-        : format(f)
-    {
-    }
-
-    void create();
-    void destroy() {}
-    bool imguiFilterColumns();
-
-    bool hasAnyFilter()
-    {
-      for(bool f : hasFilter)
-      {
-        if(f)
-        {
-          return true;
-        }
-      }
-      return false;
-    }
-
-    template <typename T>
-    bool passes(const uint8_t* data, const uint8_t* minValue, const uint8_t* maxValue)
-    {
-      auto typedData = reinterpret_cast<const T*>(data);
-      auto typedMin  = reinterpret_cast<const T*>(minValue);
-      auto typedMax  = reinterpret_cast<const T*>(maxValue);
-      bool isPassing = *typedData >= *typedMin && *typedData <= *typedMax;
-
-      return isPassing;
-    }
-
-    bool filterPasses(const uint8_t* data);
-  };
-
-
-  template <typename T>
-  static bool imguiInputInt(const std::string& name, uint8_t* data)
-  {
-    T*      current  = reinterpret_cast<T*>(data);
-    int32_t i32Value = uint32_t(*current);
-
-    std::stringstream sss;
-    sss << "##inputInt" << name << (void*)data;
-
-    ImGui::InputInt(sss.str().c_str(), &i32Value);
-    bool changed = (*current != T(i32Value));
-    *current     = T(i32Value);
-    return changed;
-  }
-
-
-  static bool imguiInputFloat(const std::string& name, uint8_t* data)
-  {
-    float*            current = reinterpret_cast<float*>(data);
-    std::stringstream sss;
-    sss << "##inputFloat" << name << (void*)data;
-
-    float backup = *current;
-    ImGui::InputFloat(sss.str().c_str(), current);
-    bool changed = (backup != *current);
-    return changed;
-  }
-
-  static bool imguiInputValue(const ValueFormat& format, uint8_t* data)
-  {
-
-    switch(format.type)
-    {
-      case eUint8:
-        return imguiInputInt<uint8_t>(format.name, data);
-        break;
-      case eInt8:
-        return imguiInputInt<int8_t>(format.name, data);
-        break;
-      case eUint16:
-        return imguiInputInt<uint16_t>(format.name, data);
-        break;
-      case eInt16:
-        return imguiInputInt<int16_t>(format.name, data);
-        break;
-      case eFloat16:
-        ImGui::TextDisabled("Unsupported");
-        return false;
-        break;
-      case eUint32:
-        return imguiInputInt<uint32_t>(format.name, data);
-        break;
-      case eInt32:
-        return imguiInputInt<int32_t>(format.name, data);
-        break;
-      case eFloat32:
-        return imguiInputFloat(format.name, data);
-        break;
-      case eInt64:
-        ImGui::TextDisabled("Unsupported");
-        return false;
-        break;
-      case eUint64:
-        ImGui::TextDisabled("Unsupported");
-        return false;
-        break;
-    }
-    return false;
-  }
-
-  struct InspectedBuffer
-  {
-    VkBuffer                 sourceBuffer{VK_NULL_HANDLE};
-    uint32_t                 selectedRow{~0u};
-    nvh::Stopwatch           selectedFlashTimer;
-    int32_t                  viewMin{0};
-    int32_t                  viewMax{INT_MAX};
-    uint32_t                 offsetInEntries{0u};
-    bool                     isAllocated{false};
-    bool                     isInspected{false};
-    std::vector<ValueFormat> format;
-    std::string              name;
-    std::string              comment;
-    Filter                   filter{Filter(format)};
-    nvvk::Buffer             hostBuffer;
-    uint32_t                 entryCount{0u};
-    bool                     show{false};
-    uint32_t                 filteredEntries{~0u};
-  };
-
-  void createInspectedBuffer(InspectedBuffer&                inspectedBuffer,
-                             VkBuffer                        sourceBuffer,
-                             const std::string&              name,
-                             const std::vector<ValueFormat>& format,
-                             uint32_t                        entryCount,
-                             const std::string&              comment         = "",
-                             uint32_t                        offsetInEntries = 0u,
-                             uint32_t                        viewMin         = 0u,
-                             uint32_t                        viewMax         = ~0u);
-
-  void destroyInspectedBuffer(InspectedBuffer& inspectedBuffer);
-
-
-  std::vector<InspectedBuffer> m_inspectedBuffers;
-  struct InspectedImage : public InspectedBuffer
-  {
-    bool              tableView{false};
-    VkImageView       view{VK_NULL_HANDLE};
-    nvvk::Image       image;
-    VkImageCreateInfo createInfo{};
-    VkDescriptorSet   imguiImage{VK_NULL_HANDLE};
-    VkImage           sourceImage{VK_NULL_HANDLE};
-    uint32_t          selectedPixelIndex{};
-  };
-
-  std::vector<InspectedImage> m_inspectedImages;
-
-
-  struct InspectedComputeVariables : public InspectedBuffer
-  {
-    nvvk::Buffer      deviceBuffer;
-    glm::uvec3        gridSizeInBlocks{};
-    glm::uvec3        blockSize{};
-    uint32_t          u32PerThread{0u};
-    nvvk::Buffer      metadata;
-    glm::uvec3        minBlock{};
-    glm::uvec3        maxBlock{};
-    uint32_t          minWarpInBlock{0u};
-    uint32_t          maxWarpInBlock{0u};
-    int32_t           blocksPerRow{0};
-    std::vector<bool> showWarps;
-  };
-  std::vector<InspectedComputeVariables> m_inspectedComputeVariables;
-
-  struct InspectedCustomVariables : public InspectedBuffer
-  {
-    nvvk::Buffer deviceBuffer;
-    glm::uvec3   extent{};
-    uint32_t     u32PerThread{0u};
-    nvvk::Buffer metadata;
-    glm::uvec3   minCoord{};
-    glm::uvec3   maxCoord{};
-  };
-  std::vector<InspectedCustomVariables> m_inspectedCustomVariables;
-
-
-  struct InspectedFragmentVariables : public InspectedBuffer
-  {
-    nvvk::Buffer deviceBuffer;
-    glm::uvec2   renderSize{};
-    uint32_t     u32PerThread{0};
-    nvvk::Buffer metadata;
-    glm::uvec2   minFragment{};
-    glm::uvec2   maxFragment{};
-  };
-  std::vector<InspectedFragmentVariables> m_inspectedFragmentVariables;
-
-
-  VkDevice  m_device{VK_NULL_HANDLE};
-  uint32_t  m_transferQueueFamilyIndex{~0u};
-  VkSampler m_sampler{VK_NULL_HANDLE};
-
-  uint32_t m_childIndex = 0u;
-
-  void imGuiGrid(uint32_t index, InspectedComputeVariables& computeVar, const uint8_t* contents);
-  void imGuiBlock(uint32_t index, InspectedComputeVariables& computeVar, const uint8_t* contents);
-  void imGuiColumns(const uint8_t* contents, std::vector<ValueFormat>& format);
-  void imGuiWarp(uint32_t absoluteBlockIndex, uint32_t baseGlobalThreadIndex, uint32_t index, const uint8_t* contents, InspectedComputeVariables& var);
-
-  static uint32_t valueFormatSizeInBytes(ValueFormat v);
-
-  std::string valueFormatToString(ValueFormat v);
-
-  std::string valueFormatTypeToString(ValueFormat v);
-  std::string bufferEntryToString(const uint8_t* contents, const std::vector<ValueFormat> format);
-
-  void imGuiComputeVariable(uint32_t i);
-
-  void imGuiImage(uint32_t imageIndex, ImVec2& imageSize);
-
-  uint32_t imGuiBufferContents(InspectedBuffer& buf,
-                               const uint8_t*   contents,
-                               uint32_t         begin,
-                               uint32_t         end,
-                               uint32_t         entrySizeInBytes,
-                               glm::uvec3       extent,
-                               uint32_t         previousFilteredOut,
-                               uint32_t         scrollToItem       = ~0u,
-                               glm::uvec3       coordDisplayOffset = {0, 0, 0});
-
-  void imGuiBuffer(InspectedBuffer& buf,
-                   uint32_t         topItem            = ~0u,
-                   glm::uvec3       extent             = {1, 1, 1},
-                   bool             defaultOpen        = false,
-                   glm::uvec3       coordDisplayOffset = {0, 0, 0});
-
-  inline glm::uvec3 getBlockIndex(uint32_t absoluteBlockIndex, ElementInspector::InspectedComputeVariables& v)
-  {
-    glm::uvec3 res;
-    res.x = absoluteBlockIndex % v.gridSizeInBlocks.x;
-    res.y = (absoluteBlockIndex / v.gridSizeInBlocks.x) % v.gridSizeInBlocks.y;
-    res.z = (absoluteBlockIndex / (v.gridSizeInBlocks.x * v.gridSizeInBlocks.z));
-    return res;
-  }
-
-  glm::uvec3 getThreadInvocationId(uint32_t                                     absoluteBlockIndex,
-                                   uint32_t                                     warpIndex,
-                                   uint32_t                                     localInvocationId,
-                                   ElementInspector::InspectedComputeVariables& v);
-
-  std::string multiDimUvec3ToString(const glm::uvec3 v, bool forceMultiDim = false);
-
-  inline bool checkInitialized()
-  {
-    if(!m_isInitialized)
-    {
-      if(!m_unitializedMessageIssued)
-      {
-        LOGW("ElementInspected was not initialized - subsequent calls to Inspector will be ignored\n");
-        m_unitializedMessageIssued = true;
-      }
-      return false;
-    }
-    return true;
-  }
-
-
-  bool m_isAttached{false};
-  bool m_isInitialized{false};
-  bool m_showWindow{true};
-  bool m_unitializedMessageIssued{false};
+  ElementInspectorInternal* m_internals{nullptr};
 };
 }  // namespace nvvkhl

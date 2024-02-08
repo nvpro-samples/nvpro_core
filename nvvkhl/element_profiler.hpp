@@ -121,7 +121,7 @@ public:
       s_minElapsed = 0;
       m_node.child.clear();
       m_node.name    = "Frame";
-      m_node.cpuTime = m_data->cpuTime.getAveraged() / 1000.f;
+      m_node.cpuTime = static_cast<float>(m_data->cpuTime.getAveraged() / 1000.);
       m_single.child.clear();
       m_single.name = "Single";
       addEntries(m_node.child, 0, m_data->numLastSections, 0);
@@ -179,8 +179,8 @@ private:
 
       MyEntryNode entryNode;
       entryNode.name    = entry.name.empty() ? "N/A" : entry.name;
-      entryNode.gpuTime = entry.gpuTime.getAveraged() / 1000.f;
-      entryNode.cpuTime = entry.cpuTime.getAveraged() / 1000.f;
+      entryNode.gpuTime = static_cast<float>(entry.gpuTime.getAveraged() / 1000.);
+      entryNode.cpuTime = static_cast<float>(entry.cpuTime.getAveraged() / 1000.);
 
       if(entry.level == LEVEL_SINGLESHOT)
       {
@@ -280,7 +280,7 @@ private:
         data1[i]   = m_node.child[i].gpuTime / m_node.cpuTime;
       }
 
-      ImPlot::PlotPieChart(labels1.data(), data1.data(), data1.size(), 0.5, 0.5, 0.4, "%.2f", angle0);
+      ImPlot::PlotPieChart(labels1.data(), data1.data(), static_cast<int>(data1.size()), 0.5, 0.5, 0.4, "%.2f", angle0);
 
       // Level 1
       if(s_showSubLevel)
@@ -299,7 +299,8 @@ private:
               data1[j]   = currentNode.child[j].gpuTime / m_node.cpuTime;
             }
 
-            ImPlot::PlotPieChart(labels1.data(), data1.data(), data1.size(), 0.5, 0.5, 0.1, "", a0, ImPlotPieChartFlags_None);
+            ImPlot::PlotPieChart(labels1.data(), data1.data(), static_cast<int>(data1.size()), 0.5, 0.5, 0.1, "", a0,
+                                 ImPlotPieChartFlags_None);
           }
 
           // Increment the position of the next sub-element

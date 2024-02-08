@@ -205,7 +205,7 @@ void nvvkhl::Application::init(ApplicationCreateInfo& info)
   ImGui_ImplVulkanH_Window* wd = m_mainWindowData.get();
   setupVulkanWindow(surface, w, h);
 
-  m_resourceFreeQueue.resize(wd->ImageCount);
+  resetFreeQueue(wd->ImageCount);
 
   // Setup Dear ImGui context
   IMGUI_CHECKVERSION();
@@ -271,14 +271,7 @@ void nvvkhl::Application::shutdown()
   vkDeviceWaitIdle(m_context->m_device);
 
   // Free all resources
-  for(auto& free_queue : m_resourceFreeQueue)
-  {
-    for(auto& func : free_queue)
-    {
-      func();
-    }
-    free_queue.clear();
-  }
+  resetFreeQueue(0);
 
   if(ImPlot::GetCurrentContext() != nullptr)
   {
@@ -377,7 +370,7 @@ void nvvkhl::Application::run()
         ImGui_ImplVulkanH_CreateOrResizeWindow(m_context->m_instance, m_context->m_physicalDevice, m_context->m_device,
                                                m_mainWindowData.get(), m_context->m_queueGCT.familyIndex, m_allocator,
                                                width, height, m_minImageCount);
-        m_resourceFreeQueue.resize(wd->ImageCount);
+        resetFreeQueue(wd->ImageCount);
         m_mainWindowData->FrameIndex = 0;
         m_swapChainRebuild           = false;
       }
@@ -583,6 +576,7 @@ void nvvkhl::Application::frameRender()
   ImDrawData*               draw_data = ImGui::GetDrawData();
   m_waitSemaphores.clear();
   m_signalSemaphores.clear();
+  m_commandBuffers.clear();
 
   VkSemaphore image_acquired_semaphore  = wd->FrameSemaphores[wd->SemaphoreIndex].ImageAcquiredSemaphore;
   VkSemaphore render_complete_semaphore = wd->FrameSemaphores[wd->SemaphoreIndex].RenderCompleteSemaphore;
@@ -634,14 +628,20 @@ void nvvkhl::Application::frameRender()
     vkCmdBeginRenderPass(fd->CommandBuffer, &info, VK_SUBPASS_CONTENTS_INLINE);
   }
 
-  // Record dear imgui primitives into command buffer
-  ImGui_ImplVulkan_RenderDrawData(draw_data, fd->CommandBuffer);
+  {
+    // Record Dear Imgui primitives into command buffer
+    VkDebugUtilsLabelEXT s{VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT, nullptr, "ImGui_ImplVulkan_RenderDrawData", {1.0f, 1.0f, 1.0f, 1.0f}};
+    vkCmdBeginDebugUtilsLabelEXT(fd->CommandBuffer, &s);
+    ImGui_ImplVulkan_RenderDrawData(draw_data, fd->CommandBuffer);
+    vkCmdEndDebugUtilsLabelEXT(fd->CommandBuffer);
+  }
 
   // Submit command buffer
   vkCmdEndRenderPass(fd->CommandBuffer);
   {
     VkCommandBufferSubmitInfo cmdBufInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO};
     cmdBufInfo.commandBuffer = fd->CommandBuffer;
+    m_commandBuffers.emplace_back(cmdBufInfo);
 
     VkSemaphoreSubmitInfo signalSemaphore{VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO};
     signalSemaphore.semaphore = render_complete_semaphore;
@@ -654,8 +654,8 @@ void nvvkhl::Application::frameRender()
     m_waitSemaphores.emplace_back(waitSemaphore);
 
     VkSubmitInfo2 submits{VK_STRUCTURE_TYPE_SUBMIT_INFO_2_KHR};
-    submits.commandBufferInfoCount   = 1;
-    submits.pCommandBufferInfos      = &cmdBufInfo;
+    submits.commandBufferInfoCount   = (uint32_t)m_commandBuffers.size();
+    submits.pCommandBufferInfos      = m_commandBuffers.data();
     submits.waitSemaphoreInfoCount   = (uint32_t)m_waitSemaphores.size();
     submits.pWaitSemaphoreInfos      = m_waitSemaphores.data();
     submits.signalSemaphoreInfoCount = (uint32_t)m_signalSemaphores.size();
@@ -674,7 +674,10 @@ void nvvkhl::Application::addSignalSemaphore(const VkSemaphoreSubmitInfoKHR& sig
 {
   m_signalSemaphores.push_back(signal);
 }
-
+void nvvkhl::Application::prependCommandBuffer(const VkCommandBufferSubmitInfoKHR& cmd)
+{
+  m_commandBuffers.push_back(cmd);
+}
 
 void nvvkhl::Application::framePresent()
 {
@@ -753,6 +756,23 @@ void nvvkhl::Application::createDescriptorPool()
   pool_info.poolSizeCount = static_cast<uint32_t>(pool_sizes.size());
   pool_info.pPoolSizes    = pool_sizes.data();
   NVVK_CHECK(vkCreateDescriptorPool(m_context->m_device, &pool_info, nullptr, &m_descriptorPool));
+}
+
+void nvvkhl::Application::resetFreeQueue(uint32_t size)
+{
+  vkDeviceWaitIdle(m_context->m_device);
+
+  for(auto& queue : m_resourceFreeQueue)
+  {
+    // Free resources in queue
+    for(auto& func : queue)
+    {
+      func();
+    }
+    queue.clear();
+  }
+  m_resourceFreeQueue.clear();
+  m_resourceFreeQueue.resize(size);
 }
 
 // Set the viewport using with the size of the "Viewport" window

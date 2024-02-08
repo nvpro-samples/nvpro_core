@@ -148,8 +148,11 @@ void nvvkhl::SceneVk::createVertexBuffer(VkCommandBuffer cmd, const nvh::GltfSce
   std::vector<nvvkhl_shaders::PrimMeshInfo> prim_info;  // The array of all primitive information
   uint32_t                                  prim_idx{0};
 
-  auto usage_flag = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT
-                    | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
+  auto usage_flag = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT  // Buffer read/write access within shaders, without size limitation
+                    | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT  // The buffer can be referred to using its address instead of a binding
+                    | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR  // Usage as a data source for acceleration structure builds
+                    | VK_BUFFER_USAGE_TRANSFER_DST_BIT                                      // Buffer can be copied into
+                    | VK_BUFFER_USAGE_TRANSFER_SRC_BIT;  // Buffer can be copied from (e.g. for inspection)
 
   // Primitives in glTF can be reused, this allow to retrieve them
   std::unordered_map<std::string, nvvk::Buffer> cache_primitive;

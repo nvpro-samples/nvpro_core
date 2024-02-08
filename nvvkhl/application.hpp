@@ -106,9 +106,12 @@ public:
   void setVsync(bool v);                         // Set V-Sync on or off
   void setViewportClearColor(ImVec4 col) { m_clearColor = col; }
 
-  // Sync for special cases
+  // Following three functions affect the preparationg of the current frame's submit info.
+  // Content is appended to vectors that are reset every frame
   void addWaitSemaphore(const VkSemaphoreSubmitInfoKHR& wait);
   void addSignalSemaphore(const VkSemaphoreSubmitInfoKHR& signal);
+  // these command buffers are enqueued before the command buffer that is provided `onRender(cmd)`
+  void prependCommandBuffer(const VkCommandBufferSubmitInfoKHR& cmd);
 
   VkCommandBuffer createTempCmdBuffer();
   void            submitAndWaitTempCmdBuffer(VkCommandBuffer cmd);
@@ -125,6 +128,8 @@ public:
   inline const nvvk::Context::Queue& getQueueGCT() { return m_context->m_queueGCT; }
   inline const nvvk::Context::Queue& getQueueC() { return m_context->m_queueC; }
   inline const nvvk::Context::Queue& getQueueT() { return m_context->m_queueT; }
+  inline const uint32_t              getFrameCycleIndex() const { return m_currentFrameIndex; }
+  inline const uint32_t              getFrameCycleSize() const { return uint32_t(m_resourceFreeQueue.size()); }
 
   void onFileDrop(const char* filename);
 
@@ -137,6 +142,8 @@ private:
   void createDock() const;
   void setPresentMode(VkPhysicalDevice physicalDevice, ImGui_ImplVulkanH_Window* wd);
   void createDescriptorPool();
+
+  void resetFreeQueue(uint32_t size);
 
   std::shared_ptr<nvvk::Context>            m_context;
   std::vector<std::shared_ptr<IAppElement>> m_elements;
@@ -160,8 +167,9 @@ private:
   VkExtent2D             m_windowSize{0, 0};                // Size of the window
   VkAllocationCallbacks* m_allocator{nullptr};
 
-  std::vector<VkSemaphoreSubmitInfoKHR> m_waitSemaphores;    // Possible extra frame wait semaphores
-  std::vector<VkSemaphoreSubmitInfoKHR> m_signalSemaphores;  // Possible extra frame signal semaphores
+  std::vector<VkSemaphoreSubmitInfoKHR>     m_waitSemaphores;    // Possible extra frame wait semaphores
+  std::vector<VkSemaphoreSubmitInfoKHR>     m_signalSemaphores;  // Possible extra frame signal semaphores
+  std::vector<VkCommandBufferSubmitInfoKHR> m_commandBuffers;    // Possible extra frame command buffers
 
   std::unique_ptr<ImGui_ImplVulkanH_Window> m_mainWindowData;
 

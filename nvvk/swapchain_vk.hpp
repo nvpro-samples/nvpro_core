@@ -260,6 +260,8 @@ public:
 
   SwapChain() {}
 
+  static constexpr VkFormat s_defaultImageFormat = VK_FORMAT_B8G8R8A8_UNORM;
+
   static constexpr VkImageUsageFlags s_defaultImageUsage =
       VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 
@@ -268,7 +270,7 @@ public:
             VkQueue           queue,
             uint32_t          queueFamilyIndex,
             VkSurfaceKHR      surface,
-            VkFormat          format     = VK_FORMAT_B8G8R8A8_UNORM,
+            VkFormat          format     = s_defaultImageFormat,
             VkImageUsageFlags imageUsage = s_defaultImageUsage)
   {
     init(device, physicalDevice, queue, queueFamilyIndex, surface, format, imageUsage);
@@ -280,7 +282,7 @@ public:
             VkQueue           queue,
             uint32_t          queueFamilyIndex,
             VkSurfaceKHR      surface,
-            VkFormat          format     = VK_FORMAT_B8G8R8A8_UNORM,
+            VkFormat          format     = s_defaultImageFormat,
             VkImageUsageFlags imageUsage = s_defaultImageUsage);
 
   // triggers queue/device wait idle
