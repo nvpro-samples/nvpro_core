@@ -22,12 +22,21 @@
 #include "nvh/nvprint.hpp"
 
 /* NVVK_GENERATE_VERSION_INFO */
-// Generated using Vulkan 268
+// Generated using Vulkan 275
 /* NVVK_GENERATE_VERSION_INFO */
 
 /* clang-format off */
 
 /* NVVK_GENERATE_STATIC_PFN */
+#if defined(VK_AMDX_shader_enqueue)
+static PFN_vkCmdDispatchGraphAMDX pfn_vkCmdDispatchGraphAMDX= 0;
+static PFN_vkCmdDispatchGraphIndirectAMDX pfn_vkCmdDispatchGraphIndirectAMDX= 0;
+static PFN_vkCmdDispatchGraphIndirectCountAMDX pfn_vkCmdDispatchGraphIndirectCountAMDX= 0;
+static PFN_vkCmdInitializeGraphScratchMemoryAMDX pfn_vkCmdInitializeGraphScratchMemoryAMDX= 0;
+static PFN_vkCreateExecutionGraphPipelinesAMDX pfn_vkCreateExecutionGraphPipelinesAMDX= 0;
+static PFN_vkGetExecutionGraphPipelineNodeIndexAMDX pfn_vkGetExecutionGraphPipelineNodeIndexAMDX= 0;
+static PFN_vkGetExecutionGraphPipelineScratchSizeAMDX pfn_vkGetExecutionGraphPipelineScratchSizeAMDX= 0;
+#endif /* VK_AMDX_shader_enqueue */
 #if defined(VK_AMD_buffer_marker)
 static PFN_vkCmdWriteBufferMarkerAMD pfn_vkCmdWriteBufferMarkerAMD= 0;
 #endif /* VK_AMD_buffer_marker */
@@ -322,6 +331,10 @@ static PFN_vkGetBufferDeviceAddressKHR pfn_vkGetBufferDeviceAddressKHR= 0;
 static PFN_vkGetBufferOpaqueCaptureAddressKHR pfn_vkGetBufferOpaqueCaptureAddressKHR= 0;
 static PFN_vkGetDeviceMemoryOpaqueCaptureAddressKHR pfn_vkGetDeviceMemoryOpaqueCaptureAddressKHR= 0;
 #endif /* VK_KHR_buffer_device_address */
+#if defined(VK_KHR_calibrated_timestamps)
+static PFN_vkGetCalibratedTimestampsKHR pfn_vkGetCalibratedTimestampsKHR= 0;
+static PFN_vkGetPhysicalDeviceCalibrateableTimeDomainsKHR pfn_vkGetPhysicalDeviceCalibrateableTimeDomainsKHR= 0;
+#endif /* VK_KHR_calibrated_timestamps */
 #if defined(VK_KHR_cooperative_matrix)
 static PFN_vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR pfn_vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR= 0;
 #endif /* VK_KHR_cooperative_matrix */
@@ -435,6 +448,18 @@ static PFN_vkGetDeviceImageSubresourceLayoutKHR pfn_vkGetDeviceImageSubresourceL
 static PFN_vkGetImageSubresourceLayout2KHR pfn_vkGetImageSubresourceLayout2KHR= 0;
 static PFN_vkGetRenderingAreaGranularityKHR pfn_vkGetRenderingAreaGranularityKHR= 0;
 #endif /* VK_KHR_maintenance5 */
+#if defined(VK_KHR_maintenance6)
+static PFN_vkCmdBindDescriptorSets2KHR pfn_vkCmdBindDescriptorSets2KHR= 0;
+static PFN_vkCmdPushConstants2KHR pfn_vkCmdPushConstants2KHR= 0;
+#endif /* VK_KHR_maintenance6 */
+#if defined(VK_KHR_maintenance6) && defined(VK_KHR_push_descriptor)
+static PFN_vkCmdPushDescriptorSet2KHR pfn_vkCmdPushDescriptorSet2KHR= 0;
+static PFN_vkCmdPushDescriptorSetWithTemplate2KHR pfn_vkCmdPushDescriptorSetWithTemplate2KHR= 0;
+#endif /* VK_KHR_maintenance6 && VK_KHR_push_descriptor */
+#if defined(VK_KHR_maintenance6) && defined(VK_EXT_descriptor_buffer)
+static PFN_vkCmdBindDescriptorBufferEmbeddedSamplers2EXT pfn_vkCmdBindDescriptorBufferEmbeddedSamplers2EXT= 0;
+static PFN_vkCmdSetDescriptorBufferOffsets2EXT pfn_vkCmdSetDescriptorBufferOffsets2EXT= 0;
+#endif /* VK_KHR_maintenance6 && VK_EXT_descriptor_buffer */
 #if defined(VK_KHR_map_memory2)
 static PFN_vkMapMemory2KHR pfn_vkMapMemory2KHR= 0;
 static PFN_vkUnmapMemory2KHR pfn_vkUnmapMemory2KHR= 0;
@@ -497,6 +522,11 @@ static PFN_vkWaitSemaphoresKHR pfn_vkWaitSemaphoresKHR= 0;
 #if defined(VK_KHR_video_decode_queue)
 static PFN_vkCmdDecodeVideoKHR pfn_vkCmdDecodeVideoKHR= 0;
 #endif /* VK_KHR_video_decode_queue */
+#if defined(VK_KHR_video_encode_queue)
+static PFN_vkCmdEncodeVideoKHR pfn_vkCmdEncodeVideoKHR= 0;
+static PFN_vkGetEncodedVideoSessionParametersKHR pfn_vkGetEncodedVideoSessionParametersKHR= 0;
+static PFN_vkGetPhysicalDeviceVideoEncodeQualityLevelPropertiesKHR pfn_vkGetPhysicalDeviceVideoEncodeQualityLevelPropertiesKHR= 0;
+#endif /* VK_KHR_video_encode_queue */
 #if defined(VK_KHR_video_queue)
 static PFN_vkBindVideoSessionMemoryKHR pfn_vkBindVideoSessionMemoryKHR= 0;
 static PFN_vkCmdBeginVideoCodingKHR pfn_vkCmdBeginVideoCodingKHR= 0;
@@ -548,6 +578,14 @@ static PFN_vkCmdCopyMemoryToImageIndirectNV pfn_vkCmdCopyMemoryToImageIndirectNV
 #if defined(VK_NV_coverage_reduction_mode)
 static PFN_vkGetPhysicalDeviceSupportedFramebufferMixedSamplesCombinationsNV pfn_vkGetPhysicalDeviceSupportedFramebufferMixedSamplesCombinationsNV= 0;
 #endif /* VK_NV_coverage_reduction_mode */
+#if defined(VK_NV_cuda_kernel_launch)
+static PFN_vkCmdCudaLaunchKernelNV pfn_vkCmdCudaLaunchKernelNV= 0;
+static PFN_vkCreateCudaFunctionNV pfn_vkCreateCudaFunctionNV= 0;
+static PFN_vkCreateCudaModuleNV pfn_vkCreateCudaModuleNV= 0;
+static PFN_vkDestroyCudaFunctionNV pfn_vkDestroyCudaFunctionNV= 0;
+static PFN_vkDestroyCudaModuleNV pfn_vkDestroyCudaModuleNV= 0;
+static PFN_vkGetCudaModuleCacheNV pfn_vkGetCudaModuleCacheNV= 0;
+#endif /* VK_NV_cuda_kernel_launch */
 #if defined(VK_NV_device_diagnostic_checkpoints)
 static PFN_vkCmdSetCheckpointNV pfn_vkCmdSetCheckpointNV= 0;
 static PFN_vkGetQueueCheckpointDataNV pfn_vkGetQueueCheckpointDataNV= 0;
@@ -732,6 +770,60 @@ static PFN_vkAcquireNextImage2KHR pfn_vkAcquireNextImage2KHR= 0;
 
 
 /* NVVK_GENERATE_DECLARE */
+#if defined(VK_AMDX_shader_enqueue)
+VKAPI_ATTR void VKAPI_CALL vkCmdDispatchGraphAMDX(
+	VkCommandBuffer                                 commandBuffer, 
+	VkDeviceAddress                                 scratch, 
+	const VkDispatchGraphCountInfoAMDX*              pCountInfo) 
+{ 
+  pfn_vkCmdDispatchGraphAMDX(commandBuffer, scratch, pCountInfo); 
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdDispatchGraphIndirectAMDX(
+	VkCommandBuffer                                 commandBuffer, 
+	VkDeviceAddress                                 scratch, 
+	const VkDispatchGraphCountInfoAMDX*              pCountInfo) 
+{ 
+  pfn_vkCmdDispatchGraphIndirectAMDX(commandBuffer, scratch, pCountInfo); 
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdDispatchGraphIndirectCountAMDX(
+	VkCommandBuffer                                 commandBuffer, 
+	VkDeviceAddress                                 scratch, 
+	VkDeviceAddress                                 countInfo) 
+{ 
+  pfn_vkCmdDispatchGraphIndirectCountAMDX(commandBuffer, scratch, countInfo); 
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdInitializeGraphScratchMemoryAMDX(
+	VkCommandBuffer                                 commandBuffer, 
+	VkDeviceAddress                                 scratch) 
+{ 
+  pfn_vkCmdInitializeGraphScratchMemoryAMDX(commandBuffer, scratch); 
+}
+VKAPI_ATTR VkResult VKAPI_CALL vkCreateExecutionGraphPipelinesAMDX(
+	VkDevice                                        device, 
+	VkPipelineCache                 pipelineCache, 
+	uint32_t                                        createInfoCount, 
+	const VkExecutionGraphPipelineCreateInfoAMDX* pCreateInfos, 
+	const VkAllocationCallbacks*    pAllocator, 
+	VkPipeline*               pPipelines) 
+{ 
+  return pfn_vkCreateExecutionGraphPipelinesAMDX(device, pipelineCache, createInfoCount, pCreateInfos, pAllocator, pPipelines); 
+}
+VKAPI_ATTR VkResult VKAPI_CALL vkGetExecutionGraphPipelineNodeIndexAMDX(
+	VkDevice                                        device, 
+	VkPipeline                                      executionGraph, 
+	const VkPipelineShaderStageNodeCreateInfoAMDX*   pNodeInfo, 
+	uint32_t*                                       pNodeIndex) 
+{ 
+  return pfn_vkGetExecutionGraphPipelineNodeIndexAMDX(device, executionGraph, pNodeInfo, pNodeIndex); 
+}
+VKAPI_ATTR VkResult VKAPI_CALL vkGetExecutionGraphPipelineScratchSizeAMDX(
+	VkDevice                                        device, 
+	VkPipeline                                      executionGraph, 
+	VkExecutionGraphPipelineScratchSizeAMDX*         pSizeInfo) 
+{ 
+  return pfn_vkGetExecutionGraphPipelineScratchSizeAMDX(device, executionGraph, pSizeInfo); 
+}
+#endif /* VK_AMDX_shader_enqueue */
 #if defined(VK_AMD_buffer_marker)
 VKAPI_ATTR void VKAPI_CALL vkCmdWriteBufferMarkerAMD(
 	VkCommandBuffer commandBuffer, 
@@ -858,7 +950,7 @@ VKAPI_ATTR VkDeviceAddress VKAPI_CALL vkGetBufferDeviceAddressEXT(
 VKAPI_ATTR VkResult VKAPI_CALL vkGetCalibratedTimestampsEXT(
 	VkDevice device, 
 	uint32_t timestampCount, 
-	const VkCalibratedTimestampInfoEXT* pTimestampInfos, 
+	const VkCalibratedTimestampInfoKHR* pTimestampInfos, 
 	uint64_t* pTimestamps, 
 	uint64_t* pMaxDeviation) 
 { 
@@ -867,7 +959,7 @@ VKAPI_ATTR VkResult VKAPI_CALL vkGetCalibratedTimestampsEXT(
 VKAPI_ATTR VkResult VKAPI_CALL vkGetPhysicalDeviceCalibrateableTimeDomainsEXT(
 	VkPhysicalDevice physicalDevice, 
 	uint32_t* pTimeDomainCount, 
-	VkTimeDomainEXT* pTimeDomains) 
+	VkTimeDomainKHR* pTimeDomains) 
 { 
   return pfn_vkGetPhysicalDeviceCalibrateableTimeDomainsEXT(physicalDevice, pTimeDomainCount, pTimeDomains); 
 }
@@ -2109,6 +2201,24 @@ VKAPI_ATTR uint64_t VKAPI_CALL vkGetDeviceMemoryOpaqueCaptureAddressKHR(
   return pfn_vkGetDeviceMemoryOpaqueCaptureAddressKHR(device, pInfo); 
 }
 #endif /* VK_KHR_buffer_device_address */
+#if defined(VK_KHR_calibrated_timestamps)
+VKAPI_ATTR VkResult VKAPI_CALL vkGetCalibratedTimestampsKHR(
+	VkDevice device, 
+	uint32_t timestampCount, 
+	const VkCalibratedTimestampInfoKHR* pTimestampInfos, 
+	uint64_t* pTimestamps, 
+	uint64_t* pMaxDeviation) 
+{ 
+  return pfn_vkGetCalibratedTimestampsKHR(device, timestampCount, pTimestampInfos, pTimestamps, pMaxDeviation); 
+}
+VKAPI_ATTR VkResult VKAPI_CALL vkGetPhysicalDeviceCalibrateableTimeDomainsKHR(
+	VkPhysicalDevice physicalDevice, 
+	uint32_t* pTimeDomainCount, 
+	VkTimeDomainKHR* pTimeDomains) 
+{ 
+  return pfn_vkGetPhysicalDeviceCalibrateableTimeDomainsKHR(physicalDevice, pTimeDomainCount, pTimeDomains); 
+}
+#endif /* VK_KHR_calibrated_timestamps */
 #if defined(VK_KHR_cooperative_matrix)
 VKAPI_ATTR VkResult VKAPI_CALL vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR(
 	VkPhysicalDevice physicalDevice, 
@@ -2604,6 +2714,48 @@ VKAPI_ATTR void VKAPI_CALL vkGetRenderingAreaGranularityKHR(
   pfn_vkGetRenderingAreaGranularityKHR(device, pRenderingAreaInfo, pGranularity); 
 }
 #endif /* VK_KHR_maintenance5 */
+#if defined(VK_KHR_maintenance6)
+VKAPI_ATTR void VKAPI_CALL vkCmdBindDescriptorSets2KHR(
+	VkCommandBuffer commandBuffer, 
+	const VkBindDescriptorSetsInfoKHR* pBindDescriptorSetsInfo) 
+{ 
+  pfn_vkCmdBindDescriptorSets2KHR(commandBuffer, pBindDescriptorSetsInfo); 
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdPushConstants2KHR(
+	VkCommandBuffer commandBuffer, 
+	const VkPushConstantsInfoKHR* pPushConstantsInfo) 
+{ 
+  pfn_vkCmdPushConstants2KHR(commandBuffer, pPushConstantsInfo); 
+}
+#endif /* VK_KHR_maintenance6 */
+#if defined(VK_KHR_maintenance6) && defined(VK_KHR_push_descriptor)
+VKAPI_ATTR void VKAPI_CALL vkCmdPushDescriptorSet2KHR(
+	VkCommandBuffer commandBuffer, 
+	const VkPushDescriptorSetInfoKHR* pPushDescriptorSetInfo) 
+{ 
+  pfn_vkCmdPushDescriptorSet2KHR(commandBuffer, pPushDescriptorSetInfo); 
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdPushDescriptorSetWithTemplate2KHR(
+	VkCommandBuffer commandBuffer, 
+	const VkPushDescriptorSetWithTemplateInfoKHR* pPushDescriptorSetWithTemplateInfo) 
+{ 
+  pfn_vkCmdPushDescriptorSetWithTemplate2KHR(commandBuffer, pPushDescriptorSetWithTemplateInfo); 
+}
+#endif /* VK_KHR_maintenance6 && VK_KHR_push_descriptor */
+#if defined(VK_KHR_maintenance6) && defined(VK_EXT_descriptor_buffer)
+VKAPI_ATTR void VKAPI_CALL vkCmdBindDescriptorBufferEmbeddedSamplers2EXT(
+	VkCommandBuffer commandBuffer, 
+	const VkBindDescriptorBufferEmbeddedSamplersInfoEXT* pBindDescriptorBufferEmbeddedSamplersInfo) 
+{ 
+  pfn_vkCmdBindDescriptorBufferEmbeddedSamplers2EXT(commandBuffer, pBindDescriptorBufferEmbeddedSamplersInfo); 
+}
+VKAPI_ATTR void VKAPI_CALL vkCmdSetDescriptorBufferOffsets2EXT(
+	VkCommandBuffer commandBuffer, 
+	const VkSetDescriptorBufferOffsetsInfoEXT* pSetDescriptorBufferOffsetsInfo) 
+{ 
+  pfn_vkCmdSetDescriptorBufferOffsets2EXT(commandBuffer, pSetDescriptorBufferOffsetsInfo); 
+}
+#endif /* VK_KHR_maintenance6 && VK_EXT_descriptor_buffer */
 #if defined(VK_KHR_map_memory2)
 VKAPI_ATTR VkResult VKAPI_CALL vkMapMemory2KHR(
 	VkDevice device, 
@@ -2894,6 +3046,30 @@ VKAPI_ATTR void VKAPI_CALL vkCmdDecodeVideoKHR(
   pfn_vkCmdDecodeVideoKHR(commandBuffer, pDecodeInfo); 
 }
 #endif /* VK_KHR_video_decode_queue */
+#if defined(VK_KHR_video_encode_queue)
+VKAPI_ATTR void VKAPI_CALL vkCmdEncodeVideoKHR(
+	VkCommandBuffer commandBuffer, 
+	const VkVideoEncodeInfoKHR* pEncodeInfo) 
+{ 
+  pfn_vkCmdEncodeVideoKHR(commandBuffer, pEncodeInfo); 
+}
+VKAPI_ATTR VkResult VKAPI_CALL vkGetEncodedVideoSessionParametersKHR(
+	VkDevice device, 
+	const VkVideoEncodeSessionParametersGetInfoKHR* pVideoSessionParametersInfo, 
+	VkVideoEncodeSessionParametersFeedbackInfoKHR* pFeedbackInfo, 
+	size_t* pDataSize, 
+	void* pData) 
+{ 
+  return pfn_vkGetEncodedVideoSessionParametersKHR(device, pVideoSessionParametersInfo, pFeedbackInfo, pDataSize, pData); 
+}
+VKAPI_ATTR VkResult VKAPI_CALL vkGetPhysicalDeviceVideoEncodeQualityLevelPropertiesKHR(
+	VkPhysicalDevice physicalDevice, 
+	const VkPhysicalDeviceVideoEncodeQualityLevelInfoKHR* pQualityLevelInfo, 
+	VkVideoEncodeQualityLevelPropertiesKHR* pQualityLevelProperties) 
+{ 
+  return pfn_vkGetPhysicalDeviceVideoEncodeQualityLevelPropertiesKHR(physicalDevice, pQualityLevelInfo, pQualityLevelProperties); 
+}
+#endif /* VK_KHR_video_encode_queue */
 #if defined(VK_KHR_video_queue)
 VKAPI_ATTR VkResult VKAPI_CALL vkBindVideoSessionMemoryKHR(
 	VkDevice device, 
@@ -3129,6 +3305,52 @@ VKAPI_ATTR VkResult VKAPI_CALL vkGetPhysicalDeviceSupportedFramebufferMixedSampl
   return pfn_vkGetPhysicalDeviceSupportedFramebufferMixedSamplesCombinationsNV(physicalDevice, pCombinationCount, pCombinations); 
 }
 #endif /* VK_NV_coverage_reduction_mode */
+#if defined(VK_NV_cuda_kernel_launch)
+VKAPI_ATTR void VKAPI_CALL vkCmdCudaLaunchKernelNV(
+	VkCommandBuffer commandBuffer, 
+	const VkCudaLaunchInfoNV* pLaunchInfo) 
+{ 
+  pfn_vkCmdCudaLaunchKernelNV(commandBuffer, pLaunchInfo); 
+}
+VKAPI_ATTR VkResult VKAPI_CALL vkCreateCudaFunctionNV(
+	VkDevice device, 
+	const VkCudaFunctionCreateInfoNV* pCreateInfo, 
+	const VkAllocationCallbacks* pAllocator, 
+	VkCudaFunctionNV* pFunction) 
+{ 
+  return pfn_vkCreateCudaFunctionNV(device, pCreateInfo, pAllocator, pFunction); 
+}
+VKAPI_ATTR VkResult VKAPI_CALL vkCreateCudaModuleNV(
+	VkDevice device, 
+	const VkCudaModuleCreateInfoNV* pCreateInfo, 
+	const VkAllocationCallbacks* pAllocator, 
+	VkCudaModuleNV* pModule) 
+{ 
+  return pfn_vkCreateCudaModuleNV(device, pCreateInfo, pAllocator, pModule); 
+}
+VKAPI_ATTR void VKAPI_CALL vkDestroyCudaFunctionNV(
+	VkDevice device, 
+	VkCudaFunctionNV function, 
+	const VkAllocationCallbacks* pAllocator) 
+{ 
+  pfn_vkDestroyCudaFunctionNV(device, function, pAllocator); 
+}
+VKAPI_ATTR void VKAPI_CALL vkDestroyCudaModuleNV(
+	VkDevice device, 
+	VkCudaModuleNV module, 
+	const VkAllocationCallbacks* pAllocator) 
+{ 
+  pfn_vkDestroyCudaModuleNV(device, module, pAllocator); 
+}
+VKAPI_ATTR VkResult VKAPI_CALL vkGetCudaModuleCacheNV(
+	VkDevice device, 
+	VkCudaModuleNV module, 
+	size_t* pCacheSize, 
+	void* pCacheData) 
+{ 
+  return pfn_vkGetCudaModuleCacheNV(device, module, pCacheSize, pCacheData); 
+}
+#endif /* VK_NV_cuda_kernel_launch */
 #if defined(VK_NV_device_diagnostic_checkpoints)
 VKAPI_ATTR void VKAPI_CALL vkCmdSetCheckpointNV(
 	VkCommandBuffer commandBuffer, 
@@ -3257,12 +3479,9 @@ VKAPI_ATTR void VKAPI_CALL vkCmdSetFragmentShadingRateEnumNV(
 VKAPI_ATTR void VKAPI_CALL vkGetLatencyTimingsNV(
 	VkDevice device, 
 	VkSwapchainKHR swapchain, 
-	uint32_t* pTimingCount, 
 	VkGetLatencyMarkerInfoNV* pLatencyMarkerInfo) 
 { 
-#if VK_HEADER_VERSION < 275
-  pfn_vkGetLatencyTimingsNV(device, swapchain, pTimingCount, pLatencyMarkerInfo); 
-#endif
+  pfn_vkGetLatencyTimingsNV(device, swapchain, pLatencyMarkerInfo); 
 }
 VKAPI_ATTR VkResult VKAPI_CALL vkLatencySleepNV(
 	VkDevice device, 
@@ -4009,6 +4228,15 @@ VKAPI_ATTR VkResult VKAPI_CALL vkAcquireNextImage2KHR(
 /* super load/reset */
 void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstanceProcAddr, VkDevice device, PFN_vkGetDeviceProcAddr getDeviceProcAddr) {
 /* NVVK_GENERATE_LOAD_PROC */
+#if defined(VK_AMDX_shader_enqueue)
+  pfn_vkCmdDispatchGraphAMDX = (PFN_vkCmdDispatchGraphAMDX)getDeviceProcAddr(device, "vkCmdDispatchGraphAMDX");
+  pfn_vkCmdDispatchGraphIndirectAMDX = (PFN_vkCmdDispatchGraphIndirectAMDX)getDeviceProcAddr(device, "vkCmdDispatchGraphIndirectAMDX");
+  pfn_vkCmdDispatchGraphIndirectCountAMDX = (PFN_vkCmdDispatchGraphIndirectCountAMDX)getDeviceProcAddr(device, "vkCmdDispatchGraphIndirectCountAMDX");
+  pfn_vkCmdInitializeGraphScratchMemoryAMDX = (PFN_vkCmdInitializeGraphScratchMemoryAMDX)getDeviceProcAddr(device, "vkCmdInitializeGraphScratchMemoryAMDX");
+  pfn_vkCreateExecutionGraphPipelinesAMDX = (PFN_vkCreateExecutionGraphPipelinesAMDX)getDeviceProcAddr(device, "vkCreateExecutionGraphPipelinesAMDX");
+  pfn_vkGetExecutionGraphPipelineNodeIndexAMDX = (PFN_vkGetExecutionGraphPipelineNodeIndexAMDX)getDeviceProcAddr(device, "vkGetExecutionGraphPipelineNodeIndexAMDX");
+  pfn_vkGetExecutionGraphPipelineScratchSizeAMDX = (PFN_vkGetExecutionGraphPipelineScratchSizeAMDX)getDeviceProcAddr(device, "vkGetExecutionGraphPipelineScratchSizeAMDX");
+#endif /* VK_AMDX_shader_enqueue */
 #if defined(VK_AMD_buffer_marker)
   pfn_vkCmdWriteBufferMarkerAMD = (PFN_vkCmdWriteBufferMarkerAMD)getDeviceProcAddr(device, "vkCmdWriteBufferMarkerAMD");
 #endif /* VK_AMD_buffer_marker */
@@ -4303,6 +4531,10 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
   pfn_vkGetBufferOpaqueCaptureAddressKHR = (PFN_vkGetBufferOpaqueCaptureAddressKHR)getDeviceProcAddr(device, "vkGetBufferOpaqueCaptureAddressKHR");
   pfn_vkGetDeviceMemoryOpaqueCaptureAddressKHR = (PFN_vkGetDeviceMemoryOpaqueCaptureAddressKHR)getDeviceProcAddr(device, "vkGetDeviceMemoryOpaqueCaptureAddressKHR");
 #endif /* VK_KHR_buffer_device_address */
+#if defined(VK_KHR_calibrated_timestamps)
+  pfn_vkGetCalibratedTimestampsKHR = (PFN_vkGetCalibratedTimestampsKHR)getDeviceProcAddr(device, "vkGetCalibratedTimestampsKHR");
+  pfn_vkGetPhysicalDeviceCalibrateableTimeDomainsKHR = (PFN_vkGetPhysicalDeviceCalibrateableTimeDomainsKHR)getInstanceProcAddr(instance, "vkGetPhysicalDeviceCalibrateableTimeDomainsKHR");
+#endif /* VK_KHR_calibrated_timestamps */
 #if defined(VK_KHR_cooperative_matrix)
   pfn_vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR = (PFN_vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR)getInstanceProcAddr(instance, "vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR");
 #endif /* VK_KHR_cooperative_matrix */
@@ -4416,6 +4648,18 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
   pfn_vkGetImageSubresourceLayout2KHR = (PFN_vkGetImageSubresourceLayout2KHR)getDeviceProcAddr(device, "vkGetImageSubresourceLayout2KHR");
   pfn_vkGetRenderingAreaGranularityKHR = (PFN_vkGetRenderingAreaGranularityKHR)getDeviceProcAddr(device, "vkGetRenderingAreaGranularityKHR");
 #endif /* VK_KHR_maintenance5 */
+#if defined(VK_KHR_maintenance6)
+  pfn_vkCmdBindDescriptorSets2KHR = (PFN_vkCmdBindDescriptorSets2KHR)getDeviceProcAddr(device, "vkCmdBindDescriptorSets2KHR");
+  pfn_vkCmdPushConstants2KHR = (PFN_vkCmdPushConstants2KHR)getDeviceProcAddr(device, "vkCmdPushConstants2KHR");
+#endif /* VK_KHR_maintenance6 */
+#if defined(VK_KHR_maintenance6) && defined(VK_KHR_push_descriptor)
+  pfn_vkCmdPushDescriptorSet2KHR = (PFN_vkCmdPushDescriptorSet2KHR)getDeviceProcAddr(device, "vkCmdPushDescriptorSet2KHR");
+  pfn_vkCmdPushDescriptorSetWithTemplate2KHR = (PFN_vkCmdPushDescriptorSetWithTemplate2KHR)getDeviceProcAddr(device, "vkCmdPushDescriptorSetWithTemplate2KHR");
+#endif /* VK_KHR_maintenance6 && VK_KHR_push_descriptor */
+#if defined(VK_KHR_maintenance6) && defined(VK_EXT_descriptor_buffer)
+  pfn_vkCmdBindDescriptorBufferEmbeddedSamplers2EXT = (PFN_vkCmdBindDescriptorBufferEmbeddedSamplers2EXT)getDeviceProcAddr(device, "vkCmdBindDescriptorBufferEmbeddedSamplers2EXT");
+  pfn_vkCmdSetDescriptorBufferOffsets2EXT = (PFN_vkCmdSetDescriptorBufferOffsets2EXT)getDeviceProcAddr(device, "vkCmdSetDescriptorBufferOffsets2EXT");
+#endif /* VK_KHR_maintenance6 && VK_EXT_descriptor_buffer */
 #if defined(VK_KHR_map_memory2)
   pfn_vkMapMemory2KHR = (PFN_vkMapMemory2KHR)getDeviceProcAddr(device, "vkMapMemory2KHR");
   pfn_vkUnmapMemory2KHR = (PFN_vkUnmapMemory2KHR)getDeviceProcAddr(device, "vkUnmapMemory2KHR");
@@ -4478,6 +4722,11 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #if defined(VK_KHR_video_decode_queue)
   pfn_vkCmdDecodeVideoKHR = (PFN_vkCmdDecodeVideoKHR)getDeviceProcAddr(device, "vkCmdDecodeVideoKHR");
 #endif /* VK_KHR_video_decode_queue */
+#if defined(VK_KHR_video_encode_queue)
+  pfn_vkCmdEncodeVideoKHR = (PFN_vkCmdEncodeVideoKHR)getDeviceProcAddr(device, "vkCmdEncodeVideoKHR");
+  pfn_vkGetEncodedVideoSessionParametersKHR = (PFN_vkGetEncodedVideoSessionParametersKHR)getDeviceProcAddr(device, "vkGetEncodedVideoSessionParametersKHR");
+  pfn_vkGetPhysicalDeviceVideoEncodeQualityLevelPropertiesKHR = (PFN_vkGetPhysicalDeviceVideoEncodeQualityLevelPropertiesKHR)getInstanceProcAddr(instance, "vkGetPhysicalDeviceVideoEncodeQualityLevelPropertiesKHR");
+#endif /* VK_KHR_video_encode_queue */
 #if defined(VK_KHR_video_queue)
   pfn_vkBindVideoSessionMemoryKHR = (PFN_vkBindVideoSessionMemoryKHR)getDeviceProcAddr(device, "vkBindVideoSessionMemoryKHR");
   pfn_vkCmdBeginVideoCodingKHR = (PFN_vkCmdBeginVideoCodingKHR)getDeviceProcAddr(device, "vkCmdBeginVideoCodingKHR");
@@ -4529,6 +4778,14 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #if defined(VK_NV_coverage_reduction_mode)
   pfn_vkGetPhysicalDeviceSupportedFramebufferMixedSamplesCombinationsNV = (PFN_vkGetPhysicalDeviceSupportedFramebufferMixedSamplesCombinationsNV)getInstanceProcAddr(instance, "vkGetPhysicalDeviceSupportedFramebufferMixedSamplesCombinationsNV");
 #endif /* VK_NV_coverage_reduction_mode */
+#if defined(VK_NV_cuda_kernel_launch)
+  pfn_vkCmdCudaLaunchKernelNV = (PFN_vkCmdCudaLaunchKernelNV)getDeviceProcAddr(device, "vkCmdCudaLaunchKernelNV");
+  pfn_vkCreateCudaFunctionNV = (PFN_vkCreateCudaFunctionNV)getDeviceProcAddr(device, "vkCreateCudaFunctionNV");
+  pfn_vkCreateCudaModuleNV = (PFN_vkCreateCudaModuleNV)getDeviceProcAddr(device, "vkCreateCudaModuleNV");
+  pfn_vkDestroyCudaFunctionNV = (PFN_vkDestroyCudaFunctionNV)getDeviceProcAddr(device, "vkDestroyCudaFunctionNV");
+  pfn_vkDestroyCudaModuleNV = (PFN_vkDestroyCudaModuleNV)getDeviceProcAddr(device, "vkDestroyCudaModuleNV");
+  pfn_vkGetCudaModuleCacheNV = (PFN_vkGetCudaModuleCacheNV)getDeviceProcAddr(device, "vkGetCudaModuleCacheNV");
+#endif /* VK_NV_cuda_kernel_launch */
 #if defined(VK_NV_device_diagnostic_checkpoints)
   pfn_vkCmdSetCheckpointNV = (PFN_vkCmdSetCheckpointNV)getDeviceProcAddr(device, "vkCmdSetCheckpointNV");
   pfn_vkGetQueueCheckpointDataNV = (PFN_vkGetQueueCheckpointDataNV)getDeviceProcAddr(device, "vkGetQueueCheckpointDataNV");

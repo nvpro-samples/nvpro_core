@@ -69,10 +69,11 @@ struct ElementCamera : public nvvkhl::IAppElement
     // the camera.
     if(isWindowHovered(viewportWindow, ImGuiFocusedFlags_RootWindow))
     {
-      CameraManip.setWindowSize(static_cast<int>(viewportWindow->Size.x), static_cast<int>(viewportWindow->Size.y));
       updateCamera();
     }
   }
+
+  void onResize(uint32_t width, uint32_t height) override { CameraManip.setWindowSize(width, height); }
 
   //--------------------------------------------------------------------------------------------------
   // Fit the camera to the Bounding box

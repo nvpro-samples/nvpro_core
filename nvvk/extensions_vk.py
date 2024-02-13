@@ -121,7 +121,7 @@ def is_descendant_type(types, name, base):
     if name == base:
         return True
     type = types.get(name)
-    if not type:
+    if len(type) == 0:
         return False
     parents = type.get("parent")
     if not parents:
@@ -250,6 +250,8 @@ if __name__ == "__main__":
     specpath = get_vk_xml_path(args.spec)
     spec = parse_xml(specpath)
 
+    print("Using " + specpath)
+    
     # CODE BLOCS
     blocks = {}
 

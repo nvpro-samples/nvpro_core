@@ -43,6 +43,9 @@ load_VK_EXTENSIONS(instance, vkGetInstanceProcAddr, device, vkGetDeviceProcAddr)
 void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstanceProcAddr, VkDevice device, PFN_vkGetDeviceProcAddr getDeviceProcAddr);
 
 /* NVVK_GENERATE_DEFINE */
+#if defined(VK_AMDX_shader_enqueue)
+#define NVVK_HAS_VK_AMDX_shader_enqueue
+#endif /* VK_AMDX_shader_enqueue */
 #if defined(VK_AMD_buffer_marker)
 #define NVVK_HAS_VK_AMD_buffer_marker
 #endif /* VK_AMD_buffer_marker */
@@ -292,6 +295,9 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #if defined(VK_KHR_buffer_device_address)
 #define NVVK_HAS_VK_KHR_buffer_device_address
 #endif /* VK_KHR_buffer_device_address */
+#if defined(VK_KHR_calibrated_timestamps)
+#define NVVK_HAS_VK_KHR_calibrated_timestamps
+#endif /* VK_KHR_calibrated_timestamps */
 #if defined(VK_KHR_cooperative_matrix)
 #define NVVK_HAS_VK_KHR_cooperative_matrix
 #endif /* VK_KHR_cooperative_matrix */
@@ -376,6 +382,15 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #if defined(VK_KHR_maintenance5)
 #define NVVK_HAS_VK_KHR_maintenance5
 #endif /* VK_KHR_maintenance5 */
+#if defined(VK_KHR_maintenance6)
+#define NVVK_HAS_VK_KHR_maintenance6
+#endif /* VK_KHR_maintenance6 */
+#if defined(VK_KHR_maintenance6) && defined(VK_KHR_push_descriptor)
+#define NVVK_HAS_VK_KHR_maintenance6
+#endif /* VK_KHR_maintenance6 && VK_KHR_push_descriptor */
+#if defined(VK_KHR_maintenance6) && defined(VK_EXT_descriptor_buffer)
+#define NVVK_HAS_VK_KHR_maintenance6
+#endif /* VK_KHR_maintenance6 && VK_EXT_descriptor_buffer */
 #if defined(VK_KHR_map_memory2)
 #define NVVK_HAS_VK_KHR_map_memory2
 #endif /* VK_KHR_map_memory2 */
@@ -427,6 +442,9 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #if defined(VK_KHR_video_decode_queue)
 #define NVVK_HAS_VK_KHR_video_decode_queue
 #endif /* VK_KHR_video_decode_queue */
+#if defined(VK_KHR_video_encode_queue)
+#define NVVK_HAS_VK_KHR_video_encode_queue
+#endif /* VK_KHR_video_encode_queue */
 #if defined(VK_KHR_video_queue)
 #define NVVK_HAS_VK_KHR_video_queue
 #endif /* VK_KHR_video_queue */
@@ -460,6 +478,9 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #if defined(VK_NV_coverage_reduction_mode)
 #define NVVK_HAS_VK_NV_coverage_reduction_mode
 #endif /* VK_NV_coverage_reduction_mode */
+#if defined(VK_NV_cuda_kernel_launch)
+#define NVVK_HAS_VK_NV_cuda_kernel_launch
+#endif /* VK_NV_cuda_kernel_launch */
 #if defined(VK_NV_device_diagnostic_checkpoints)
 #define NVVK_HAS_VK_NV_device_diagnostic_checkpoints
 #endif /* VK_NV_device_diagnostic_checkpoints */
