@@ -693,16 +693,21 @@ void nvvkhl::AppBaseVk::initGUI(uint32_t subpassID /*= 0*/)
   init_info.Queue                     = m_queue;
   init_info.PipelineCache             = VK_NULL_HANDLE;
   init_info.DescriptorPool            = m_imguiDescPool;
+  init_info.RenderPass                = m_renderPass;
   init_info.Subpass                   = subpassID;
   init_info.MinImageCount             = 2;
   init_info.ImageCount                = static_cast<int>(m_swapChain.getImageCount());
   init_info.MSAASamples               = VK_SAMPLE_COUNT_1_BIT;  // <--- need argument?
   init_info.CheckVkResultFn           = nullptr;
   init_info.Allocator                 = nullptr;
-  init_info.UseDynamicRendering       = m_useDynamicRendering;
-  init_info.ColorAttachmentFormat     = m_swapChain.getFormat(); // needed for dynamic rendering
 
-  ImGui_ImplVulkan_Init(&init_info, m_renderPass);
+  init_info.UseDynamicRendering                                 = m_useDynamicRendering;
+  init_info.PipelineRenderingCreateInfo.sType                   = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR;
+  init_info.PipelineRenderingCreateInfo.colorAttachmentCount    = 1;
+  init_info.PipelineRenderingCreateInfo.pColorAttachmentFormats = &m_colorFormat;
+  init_info.PipelineRenderingCreateInfo.depthAttachmentFormat   = m_depthFormat;
+
+  ImGui_ImplVulkan_Init(&init_info);
 
   // Upload Fonts
   ImGui_ImplVulkan_CreateFontsTexture();

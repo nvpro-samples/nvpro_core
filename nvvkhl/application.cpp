@@ -242,13 +242,14 @@ void nvvkhl::Application::init(ApplicationCreateInfo& info)
   init_info.Queue                     = m_context->m_queueGCT.queue;
   init_info.PipelineCache             = m_pipelineCache;
   init_info.DescriptorPool            = m_descriptorPool;
+  init_info.RenderPass                = wd->RenderPass;
   init_info.Subpass                   = 0;
   init_info.MinImageCount             = m_minImageCount;
   init_info.ImageCount                = wd->ImageCount;
   init_info.MSAASamples               = VK_SAMPLE_COUNT_1_BIT;
   init_info.Allocator                 = m_allocator;
   init_info.CheckVkResultFn           = checkVkResult;
-  ImGui_ImplVulkan_Init(&init_info, wd->RenderPass);
+  ImGui_ImplVulkan_Init(&init_info);
 
   // Read camera setting
   ImGuiH::SetCameraJsonFile(getProjectName());

@@ -34,7 +34,16 @@ namespace nvvkhl {
 class AllocVma : public nvvk::ResourceAllocator
 {
 public:
-  explicit AllocVma(const nvvk::Context* context) { init(context); }
+  explicit AllocVma(const nvvk::Context* context)
+  {
+    VmaAllocatorCreateInfo allocator_info = {};
+    allocator_info.physicalDevice         = context->m_physicalDevice;
+    allocator_info.device                 = context->m_device;
+    allocator_info.instance               = context->m_instance;
+    allocator_info.flags                  = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+    init(allocator_info);
+  }
+  explicit AllocVma(const VmaAllocatorCreateInfo& allocatorInfo) { init(allocatorInfo); }
   ~AllocVma() override { deinit(); }
 
   // Use the following to trace
@@ -44,17 +53,11 @@ public:
   VmaAllocator vma() { return m_vmaAlloc; }
 
 private:
-  void init(const nvvk::Context* context)
+  void init(const VmaAllocatorCreateInfo& allocatorInfo)
   {
-    VmaAllocatorCreateInfo allocator_info = {};
-    allocator_info.physicalDevice         = context->m_physicalDevice;
-    allocator_info.device                 = context->m_device;
-    allocator_info.instance               = context->m_instance;
-    allocator_info.flags                  = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
-    vmaCreateAllocator(&allocator_info, &m_vmaAlloc);
-    m_vma = std::make_unique<nvvk::VMAMemoryAllocator>(context->m_device, context->m_physicalDevice, m_vmaAlloc);
-
-    nvvk::ResourceAllocator::init(context->m_device, context->m_physicalDevice, m_vma.get());
+    vmaCreateAllocator(&allocatorInfo, &m_vmaAlloc);
+    m_vma = std::make_unique<nvvk::VMAMemoryAllocator>(allocatorInfo.device, allocatorInfo.physicalDevice, m_vmaAlloc);
+    nvvk::ResourceAllocator::init(allocatorInfo.device, allocatorInfo.physicalDevice, m_vma.get());
   }
 
   void deinit()

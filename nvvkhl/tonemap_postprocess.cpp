@@ -193,7 +193,7 @@ bool TonemapperPostProcess::onUI()
   if(PropertyEditor::entry(
          " ", [&]() { return ImGui::SmallButton("reset"); }, "Resetting to the original values"))
   {
-    m_settings = nvvkhl_shaders::Tonemapper{};
+    m_settings = nvvkhl_shaders::defaultTonemapper();
     changed    = true;
   }
   PropertyEditor::end();

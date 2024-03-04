@@ -114,7 +114,7 @@ struct ContextCreateInfo
 {
   // aftermathFlags != 0 will enable GPU crash dumps when Aftermath is available via SUPPORT_AFTERMATH
   // No-op when Aftermath is not available.
-  ContextCreateInfo(bool bUseValidation = true, VkDeviceDiagnosticsConfigFlagsNV aftermathFlags = defaultAftermathFlags);
+  ContextCreateInfo(bool bUseValidation = true);
 
   void setVersion(uint32_t major, uint32_t minor);
 
@@ -178,6 +178,7 @@ struct ContextCreateInfo
   // Will Enable GPU crash dumps when Aftermath is available.
   // No-op when Aftermath has not been made available via SUPPORT_AFTERMATH in CMakeLists.txt
   bool enableAftermath = true;
+  VkDeviceDiagnosticsConfigFlagsNV aftermathFlags  = defaultAftermathFlags;
 
   struct Entry
   {

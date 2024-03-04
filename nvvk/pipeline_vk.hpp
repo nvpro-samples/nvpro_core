@@ -350,7 +350,7 @@ struct GraphicsPipelineState
   VkPipelineColorBlendStateCreateInfo    colorBlendState{VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO};
   VkPipelineVertexInputStateCreateInfo   vertexInputState{VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
 
-private:
+protected:
   std::vector<VkPipelineColorBlendAttachmentState> blendAttachmentStates{makePipelineColorBlendAttachmentState()};
   std::vector<VkDynamicState> dynamicStateEnables = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
 
@@ -608,4 +608,151 @@ struct GraphicsPipelineGeneratorCombined : public GraphicsPipelineState, public 
   {
   }
 };
+
+
+//--------------------------------------------------------------------------------------------------
+/** 
+\struct nvvk::GraphicShaderObjectPipeline
+
+This is a helper to set the dynamic graphics pipeline state for shader object
+ - Set the pipeline state as you would do for a regular pipeline
+ - Call cmdSetPipelineState to set the pipeline state in the command buffer
+
+Example of usage :
+\code{.cpp}
+  // Member of the class
+  nvvk::GraphicShaderObjectPipeline m_shaderObjPipeline;
+
+
+  // Creation of the dynamic graphic pipeline
+  m_shaderObjPipeline.rasterizationState.cullMode = VK_CULL_MODE_NONE;
+  m_shaderObjPipeline.addBindingDescriptions({{0, sizeof(nvh::PrimitiveVertex)}});
+  m_shaderObjPipeline.addAttributeDescriptions({
+    {0, 0, VK_FORMAT_R32G32B32_SFLOAT, static_cast<uint32_t>(offsetof(nvh::PrimitiveVertex, p))},  // Position
+    {1, 0, VK_FORMAT_R32G32B32_SFLOAT, static_cast<uint32_t>(offsetof(nvh::PrimitiveVertex, n))},  // Normal
+    });
+  m_shaderObjPipeline.update();
+
+  // In the drawing
+  m_shaderObjPipeline.setViewportScissor(m_app->getViewportSize());
+  m_shaderObjPipeline.cmdSetPipelineState(cmd);
+
+\endcode
+*/
+
+struct GraphicShaderObjectPipeline : GraphicsPipelineState
+{
+  VkSampleMask                                       sampleMask{~0U};
+  std::vector<VkVertexInputBindingDescription2EXT>   vertexBindingDescriptions2;
+  std::vector<VkColorBlendEquationEXT>               colorBlendEquationState;
+  std::vector<VkBool32>                              colorBlendEnables;
+  std::vector<VkBool32>                              colorWriteMasks;
+  std::vector<VkVertexInputAttributeDescription2EXT> vertexAttributeDescriptions2;
+
+  GraphicShaderObjectPipeline()
+  {
+    viewports.resize(1);  // There should be at least one viewport
+    scissors.resize(1);   // 
+  }
+
+  // Set the viewport and scissor to the full extent
+  void setViewportScissor(const VkExtent2D& extent)
+  {
+    viewports[0].x        = 0;
+    viewports[0].y        = 0;
+    viewports[0].width    = float(extent.width);
+    viewports[0].height   = float(extent.height);
+    viewports[0].minDepth = 0;
+    viewports[0].maxDepth = 1;
+
+    scissors[0].offset = {0, 0};
+    scissors[0].extent = extent;
+  }
+
+  // Update the internal state
+  void update()
+  {
+    GraphicsPipelineState::update();
+    multisampleState.pSampleMask = &sampleMask;
+
+    vertexBindingDescriptions2.resize(vertexInputState.vertexBindingDescriptionCount);
+    for(uint32_t i = 0; i < vertexInputState.vertexBindingDescriptionCount; i++)
+    {
+      vertexBindingDescriptions2[i].sType     = VK_STRUCTURE_TYPE_VERTEX_INPUT_BINDING_DESCRIPTION_2_EXT;
+      vertexBindingDescriptions2[i].binding   = vertexInputState.pVertexBindingDescriptions[i].binding;
+      vertexBindingDescriptions2[i].inputRate = vertexInputState.pVertexBindingDescriptions[i].inputRate;
+      vertexBindingDescriptions2[i].stride    = vertexInputState.pVertexBindingDescriptions[i].stride;
+      vertexBindingDescriptions2[i].divisor   = 1;
+    }
+
+    vertexAttributeDescriptions2.resize(vertexInputState.vertexAttributeDescriptionCount);
+    for(uint32_t i = 0; i < vertexInputState.vertexAttributeDescriptionCount; i++)
+    {
+      vertexAttributeDescriptions2[i].sType    = VK_STRUCTURE_TYPE_VERTEX_INPUT_ATTRIBUTE_DESCRIPTION_2_EXT;
+      vertexAttributeDescriptions2[i].binding  = vertexInputState.pVertexAttributeDescriptions[i].binding;
+      vertexAttributeDescriptions2[i].format   = vertexInputState.pVertexAttributeDescriptions[i].format;
+      vertexAttributeDescriptions2[i].location = vertexInputState.pVertexAttributeDescriptions[i].location;
+      vertexAttributeDescriptions2[i].offset   = vertexInputState.pVertexAttributeDescriptions[i].offset;
+    }
+
+    colorBlendEquationState.resize(colorBlendState.attachmentCount);
+    colorBlendEnables.resize(colorBlendState.attachmentCount);
+    colorWriteMasks.resize(colorBlendState.attachmentCount);
+    for(uint32_t i = 0; i < colorBlendState.attachmentCount; i++)
+    {
+      colorBlendEquationState[i].srcColorBlendFactor = colorBlendState.pAttachments[i].srcColorBlendFactor;
+      colorBlendEquationState[i].dstColorBlendFactor = colorBlendState.pAttachments[i].dstColorBlendFactor;
+      colorBlendEquationState[i].colorBlendOp        = colorBlendState.pAttachments[i].colorBlendOp;
+      colorBlendEquationState[i].srcAlphaBlendFactor = colorBlendState.pAttachments[i].srcAlphaBlendFactor;
+      colorBlendEquationState[i].dstAlphaBlendFactor = colorBlendState.pAttachments[i].dstAlphaBlendFactor;
+      colorBlendEquationState[i].alphaBlendOp        = colorBlendState.pAttachments[i].alphaBlendOp;
+      colorBlendEnables[i]                           = colorBlendState.pAttachments[i].blendEnable;
+      colorWriteMasks[i]                             = colorBlendState.pAttachments[i].colorWriteMask;
+    }
+  }
+
+  // Set the pipeline state in the command buffer
+  void cmdSetPipelineState(VkCommandBuffer cmd)
+  {
+    vkCmdSetViewportWithCount(cmd, viewportState.viewportCount, viewportState.pViewports);
+    vkCmdSetScissorWithCount(cmd, viewportState.scissorCount, viewportState.pScissors);
+
+    vkCmdSetLineWidth(cmd, rasterizationState.lineWidth);
+    vkCmdSetDepthBias(cmd, rasterizationState.depthBiasConstantFactor, rasterizationState.depthBiasClamp,
+                      rasterizationState.depthBiasSlopeFactor);
+    vkCmdSetCullMode(cmd, rasterizationState.cullMode);
+    vkCmdSetFrontFace(cmd, rasterizationState.frontFace);
+    vkCmdSetDepthBiasEnable(cmd, rasterizationState.depthBiasEnable);
+    vkCmdSetRasterizerDiscardEnable(cmd, rasterizationState.rasterizerDiscardEnable);
+    vkCmdSetDepthClampEnableEXT(cmd, rasterizationState.depthClampEnable);
+    vkCmdSetPolygonModeEXT(cmd, rasterizationState.polygonMode);
+
+    vkCmdSetBlendConstants(cmd, colorBlendState.blendConstants);
+
+    vkCmdSetDepthBounds(cmd, depthStencilState.minDepthBounds, depthStencilState.maxDepthBounds);
+    vkCmdSetDepthBoundsTestEnable(cmd, depthStencilState.depthBoundsTestEnable);
+    vkCmdSetDepthCompareOp(cmd, depthStencilState.depthCompareOp);
+    vkCmdSetDepthTestEnable(cmd, depthStencilState.depthTestEnable);
+    vkCmdSetDepthWriteEnable(cmd, depthStencilState.depthWriteEnable);
+    vkCmdSetStencilTestEnable(cmd, depthStencilState.stencilTestEnable);
+
+    vkCmdSetPrimitiveRestartEnable(cmd, inputAssemblyState.primitiveRestartEnable);
+    vkCmdSetPrimitiveTopology(cmd, inputAssemblyState.topology);
+
+    vkCmdSetRasterizationSamplesEXT(cmd, multisampleState.rasterizationSamples);
+    vkCmdSetSampleMaskEXT(cmd, multisampleState.rasterizationSamples, multisampleState.pSampleMask);
+    vkCmdSetAlphaToCoverageEnableEXT(cmd, multisampleState.alphaToCoverageEnable);
+    vkCmdSetAlphaToOneEnableEXT(cmd, multisampleState.alphaToOneEnable);
+
+    vkCmdSetVertexInputEXT(cmd, vertexInputState.vertexBindingDescriptionCount, vertexBindingDescriptions2.data(),
+                           vertexInputState.vertexAttributeDescriptionCount, vertexAttributeDescriptions2.data());
+
+    vkCmdSetColorBlendEquationEXT(cmd, 0, colorBlendState.attachmentCount, colorBlendEquationState.data());
+    vkCmdSetColorBlendEnableEXT(cmd, 0, colorBlendState.attachmentCount, colorBlendEnables.data());
+    vkCmdSetColorWriteMaskEXT(cmd, 0, colorBlendState.attachmentCount, colorWriteMasks.data());
+    vkCmdSetLogicOpEnableEXT(cmd, colorBlendState.logicOpEnable);
+  }
+};
+
+
 }  // namespace nvvk

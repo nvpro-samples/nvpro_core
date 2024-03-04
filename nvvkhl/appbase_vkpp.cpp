@@ -534,13 +534,14 @@ void nvvkhl::AppBase::initGUI(uint32_t subpassID)
   init_info.Queue                     = m_queue;
   init_info.PipelineCache             = VK_NULL_HANDLE;
   init_info.DescriptorPool            = m_imguiDescPool;
+  init_info.RenderPass                = m_renderPass;
   init_info.Subpass                   = subpassID;
   init_info.MinImageCount             = 2;
   init_info.ImageCount                = static_cast<int>(m_framebuffers.size());
   init_info.MSAASamples               = VK_SAMPLE_COUNT_1_BIT;  // <--- need argument?
   init_info.CheckVkResultFn           = nullptr;
   init_info.Allocator                 = nullptr;
-  ImGui_ImplVulkan_Init(&init_info, m_renderPass);
+  ImGui_ImplVulkan_Init(&init_info);
 
   // Upload Fonts
   ImGui_ImplVulkan_CreateFontsTexture();

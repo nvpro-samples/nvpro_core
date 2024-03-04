@@ -534,7 +534,24 @@ bool Context::initDevice(uint32_t deviceIndex, const ContextCreateInfo& info)
     }
   }
 
-  if(fillFilteredNameArray(m_usedDeviceExtensions, extensionProperties, info.deviceExtensions, featureStructs) != VK_SUCCESS)
+  ContextCreateInfo::EntryArray deviceExtensions = info.deviceExtensions;
+
+  if(isAftermathAvailable() && info.enableAftermath)
+  {
+    // #Aftermath
+    // Set up device creation info for Aftermath feature flag configuration.
+
+    // BEWARE: we need to use static here, because addDeviceExtension doesn't make a copy of aftermathInfo.
+    // The pointer to aftermathInfo MUST be valid until initDevice() time!!!
+    static VkDeviceDiagnosticsConfigCreateInfoNV aftermathInfo{VK_STRUCTURE_TYPE_DEVICE_DIAGNOSTICS_CONFIG_CREATE_INFO_NV};
+    aftermathInfo.flags = info.aftermathFlags;
+    // Enable NV_device_diagnostic_checkpoints extension to be able to use Aftermath event markers.
+    deviceExtensions.push_back(ContextCreateInfo::Entry(VK_NV_DEVICE_DIAGNOSTIC_CHECKPOINTS_EXTENSION_NAME, true));
+    // Enable NV_device_diagnostics_config extension to configure Aftermath features.
+    deviceExtensions.push_back(ContextCreateInfo::Entry(VK_NV_DEVICE_DIAGNOSTICS_CONFIG_EXTENSION_NAME, true, &aftermathInfo));
+  }
+
+  if(fillFilteredNameArray(m_usedDeviceExtensions, extensionProperties, deviceExtensions, featureStructs) != VK_SUCCESS)
   {
     deinit();
     return false;
@@ -778,7 +795,7 @@ bool Context::hasInstanceExtension(const char* name) const
 //--------------------------------------------------------------------------------------------------
 //
 //
-ContextCreateInfo::ContextCreateInfo(bool bUseValidation, VkDeviceDiagnosticsConfigFlagsNV aftermathFlags)
+ContextCreateInfo::ContextCreateInfo(bool bUseValidation)
 {
   if(defaultQueueGCT)
   {
@@ -798,22 +815,6 @@ ContextCreateInfo::ContextCreateInfo(bool bUseValidation, VkDeviceDiagnosticsCon
   if(bUseValidation)
     instanceLayers.push_back({"VK_LAYER_KHRONOS_validation", true});
 #endif
-
-  this->enableAftermath = !!aftermathFlags;
-  if(isAftermathAvailable() && this->enableAftermath)
-  {
-    // #Aftermath
-    // Set up device creation info for Aftermath feature flag configuration.
-
-    // BEWARE: we need to use static here, because addDeviceExtension doesn't make a copy of aftermathInfo.
-    // The pointer to aftermathInfo MUST be valid until initDevice() time!!!
-    static VkDeviceDiagnosticsConfigCreateInfoNV aftermathInfo{VK_STRUCTURE_TYPE_DEVICE_DIAGNOSTICS_CONFIG_CREATE_INFO_NV};
-    aftermathInfo.flags = aftermathFlags;
-    // Enable NV_device_diagnostic_checkpoints extension to be able to use Aftermath event markers.
-    addDeviceExtension(VK_NV_DEVICE_DIAGNOSTIC_CHECKPOINTS_EXTENSION_NAME, true);
-    // Enable NV_device_diagnostics_config extension to configure Aftermath features.
-    addDeviceExtension(VK_NV_DEVICE_DIAGNOSTICS_CONFIG_EXTENSION_NAME, true, &aftermathInfo);
-  }
 }
 
 void ContextCreateInfo::addInstanceExtension(const char* name, bool optional)

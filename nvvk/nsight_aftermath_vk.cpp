@@ -419,10 +419,9 @@ void GpuCrashTrackerImpl::writeGpuCrashDumpToFile(const void* pGpuCrashDump, con
   // registered with Nsight Graphics.
   const std::string           crash_dump_file_name = base_file_name + ".nv-gpudmp";
   const std::filesystem::path crash_dump_file_path(std::filesystem::absolute(crash_dump_file_name));
-  std::cout << "\n--------------------------------------------------------------\n"
-            << "Writing Aftermath dump file to:\n " << crash_dump_file_path
-            << "\n--------------------------------------------------------------\n"
-            << std::endl;
+  LOGE("\n--------------------------------------------------------------\n");
+  LOGE("Writing Aftermath dump file to:\n  %s", crash_dump_file_path.string().c_str());
+  LOGE("\n--------------------------------------------------------------\n");
 
   std::ofstream dump_file(crash_dump_file_path, std::ios::out | std::ios::binary);
   if(dump_file)
@@ -444,9 +443,10 @@ void GpuCrashTrackerImpl::writeGpuCrashDumpToFile(const void* pGpuCrashDump, con
   // Write the crash dump data as JSON to a file.
   const std::string           json_file_name = crash_dump_file_name + ".json";
   const std::filesystem::path json_file_path(std::filesystem::absolute(json_file_name));
-  std::cout << "\n--------------------------------------------------------------\n"
-            << "Writing JSON dump file to:\n " << json_file_path << "\n--------------------------------------------------------------\n"
-            << std::endl;
+  LOGE("\n--------------------------------------------------------------\n");
+  LOGE("Writing JSON dump file to:\n  %s", json_file_path.string().c_str());
+  LOGE("\n--------------------------------------------------------------\n");
+
 
   std::ofstream json_file(json_file_path, std::ios::out | std::ios::binary);
   if(json_file)

@@ -49,13 +49,14 @@ void ImGui::InitVK(VkDevice device, VkPhysicalDevice physicalDevice, VkQueue que
   init_info.Queue                     = queue;
   init_info.PipelineCache             = VK_NULL_HANDLE;
   init_info.DescriptorPool            = g_VulkanInitInfo.DescriptorPool;
+  init_info.RenderPass                = pass;
   init_info.Subpass                   = subPassIndex;
   init_info.MinImageCount             = 2;
   init_info.ImageCount                = 3;                      // <--- WRONG need argument
   init_info.MSAASamples               = VK_SAMPLE_COUNT_1_BIT;  // <--- need argument?
   init_info.Allocator                 = nullptr;
   init_info.CheckVkResultFn           = nullptr;
-  ImGui_ImplVulkan_Init(&init_info, pass);
+  ImGui_ImplVulkan_Init(&init_info);
   g_VulkanInitInfo = init_info;
 
   // Upload Fonts

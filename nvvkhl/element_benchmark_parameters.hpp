@@ -109,6 +109,28 @@ benchmark "Image only"
 class ElementBenchmarkParameters : public nvvkhl::IAppElement
 {
 public:
+  struct Benchmark
+  {
+    bool                   initialized = false;
+    std::string            filename;
+    std::string            content;
+    nvh::ParameterSequence sequence;
+    uint32_t               frameLength = 256;
+    uint32_t               frame       = 0;
+  };
+
+  struct Config
+  {
+    int32_t     winpos[2]  = {0, 0};
+    int32_t     winsize[2] = {0, 0};
+    bool        vsyncstate = true;
+    std::string screenshotFilename;
+    std::string logFilename;
+    bool        testEnabled   = false;
+    uint32_t    testMaxFrames = 0;
+    float       testMaxTime   = 0;
+  };
+
   ElementBenchmarkParameters(int argc, char** argv)
       : m_argc(argc - 1)  // Skip executable
       , m_argv(argv + 1)
@@ -134,6 +156,9 @@ public:
   void setProfiler(std::shared_ptr<nvvk::ProfilerVK> profiler) { m_profiler = profiler; }
 
   int errorCode() { return m_errorMessages.empty() ? 0 : 1; }
+
+  const Benchmark& benchmark() const { return m_benchmark; }
+  const Config&    config() const { return m_config; }
 
   ///
   /// IAppElement implementation
@@ -174,28 +199,6 @@ protected:
   }
 
 private:
-  struct Benchmark
-  {
-    bool                   initialized = false;
-    std::string            filename;
-    std::string            content;
-    nvh::ParameterSequence sequence;
-    uint32_t               frameLength = 256;
-    uint32_t               frame       = 0;
-  };
-
-  struct Config
-  {
-    int32_t     winpos[2]  = {0, 0};
-    int32_t     winsize[2] = {0, 0};
-    bool        vsyncstate = true;
-    std::string screenshotFilename;
-    std::string logFilename;
-    bool        testEnabled   = false;
-    uint32_t    testMaxFrames = 0;
-    float       testMaxTime   = 0;
-  };
-
   // This function replaces all occurrences of the substring 'from' with the substring 'to' in the given string 'str'.
   void replace(std::string& str, const std::string& from, const std::string& to)
   {

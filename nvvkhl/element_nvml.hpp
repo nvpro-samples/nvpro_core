@@ -31,6 +31,9 @@ namespace nvvkhl {
 #define SAMPLING_NUM 100       // Show 100 measurements
 #define SAMPLING_INTERVAL 100  // Sampling every 100 ms
 
+// Time (in ms) during which a throttle reason is shown as currently happening
+#define THROTTLE_SHOW_COOLDOWN_TIME 1000
+// Time (in ms) during which the last throttle reason is shown
 #define THROTTLE_COOLDOWN_TIME 5000
 #define MIB_SIZE 1'000'000
 
@@ -236,13 +239,21 @@ struct ElementNvml : public nvvkhl::IAppElement
       {
 
         const NvmlMonitor::DevicePerformanceState& performanceState = m_nvmlMonitor->getDevicePerformanceState(deviceIndex);
-        uint32_t offset = m_nvmlMonitor->getOffset();
-        if(performanceState.throttleReasons.get()[offset] > 1)
+        uint32_t offset                = m_nvmlMonitor->getOffset();
+        uint64_t currentThrottleReason = performanceState.throttleReasons.get()[offset];
+        if(currentThrottleReason > 1)
         {
-          ImGui::TextColored(ImVec4(1.f, 0.f, 0.f, 1.f),
-                             "Throttle detected for GPU %d - Performance numbers will be unreliable", deviceIndex);
+          std::string message =
+              fmt::format("Throttle detected for GPU {}: {} - Performance numbers will be unreliable", deviceIndex,
+                          NvmlMonitor::DevicePerformanceState::getThrottleReasonStrings(currentThrottleReason)[0]);
+          ImGui::TextColored(ImVec4(1.f, 0.f, 0.f, 1.f), message.c_str());
           m_throttleDetected = true;
-          LOGW("Throttle detected for GPU %d - Performance numbers will be unreliable\n", deviceIndex);
+
+          if(m_lastThrottleReason != currentThrottleReason)
+          {
+            LOGW((message + "\n").c_str(), deviceIndex);
+          }
+          m_lastThrottleReason = currentThrottleReason;
           m_throttleCooldownTimer.reset();
         }
         else
@@ -255,16 +266,19 @@ struct ElementNvml : public nvvkhl::IAppElement
             }
             else
             {
-              if(m_throttleCooldownTimer.elapsed() > 1000)
+              if(m_throttleCooldownTimer.elapsed() > THROTTLE_SHOW_COOLDOWN_TIME)
               {
-                ImGui::TextColored(ImVec4(0.8f, 0.2f, 0.f, 1.f),
-                                   "Throttle detected for GPU %d - %.1f s ago - Performance numbers will be unreliable",
-                                   deviceIndex, static_cast<float>(m_throttleCooldownTimer.elapsed() / 1000.f));
+                ImGui::TextColored(
+                    ImVec4(0.8f, 0.2f, 0.f, 1.f),
+                    "Throttle detected for GPU %d: %s - %.1f s ago - Performance numbers will be unreliable", deviceIndex,
+                    NvmlMonitor::DevicePerformanceState::getThrottleReasonStrings(m_lastThrottleReason)[0].c_str(),
+                    static_cast<float>(m_throttleCooldownTimer.elapsed() / 1000.f));
               }
               else
               {
-                ImGui::TextColored(ImVec4(1.f, 0.f, 0.f, 1.f),
-                                   "Throttle detected for GPU %d - Performance numbers will be unreliable", deviceIndex);
+                ImGui::TextColored(
+                    ImVec4(1.f, 0.f, 0.f, 1.f), "Throttle detected for GPU %d: %s - Performance numbers will be unreliable", deviceIndex,
+                    NvmlMonitor::DevicePerformanceState::getThrottleReasonStrings(m_lastThrottleReason)[0].c_str());
               }
             }
           }
@@ -1101,6 +1115,7 @@ struct ElementNvml : public nvvkhl::IAppElement
 private:
   bool           m_showWindow{false};
   bool           m_throttleDetected{false};
+  uint64_t       m_lastThrottleReason{0ull};
   nvh::Stopwatch m_throttleCooldownTimer;
 
   uint32_t m_selectedMemClock{0u};
