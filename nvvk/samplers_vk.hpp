@@ -33,15 +33,15 @@
 
 namespace nvvk {
 //////////////////////////////////////////////////////////////////////////
-/**
-  \class nvvk::SamplerPool
+/** @DOC_START
+  # class nvvk::SamplerPool
 
   This nvvk::SamplerPool class manages unique VkSampler objects. To minimize the total
   number of sampler objects, this class ensures that identical configurations
   return the same sampler
 
   Example :
-  \code{.cpp}
+  ```cpp
   nvvk::SamplerPool pool(device);
 
   for (auto it : textures) {
@@ -55,11 +55,11 @@ namespace nvvk {
   for (auto it : textures) {
     pool.releaseSampler(it.sampler);
   }
-  \endcode
+  ```
 
   - makeSamplerCreateInfo : aids for sampler creation
 
-*/
+@DOC_END */
 
 class SamplerPool
 {

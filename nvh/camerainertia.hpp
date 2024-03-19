@@ -25,15 +25,15 @@
 #include <cmath>
 #include "glm/gtc/matrix_transform.hpp"
 
-//------------------------------------------------------------------------------------------
-/// \struct InertiaCamera
-/// \brief Struct that offers a camera moving with some inertia effect around a target point
-///
-/// InertiaCamera exposes a mix of pseudo polar rotation around a target point and
-/// some other movements to translate the target point, zoom in and out.
-///
-/// Either the keyboard or mouse can be used for all of the moves.
-//------------------------------------------------------------------------------------------
+/* @DOC_START
+# struct InertiaCamera
+>  Struct that offers a camera moving with some inertia effect around a target point
+
+InertiaCamera exposes a mix of pseudo polar rotation around a target point and
+some other movements to translate the target point, zoom in and out.
+
+Either the keyboard or mouse can be used for all of the moves.
+@DOC_END */
 struct InertiaCamera
 {
   glm::vec3 curEyePos, curFocusPos, curObjectPos;  ///< Current position of the motion
@@ -129,7 +129,7 @@ struct InertiaCamera
     eyePos = p;
   }
   //------------------------------------------------------------------------------------
-  /// \brief simulation step to call with a proper time interval to update the animation
+  /// >  simulation step to call with a proper time interval to update the animation
   //------------------------------------------------------------------------------------
   bool update(float dt)
   {
@@ -199,7 +199,7 @@ struct InertiaCamera
     return bContinue;
   }
   //------------------------------------------------------------------------------
-  /// \brief Call this function to update the camera position and targets position
+  /// >  Call this function to update the camera position and targets position
   /// \arg *reset* set to true will directly update the actual positions without
   /// performing the animation for transitioning.
   //------------------------------------------------------------------------------
@@ -218,7 +218,7 @@ struct InertiaCamera
     }
   }
   //------------------------------------------------------------------------------
-  /// \brief debug information of camera position and target position
+  /// >  debug information of camera position and target position
   /// Particularily useful to record a bunch of positions that can later be
   /// reuses as "recorded" presets
   //------------------------------------------------------------------------------

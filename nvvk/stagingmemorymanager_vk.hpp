@@ -30,8 +30,8 @@ namespace nvvk {
 #define NVVK_DEFAULT_STAGING_BLOCKSIZE (VkDeviceSize(64) * 1024 * 1024)
 
 //////////////////////////////////////////////////////////////////
-/**
-  \class nvvk::StagingMemoryManager
+/** @DOC_START
+  # class nvvk::StagingMemoryManager
 
   nvvk::StagingMemoryManager class is a utility that manages host visible
   buffers and their allocations in an opaque fashion to assist
@@ -60,7 +60,7 @@ namespace nvvk {
 
   Example :
 
-  \code{.cpp}
+  ```cpp
   StagingMemoryManager  staging;
   staging.init(memAllocator);
 
@@ -100,8 +100,8 @@ namespace nvvk {
 
   staging.releaseResourceSet(sid);
 
-  \endcode
-*/
+  ```
+@DOC_END */
 
 class StagingMemoryManager
 {

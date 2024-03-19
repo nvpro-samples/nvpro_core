@@ -124,7 +124,10 @@ layout(set = INSPECTOR_DESCRIPTOR_SET, binding = INSPECTOR_METADATA_BINDING) rea
   InspectorComputeMetadata inspectorMetadata;
 };
 
-
+/** @DOC_START
+# Function inspect32BitValue
+>  Inspect a 32-bit value at a given index
+@DOC_END  */
 void inspect32BitValue(uint32_t index, uint32_t v)
 {
 
@@ -204,7 +207,10 @@ layout(set = INSPECTOR_DESCRIPTOR_SET, binding = INSPECTOR_CUSTOM_METADATA_BINDI
   InspectorCustomMetadata inspectorCustomMetadata;
 };
 
-
+/** @DOC_START
+# Function inspectCustom32BitValue
+>  Inspect a 32-bit value at a given index
+@DOC_END  */
 void inspectCustom32BitValue(uint32_t index, uvec3 location, uint32_t v)
 {
   if(clamp(location, inspectorCustomMetadata.minCoord, inspectorCustomMetadata.maxCoord) != location)

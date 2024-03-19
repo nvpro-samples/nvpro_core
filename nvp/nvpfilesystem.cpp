@@ -34,7 +34,7 @@ using namespace nvp;
 void logLastWindowError(std::string context)
 {
   LPVOID messageBuffer;
-  DWORD  dw      = GetLastError();
+  DWORD  dw = GetLastError();
   DWORD numChars = FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
                                  NULL, dw, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)&messageBuffer, 0, NULL);
   assert(numChars);
@@ -172,11 +172,16 @@ struct WindowsPathMonitor : PathKey
 
   bool getEventsAsync()
   {
+    BOOL result = FALSE;
+#if(_WIN32_WINNT >= 0x0400)
+#if(NTDDI_VERSION >= NTDDI_WIN10_RS3)
     m_eventsRequested = true;
-    BOOL result = ReadDirectoryChangesExW(m_dirHandle, m_eventBuffer.data(), (DWORD)m_eventBuffer.size(), TRUE, m_winEventFilter,
-                                          NULL, &m_overlapped, NULL, ReadDirectoryNotifyExtendedInformation);
+    result            = ReadDirectoryChangesExW(m_dirHandle, m_eventBuffer.data(), (DWORD)m_eventBuffer.size(), TRUE,
+                                                m_winEventFilter, NULL, &m_overlapped, NULL, ReadDirectoryNotifyExtendedInformation);
     if(result == FALSE)
       logLastWindowError(std::string("FileSystemMonitor: Error in ReadDirectoryChangesW for path ") + path);
+#endif
+#endif
     return result == TRUE;
   }
 
@@ -508,9 +513,9 @@ class FileSystemMonitorInotify : public FileSystemMonitor
 
   virtual bool checkEvents(const Callback& callback) override
   {
-    struct pollfd fds[]
-    {
-      {m_inotifyFd, POLLIN}, {m_cancelFd, POLLIN},
+    struct pollfd fds[]{
+        {m_inotifyFd, POLLIN},
+        {m_cancelFd, POLLIN},
     };
     const auto nfds = sizeof(fds) / sizeof(fds[0]);
 
@@ -536,7 +541,7 @@ class FileSystemMonitorInotify : public FileSystemMonitor
     }
     if(fds[1].revents & POLLIN)
     {
-      uint64_t val = 0;
+      uint64_t      val      = 0;
       const ssize_t numBytes = read(m_cancelFd, &val, sizeof(val));
       assert(val == 1);
       assert(numBytes == sizeof(val));
@@ -602,7 +607,7 @@ class FileSystemMonitorInotify : public FileSystemMonitor
 
   virtual void cancel() override
   {
-    uint64_t val = 1;
+    uint64_t      val      = 1;
     const ssize_t numBytes = write(m_cancelFd, &val, sizeof(val));
     assert(numBytes == sizeof(val));
   }

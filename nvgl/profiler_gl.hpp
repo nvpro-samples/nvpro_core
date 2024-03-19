@@ -27,8 +27,8 @@
 namespace nvgl {
 
 //////////////////////////////////////////////////////////////////////////
-/**
-    \class nvgl::ProfilerGL
+/** @DOC_START
+    # class nvgl::ProfilerGL
 
     nvgl::ProfilerGL extends Profiler and uses `glQueryCounter(... GL_TIMESTAMP)`
     to compute the GPU time of a section.
@@ -36,7 +36,7 @@ namespace nvgl {
     section, so that the section names can show up in NSightGraphics,
     renderdoc or comparable tools.
 
-  */
+@DOC_END  */
 
 class ProfilerGL : public nvh::Profiler
 {

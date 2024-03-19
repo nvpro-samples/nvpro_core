@@ -20,9 +20,9 @@
 #pragma once
 
 
-/**
+/** @DOC_START
 
-\class nvvk::SBTWrapper
+# class nvvk::SBTWrapper
 
 nvvk::SBTWrapper is a generic SBT builder from the ray tracing pipeline
 
@@ -40,14 +40,14 @@ Convenient functions exist to retrieve all information to be used in TraceRayKHR
 
 
 ### Example
-\code{.cpp}
+```cpp
 m_sbtWrapper.setup(m_device, m_graphicsQueueIndex, &m_alloc, m_rtProperties);
 // ...
 m_sbtWrapper.create(m_rtPipeline, rayPipelineInfo);
 // ...
 auto& regions = m_stbWrapper.getRegions();
 vkCmdTraceRaysKHR(cmdBuf, &regions[0], &regions[1], &regions[2], &regions[3], size.width, size.height, 1);
-\endcode
+```
 
 
 ## Extra
@@ -58,10 +58,10 @@ In this case, the user must know the group index for the group type.
 Here the Hit group 1 and 2 has data, but not the group 0. 
 Those functions must be called before create.
 
-\code{.cpp}
+```cpp
 m_sbtWrapper.addData(SBTWrapper::eHit, 1, m_hitShaderRecord[0]);
 m_sbtWrapper.addData(SBTWrapper::eHit, 2, m_hitShaderRecord[1]);
-\endcode
+```
 
 
 ## Special case
@@ -79,15 +79,15 @@ All extra group must be explicitly added.
 The following show how to get handle indices provided in the pipeline, and we are adding another hit group, re-using the 4th pipeline entry.
 Note: we are not providing the pipelineCreateInfo, because we are manually defining it.
 
-\code{.cpp}
+```cpp
 // Manually defining group indices
 m_sbtWrapper.addIndices(rayPipelineInfo); // Add raygen(0), miss(1), miss(2), hit(3), hit(4) from the pipeline info
 m_sbtWrapper.addIndex(SBTWrapper::eHit, 4);  // Adding a 3rd hit, duplicate from the hit:1, which make hit:2 available.
 m_sbtWrapper.addHitData(SBTWrapper::eHit, 2, m_hitShaderRecord[1]); // Adding data to this hit shader
 m_sbtWrapper.create(m_rtPipeline);
-\endcode
+```
 
-*/
+@DOC_END */
 
 #include <array>
 

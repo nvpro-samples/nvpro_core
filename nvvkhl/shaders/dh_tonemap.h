@@ -68,8 +68,11 @@ INLINE Tonemapper defaultTonemapper()
 const int eTonemapperInput  = 0;
 const int eTonemapperOutput = 1;
 
-
-// http://filmicworlds.com/blog/filmic-tonemapping-operators/
+/** @DOC_START
+# Function tonemapFilmic
+>  Filmic tonemapping operator
+http://filmicworlds.com/blog/filmic-tonemapping-operators/
+@DOC_END */
 INLINE vec3 tonemapFilmic(vec3 color)
 {
   vec3 temp   = max(vec3(0.0F), color - vec3(0.004F));
@@ -77,15 +80,22 @@ INLINE vec3 tonemapFilmic(vec3 color)
   return result;
 }
 
-// Gamma Correction in Computer Graphics
-// see https://www.teamten.com/lawrence/graphics/gamma/
+/** @DOC_START
+ # Function gammaCorrection
+ >  Gamma correction
+ see https://www.teamten.com/lawrence/graphics/gamma/
+@DOC_END  */
 INLINE vec3 gammaCorrection(vec3 color, float gamma)
 {
   return pow(color, vec3(1.0F / gamma));
 }
 
-// Uncharted 2 tone map
-// see: http://filmicworlds.com/blog/filmic-tonemapping-operators/
+/** @DOC_START
+# Function tonemapUncharted
+>  Uncharted tone map
+see: http://filmicworlds.com/blog/filmic-tonemapping-operators/
+@DOC_END */
+
 INLINE vec3 tonemapUncharted2Impl(vec3 color)
 {
   const float a = 0.15F;

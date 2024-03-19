@@ -23,13 +23,35 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
-// PrimitiveMesh:
-//  - Common primitive type, made of vertices: position, normal and texture coordinates.
-//  - All primitives are triangles, and each 3 indices is forming a triangle.
-//
-// Node:
-//  - Structure to hold a reference to a mesh, with a material and transformation.
+/* @DOC_START
+# struct `nvh::PrimitiveMesh`
+  - Common primitive type, made of vertices: position, normal and texture coordinates.
+  - All primitives are triangles, and each 3 indices is forming a triangle.
 
+# struct `nvh::Node`
+  - Structure to hold a reference to a mesh, with a material and transformation.
+
+Primitives that can be created:
+* Tetrahedron
+* Icosahedron
+* Octahedron
+* Plane
+* Cube
+* SphereUv
+* Cone
+* SphereMesh
+* Torus
+
+Node creator: returns the instance and the position
+* MengerSponge
+* SunFlower
+
+Other utilities
+* mergeNodes
+* removeDuplicateVertices
+* wobblePrimitive
+
+@DOC_END */
 
 namespace nvh {
 struct PrimitiveVertex

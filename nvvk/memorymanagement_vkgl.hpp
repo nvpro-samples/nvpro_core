@@ -20,10 +20,10 @@
 
 #if NVP_SUPPORTS_OPENGL
 
-/**
+/** @DOC_START
   This file contains helpers for resource interoperability between OpenGL and Vulkan.
   they only exist if the nvpro_core project is compiled with Vulkan AND OpenGL support.
-*/
+@DOC_END */
 
 
 #pragma once
@@ -44,8 +44,8 @@ struct AllocationGL
 
 //////////////////////////////////////////////////////////////////////////
 
-/** 
-  \class nvvk::DeviceMemoryAllocatorGL
+/** @DOC_START
+  # class nvvk::DeviceMemoryAllocatorGL
 
   nvvk::DeviceMemoryAllocatorGL is derived from nvvk::DeviceMemoryAllocator it uses vulkan memory that is exported
   and directly imported into OpenGL. Requires GL_EXT_memory_object.
@@ -54,7 +54,7 @@ struct AllocationGL
   GL memory object exists: `getAllocationGL`.
 
   Look at source of nvvk::AllocatorDmaGL for usage.
-*/
+@DOC_END */
 
 
 class DeviceMemoryAllocatorGL : public DeviceMemoryAllocator

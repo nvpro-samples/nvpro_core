@@ -27,12 +27,12 @@
 
 #include <nvh/nvprint.hpp>
 
-/**
+/** @DOC_START
   # functions in nvgl
 
   Several utility functions that aid debugging. Check if all bindings
   are cleared, framebuffer complete etc.
-*/
+@DOC_END */
 
 namespace nvgl {
 // tests if version is available
@@ -75,10 +75,10 @@ bool checkTextureTarget(GLuint texture, GLenum target);
 bool checkTextureTarget(GLuint texture, GLenum target, const char* name, const char* marker = NULL, int num = 0);
 
 
-/**
+/** @DOC_START
     # template class nvgl::CheckBufferContent
     Utility wrapper to downlad buffer data into a temp vector for debugging
-  */
+@DOC_END  */
 template <class T>
 class CheckBufferContent
 {
@@ -94,11 +94,11 @@ public:
   }
 };
 
-/**
-    \class nvgl::CheckBufferResidency
+/** @DOC_START
+    # class nvgl::CheckBufferResidency
     nvgl::CheckBufferResidency utility class to test if a certain gpu address is coming from
     a resident buffer. Register the address of buffers in advance.
-  */
+@DOC_END  */
 class CheckBufferResidency
 {
 public:

@@ -16,32 +16,38 @@
  * SPDX-FileCopyrightText: Copyright (c) 2021 NVIDIA CORPORATION
  * SPDX-License-Identifier: Apache-2.0
  */
-//-----------------------------------------------------------------------------
-// A mostly self-contained reader and writer for KTX2 files and reader for KTX1
-// files. Relies on Vulkan (for KTX2), GL (for KTX1), and the
-// Khronos Data Format.
-//
-// Sample usage for reading files:
-// KTXImage image;
-// ErrorWithText maybe_error = image.readFromFile("data/image.ktx2");
-// if(maybe_error.has_value())
-// {
-//   // Do something with the error message, maybe_error.value()
-// }
-// else
-// {
-//   // Access subresources using image.subresource(...), and upload them
-//   // to the GPU using your graphics API of choice.
-// }
-//
-// Define NVP_SUPPORTS_ZSTD, NVP_SUPPORTS_GZLIB, and NVP_SUPPORTS_BASISU to
-// include the Zstd, Zlib, and Basis Universal headers respectively, and to
-// enable reading these formats. This will also enable writing Zstd and
-// Basis Universal-compressed formats.
-// If you're using this inside the nvpro-samples framework, you can add all
-// three quickly by adding _add_package_KTX() to your dependencies
-// in CMakeLists.txt.
-//-----------------------------------------------------------------------------
+
+/** @DOC_START
+ 
+ A mostly self-contained reader and writer for KTX2 files and reader for KTX1
+ files. Relies on Vulkan (for KTX2), GL (for KTX1), and the
+ Khronos Data Format.
+
+ Sample usage for reading files:
+
+ ```cpp
+ KTXImage image;
+ ErrorWithText maybe_error = image.readFromFile("data/image.ktx2");
+ if(maybe_error.has_value())
+ {
+   // Do something with the error message, maybe_error.value()
+ }
+ else
+ {
+   // Access subresources using image.subresource(...), and upload them
+   // to the GPU using your graphics API of choice.
+ }
+ ```
+
+ Define NVP_SUPPORTS_ZSTD, NVP_SUPPORTS_GZLIB, and NVP_SUPPORTS_BASISU to
+ include the Zstd, Zlib, and Basis Universal headers respectively, and to
+ enable reading these formats. This will also enable writing Zstd and
+ Basis Universal-compressed formats.
+ If you're using this inside the nvpro-samples framework, you can add all
+ three quickly by adding _add_package_KTX() to your dependencies
+ in CMakeLists.txt.
+
+-- @DOC_END */
 
 #ifndef __NV_KTX_H__
 #define __NV_KTX_H__

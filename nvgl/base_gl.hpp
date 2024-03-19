@@ -17,7 +17,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/// \nodoc (keyword to exclude this file from automatic README.md generation)
+/// @DOC_SKIP (keyword to exclude this file from automatic README.md generation)
 
 #ifndef NV_BASEGL_H_INCLUDED
 #define NV_BASEGL_H_INCLUDED
@@ -29,10 +29,10 @@
 #define NV_BUFFER_OFFSET(i) ((char*)NULL + (i))
 
 namespace nvgl {
-/**
+/** @DOC_START
     # struct nvgl::BufferBinding
     Wraps buffer, offset, size, gpu address
-  */
+@DOC_END  */
 
 struct BufferBinding
 {
@@ -51,11 +51,11 @@ struct BufferBinding
   }
 };
 
-/**
+/** @DOC_START
     # struct nvgl::TextureBuffer
     A `GL_TEXTURE_BUFFER` that references the provided buffer.
     Wraps texture and bindless texture handle.
-  */
+@DOC_END  */
 
 struct TextureBuffer
 {
@@ -83,7 +83,7 @@ struct TextureBuffer
   }
 };
 
-/**
+/** @DOC_START
     # struct nvgl::Buffer
     Wraps buffer as well as optionally creates a `GL_TEXTURE_BUFFER` if
     a non-null `format` is provided. If bindless is available it will
@@ -91,7 +91,7 @@ struct TextureBuffer
 
     If the `flags` contain `GL_MAP_PERSISTENT_BIT` it will also map
     the buffer and keep the host pointer.
-  */
+@DOC_END  */
 
 struct Buffer
 {
@@ -164,7 +164,7 @@ inline void bindMultiTexture(GLenum target, GLenum textarget, GLuint tex)
   glBindTexture(textarget, tex);
 }
 
-/**
+/** @DOC_START
     # nvgl resource functions
 
     Functions that wrap glCreate/glDelete and operate on `GLuint& obj`.
@@ -179,7 +179,7 @@ inline void bindMultiTexture(GLenum target, GLenum textarget, GLuint tex)
     * newQuery / deleteQuery
     * newVertexArray / deleteVertexArray
 
-    \code{.cpp}
+    ```cpp
     // typical use-case
     FrameBuffer::resize(int with, int height){
       newFramebuffer(m_fbo);
@@ -190,8 +190,8 @@ inline void bindMultiTexture(GLenum target, GLenum textarget, GLuint tex)
       glNamedFramebufferTexture(m_fbo, GL_COLOR_ATTACHMENT0,        m_color, 0);
       glNamedFramebufferTexture(m_fbo, GL_DEPTH_STENCIL_ATTACHMENT, m_depthStencil, 0);
     }
-    \endcode
-  */
+    ```
+@DOC_END  */
 
 inline void newBuffer(GLuint& glid)
 {

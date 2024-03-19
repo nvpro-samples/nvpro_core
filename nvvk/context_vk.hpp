@@ -33,7 +33,7 @@
 static_assert(VK_HEADER_VERSION >= 261, "Vulkan SDK version needs to be 1.3.261.0 or greater");
 
 namespace nvvk {
-/**
+/** @DOC_START
 To run a Vulkan application, you need to create the Vulkan instance and device.
 This is done using the `nvvk::Context`, which wraps the creation of `VkInstance`
 and `VkDevice`.
@@ -42,10 +42,10 @@ First, any application needs to specify how instance and device should be create
 Version, layers, instance and device extensions influence the features available.
 This is done through a temporary and intermediate class that will allow you to gather
 all the required conditions for the device creation.
-*/
+@DOC_END */
 
 //////////////////////////////////////////////////////////////////////////
-/**
+/** @DOC_START
 # struct ContextCreateInfo
 
 This structure allows the application to specify a set of features
@@ -57,7 +57,7 @@ It is consumed by the `nvvk::Context::init` function.
 
 Example on how to populate information in it : 
 
-\code{.cpp}
+```cpp
     nvvk::ContextCreateInfo ctxInfo;
     ctxInfo.setVersion(1, 2);
     ctxInfo.addInstanceExtension(VK_KHR_SURFACE_EXTENSION_NAME, false);
@@ -96,13 +96,13 @@ Example on how to populate information in it :
       }
     };
 
-\endcode
+```
 
 then you are ready to create initialize `nvvk::Context`
 
 > Note: In debug builds, the extension `VK_EXT_DEBUG_UTILS_EXTENSION_NAME` and the layer `VK_LAYER_KHRONOS_validation` are added to help finding issues early.
 
-*/
+@DOC_END */
 
 static const VkDeviceDiagnosticsConfigFlagsNV defaultAftermathFlags =
     (VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_RESOURCE_TRACKING_BIT_NV  // Additional information about the resource related to a GPU virtual address
@@ -230,12 +230,12 @@ struct ContextCreateInfo
 };
 
 //////////////////////////////////////////////////////////////////////////
-/**
-\class nvvk::Context
+/** @DOC_START
+# class nvvk::Context
 
 nvvk::Context class helps creating the Vulkan instance and to choose the logical device for the mandatory extensions. First is to fill the `ContextCreateInfo` structure, then call:
 
-\code{.cpp}
+```cpp
   // Creating the Vulkan instance and device
   nvvk::ContextCreateInfo ctxInfo;
   ... see above ...
@@ -244,7 +244,7 @@ nvvk::Context class helps creating the Vulkan instance and to choose the logical
   vkctx.init(ctxInfo);
 
   // after init the ctxInfo is no longer needed
-\endcode 
+``` 
 
 At this point, the class will have created the `VkInstance` and `VkDevice` according to the information passed. It will also keeps track or have query the information of:
  
@@ -265,7 +265,7 @@ At this point, the class will have created the `VkInstance` and `VkDevice` accor
 
 ## Choosing the device
 When there are multiple devices, the `init` method is choosing the first compatible device available, but it is also possible the choose another one.
-\code{.cpp}
+```cpp
   vkctx.initInstance(deviceInfo); 
   // Find all compatible devices
   auto compatibleDevices = vkctx.getCompatibleDevices(deviceInfo);
@@ -273,7 +273,7 @@ When there are multiple devices, the `init` method is choosing the first compati
 
   // Use first compatible device
   vkctx.initDevice(compatibleDevices[0], deviceInfo);
-\endcode
+```
 
 ## Multi-GPU
 
@@ -281,7 +281,7 @@ When multiple graphic cards should be used as a single device, the `ContextCreat
 The above methods will transparently create the `VkDevice` using `VkDeviceGroupDeviceCreateInfo`.
 Especially in the context of NVLink connected cards this is useful.
 
-*/
+@DOC_END */
 class Context
 {
 public:

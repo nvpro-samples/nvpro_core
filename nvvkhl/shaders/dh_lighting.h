@@ -17,6 +17,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+/// @DOC_SKIP
 #ifndef DH_LIGHTING_H
 #define DH_LIGHTING_H 1
 

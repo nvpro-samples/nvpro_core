@@ -17,7 +17,7 @@
 #include <map>
 
 
-/** 
+/** @DOC_START
 
 Capture the GPU load and memory for all GPUs on the system.
 
@@ -36,7 +36,7 @@ Measurements:
 - Uses a cycle buffer. 
 - Offset is the last measurement
 
-*/
+@DOC_END */
 
 namespace nvvkhl {
 

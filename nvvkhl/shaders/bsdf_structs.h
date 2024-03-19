@@ -36,6 +36,10 @@
 
 #define BSDF_USE_MATERIAL_IOR (-1.0)
 
+/** @DOC_START
+# struct BsdfEvaluateData
+>  Data structure for evaluating a BSDF
+@DOC_END */
 struct BsdfEvaluateData
 {
   vec3  ior1;          // [in] inside ior
@@ -47,6 +51,10 @@ struct BsdfEvaluateData
   float pdf;           // [out] PDF
 };
 
+/** @DOC_START
+# struct BsdfSampleData
+>  Data structure for sampling a BSDF
+@DOC_END  */
 struct BsdfSampleData
 {
   vec3  ior1;           // [in] inside ior

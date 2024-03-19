@@ -27,13 +27,13 @@
 namespace nvvk {
 
 //--------------------------------------------------------------------------------------------------
-/**
+/** @DOC_START
 # functions in nvvk
 
 - makeAccessMaskPipelineStageFlags : depending on accessMask returns appropriate VkPipelineStageFlagBits
 - cmdBegin : wraps vkBeginCommandBuffer with VkCommandBufferUsageFlags and implicitly handles VkCommandBufferBeginInfo setup
 - makeSubmitInfo : VkSubmitInfo struct setup using provided arrays of signals and commandbuffers, leaving rest zeroed
-*/
+@DOC_END */
 
 // useful for barriers, derive all compatible stage flags from an access mask
 
@@ -58,14 +58,14 @@ inline VkSubmitInfo makeSubmitInfo(uint32_t numCmds, VkCommandBuffer* cmds, uint
 }
 
 //--------------------------------------------------------------------------------------------------
-/**
-  \class nvvk::CommandPool
+/** @DOC_START
+  # class nvvk::CommandPool
 
   nvvk::CommandPool stores a single VkCommandPool and provides utility functions
   to create VkCommandBuffers from it.
 
   Example:
-  \code{.cpp}
+  ```cpp
   {
     nvvk::CommandPool cmdPool;
     cmdPool.init(...);
@@ -99,8 +99,8 @@ inline VkSubmitInfo makeSubmitInfo(uint32_t numCmds, VkCommandBuffer* cmds, uint
     cmdPool.destroy(cmds.size(), cmds.data());
     cmdPool.deinit();
   }
-  \endcode
-*/
+  ```
+@DOC_END */
 
 class CommandPool
 {
@@ -175,8 +175,8 @@ protected:
 
 
 //--------------------------------------------------------------------------------------------------
-/**
-  \class nvvk::ScopeCommandBuffer
+/** @DOC_START
+  # class nvvk::ScopeCommandBuffer
 
   nvvk::ScopeCommandBuffer provides a single VkCommandBuffer that lives within the scope
   and is directly submitted and deleted when the scope is left.
@@ -184,14 +184,14 @@ protected:
   operation, but aids sample writing.
 
   Example:
-  \code{.cpp}
+  ```cpp
   {
     ScopeCommandBuffer cmd(device, queueFamilyIndex, queue);
     ... do stuff
     vkCmdCopyBuffer(cmd, ...);
   }
-  \endcode
-*/
+  ```
+@DOC_END */
 
 class ScopeCommandBuffer : public CommandPool
 {
@@ -212,8 +212,8 @@ private:
 };
 
 //--------------------------------------------------------------------------------------------------
-/**
-  \classes **nvvk::Ring...**
+/** @DOC_START
+  # class **nvvk::Ring...**
 
   In real-time processing, the CPU typically generates commands 
   in advance to the GPU and send them in batches for execution.
@@ -228,21 +228,21 @@ private:
 
   The "Ring" classes cycle through a pool of resources. The default value
   is set to allow two frames in-flight, assuming one fence is used per-frame.
-*/
+@DOC_END */
 
 // typically the driver will not let the CPU race ahead more than two frames of GPU
 // during swapchain operations.
 static const uint32_t DEFAULT_RING_SIZE = 3;
 //--------------------------------------------------------------------------------------------------
-/**
-  #\class nvvk::RingFences
+/** @DOC_START
+  # class nvvk::RingFences
 
   nvvk::RingFences recycles a fixed number of fences, provides information in which cycle
   we are currently at, and prevents accidental access to a cycle in-flight.
 
   A typical frame would start by "setCycleAndWait", which waits for the
   requested cycle to be available.
-*/
+@DOC_END */
 
 class RingFences
 {
@@ -286,8 +286,8 @@ private:
   VkDevice           m_device = VK_NULL_HANDLE;
 };
 //--------------------------------------------------------------------------------------------------
-/**
-  #\class nvvk::RingCommandPool
+/** @DOC_START
+  ## class nvvk::RingCommandPool
 
   nvvk::RingCommandPool manages a fixed cycle set of VkCommandBufferPools and
   one-shot command buffers allocated from them.
@@ -301,7 +301,7 @@ private:
 
   Example:
 
-  \code{.cpp}
+  ```cpp
   {
     frame++;
 
@@ -319,8 +319,8 @@ private:
     // use this fence in the submit
     vkQueueSubmit(...fence..);
   }
-  \endcode
-*/
+  ```
+@DOC_END */
 
 class RingCommandPool
 {
@@ -383,8 +383,8 @@ protected:
 };
 
 //--------------------------------------------------------------------------------------------------
-/**
-  \class nvvk::BatchSubmission
+/** @DOC_START
+  # class nvvk::BatchSubmission
 
   nvvk::BatchSubmission batches the submission arguments of VkSubmitInfo for VkQueueSubmit.
 
@@ -398,7 +398,7 @@ protected:
 
   Example
 
-  \code{.cpp}
+  ```cpp
     // within upload logic
     {
       semTransfer = handleUpload(...);
@@ -425,8 +425,8 @@ protected:
 
       graphicsSubmission.execute(frameFence);
     }
-  \endcode
-*/
+  ```
+@DOC_END */
 
 class BatchSubmission
 {
@@ -462,14 +462,14 @@ public:
 };
 
 //////////////////////////////////////////////////////////////////////////
-/**
-  \class nvvk::FencedCommandPools
+/** @DOC_START
+  # class nvvk::FencedCommandPools
 
   nvvk::FencedCommandPools container class contains the typical utilities to handle
   command submission. It contains RingFences, RingCommandPool and BatchSubmission
   with a convenient interface.
 
-*/
+@DOC_END */
 class FencedCommandPools : protected RingFences, protected RingCommandPool, protected BatchSubmission
 {
 public:

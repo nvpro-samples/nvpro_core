@@ -21,6 +21,18 @@
 #include "vulkan/vulkan_core.h"
 #include "nvvk/resourceallocator_vk.hpp"
 
+/** @DOC_START
+# class nvvkhl::GBuffer
+>  This class is an help for creating GBuffers. 
+
+This can be use to create a GBuffer with multiple color images and a depth image. The GBuffer can be used to render the scene in multiple passes, such as deferred rendering.
+
+To use this class, you need to create it and call the `create` method to create the GBuffer. The `create` method will create the images and the descriptor set for the GBuffer. The `destroy` method will destroy the images and the descriptor set.
+
+Note: the `getDescriptorSet` method can be use to display the image in ImGui. Ex: `ImGui::Image((ImTextureID)gbuffer.getDescriptorSet(), ImVec2(128, 128));`
+@DOC_END */
+
+
 namespace nvvkhl {
 class GBuffer
 {
@@ -38,7 +50,7 @@ public:
   VkImage               getColorImage(uint32_t i = 0) const { return m_res.gBufferColor[i].image; }
   VkImage               getDepthImage() const { return m_res.gBufferDepth.image; }
   VkImageView           getColorImageView(uint32_t i = 0) const { return m_res.descriptor[i].imageView; }
-  VkDescriptorImageInfo getDescriptorImageInfo(uint32_t i = 0) const { return m_res.descriptor[i]; }
+  const VkDescriptorImageInfo& getDescriptorImageInfo(uint32_t i = 0) const { return m_res.descriptor[i]; }
   VkImageView           getDepthImageView() const { return m_res.depthView; }
   VkFormat              getColorFormat(uint32_t i = 0) const { return m_colorFormat[i]; }
   VkFormat              getDepthFormat() const { return m_depthFormat; }
@@ -54,6 +66,7 @@ private:
     nvvk::Image                        gBufferDepth;                // Depth buffer
     VkImageView                        depthView = VK_NULL_HANDLE;  // Image view of the depth buffer
     std::vector<VkDescriptorImageInfo> descriptor;                  // Holds the sampler and image view
+    std::vector<VkImageView>           uiImageViews;  // Image view for UI purposes with alpha channel set to 1.0
     VkSampler                          linearSampler = VK_NULL_HANDLE;
   };
 

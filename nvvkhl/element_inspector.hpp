@@ -29,7 +29,12 @@
 #include "nvvk/descriptorsets_vk.hpp"
 #include "nvh/timesampler.hpp"
 #include "nvvk/commands_vk.hpp"
-/**
+
+
+/** @DOC_START
+
+# class nvvkhl::ElementInspector
+
 --------------------------------------------------------------------------------------------------
  This element is used to facilitate GPU debugging by inspection of:
   - Image contents
@@ -42,11 +47,11 @@
 
  Basic usage:
  ------------------------------------------------------------------------------------------------
-                    INITIALIZATION
+ ###                 INITIALIZATION
  ------------------------------------------------------------------------------------------------
  
  Create the element as a global variable, and add it to the applications
- ```
+ ```cpp
  std::shared_ptr<ElementInspector> g_inspectorElement = std::make_shared<ElementInspector>();
 
  void main(...)
@@ -59,7 +64,7 @@
  Upon attachment of the main app element, initialize the Inspector and specify the number of
  buffers, images, compute shader variables and fragment shader variables that it will need to
  inspect
- ```
+ ```cpp
  void onAttach(nvvkhl::Application* app) override
  {
    ...
@@ -79,13 +84,13 @@
   ```
 
  ------------------------------------------------------------------------------------------------
-                    BUFFER INSPECTION
+ ###                 BUFFER INSPECTION
  ------------------------------------------------------------------------------------------------
  
  Each inspection needs to be initialized before use:
  Inspect a buffer of size bufferSize, where each entry contains 5 values. The buffer format specifies the data
  structure of the entries. The following format is the equivalent of
- ```
+ ```cpp
   // struct
   // {
   //   uint32_t counterU32;
@@ -96,7 +101,7 @@
   // };
  ```
 
- ```
+ ```cpp
  bufferFormat    = std::vector<ElementInspector::ValueFormat>(5);
  bufferFormat[0] = {ElementInspector::eUint32, "counterU32"};
  bufferFormat[1] = {ElementInspector::eFloat32, "counterF32"};
@@ -113,17 +118,17 @@
 
  When the inspection is desired, simply add it to the current command buffer. Required barriers are added internally.
  IMPORTANT: the buffer MUST have been created with the VK_BUFFER_USAGE_TRANSFER_SRC_BIT flag
- ```
+ ```cpp
  g_inspectorElement->inspectBuffer(cmd, 0);
  ```
 
  ------------------------------------------------------------------------------------------------
-                    IMAGE INSPECTION
+ ###                 IMAGE INSPECTION
  ------------------------------------------------------------------------------------------------
  
  Inspection of the image stored in m_texture, with format RGBA32F. Other formats can be specified using the syntax
  above
- ```
+ ```cpp
  ElementInspector::ImageInspectionInfo info{};
  info.createInfo  = create_info;
  info.format      = g_inspectorElement->formatRGBA32();
@@ -133,12 +138,12 @@
  ```
 
  When the inspection is desired, simply add it to the current command buffer. Required barriers are added internally.
- ```
+ ```cpp
  g_inspectorElement->inspectImage(cmd, 0, imageCurrentLayout);
  ```
 
  ------------------------------------------------------------------------------------------------
-                    COMPUTE SHADER VARIABLE INSPECTION
+ ###                 COMPUTE SHADER VARIABLE INSPECTION
  ------------------------------------------------------------------------------------------------
  
  Inspect a compute shader variable for a given 3D grid and block size (use 1 for unused dimensions). This mode applies
@@ -146,7 +151,7 @@
  Since grids may contain many threads capturing a variable for all threads
  may incur large memory consumption and performance loss. The blocks to inspect, and the warps within those blocks can
  be specified using inspectedMin/MaxBlocks and inspectedMin/MaxWarp. 
- ```
+ ```cpp
  computeInspectionFormat    = std::vector<ElementInspector::ValueFormat>(...); 
  ElementInspector::ComputeInspectionInfo info{}; info.blockSize = blockSize;
  
@@ -168,7 +173,7 @@
 
  The shader code needs to indicate include the Inspector header along with preprocessor variables to set the
  inspection mode to Compute, and indicate the binding points for the buffers: 
- ```
+ ```cpp
  #define INSPECTOR_MODE_COMPUTE 
  #define INSPECTOR_DESCRIPTOR_SET 0 
  #define INSPECTOR_INSPECTION_DATA_BINDING 1 
@@ -179,20 +184,20 @@
  The inspection of a variable is then done as follows. For alignment purposes the inspection is done with a 32-bit
  granularity. The shader is responsible for packing the inspected variables in 32-bit uint words. Those will be
  unpacked within the Inspector for display according to the specified format. 
- ```
+ ```cpp
  uint32_t myVariable = myFunction(...);
  inspect32BitValue(0, myVariable);
  ```
 
  The inspection is triggered on the host side right after the compute shader invocation:
- ```
+ ```cpp
  m_computeShader.dispatchBlocks(cmd, computGridSize, &constants);
  
  g_inspectorElement->inspectComputeVariables(cmd, 0);
  ```
 
  ------------------------------------------------------------------------------------------------
-                    FRAGMENT SHADER VARIABLE INSPECTION
+ ###                 FRAGMENT SHADER VARIABLE INSPECTION
  ------------------------------------------------------------------------------------------------
  
  Inspect a fragment shader variable for a given output image resolution. Since the image may have high resolution
@@ -201,7 +206,7 @@
  IMPORTANT: Overlapping geometry may trigger
  several fragment shader invocations for a given pixel. The inspection will only store the value of the foremost
  fragment (with the lowest gl_FragCoord.z). 
- ```
+ ```cpp
  fragmentInspectionFormat    = std::vector<ElementInspector::ValueFormat>(...); 
  FragmentInspectionInfo info{}; 
  info.name        = "My Fragment Inspection";
@@ -214,7 +219,7 @@
 
  To allow variable inspection two storage buffers need to be declared in the pipeline layout and made available
  as follows:
- ```
+ ```cpp
  std::vector<VkWriteDescriptorSet> writes;
  
  const VkDescriptorBufferInfo inspectorInspection{
@@ -233,7 +238,7 @@
 
  The shader code needs to indicate include the Inspector header along with preprocessor variables to set the
  inspection mode to Fragment, and indicate the binding points for the buffers: 
- ```
+ ```cpp
  #define INSPECTOR_MODE_FRAGMENT 
  #define INSPECTOR_DESCRIPTOR_SET 0 
  #define INSPECTOR_INSPECTION_DATA_BINDING 1 
@@ -244,33 +249,33 @@
  The inspection of a variable is then done as follows. For alignment purposes the inspection is done with a 32-bit
  granularity. The shader is responsible for packing the inspected variables in 32-bit uint words. Those will be
  unpacked within the Inspector for display according to the specified format. 
- ```
+ ```cpp
  uint32_t myVariable = myFunction(...);
  inspect32BitValue(0, myVariable);
  ```
 
  The inspection data for a pixel will only be written if a fragment actually covers that pixel. To avoid ghosting
  where no fragments are rendered it is useful to clear the inspection data before rendering:
- ```
+ ```cpp
  g_inspectorElement->clearFragmentVariables(cmd, 0);
  vkCmdBeginRendering(...);
  ```
 
  The inspection is triggered on the host side right after rendering:
- ```
+ ```cpp
  vkCmdEndRendering(cmd);
  g_inspectorElement->inspectFragmentVariables(cmd, 0);
  ```
 
  ------------------------------------------------------------------------------------------------
-                    CUSTOM SHADER VARIABLE INSPECTION
+ ###                 CUSTOM SHADER VARIABLE INSPECTION
  ------------------------------------------------------------------------------------------------
  
  In case some in-shader data has to be inspected in other shader types, or not on a once-per-thread basis, the custom
  inspection mode can be used. This mode allows the user to specify the overall size of the generated data as well as
  an effective inspection window. This mode may be used in conjunction with the COMPUTE and FRAGMENT modes.
  std::vector<ElementInspector::ValueFormat> customCaptureFormat;
- ```
+ ```cpp
  ...
  ElementInspector::CustomInspectionInfo info{};
  info.extent   = totalInspectionSize;
@@ -282,7 +287,7 @@
  ```
 
  To allow variable inspection two buffers need to be made available to the target pipeline:
- ```
+ ```cpp
  std::vector<VkWriteDescriptorSet> writes;
  const VkDescriptorBufferInfo      inspectorInspection{
     g_inspectorElement->getCustomInspectionBuffer(0), 
@@ -300,7 +305,7 @@
 
  The shader code needs to indicate include the Inspector header along with preprocessor variables to set the
  inspection mode to Fragment, and indicate the binding points for the buffers: 
- ```
+ ```cpp
  #define INSPECTOR_MODE_CUSTOM 
  #define INSPECTOR_DESCRIPTOR_SET 0 
  #define INSPECTOR_CUSTOM_INSPECTION_DATA_BINDING 1 
@@ -310,16 +315,16 @@
  The inspection of a variable is then done as follows. For alignment purposes the inspection is done with a 32-bit
  granularity. The shader is responsible for packing the inspected variables in 32-bit uint words. Those will be
  unpacked within the Inspector for display according to the specified format. 
- ```
+ ```cpp
  uint32_t myVariable = myFunction(...);
  inspectCustom32BitValue(0, myCoordinates, myVariable);
  ```
 
  The inspection is triggered on the host side right after running the pipeline:
- ```
+ ```cpp
  g_inspectorElement->inspectCustomVariables(cmd, 0);
  ```
-*/
+@DOC_END */
 
 namespace nvvkhl {
 

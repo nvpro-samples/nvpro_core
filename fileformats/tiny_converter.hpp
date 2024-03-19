@@ -26,6 +26,14 @@
 #include "tiny_gltf.h"
 #include "tiny_obj_loader.h"
 
+/** @DOC_START
+
+Class TinyConverter
+
+> This class is used to convert a tinyobj::ObjReader to a tinygltf::Model.
+
+ @DOC_END */
+
 
 class TinyConverter
 {

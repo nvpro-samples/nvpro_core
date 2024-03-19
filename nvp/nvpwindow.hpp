@@ -23,12 +23,13 @@
 
 #include "nvpsystem.hpp"
 
-/// \class NVPWindow
-/// \brief base class for a window, to catch events
-///
-/// Using and deriving of NVPWindow base-class is optional.
-/// However one must always make use of the NVPSystem
-/// That takes care of glfwInit/terminate as well.
+/* @DOC_START
+# class NVPWindow
+>  base class for a window, to catch events
+Using and deriving of NVPWindow base-class is optional.
+However one must always make use of the NVPSystem
+That takes care of glfwInit/terminate as well.
+@DOC_END */
 class NVPWindow
 {
 public:

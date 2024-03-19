@@ -7,7 +7,7 @@
 #include <stdint.h>
 #include <vector>
 
-/// \nodoc (keyword to exclude this file from automatic README.md generation)
+/// @DOC_SKIP (keyword to exclude this file from automatic README.md generation)
 
 // constexpr array size functions for C and C++ style arrays.
 // Truncated to 32-bits (with error checking) to support the common case in Vulkan.

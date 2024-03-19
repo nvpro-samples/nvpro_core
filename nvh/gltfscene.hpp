@@ -18,15 +18,15 @@
  */
 
 
-/**
-  \namespace nvh::gltf
+/** @DOC_START
+# `nvh::GltfScene`
 
   These utilities are for loading glTF models in a
   canonical scene representation. From this representation
   you would create the appropriate 3D API resources (buffers
   and textures).
  
-  \code{.cpp}
+  ```cpp
   // Typical Usage
   // Load the GLTF Scene using TinyGLTF
  
@@ -42,9 +42,9 @@
   //   create buffers for vertices and indices, from gltfScene.m_position, gltfScene.m_index
   //   create textures from images: using tinygltf directly
   //   create descriptorSet for material using directly gltfScene.m_materials
-  \endcode
+  ```
 
-*/
+@DOC_END */
 
 #pragma once
 #include <glm/glm.hpp>

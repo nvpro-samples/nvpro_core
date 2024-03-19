@@ -24,6 +24,13 @@
 #include <vector>
 namespace nvvk {
 
+/** @DOC_START
+# struct nvvk::RenderPass
+
+>  Wrapper for VkRenderingInfoKHR
+
+This class is a wrapper around the VkRenderingInfoKHR structure, which is used to create a render pass with dynamic attachments.
+ @DOC_END */
 #ifdef VK_KHR_dynamic_rendering
 struct createRenderingInfo : public VkRenderingInfoKHR
 {

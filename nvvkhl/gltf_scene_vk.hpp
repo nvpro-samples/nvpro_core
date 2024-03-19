@@ -27,6 +27,15 @@
 #include "gltf_scene.hpp"
 
 
+/** @DOC_START
+# class nvvkhl::SceneVk
+
+>  This class is responsible for the Vulkan version of the scene. 
+
+It is using `nvvkhl::Scene` to create the Vulkan buffers and images.
+
+@DOC_END */
+
 namespace nvvkhl {
 // Create the Vulkan version of the Scene
 // Allocate the buffers, etc.

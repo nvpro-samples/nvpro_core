@@ -32,8 +32,8 @@
 namespace nvh {
 
 //////////////////////////////////////////////////////////////////////////
-/** 
-    \class nvh::ParameterList
+/** @DOC_START
+    # class nvh::ParameterList
 
     The nvh::ParameterList helps parsing commandline arguments
     or commandline arguments stored within ascii config files.
@@ -41,7 +41,7 @@ namespace nvh {
     Parameters always update the values they point to, and optionally
     can trigger a callback that can be provided per-parameter.
     
-    \code{.cpp}
+    ```cpp
     ParameterList list;
     std::string   modelFilename;
     float         modelScale;
@@ -50,11 +50,11 @@ namespace nvh {
     list.add("scale|model scale", &modelScale);
     
     list.applyTokens(3, {"blah.gltf","-scale","4"}, "-", "/assets/");
-    \endcode 
+    ```
 
     Use in combination with the ParameterSequence class to iterate
     sequences of parameter changes for benchmarking/automation.
-  */
+  @DOC_END */
 
 class ParameterList
 {
@@ -146,8 +146,8 @@ private:
 };
 
 //////////////////////////////////////////////////////////////////////////
-/** 
-    \class nvh::ParameterSequence
+/** @DOC_START
+    # class nvh::ParameterSequence
 
     The nvh::ParameterSequence processes provided tokens in sequences.
     The sequences are terminated by a special "separator" token.
@@ -157,7 +157,7 @@ private:
   
     Example:
   
-    \code{.cpp}
+    ```cpp
     ParameterSequence sequence;
     ParameterList     list;
     int               mode;
@@ -177,8 +177,8 @@ private:
     // would print:
     //   0 simple mode 10
     //   1 complex mode 20
-    \endcode
-  */
+    ```
+@DOC_END  */
 
 
 class ParameterSequence
@@ -187,8 +187,8 @@ public:
   ParameterSequence()
       : m_list(nullptr)
       , m_index(0)
-      , m_iteration(0)
       , m_separator(0)
+      , m_iteration(0)
   {
   }
 
@@ -214,7 +214,7 @@ public:
 
   const char* getSeparatorArg(uint32_t offset) const
   {
-    return m_separator != ~0 ? m_tokens[m_separator + offset + 1] : "";
+    return m_separator != ~0ULL ? m_tokens[m_separator + offset + 1] : "";
   }
 
 private:

@@ -18,6 +18,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+/// @DOC_SKIP
+
 #ifndef DH_SCN_DESC_H
 #define DH_SCN_DESC_H 1
 

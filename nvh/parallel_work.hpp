@@ -28,13 +28,16 @@
 #include <vector>
 
 namespace nvh {
-// distributes batches of loops over BATCHSIZE items across
-// multiple threads. numItems reflects the total number
-// of items to process.
-// batches: fn (uint64_t itemIndex, uint32_t threadIndex)
-//          callback does single item
-// ranges:  fn (uint64_t itemBegin, uint64_t itemEnd, uint32_t threadIndex)
-//          callback does loop `for (uint64_t itemIndex = itemBegin; itemIndex < itemEnd; itemIndex++)`
+/* @DOC_START
+Distributes batches of loops over BATCHSIZE items across multiple threads. numItems reflects the total number
+of items to process.
+
+batches: fn (uint64_t itemIndex, uint32_t threadIndex)
+         callback does single item
+ranges:  fn (uint64_t itemBegin, uint64_t itemEnd, uint32_t threadIndex)
+         callback does loop `for (uint64_t itemIndex = itemBegin; itemIndex < itemEnd; itemIndex++)`
+         
+@DOC_END */
 
 template <uint64_t BATCHSIZE = 128>
 inline void parallel_batches(uint64_t numItems, std::function<void(uint64_t)> fn, uint32_t numThreads)

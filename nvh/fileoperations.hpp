@@ -27,7 +27,7 @@
 
 #include "nvprint.hpp"
 
-/**
+/** @DOC_START
  # functions in nvh
 
  - nvh::fileExists : check if file exists
@@ -35,7 +35,7 @@
  - nvh::loadFile : (multiple overloads) loads file as std::string, binary or text, can also search in provided directories
  - nvh::getFileName : splits filename from filename with path
  - nvh::getFilePath : splits filepath from filename with path
- */
+ @DOC_END */
 
 namespace nvh {
 

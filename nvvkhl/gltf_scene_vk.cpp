@@ -103,10 +103,10 @@ void nvvkhl::SceneVk::createMaterialBuffer(VkCommandBuffer cmd, const nvh::GltfS
     s.thicknessTexture    = m.volume.thicknessTexture;
     s.attenuationDistance = m.volume.attenuationDistance;
     // KHR_materials_clearcoat
-    s.clearcoatFactor    = m.clearcoat.factor;
-    s.clearcoatRoughness = m.clearcoat.roughnessFactor;
-    s.clearcoatTexture   = m.clearcoat.roughnessTexture;
-    s.clearcoatTexture   = m.clearcoat.texture;
+    s.clearcoatFactor           = m.clearcoat.factor;
+    s.clearcoatRoughness        = m.clearcoat.roughnessFactor;
+    s.clearcoatTexture          = m.clearcoat.texture;
+    s.clearcoatRoughnessTexture = m.clearcoat.roughnessTexture;
     // KHR_materials_emissive_strength
     s.emissiveFactor *= m.emissiveStrength.emissiveStrength;
 

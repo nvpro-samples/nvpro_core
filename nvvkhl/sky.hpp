@@ -53,7 +53,16 @@ struct SkyParameters
   glm::vec3 color       = {1.0F, 1.0F, 1.0F};
 };
 
+/** @DOC_START
+# class nvvkhl::SkyDome
 
+>  This class is responsible for the sky dome. 
+
+This class can render a sky dome with a sun, for both the rasterizer and the ray tracer. 
+
+The `draw` method is responsible for rendering the sky dome for the rasterizer. For ray tracing, there is no need to call this method, as the sky dome is part of the ray tracing shaders (see shaders/dh_sky.h).
+
+@DOC_END  */
 class SkyDome
 {
 public:

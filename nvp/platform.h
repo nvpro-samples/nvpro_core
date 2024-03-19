@@ -16,7 +16,7 @@
  * SPDX-FileCopyrightText: Copyright (c) 2014-2021 NVIDIA CORPORATION
  * SPDX-License-Identifier: Apache-2.0
  */
-/// \nodoc
+/// @DOC_SKIP
 
 #include "NvFoundation.h"
 

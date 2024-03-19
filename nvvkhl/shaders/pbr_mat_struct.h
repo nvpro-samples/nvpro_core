@@ -17,6 +17,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+/// @DOC_SKIP
+
 #ifndef PBR_MAT_STRUCT_H
 #define PBR_MAT_STRUCT_H 1
 

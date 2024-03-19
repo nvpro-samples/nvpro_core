@@ -21,8 +21,8 @@
 #pragma once
 
 
-/**
-  \class nvvk::RayPickerKHR
+/** @DOC_START
+  # class nvvk::RayPickerKHR
 
   nvvk::RayPickerKHR is a utility to get hit information under a screen coordinate. 
 
@@ -43,7 +43,7 @@
 
 
   Example to set the camera interest point 
-    \code{.cpp}
+    ```cpp
     RayPickerKHR::PickResult pr = m_picker.getResult();
     if(pr.instanceID != ~0) // Hit something
     {
@@ -52,8 +52,8 @@
       CameraManip.getLookat(eye, center, up);
       CameraManip.setLookat(eye, worldPos, up, false); // Nice with CameraManip.updateAnim();
     }
-    \endcode
-*/
+    ```
+@DOC_END */
 
 #include <glm/glm.hpp>
 #include "nvvk/commands_vk.hpp"

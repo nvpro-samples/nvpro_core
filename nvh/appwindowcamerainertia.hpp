@@ -89,12 +89,13 @@ inline void DrawToggles()
     ImGui::Checkbox(it.second.desc.c_str(), pB);
   }
 }
-//-----------------------------------------------------------------------------
-/// \class AppWindowCameraInertia
-/// \brief AppWindowCameraInertia is a Window base for samples, adding a camera with inertia
-///
-/// It derives the Window for this sample
-//-----------------------------------------------------------------------------
+
+/* @DOC_START
+# class AppWindowCameraInertia
+>  AppWindowCameraInertia is a Window base for samples, adding a camera with inertia
+
+It derives the Window for this sample
+@DOC_END */
 class AppWindowCameraInertia : public NVPWindow
 {
 public:

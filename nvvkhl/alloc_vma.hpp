@@ -25,11 +25,14 @@
 #include "nvvk/memallocator_vma_vk.hpp"
 
 namespace nvvkhl {
-/*
-  This is initializing the resource allocation. Nvpro_core has a sophisticated allocator,
-  for creating buffers, images and acceleration structures. It can use different allocators, but this one
-  chooses VMA.
-  */
+/** @DOC_START
+# class nvvkhl::AllocVma
+
+>  This class is an element of the application that is responsible for the resource allocation. It is using the `VMA` library to allocate buffers, images and acceleration structures.
+
+This allocator uses VMA (Vulkan Memory Allocator) to allocate buffers, images and acceleration structures. It is using the `nvvk::ResourceAllocator` to manage the allocation and deallocation of the resources.
+  
+@DOC_END */
 
 class AllocVma : public nvvk::ResourceAllocator
 {

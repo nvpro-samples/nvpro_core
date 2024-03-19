@@ -26,6 +26,16 @@
 #include "imgui/imgui_icon.h"
 #include "nvh/timesampler.hpp"
 
+
+/** @DOC_START
+# class nvvkhl::ElementNvml
+
+>  This class is an element of the application that is responsible for the NVML monitoring. It is using the `NVML` library to get information about the GPU and display it in the application.
+
+To use this class, you need to add it to the `nvvkhl::Application` using the `addElement` method.
+
+@DOC_END */
+
 namespace nvvkhl {
 
 #define SAMPLING_NUM 100       // Show 100 measurements
@@ -38,7 +48,7 @@ namespace nvvkhl {
 #define MIB_SIZE 1'000'000
 
 //-----------------------------------------------------------------------------
-int metricFormatter(double value, char* buff, int size, void* data)
+inline int metricFormatter(double value, char* buff, int size, void* data)
 {
   const char*        unit       = (const char*)data;
   static double      s_value[]  = {1000000000, 1000000, 1000, 1, 0.001, 0.000001, 0.000000001};
@@ -86,7 +96,6 @@ struct AverageCircularBuffer
 };
 
 
-//extern SampleAppLog g_logger;
 struct ElementNvml : public nvvkhl::IAppElement
 {
   explicit ElementNvml(bool show = false)
@@ -435,7 +444,6 @@ struct ElementNvml : public nvvkhl::IAppElement
 
   static void imguiCopyableText(const std::string& text, uint64_t uniqueId)
   {
-    bool        isHovered  = false;
     std::string textString = fmt::format("{}###{}", text, uniqueId);
     ImGui::Text("%s", text.c_str());
     if(ImGui::BeginPopupContextItem(textString.c_str()))
@@ -539,9 +547,6 @@ struct ElementNvml : public nvvkhl::IAppElement
 #if defined(NVP_SUPPORTS_NVML)
     const NvmlMonitor::DeviceMemory& memory = m_nvmlMonitor->getDeviceMemory(deviceIndex);
 
-    const NvmlMonitor::DeviceInfo& info = m_nvmlMonitor->getDeviceInfo(deviceIndex);
-
-
     const int offset = m_nvmlMonitor->getOffset();
 
 
@@ -553,8 +558,6 @@ struct ElementNvml : public nvvkhl::IAppElement
     static ImPlotFlags     s_plotFlags     = ImPlotFlags_NoBoxSelect | ImPlotFlags_NoMouseText | ImPlotFlags_Crosshairs;
     static ImPlotAxisFlags s_axesFlags     = ImPlotAxisFlags_Lock | ImPlotAxisFlags_NoLabel;
     static ImColor         s_graphicsColor = ImColor(0.07f, 0.9f, 0.06f, 1.0f);
-    static ImColor         s_smColor       = ImColor(0.06f, 0.6f, 0.97f, 1.0f);
-    static ImColor         s_videoColor    = ImColor(0.96f, 0.96f, 0.0f, 1.0f);
 
     ImVec2 plotSize = ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetContentRegionAvail().y / 2);
 
@@ -580,7 +583,7 @@ struct ElementNvml : public nvvkhl::IAppElement
         ImPlotPoint mouse       = ImPlot::GetPlotMousePos();
         int         mouseOffset = (int(mouse.x) + offset) % (int)memory.memoryUsed.get().size();
         ImGui::BeginTooltip();
-        ImGui::Text("Used Memory: %ldMiB", memory.memoryUsed.get()[mouseOffset] / MIB_SIZE);
+        ImGui::Text(fmt::format("Used Memory: {}MiB", memory.memoryUsed.get()[mouseOffset] / MIB_SIZE).c_str());
         ImGui::EndTooltip();
       }
 
@@ -608,7 +611,7 @@ struct ElementNvml : public nvvkhl::IAppElement
         int         mouseOffset = (int(mouse.x) + offset) % (int)memory.bar1Used.get().size();
 
         ImGui::BeginTooltip();
-        ImGui::Text("Used BAR1 Memory: %ldMiB", memory.bar1Used.get()[mouseOffset] / MIB_SIZE);
+        ImGui::Text(fmt::format("Used BAR1 Memory: {}MiB", memory.bar1Used.get()[mouseOffset] / MIB_SIZE).c_str());
         ImGui::EndTooltip();
       }
 
@@ -788,8 +791,6 @@ struct ElementNvml : public nvvkhl::IAppElement
     static ImPlotFlags     s_plotFlags     = ImPlotFlags_NoBoxSelect | ImPlotFlags_NoMouseText | ImPlotFlags_Crosshairs;
     static ImPlotAxisFlags s_axesFlags     = ImPlotAxisFlags_Lock | ImPlotAxisFlags_NoLabel;
     static ImColor         s_graphicsColor = ImColor(0.07f, 0.9f, 0.06f, 1.0f);
-    static ImColor         s_smColor       = ImColor(0.06f, 0.6f, 0.97f, 1.0f);
-    static ImColor         s_videoColor    = ImColor(0.96f, 0.96f, 0.0f, 1.0f);
 
     ImVec2 plotSize = ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetContentRegionAvail().y / 3);
 
@@ -886,9 +887,6 @@ struct ElementNvml : public nvvkhl::IAppElement
 #if defined(NVP_SUPPORTS_NVML)
     const NvmlMonitor::DeviceUtilization& utilization = m_nvmlMonitor->getDeviceUtilization(deviceIndex);
 
-    const NvmlMonitor::DeviceInfo& info = m_nvmlMonitor->getDeviceInfo(deviceIndex);
-
-
     const int offset = m_nvmlMonitor->getOffset();
 
 
@@ -902,7 +900,6 @@ struct ElementNvml : public nvvkhl::IAppElement
     static ImPlotAxisFlags s_axesFlags     = ImPlotAxisFlags_Lock | ImPlotAxisFlags_NoLabel;
     static ImColor         s_graphicsColor = ImColor(0.07f, 0.9f, 0.06f, 1.0f);
     static ImColor         s_smColor       = ImColor(0.06f, 0.6f, 0.97f, 1.0f);
-    static ImColor         s_videoColor    = ImColor(0.96f, 0.96f, 0.0f, 1.0f);
 
     ImVec2 plotSize = ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetContentRegionAvail().y / 2);
 

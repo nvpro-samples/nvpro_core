@@ -30,16 +30,18 @@ namespace nvdx12 {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-/**
-  \class nvdx12::Context
+/** @DOC_START
+  # class nvdx12::Context
   Container class for a basic DX12 app, consisting of a DXGI factory, a DX12
   device, and a command queue.
- */
+-- @DOC_END */
 
-/**
-  \struct nvdx12::ContextCreateInfo
+
+/** @DOC_START
+  # struct nvdx12::ContextCreateInfo
   Properties for context initialization.
-*/
+-- @DOC_END */
+
 
 struct ContextCreateInfo
 {

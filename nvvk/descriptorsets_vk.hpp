@@ -53,14 +53,14 @@ inline bool isAnySet(DescriptorSupport test, DescriptorSupport query)
   return (test & query) != DescriptorSupport::CORE_1_0;
 }
 
-/**
+/** @DOC_START
   # functions in nvvk
 
   - createDescriptorPool : wrappers for vkCreateDescriptorPool
   - allocateDescriptorSet : allocates a single VkDescriptorSet
   - allocateDescriptorSets : allocates multiple VkDescriptorSets
 
-*/
+@DOC_END */
 
 inline VkDescriptorPool createDescriptorPool(VkDevice device, size_t poolSizeCount, const VkDescriptorPoolSize* poolSizes, uint32_t maxSets)
 {
@@ -120,8 +120,8 @@ inline void allocateDescriptorSets(VkDevice                      device,
 }
 
 /////////////////////////////////////////////////////////////////////////////
-/**
-  \class nvvk::DescriptorSetBindings
+/** @DOC_START
+  # class nvvk::DescriptorSetBindings
 
   nvvk::DescriptorSetBindings is a helper class that keeps a vector of `VkDescriptorSetLayoutBinding` for a single
   `VkDescriptorSetLayout`. Provides helper functions to create `VkDescriptorSetLayout`
@@ -136,7 +136,7 @@ inline void allocateDescriptorSets(VkDevice                      device,
   at creation time.
 
   Example :
-  \code{.cpp}
+  ```cpp
   DescriptorSetBindings binds;
 
   binds.addBinding( VIEW_BINDING, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT);
@@ -165,8 +165,8 @@ inline void allocateDescriptorSets(VkDevice                      device,
   updates.push_back(binds.makeWrite(1, XFORM_BINDING, &xform1BufferInfo));
 
   vkUpdateDescriptorSets(device, updates.size(), updates.data(), 0, nullptr);
-  \endcode
-*/
+  ```
+@DOC_END */
 
 class DescriptorSetBindings
 {
@@ -280,15 +280,15 @@ protected:
 };
 
 /////////////////////////////////////////////////////////////
-/**
-\class nvvk::DescriptorSetContainer
+/** @DOC_START
+# class nvvk::DescriptorSetContainer
 
 nvvk::DescriptorSetContainer is a container class that stores allocated DescriptorSets
 as well as reflection, layout and pool for a single
 VkDescripterSetLayout.
 
 Example:
-\code{.cpp}
+```cpp
     container.init(device, allocator);
 
     // setup dset layouts
@@ -311,9 +311,9 @@ Example:
     // at render time
 
     vkCmdBindDescriptorSets(cmd, GRAPHICS, pipeLayout, 1, 1, container.at(7).getSets());
-\endcode
+```
 
-*/
+@DOC_END */
 class DescriptorSetContainer
 {
 public:
@@ -446,8 +446,8 @@ protected:
 };
 
 //////////////////////////////////////////////////////////////////////////
-/**
-\class nvvk::TDescriptorSetContainer<SETS,PIPES=1>
+/** @DOC_START
+# class nvvk::TDescriptorSetContainer<SETS,PIPES=1>
 
 nvvk::TDescriptorSetContainer is a templated version of DescriptorSetContainer :
 
@@ -459,7 +459,7 @@ not use the pipeline layouts of the embedded DescriptorSetContainers.
 
 Example :
 
-\code{.cpp}
+```cpp
 Usage, e.g.SETS = 2, PIPES = 2
 
 container.init(device, allocator);
@@ -494,8 +494,8 @@ writeUpdates.push_back(container.at(1).makeWrite(2, 0, &..));
 vkCmdBindDescriptorSets(cmd, GRAPHICS, container.getPipeLayout(0), 0, 1, container.at(0).getSets());
 ..
 vkCmdBindDescriptorSets(cmd, GRAPHICS, container.getPipeLayout(1), 1, 1, container.at(1).getSets(7));
-\endcode
-*/
+```
+@DOC_END */
 template <int SETS, int PIPES = 1>
 class TDescriptorSetContainer
 {

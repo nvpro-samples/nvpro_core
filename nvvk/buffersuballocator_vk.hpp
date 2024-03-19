@@ -31,8 +31,8 @@
 namespace nvvk {
 
 //////////////////////////////////////////////////////////////////
-/**
-  \class nvvk::BufferSubAllocator
+/** @DOC_START
+  # class nvvk::BufferSubAllocator
 
   nvvk::BufferSubAllocator provides buffer sub allocation using larger buffer blocks.
   The blocks are one VkBuffer each and are allocated via the 
@@ -57,7 +57,7 @@ namespace nvvk {
   It is therefore necessary to pass the alignment that was used at allocation time
   to the query functions as well.
 
-  \code{.cpp}
+  ```cpp
   // alignment <= BASE_ALIGNMENT
       handle  = subAllocator.subAllocate(size);
       binding = subAllocator.getSubBinding(handle);
@@ -65,8 +65,8 @@ namespace nvvk {
   // alignment > BASE_ALIGNMENT
       handle  = subAllocator.subAllocate(size, alignment);
       binding = subAllocator.getSubBinding(handle, alignment);
-  \endcode
-*/
+  ```
+@DOC_END */
 
 class BufferSubAllocator
 {

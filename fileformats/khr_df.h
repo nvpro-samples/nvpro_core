@@ -22,13 +22,18 @@
 ** MATERIALS OR THE USE OR OTHER DEALINGS IN THE MATERIALS.
 */
 
-/* This header defines a structure that can describe the layout of image
+
+/** @DOC_START
+ 
+   This header defines a structure that can describe the layout of image
    formats in memory. This means that the data format is transparent to
    the application, and the expectation is that this should be used when
    the layout is defined external to the API. Many Khronos APIs deliberately
    keep the internal layout of images opaque, to allow proprietary layouts
-   and optimisations. This structure is not appropriate for describing
-   opaque layouts. */
+   and optimizations. This structure is not appropriate for describing
+   opaque layouts. 
+
+ @DOC_END */
 
 /* We stick to standard C89 constructs for simplicity and portability. */
 
@@ -173,15 +178,15 @@ typedef enum _khr_df_samplemask_e
 
 /* Helper macro:
    Extract field X of sample S from basic descriptor block BDB */
-#define KHR_DFDSVAL(BDB, S, X)                                                                                          \
-  (((BDB)[KHR_DF_WORD_SAMPLESTART + ((S)*KHR_DF_WORD_SAMPLEWORDS) + KHR_DF_SAMPLEWORD_##X] >> (KHR_DF_SAMPLESHIFT_##X)) \
+#define KHR_DFDSVAL(BDB, S, X)                                                                                            \
+  (((BDB)[KHR_DF_WORD_SAMPLESTART + ((S) * KHR_DF_WORD_SAMPLEWORDS) + KHR_DF_SAMPLEWORD_##X] >> (KHR_DF_SAMPLESHIFT_##X)) \
    & (KHR_DF_SAMPLEMASK_##X))
 
 /* Helper macro:
    Set field X of sample S of basic descriptor block BDB */
 #define KHR_DFDSETSVAL(BDB, S, X, val)                                                                                 \
-  ((BDB)[KHR_DF_WORD_SAMPLESTART + ((S)*KHR_DF_WORD_SAMPLEWORDS) + KHR_DF_SAMPLEWORD_##X] =                            \
-       ((BDB)[KHR_DF_WORD_SAMPLESTART + ((S)*KHR_DF_WORD_SAMPLEWORDS) + KHR_DF_SAMPLEWORD_##X]                         \
+  ((BDB)[KHR_DF_WORD_SAMPLESTART + ((S) * KHR_DF_WORD_SAMPLEWORDS) + KHR_DF_SAMPLEWORD_##X] =                          \
+       ((BDB)[KHR_DF_WORD_SAMPLESTART + ((S) * KHR_DF_WORD_SAMPLEWORDS) + KHR_DF_SAMPLEWORD_##X]                       \
         & ~((uint32_t)(KHR_DF_SAMPLEMASK_##X) << (KHR_DF_SAMPLESHIFT_##X)))                                            \
        | (((val) & (uint32_t)(KHR_DF_SAMPLEMASK_##X)) << (KHR_DF_SAMPLESHIFT_##X)))
 
@@ -192,7 +197,7 @@ typedef enum _khr_df_samplemask_e
 
 /* Helper macro:
    Size in words of basic descriptor block for S samples */
-#define KHR_DFDSIZEWORDS(S) (KHR_DF_WORD_SAMPLESTART + (S)*KHR_DF_WORD_SAMPLEWORDS)
+#define KHR_DFDSIZEWORDS(S) (KHR_DF_WORD_SAMPLESTART + (S) * KHR_DF_WORD_SAMPLEWORDS)
 
 /* Vendor ids */
 typedef enum _khr_df_vendorid_e

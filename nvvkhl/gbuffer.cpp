@@ -68,6 +68,7 @@ void nvvkhl::GBuffer::create(const VkExtent2D& size, std::vector<VkFormat> color
 
   m_res.gBufferColor.resize(num_color);
   m_res.descriptor.resize(num_color);
+  m_res.uiImageViews.resize(num_color);
 
   for(uint32_t c = 0; c < num_color; c++)
   {
@@ -81,6 +82,12 @@ void nvvkhl::GBuffer::create(const VkExtent2D& size, std::vector<VkFormat> color
       VkImageViewCreateInfo info = nvvk::makeImage2DViewCreateInfo(m_res.gBufferColor[c].image, m_colorFormat[c]);
       vkCreateImageView(m_device, &info, nullptr, &m_res.descriptor[c].imageView);
       dutil.setObjectName(m_res.descriptor[c].imageView, "G-Color" + std::to_string(c));
+    }
+    {  // UI Image color view
+      VkImageViewCreateInfo info = nvvk::makeImage2DViewCreateInfo(m_res.gBufferColor[c].image, m_colorFormat[c]);
+      info.components.a          = VK_COMPONENT_SWIZZLE_ONE;
+      vkCreateImageView(m_device, &info, nullptr, &m_res.uiImageViews[c]);
+      dutil.setObjectName(m_res.uiImageViews[c], "UI G-Color" + std::to_string(c));
     }
 
     if(m_res.descriptor[c].sampler == VK_NULL_HANDLE)
@@ -131,9 +138,11 @@ void nvvkhl::GBuffer::create(const VkExtent2D& size, std::vector<VkFormat> color
     info.minFilter      = VK_FILTER_LINEAR;
     info.magFilter      = VK_FILTER_LINEAR;
     m_res.linearSampler = m_alloc->acquireSampler(info);
-    for(const VkDescriptorImageInfo& desc : m_res.descriptor)
+
+    for(size_t d = 0; d < m_res.descriptor.size(); ++d)
     {
-      m_descriptorSet.push_back(ImGui_ImplVulkan_AddTexture(m_res.linearSampler, desc.imageView, layout));
+      const VkDescriptorImageInfo& desc = m_res.descriptor[d];
+      m_descriptorSet.push_back(ImGui_ImplVulkan_AddTexture(m_res.linearSampler, m_res.uiImageViews[d], layout));
     }
   }
 }
@@ -167,6 +176,11 @@ void nvvkhl::GBuffer::destroy()
   {
     vkDestroyImageView(m_device, desc.imageView, nullptr);
     m_alloc->releaseSampler(desc.sampler);
+  }
+
+  for(const VkImageView& view : m_res.uiImageViews)
+  {
+    vkDestroyImageView(m_device, view, nullptr);
   }
 
   // Reset everything to zero

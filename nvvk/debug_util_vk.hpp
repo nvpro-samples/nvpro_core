@@ -18,7 +18,7 @@
  */
 
 
-/// \class DebugUtil
+/// # class DebugUtil
 /// This is a companion utility to add debug information to an application
 /// See https://vulkan.lunarg.com/doc/sdk/1.1.114.0/windows/chunked_spec/chap39.html
 /// - User defined name to objects

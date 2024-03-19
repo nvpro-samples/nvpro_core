@@ -31,12 +31,12 @@ struct GLFWwindow;
 
 namespace nvvkhl {
 
-/**
-\class nvvkhl::AppBase
+/** @DOC_START
+# class nvvkhl::AppBase
 
 nvvkhl::AppBaseVk is the same as nvvkhl::AppBaseVk but makes use of the Vulkan C++ API (`vulkan.hpp`).
 
-*/
+@DOC_END */
 
 class AppBase
 {

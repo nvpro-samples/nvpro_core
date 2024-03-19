@@ -27,8 +27,8 @@
 namespace nvvk {
 
 //////////////////////////////////////////////////////////////////////////
-/**
-  \class nvvk::ProfilerVK
+/** @DOC_START
+  # class nvvk::ProfilerVK
 
   nvvk::ProfilerVK derives from nvh::Profiler and uses vkCmdWriteTimestamp
   to measure the gpu time within a section.
@@ -46,7 +46,7 @@ namespace nvvk {
 
   Example:
 
-  \code{.cpp}
+  ```cpp
   nvvk::ProfilerVK profiler;
   std::string     profilerStats;
 
@@ -82,8 +82,8 @@ namespace nvvk {
     }
   }
 
-  \endcode
-*/
+  ```
+@DOC_END */
 
 class ProfilerVK : public nvh::Profiler
 {

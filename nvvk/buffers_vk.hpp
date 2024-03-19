@@ -28,7 +28,7 @@
 namespace nvvk {
 
 //////////////////////////////////////////////////////////////////////////
-/**
+/** @DOC_START
   The utilities in this file provide a more direct approach, we encourage to use
   higher-level mechanisms also provided in the allocator / memorymanagement classes.
 
@@ -41,12 +41,12 @@ namespace nvvk {
   - getBufferDeviceAddressKHR : wraps vkGetBufferDeviceAddressKHR
   - getBufferDeviceAddress : wraps vkGetBufferDeviceAddress
 
-  \code{.cpp}
+  ```cpp
   VkBufferCreateInfo bufferCreate = makeBufferCreateInfo (size, VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT);
   VkBuffer buffer                 = createBuffer(device, bufferCreate);
   VkBufferView bufferView         = createBufferView(device, makeBufferViewCreateInfo(buffer, VK_FORMAT_R8G8B8A8_UNORM, size));
-  \endcode
-*/
+  ```
+@DOC_END */
 
 // implicitly sets VK_BUFFER_USAGE_TRANSFER_DST_BIT
 inline VkBufferCreateInfo makeBufferCreateInfo(VkDeviceSize size, VkBufferUsageFlags usage, VkBufferCreateFlags flags = 0)

@@ -26,8 +26,8 @@
 #include <nvh/appwindowprofiler.hpp>
 
 //////////////////////////////////////////////////////////////////////////
-/**
-  \class nvgl::AppWindowProfilerGL
+/** @DOC_START
+  # class nvgl::AppWindowProfilerGL
 
   nvgl::AppWindowProfilerGL derives from nvh::AppWindowProfiler
   and overrides the context and swapbuffer functions.
@@ -38,7 +38,7 @@
 
   The class comes with a nvgl::ProfilerGL instance that references the 
   AppWindowProfiler::m_profiler's data.
-*/
+@DOC_END */
 
 namespace nvgl {
 

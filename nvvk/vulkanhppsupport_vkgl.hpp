@@ -24,6 +24,14 @@
 #include "nvvk/vulkanhppsupport.hpp"
 
 namespace nvvkpp {
+/** @DOC_START
+# class nvvkpp::ResourceAllocatorGLInterop
+
+>  ResourceAllocatorGLInterop is a helper class to manage Vulkan and OpenGL memory allocation and interop.
+
+This class is a wrapper around the `nvvk::DeviceMemoryAllocatorGL` and `nvvk::DeviceMemoryAllocator` classes, which are used to allocate memory for Vulkan and OpenGL resources.
+
+@DOC_END */
 
 class ResourceAllocatorGLInterop : public ExportResourceAllocator
 {

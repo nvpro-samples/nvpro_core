@@ -17,6 +17,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+/// @DOC_SKIP
+
 #pragma once
 
 #include <string>

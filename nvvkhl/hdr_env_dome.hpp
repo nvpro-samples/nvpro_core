@@ -34,17 +34,18 @@ namespace nvvkhl {
 class Context;
 
 
-//--------------------------------------------------------------------------------------------------
-//
-// Use an environment image (HDR) and create the cubic textures for glossy reflection and diffuse illumination.
-// It also has the ability to render the HDR environment, in the background of an image.
-//
-// Using 4 compute shaders
-// - hdr_dome: to make the HDR as background
-// - hdr_integrate_brdf     : generate the BRDF lookup table
-// - hdr_prefilter_diffuse  : integrate the diffuse contribution in a cubemap
-// - hdr_prefilter_glossy   : integrate the glossy reflection in a cubemap
-//
+/** @DOC_START
+# class nvvkhl::HdrEnvDome
+
+>  Use an environment image (HDR) and create the cubic textures for glossy reflection and diffuse illumination. It also has the ability to render the HDR environment, in the background of an image.
+
+ Using 4 compute shaders
+ - hdr_dome: to make the HDR as background
+ - hdr_integrate_brdf     : generate the BRDF lookup table
+ - hdr_prefilter_diffuse  : integrate the diffuse contribution in a cubemap
+ - hdr_prefilter_glossy   : integrate the glossy reflection in a cubemap
+
+@DOC_END  */
 class HdrEnvDome
 {
 public:

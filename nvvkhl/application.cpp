@@ -18,12 +18,19 @@
  */
 
 
-/*
+/**
+/class nvvkhl::Application
+
     The Application is basically a small modification of the ImGui example for Vulkan.
     Because we support multiple viewports, duplicating the code would be not necessary 
     and the code is very well explained. 
 
     Worth notice
+    - The Application is a singleton, and the main loop is inside the run() function.
+    - The Application is the owner of the elements, and it will call the onRender, onUIRender, onUIMenu
+      for each element that is connected to it.
+    - The Application is the owner of the Vulkan context, and it will create the surface and window.
+    - The Application is the owner of the ImGui context, and it will create the dockspace and the main menu.
 
     - ::init() : will create the GLFW window, call nvvk::context for the creation of the 
                Vulkan context, initialize ImGui , create the surface and window (::setupVulkanWindow)
@@ -51,6 +58,7 @@
 #include "nvpsystem.hpp"
 #include "nvvk/context_vk.hpp"
 #include "nvvk/error_vk.hpp"
+#include "nvvk/images_vk.hpp"
 #include "perproject_globals.hpp"
 
 
@@ -68,9 +76,26 @@
 #include <GLFW/glfw3.h>
 #include <GLFW/glfw3native.h>
 
+// To save images
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#define STB_IMAGE_WRITE_STATIC
+#include "stb_image_write.h"
+
 // Static
 uint32_t                                        nvvkhl::Application::m_currentFrameIndex{0};
 std::vector<std::vector<std::function<void()>>> nvvkhl::Application::m_resourceFreeQueue;
+
+// Forward declaration
+void ImplVulkanH_CreateOrResizeWindow(VkInstance                   instance,
+                                      VkPhysicalDevice             physical_device,
+                                      VkDevice                     device,
+                                      ImGui_ImplVulkanH_Window*    wnd,
+                                      uint32_t                     queue_family,
+                                      const VkAllocationCallbacks* allocator,
+                                      int                          w,
+                                      int                          h,
+                                      uint32_t                     min_image_count);
+
 
 // GLFW Callback functions
 static void onErrorCallback(int error, const char* description)
@@ -334,8 +359,8 @@ void nvvkhl::Application::setupVulkanWindow(VkSurfaceKHR surface, int width, int
   setPresentMode(m_context->m_physicalDevice, wd);
 
   // Create SwapChain, RenderPass, Framebuffer, etc.
-  ImGui_ImplVulkanH_CreateOrResizeWindow(m_context->m_instance, m_context->m_physicalDevice, m_context->m_device, wd,
-                                         m_context->m_queueGCT.familyIndex, m_allocator, width, height, m_minImageCount);
+  ImplVulkanH_CreateOrResizeWindow(m_context->m_instance, m_context->m_physicalDevice, m_context->m_device, wd,
+                                   m_context->m_queueGCT.familyIndex, m_allocator, width, height, m_minImageCount);
 }
 
 
@@ -368,9 +393,9 @@ void nvvkhl::Application::run()
         setPresentMode(m_context->m_physicalDevice, wd);
 
         ImGui_ImplVulkan_SetMinImageCount(m_minImageCount);
-        ImGui_ImplVulkanH_CreateOrResizeWindow(m_context->m_instance, m_context->m_physicalDevice, m_context->m_device,
-                                               m_mainWindowData.get(), m_context->m_queueGCT.familyIndex, m_allocator,
-                                               width, height, m_minImageCount);
+        ImplVulkanH_CreateOrResizeWindow(m_context->m_instance, m_context->m_physicalDevice, m_context->m_device,
+                                         m_mainWindowData.get(), m_context->m_queueGCT.familyIndex, m_allocator, width,
+                                         height, m_minImageCount);
         resetFreeQueue(wd->ImageCount);
         m_mainWindowData->FrameIndex = 0;
         m_swapChainRebuild           = false;
@@ -448,11 +473,19 @@ void nvvkhl::Application::run()
       frameRender();
     }
 
-    // Update and Render additional Platform Windows
+    // Update and Render additional Platform Windows (floating windows)
+    // See: ImGui_ImplVulkan_InitPlatformInterface()
     if((io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) != 0)
     {
       ImGui::UpdatePlatformWindows();
       ImGui::RenderPlatformWindowsDefault();
+    }
+
+    if(m_screenShotRequested)
+    {
+      m_screenShotRequested = false;
+      vkDeviceWaitIdle(m_context->m_device);
+      saveScreenShot(m_screenShotFilename, m_screenShotQuality);
     }
 
     // Present Main Platform Window
@@ -822,4 +855,409 @@ void nvvkhl::Application::onFileDrop(const char* filename)
   {
     e->onFileDrop(filename);
   }
+}
+
+//////////////////////////////////////////////////////////////////////////
+//
+// Screenshot
+//
+//////////////////////////////////////////////////////////////////////////
+
+// Convert a tiled image to RGBA8 linear
+void imageToRgba8Linear(VkCommandBuffer  cmd,
+                        VkDevice         device,
+                        VkPhysicalDevice physicalDevice,
+                        VkImage          srcImage,
+                        VkExtent2D       size,
+                        VkImage&         dstImage,
+                        VkDeviceMemory&  dstImageMemory)
+{
+  // Find the memory type index for the memory
+  auto getMemoryType = [&](uint32_t typeBits, const VkMemoryPropertyFlags& properties) {
+    VkPhysicalDeviceMemoryProperties prop;
+    vkGetPhysicalDeviceMemoryProperties(physicalDevice, &prop);
+    for(uint32_t i = 0; i < prop.memoryTypeCount; i++)
+    {
+      if(((typeBits & (1 << i)) > 0) && (prop.memoryTypes[i].propertyFlags & properties) == properties)
+        return i;
+    }
+    return ~0u;  // Unable to find memoryType
+  };
+
+
+  // Create the linear tiled destination image to copy to and to read the memory from
+  VkImageCreateInfo imageCreateCI = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
+  imageCreateCI.imageType         = VK_IMAGE_TYPE_2D;
+  imageCreateCI.format            = VK_FORMAT_R8G8B8A8_UNORM;
+  imageCreateCI.extent.width      = size.width;
+  imageCreateCI.extent.height     = size.height;
+  imageCreateCI.extent.depth      = 1;
+  imageCreateCI.arrayLayers       = 1;
+  imageCreateCI.mipLevels         = 1;
+  imageCreateCI.initialLayout     = VK_IMAGE_LAYOUT_UNDEFINED;
+  imageCreateCI.samples           = VK_SAMPLE_COUNT_1_BIT;
+  imageCreateCI.tiling            = VK_IMAGE_TILING_LINEAR;
+  imageCreateCI.usage             = VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+  NVVK_CHECK(vkCreateImage(device, &imageCreateCI, nullptr, &dstImage));
+
+  // Create memory for the image
+  // We want host visible and coherent memory to be able to map it and write to it directly
+  VkMemoryRequirements memRequirements;
+  vkGetImageMemoryRequirements(device, dstImage, &memRequirements);
+  VkMemoryAllocateInfo memAllocInfo = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
+  memAllocInfo.allocationSize       = memRequirements.size;
+  memAllocInfo.memoryTypeIndex =
+      getMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+  NVVK_CHECK(vkAllocateMemory(device, &memAllocInfo, nullptr, &dstImageMemory));
+  NVVK_CHECK(vkBindImageMemory(device, dstImage, dstImageMemory, 0));
+
+  nvvk::cmdBarrierImageLayout(cmd, srcImage, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+  nvvk::cmdBarrierImageLayout(cmd, dstImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+  // Do the actual blit from the swapchain image to our host visible destination image
+  // The Blit allow to convert the image from VK_FORMAT_B8G8R8A8_UNORM to VK_FORMAT_R8G8B8A8_UNORM automatically
+  VkOffset3D  blitSize = {int32_t(size.width), int32_t(size.height), 1};
+  VkImageBlit imageBlitRegion{};
+  imageBlitRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+  imageBlitRegion.srcSubresource.layerCount = 1;
+  imageBlitRegion.srcOffsets[1]             = blitSize;
+  imageBlitRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+  imageBlitRegion.dstSubresource.layerCount = 1;
+  imageBlitRegion.dstOffsets[1]             = blitSize;
+  vkCmdBlitImage(cmd, srcImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dstImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1,
+                 &imageBlitRegion, VK_FILTER_NEAREST);
+
+  nvvk::cmdBarrierImageLayout(cmd, srcImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+  nvvk::cmdBarrierImageLayout(cmd, dstImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
+}
+
+// Record that a screenshot is requested, and will be saved at the end of the frame (saveScreenShot)
+void nvvkhl::Application::screenShot(const std::string& filename, int quality)
+{
+  m_screenShotRequested = true;
+  m_screenShotFilename  = filename;
+  m_screenShotQuality   = quality;
+}
+
+// Save the current swapchain image to a file
+void nvvkhl::Application::saveScreenShot(const std::string& filename, int quality)
+{
+  ImGui_ImplVulkanH_Window* wd       = m_mainWindowData.get();
+  VkExtent2D                size     = {uint32_t(wd->Width), uint32_t(wd->Height)};
+  VkDevice                  device   = m_context->m_device;
+  VkImage                   srcImage = wd->Frames[wd->FrameIndex].Backbuffer;
+  VkImage                   dstImage;
+  VkDeviceMemory            dstImageMemory;
+
+  VkCommandBuffer cmd = createTempCmdBuffer();
+  imageToRgba8Linear(cmd, device, m_context->m_physicalDevice, srcImage, size, dstImage, dstImageMemory);
+  submitAndWaitTempCmdBuffer(cmd);
+
+  // Get layout of the image (including offset and row pitch)
+  VkImageSubresource  subResource{VK_IMAGE_ASPECT_COLOR_BIT, 0, 0};
+  VkSubresourceLayout subResourceLayout;
+  vkGetImageSubresourceLayout(device, dstImage, &subResource, &subResourceLayout);
+
+  // Map image memory so we can start copying from it
+  const char* data;
+  vkMapMemory(device, dstImageMemory, 0, VK_WHOLE_SIZE, 0, (void**)&data);
+  data += subResourceLayout.offset;
+
+  // Copy the data and adjust for the row pitch
+  std::vector<uint8_t> pixels(size.width * size.height * 4);
+  for (uint32_t y = 0; y < size.height; y++)
+  {
+    memcpy(pixels.data() + y * size.width * 4, data, size.width * 4);
+    data += subResourceLayout.rowPitch;
+  }
+
+  std::filesystem::path path      = filename;
+  std::string           extension = path.extension().string();
+
+  // Check the extension and perform actions accordingly
+  if(extension == ".png")
+  {
+    stbi_write_png(filename.c_str(), size.width, size.height, 4, pixels.data(), size.width * 4);
+  }
+  else if(extension == ".jpg" || extension == ".jpeg")
+  {
+    stbi_write_jpg(filename.c_str(), size.width, size.height, 4, pixels.data(), quality);
+  }
+  else if(extension == ".bmp")
+  {
+    stbi_write_bmp(filename.c_str(), size.width, size.height, 4, pixels.data());
+  }
+  else
+  {
+    LOGW("Screenshot: unknown file extension, saving as PNG\n");
+    stbi_write_png(filename.c_str(), size.width, size.height, 4, data, size.width * 4);
+  }
+
+  LOGI("Screenshot saved to %s\n", filename.c_str());
+
+  // Clean up resources
+  vkUnmapMemory(device, dstImageMemory);
+  vkFreeMemory(device, dstImageMemory, nullptr);
+  vkDestroyImage(device, dstImage, nullptr);
+}
+
+//////////////////////////////////////////////////////////////////////////
+//
+// Vulkan Helper
+// This section is a copy of the ImGui_ImplVulkanH_XXX functions
+// with modifications to be used in the Application class
+//
+//////////////////////////////////////////////////////////////////////////
+
+void ImplVulkanH_CreateWindowCommandBuffers(VkPhysicalDevice             physical_device,
+                                            VkDevice                     device,
+                                            ImGui_ImplVulkanH_Window*    wd,
+                                            uint32_t                     queue_family,
+                                            const VkAllocationCallbacks* allocator)
+{
+  IM_ASSERT(physical_device != VK_NULL_HANDLE && device != VK_NULL_HANDLE);
+  IM_UNUSED(physical_device);
+
+  // Create Command Buffers
+  for(uint32_t i = 0; i < wd->ImageCount; i++)
+  {
+    ImGui_ImplVulkanH_Frame* fd = &wd->Frames[i];
+    {
+      VkCommandPoolCreateInfo info = {};
+      info.sType                   = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+      info.flags                   = 0;  //VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+      info.queueFamilyIndex        = queue_family;
+      NVVK_CHECK(vkCreateCommandPool(device, &info, allocator, &fd->CommandPool));
+    }
+    {
+      VkCommandBufferAllocateInfo info = {};
+      info.sType                       = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+      info.commandPool                 = fd->CommandPool;
+      info.level                       = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+      info.commandBufferCount          = 1;
+      NVVK_CHECK(vkAllocateCommandBuffers(device, &info, &fd->CommandBuffer));
+    }
+    {
+      VkFenceCreateInfo info = {};
+      info.sType             = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+      info.flags             = VK_FENCE_CREATE_SIGNALED_BIT;
+      NVVK_CHECK(vkCreateFence(device, &info, allocator, &fd->Fence));
+    }
+  }
+
+  for(uint32_t i = 0; i < wd->SemaphoreCount; i++)
+  {
+    ImGui_ImplVulkanH_FrameSemaphores* fsd = &wd->FrameSemaphores[i];
+    {
+      VkSemaphoreCreateInfo info = {};
+      info.sType                 = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+      NVVK_CHECK(vkCreateSemaphore(device, &info, allocator, &fsd->ImageAcquiredSemaphore));
+      NVVK_CHECK(vkCreateSemaphore(device, &info, allocator, &fsd->RenderCompleteSemaphore));
+    }
+  }
+}
+
+void ImplVulkanH_DestroyFrame(VkDevice device, ImGui_ImplVulkanH_Frame* fd, const VkAllocationCallbacks* allocator)
+{
+  vkDestroyFence(device, fd->Fence, allocator);
+  vkFreeCommandBuffers(device, fd->CommandPool, 1, &fd->CommandBuffer);
+  vkDestroyCommandPool(device, fd->CommandPool, allocator);
+  fd->Fence         = VK_NULL_HANDLE;
+  fd->CommandBuffer = VK_NULL_HANDLE;
+  fd->CommandPool   = VK_NULL_HANDLE;
+
+  vkDestroyImageView(device, fd->BackbufferView, allocator);
+  vkDestroyFramebuffer(device, fd->Framebuffer, allocator);
+}
+
+
+void ImplVulkanH_DestroyFrameSemaphores(VkDevice device, ImGui_ImplVulkanH_FrameSemaphores* fsd, const VkAllocationCallbacks* allocator)
+{
+  vkDestroySemaphore(device, fsd->ImageAcquiredSemaphore, allocator);
+  vkDestroySemaphore(device, fsd->RenderCompleteSemaphore, allocator);
+  fsd->ImageAcquiredSemaphore = fsd->RenderCompleteSemaphore = VK_NULL_HANDLE;
+}
+
+
+// Also destroy old swap chain and in-flight frames data, if any.
+void ImplVulkanH_CreateWindowSwapChain(VkPhysicalDevice             physical_device,
+                                       VkDevice                     device,
+                                       ImGui_ImplVulkanH_Window*    wd,
+                                       const VkAllocationCallbacks* allocator,
+                                       int                          w,
+                                       int                          h,
+                                       uint32_t                     min_image_count)
+{
+  VkSwapchainKHR old_swapchain = wd->Swapchain;
+  wd->Swapchain                = VK_NULL_HANDLE;
+  NVVK_CHECK(vkDeviceWaitIdle(device));
+
+  // We don't use ImGui_ImplVulkanH_DestroyWindow() because we want to preserve the old swapchain to create the new one.
+  // Destroy old Framebuffer
+  for(uint32_t i = 0; i < wd->ImageCount; i++)
+    ImplVulkanH_DestroyFrame(device, &wd->Frames[i], allocator);
+  for(uint32_t i = 0; i < wd->SemaphoreCount; i++)
+    ImplVulkanH_DestroyFrameSemaphores(device, &wd->FrameSemaphores[i], allocator);
+  IM_FREE(wd->Frames);
+  IM_FREE(wd->FrameSemaphores);
+  wd->Frames          = nullptr;
+  wd->FrameSemaphores = nullptr;
+  wd->ImageCount      = 0;
+  if(wd->RenderPass)
+    vkDestroyRenderPass(device, wd->RenderPass, allocator);
+  if(wd->Pipeline)
+    vkDestroyPipeline(device, wd->Pipeline, allocator);
+
+  // If min image count was not specified, request different count of images dependent on selected present mode
+  if(min_image_count == 0)
+    min_image_count = ImGui_ImplVulkanH_GetMinImageCountFromPresentMode(wd->PresentMode);
+
+  // Create Swapchain
+  {
+    VkSwapchainCreateInfoKHR info = {};
+    info.sType                    = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+    info.surface                  = wd->Surface;
+    info.minImageCount            = min_image_count;
+    info.imageFormat              = wd->SurfaceFormat.format;
+    info.imageColorSpace          = wd->SurfaceFormat.colorSpace;
+    info.imageArrayLayers         = 1;
+    info.imageUsage               = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+    info.imageSharingMode         = VK_SHARING_MODE_EXCLUSIVE;  // Assume that graphics family == present family
+    info.preTransform             = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+    info.compositeAlpha           = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    info.presentMode              = wd->PresentMode;
+    info.clipped                  = VK_TRUE;
+    info.oldSwapchain             = old_swapchain;
+    VkSurfaceCapabilitiesKHR cap;
+    NVVK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device, wd->Surface, &cap));
+    if(info.minImageCount < cap.minImageCount)
+      info.minImageCount = cap.minImageCount;
+    else if(cap.maxImageCount != 0 && info.minImageCount > cap.maxImageCount)
+      info.minImageCount = cap.maxImageCount;
+
+    if(cap.currentExtent.width == 0xffffffff)
+    {
+      info.imageExtent.width = wd->Width = w;
+      info.imageExtent.height = wd->Height = h;
+    }
+    else
+    {
+      info.imageExtent.width = wd->Width = cap.currentExtent.width;
+      info.imageExtent.height = wd->Height = cap.currentExtent.height;
+    }
+    NVVK_CHECK(vkCreateSwapchainKHR(device, &info, allocator, &wd->Swapchain));
+    NVVK_CHECK(vkGetSwapchainImagesKHR(device, wd->Swapchain, &wd->ImageCount, nullptr));
+    VkImage backbuffers[16] = {};
+    IM_ASSERT(wd->ImageCount >= min_image_count);
+    IM_ASSERT(wd->ImageCount < IM_ARRAYSIZE(backbuffers));
+    NVVK_CHECK(vkGetSwapchainImagesKHR(device, wd->Swapchain, &wd->ImageCount, backbuffers));
+
+    IM_ASSERT(wd->Frames == nullptr && wd->FrameSemaphores == nullptr);
+    wd->SemaphoreCount = wd->ImageCount + 1;
+    wd->Frames         = (ImGui_ImplVulkanH_Frame*)IM_ALLOC(sizeof(ImGui_ImplVulkanH_Frame) * wd->ImageCount);
+    wd->FrameSemaphores =
+        (ImGui_ImplVulkanH_FrameSemaphores*)IM_ALLOC(sizeof(ImGui_ImplVulkanH_FrameSemaphores) * wd->SemaphoreCount);
+    memset(wd->Frames, 0, sizeof(wd->Frames[0]) * wd->ImageCount);
+    memset(wd->FrameSemaphores, 0, sizeof(wd->FrameSemaphores[0]) * wd->SemaphoreCount);
+    for(uint32_t i = 0; i < wd->ImageCount; i++)
+      wd->Frames[i].Backbuffer = backbuffers[i];
+  }
+  if(old_swapchain)
+    vkDestroySwapchainKHR(device, old_swapchain, allocator);
+
+  // Create the Render Pass
+  if(wd->UseDynamicRendering == false)
+  {
+    VkAttachmentDescription attachment = {};
+    attachment.format                  = wd->SurfaceFormat.format;
+    attachment.samples                 = VK_SAMPLE_COUNT_1_BIT;
+    attachment.loadOp         = wd->ClearEnable ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    attachment.storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
+    attachment.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    attachment.initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
+    attachment.finalLayout    = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    VkAttachmentReference color_attachment = {};
+    color_attachment.attachment            = 0;
+    color_attachment.layout                = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    VkSubpassDescription subpass           = {};
+    subpass.pipelineBindPoint              = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpass.colorAttachmentCount           = 1;
+    subpass.pColorAttachments              = &color_attachment;
+    VkSubpassDependency dependency         = {};
+    dependency.srcSubpass                  = VK_SUBPASS_EXTERNAL;
+    dependency.dstSubpass                  = 0;
+    dependency.srcStageMask                = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.dstStageMask                = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.srcAccessMask               = 0;
+    dependency.dstAccessMask               = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    VkRenderPassCreateInfo info            = {};
+    info.sType                             = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    info.attachmentCount                   = 1;
+    info.pAttachments                      = &attachment;
+    info.subpassCount                      = 1;
+    info.pSubpasses                        = &subpass;
+    info.dependencyCount                   = 1;
+    info.pDependencies                     = &dependency;
+    NVVK_CHECK(vkCreateRenderPass(device, &info, allocator, &wd->RenderPass));
+
+    // We do not create a pipeline by default as this is also used by examples' main.cpp,
+    // but secondary viewport in multi-viewport mode may want to create one with:
+    //ImGui_ImplVulkan_CreatePipeline(device, allocator, VK_NULL_HANDLE, wd->RenderPass, VK_SAMPLE_COUNT_1_BIT, &wd->Pipeline, v->Subpass);
+  }
+
+  // Create The Image Views
+  {
+    VkImageViewCreateInfo info          = {};
+    info.sType                          = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    info.viewType                       = VK_IMAGE_VIEW_TYPE_2D;
+    info.format                         = wd->SurfaceFormat.format;
+    info.components.r                   = VK_COMPONENT_SWIZZLE_R;
+    info.components.g                   = VK_COMPONENT_SWIZZLE_G;
+    info.components.b                   = VK_COMPONENT_SWIZZLE_B;
+    info.components.a                   = VK_COMPONENT_SWIZZLE_A;
+    VkImageSubresourceRange image_range = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+    info.subresourceRange               = image_range;
+    for(uint32_t i = 0; i < wd->ImageCount; i++)
+    {
+      ImGui_ImplVulkanH_Frame* fd = &wd->Frames[i];
+      info.image                  = fd->Backbuffer;
+      NVVK_CHECK(vkCreateImageView(device, &info, allocator, &fd->BackbufferView));
+    }
+  }
+
+  // Create Framebuffer
+  if(wd->UseDynamicRendering == false)
+  {
+    VkImageView             attachment[1];
+    VkFramebufferCreateInfo info = {};
+    info.sType                   = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    info.renderPass              = wd->RenderPass;
+    info.attachmentCount         = 1;
+    info.pAttachments            = attachment;
+    info.width                   = wd->Width;
+    info.height                  = wd->Height;
+    info.layers                  = 1;
+    for(uint32_t i = 0; i < wd->ImageCount; i++)
+    {
+      ImGui_ImplVulkanH_Frame* fd = &wd->Frames[i];
+      attachment[0]               = fd->BackbufferView;
+      NVVK_CHECK(vkCreateFramebuffer(device, &info, allocator, &fd->Framebuffer));
+    }
+  }
+}
+
+// Create or resize window
+void ImplVulkanH_CreateOrResizeWindow(VkInstance                   instance,
+                                      VkPhysicalDevice             physical_device,
+                                      VkDevice                     device,
+                                      ImGui_ImplVulkanH_Window*    wd,
+                                      uint32_t                     queue_family,
+                                      const VkAllocationCallbacks* allocator,
+                                      int                          width,
+                                      int                          height,
+                                      uint32_t                     min_image_count)
+{
+  ImplVulkanH_CreateWindowSwapChain(physical_device, device, wd, allocator, width, height, min_image_count);
+  ImplVulkanH_CreateWindowCommandBuffers(physical_device, device, wd, queue_family, allocator);
 }

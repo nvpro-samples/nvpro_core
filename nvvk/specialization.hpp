@@ -23,22 +23,25 @@
 
 namespace nvvk {
 
-//////////////////////////////////////////////////////////////////////////
-// Helper to generate specialization info
-//
-//  Examples:
-//    nvvk::Specialization specialization;
-//    specialization.add(0, 5); // Adding value 5 to constant_id=0
-//    VkPipelineShaderStageCreateInfo info;
-//    ...
-//    info.pSpecializationInfo = specialization.getSpecialization();
-//    createPipeline();
-//
-// Note: this is adding information in a vector, therefor add all values
-//       before calling getSpecialization(). Construct the pipeline before
-//       specialization get out of scope, or pointer getting invalidated
-//       by adding new values or clearing the vector of data.
-//
+/** @DOC_START
+# class nvvk::Specialization
+>  Helper to generate specialization info
+
+  Examples:
+  ```cpp
+    nvvk::Specialization specialization;
+    specialization.add(0, 5); // Adding value 5 to constant_id=0
+    VkPipelineShaderStageCreateInfo info;
+    ...
+    info.pSpecializationInfo = specialization.getSpecialization();
+    createPipeline();
+  ```
+
+ Note: this is adding information in a vector, therefor add all values
+       before calling getSpecialization(). Construct the pipeline before
+       specialization get out of scope, or pointer getting invalidated
+       by adding new values or clearing the vector of data.
+@DOC_END */
 class Specialization
 {
 public:

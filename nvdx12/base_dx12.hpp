@@ -34,16 +34,18 @@ namespace nvdx12 {
 
 
 //////////////////////////////////////////////////////////////////////////
-/**
-  \class nvdx12::DeviceUtils
+/** @DOC_START 
+  # class nvdx12::DeviceUtils
   Utility class for simple creation of pipeline states, root signatures,
   and buffers.
-*/
+-- @DOC_END - */
 
-/**
-  \fn nvdx12::transitionBarrier
+
+/** @DOC_START 
+  # function nvdx12::transitionBarrier
   Short-hand function to create a transition barrier
-*/
+-- @DOC_END - */
+
 
 // Specifies a heap used for uploading. This heap type has CPU access optimized for uploading to the GPU.
 static const D3D12_HEAP_PROPERTIES uploadHeapProps = {D3D12_HEAP_TYPE_UPLOAD, D3D12_CPU_PAGE_PROPERTY_UNKNOWN,

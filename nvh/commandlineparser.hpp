@@ -32,15 +32,17 @@
 static constexpr int MAX_LINE_WIDTH = 60;
 
 namespace nvh {
-//--------------------------------------------------------------------------------------------------
-// Command line parser.
-//  std::string inFilename = "";
-//  bool printHelp = false;
-//  CommandLineParser args("Test Parser");
-//  args.addArgument({"-f", "--filename"}, &inFilename, "Input filename");
-//  args.addArgument({"-h", "--help"}, &printHelp, "Print Help");
-//  bool result = args.parse(argc, argv);
-//
+/* @DOC_START
+Command line parser.
+```cpp
+ std::string inFilename = "";
+ bool printHelp = false;
+ CommandLineParser args("Test Parser");
+ args.addArgument({"-f", "--filename"}, &inFilename, "Input filename");
+ args.addArgument({"-h", "--help"}, &printHelp, "Print Help");
+ bool result = args.parse(argc, argv);
+```
+@DOC_END */
 class CommandLineParser
 {
 public:

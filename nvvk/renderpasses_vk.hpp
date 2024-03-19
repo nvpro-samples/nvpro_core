@@ -24,7 +24,7 @@
 #include <vulkan/vulkan_core.h>
 
 namespace nvvk {
-/**
+/** @DOC_START
   # functions in nvvk
 
   - findSupportedFormat : returns supported VkFormat from a list of candidates (returns first match)
@@ -32,7 +32,7 @@ namespace nvvk {
   - findDepthStencilFormat : returns supported depth-stencil format (24/8, 32/8, 16/8-bit)
   - createRenderPass : wrapper for vkCreateRenderPass
 
-*/
+@DOC_END */
 VkFormat findSupportedFormat(VkPhysicalDevice physicalDevice, const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
 VkFormat findDepthFormat(VkPhysicalDevice physicalDevice);
 VkFormat findDepthStencilFormat(VkPhysicalDevice physicalDevice);

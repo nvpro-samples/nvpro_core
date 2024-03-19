@@ -21,6 +21,13 @@
 
 namespace nvh {
 
+/* @DOC_START
+
+```nvh::Bbox``` is a class to create bounding boxes.
+It grows by adding 3d vector, can combine other bound boxes.
+And it returns information, like its volume, its center, the min, max, etc..
+
+@DOC_END */
 struct Bbox
 {
   Bbox() = default;

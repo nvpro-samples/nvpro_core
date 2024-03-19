@@ -35,7 +35,7 @@ namespace nvvk {
 
 
 //////////////////////////////////////////////////////////////////////////
-/**
+/** @DOC_START
   This framework assumes that memory heaps exists that support:
 
   - VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
@@ -49,7 +49,7 @@ namespace nvvk {
   # functions in nvvk
 
   * getMemoryInfo : fills the VkMemoryAllocateInfo based on device's memory properties and memory requirements and property flags. Returns `true` on success.
-*/
+@DOC_END */
 
 // returns true on success
 bool getMemoryInfo(const VkPhysicalDeviceMemoryProperties& memoryProperties,
@@ -98,8 +98,8 @@ public:
 
 
 //////////////////////////////////////////////////////////////////////////
-/**
-  \class nvvk::DeviceMemoryAllocator
+/** @DOC_START
+  # class nvvk::DeviceMemoryAllocator
 
   The nvvk::DeviceMemoryAllocator allocates and manages device memory in fixed-size memory blocks.
   It implements the nvvk::MemAllocator interface.
@@ -132,7 +132,7 @@ public:
   chunk allocation behavior.
 
   Example :
-  \code{.cpp}
+  ```cpp
   nvvk::DeviceMemoryAllocator memAllocator;
 
   memAllocator.init(device, physicalDevice);
@@ -157,8 +157,8 @@ public:
   ...
   memAllocator.freeAll();
 
-  \endcode
-*/
+  ```
+@DOC_END */
 class DeviceMemoryAllocator : public MemAllocator
 {
 

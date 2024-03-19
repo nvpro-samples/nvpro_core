@@ -17,6 +17,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+/// @DOC_SKIP
+
 #ifndef DH_HDR_H
 #define DH_HDR_H 1
 
@@ -25,8 +27,10 @@
 #endif
 
 #ifdef __cplusplus
-namespace nvvkhl_shaders {
+#include <glm/glm.hpp>
+#include <cstdint>
 
+namespace nvvkhl_shaders {
 using uint = uint32_t;
 using mat4 = glm::mat4;
 using vec4 = glm::vec4;

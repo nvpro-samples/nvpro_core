@@ -30,15 +30,15 @@
 
 namespace nvp {
 
-/**
-  \class nvp::FileSystemMonitor
+/** @DOC_START
+  # class nvp::FileSystemMonitor
 
   Monitors files and/or directories for changes
 
   This cross-platform wrapper does not create any threads, but is designed for
   it. checkEvents() will block until either an event is generated, or cancel()
   is called. See ModifiedFilesMonitor for an example.
-*/
+@DOC_END */
 class FileSystemMonitor
 {
 public:
@@ -107,12 +107,12 @@ private:
   PathID m_nextPathID = 0;
 };
 
-/**
-  \class nvp::FSMRunner
+/** @DOC_START
+  # class nvp::FSMRunner
 
   Adds a thread to nvp::FileSystemMonitor that repeatedly calls
   nvp::FileSystemMonitor::checkEvents().
-*/
+@DOC_END */
 class FSMRunner
 {
 public:
@@ -158,8 +158,8 @@ private:
   FileSystemMonitor::Callback m_callback;
 };
 
-/**
-  \class nvp::FSMCallbacks
+/** @DOC_START
+  # class nvp::FSMCallbacks
 
   Utility class to get per-path callbacks.
 
@@ -167,7 +167,7 @@ private:
   Be careful not to destroy a PathCallback during a callback.
 
   Example:
-  \code
+  ```cpp
   FSMCallbacks callbacks;
 
   auto callbackFile1 = callbacks.add(std::vector<std::string>{"file1.txt"}, nvp::FileSystemMonitor::FSM_MODIFY,
@@ -182,8 +182,8 @@ private:
 
   // When callbackFile1 goes out of scope, file1.txt stops being monitored
   callbackFile1.reset()
-  \endcode
-*/
+  ```
+@DOC_END */
 class FSMCallbacks : public FSMRunner
 {
 public:
@@ -264,8 +264,8 @@ private:
   std::mutex m_monitorMutex;
 };
 
-/**
-  \class nvp::ModifiedFilesMonitor
+/** @DOC_START
+  # class nvp::ModifiedFilesMonitor
 
   Monitors files and/or directories for changes.
 
@@ -276,14 +276,14 @@ private:
   cancel() is called.
 
   Example:
-  \code
+  ```cpp
   std::vector<std::string> dirs = {"shaders_bin"};
   nvp::FileSystemMonitor::Callback callback = [](nvp::FileSystemMonitor::EventData ev){
     g_reloadShaders = true;
   };
   auto fileMonitor = std::make_unique<nvp::ModifiedFilesMonitor>(dirs, callback);
-  \endcode
-*/
+  ```
+@DOC_END */
 class ModifiedFilesMonitor : public FSMRunner
 {
 public:

@@ -35,8 +35,12 @@
 #define NVVK_SPARSE_IMAGE_INVALID_INDEX (~0u)
 namespace nvvk {
 
-// Virtual texture page as a part of the partially resident texture
-// Contains memory bindings, offsets and status information
+/** @DOC_START
+# struct nvvk::SparseImagePage
+>  Virtual texture page as a part of the partially resident texture. Contains memory bindings, offsets and status information.
+
+The virtual texture page is a part of the sparse texture, and contains information about its memory binding, location in the texture, and status information.
+@DOC_END  */
 struct SparseImagePage
 {
   // Allocation flags to keep track of the next action
@@ -91,7 +95,13 @@ struct SparseImagePage
   inline bool hasBoundMemory() const { return imageMemoryBind.memory != VkDeviceMemory(); }
 };
 
-// Virtual texture object containing all pages
+
+/** @DOC_START
+# struct nvvk::SparseImage
+>  Sparse image object, containing the virtual texture pages and memory bindings.
+
+The sparse image object contains the virtual texture pages and memory bindings, as well as the memory requirements for the mip tail and the image granularity.
+@DOC_END */
 struct SparseImage
 {
   // Number of VkImages referencing the sparse memory bindings

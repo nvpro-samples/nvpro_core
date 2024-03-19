@@ -33,8 +33,8 @@ class ShaderFileManager
 {
 
   //////////////////////////////////////////////////////////////////////////
-  /**
-    \class nvh::ShaderFileManager
+  /** @DOC_START
+    # class nvh::ShaderFileManager
 
     The nvh::ShaderFileManager class is meant to be derived from to create the actual api-specific
     shader/program managers.
@@ -52,7 +52,7 @@ class ShaderFileManager
     for #defines) after the #version statement of GLSL files,
     regardless of m_handleIncludePasting's value.
 
-  */
+@DOC_END  */
 
 public:
   enum FileType

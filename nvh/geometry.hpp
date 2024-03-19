@@ -33,8 +33,8 @@
 namespace nvh {
 
 //////////////////////////////////////////////////////////////////////////
-/**
-    \namespace nvh::geometry
+/** @DOC_START
+    # namespace nvh::geometry
     The geometry namespace provides a few procedural mesh primitives
     that are subdivided.
     
@@ -55,14 +55,14 @@ namespace nvh {
 
     Example:
 
-    \code{.cpp}
+    ```cpp
     // single primitive
     nvh::geometry::Box<nvh::geometry::Vertex> box(4,4,4);
 
     // construct from primitives
 
-    \endcode
-  */
+    ```
+@DOC_END  */
 
 
 namespace geometry {

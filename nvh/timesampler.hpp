@@ -24,10 +24,10 @@
 #include <cassert>
 #include "nvprint.hpp"
 
-//-----------------------------------------------------------------------------
-/// \struct TimeSampler
-/// TimeSampler does time sampling work
-//-----------------------------------------------------------------------------
+/* @DOC_START -----------------------------------------------------------------------------
+# struct TimeSampler
+TimeSampler does time sampling work
+@DOC_END ----------------------------------------------------------------------------- */
 struct TimeSampler
 {
   using Clock     = std::chrono::steady_clock;
@@ -100,20 +100,23 @@ struct TimeSampler
 };
 
 
-/** 
-\struct nvh::Stopwatch
-\brief Timer in milliseconds. 
+/** @DOC_START
+# struct nvh::Stopwatch
+> Timer in milliseconds. 
 
 Starts the timer at creation and the elapsed time is retrieved by calling `elapsed()`. 
 The timer can be reset if it needs to start timing later in the code execution.
 
 Usage:
 ````cpp
-nvh::Stopwatch sw;
-...
-LOGI("Elapsed: %f ms\n", sw.elapsed()); // --> Elapsed: 128.157 ms
+{
+  nvh::Stopwatch sw;
+  ... work ...
+  LOGI("Elapsed: %f ms\n", sw.elapsed()); // --> Elapsed: 128.157 ms
+}
 ````
-*/
+@DOC_END */
+
 namespace nvh {
 struct Stopwatch
 {

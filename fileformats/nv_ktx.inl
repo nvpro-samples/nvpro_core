@@ -2780,6 +2780,10 @@ inline ErrorWithText KTXImage::writeKTX2Stream(std::ostream& output, const Write
         return "Basis Universal compressor failed when performing the UASTC Rate-Distortion Optimization post-process.";
       case basisu::basis_compressor::cECFailedCreateKTX2File:
         return "Basis Universal compressor to create a KTX2 file.";
+      case basisu::basis_compressor::cECFailedInitializing:
+        return "Basis Universal failed initializing.";
+      default:
+        return "Basis Universal error.";
     }
 
     // Write it out to the stream!

@@ -18,7 +18,11 @@
  */
 #pragma once
 
-/************************************************************************
+/** @DOC_START
+# class nvvkhl::ElementProfiler
+>  This class is an element of the application that is responsible for the profiling of the application. It is using the `nvvk::ProfilerVK` to profile the time parts of the computation done on the GPU.
+
+To use this class, you need to add it to the `nvvkhl::Application` using the `addElement` method.
 
 The profiler element, is there to help profiling the time parts of the 
 computation is done on the GPU. To use it, follow those simple steps
@@ -26,29 +30,29 @@ computation is done on the GPU. To use it, follow those simple steps
 In the main() program, create an instance of the profiler and add it to the
 nvvkhl::Application
 
-```
+```cpp
   std::shared_ptr<nvvkhl::ElementProfiler> profiler = std::make_shared<nvvkhl::ElementProfiler>();
   app->addElement(profiler);
 ```
 
 In the application where profiling needs to be done, add profiling sections
 
-```
+```cpp
 void mySample::onRender(VkCommandBuffer cmd)
 {
-    auto sec = m_profiler->timeRecurring(__FUNCTION__, cmd);
-    ...
-    // Subsection
-    {
-      auto sec = m_profiler->timeRecurring("Dispatch", cmd);
-      vkCmdDispatch(cmd, (size.width + (GROUP_SIZE - 1)) / GROUP_SIZE, (size.height + (GROUP_SIZE - 1)) / GROUP_SIZE, 1);
-    }
-...
+  auto sec = m_profiler->timeRecurring(__FUNCTION__, cmd);
+  ...
+  // Subsection
+  {
+    auto sec = m_profiler->timeRecurring("Dispatch", cmd);
+    vkCmdDispatch(cmd, (size.width + (GROUP_SIZE - 1)) / GROUP_SIZE, (size.height + (GROUP_SIZE - 1)) / GROUP_SIZE, 1);
+  }
+  ...
 ```
 
 This is it and the execution time on the GPU for each part will be showing in the Profiler window.
 
-************************************************************************/
+@DOC_END */
 
 #include <implot.h>
 #include <imgui_internal.h>
@@ -221,7 +225,7 @@ private:
       ImGui::Text("%3.3f", node.cpuTime);
     if(open && is_folder)
     {
-      for(int child_n = 0; child_n < node.child.size(); child_n++)
+      for(int child_n = 0; child_n < static_cast<int>(node.child.size()); child_n++)
         displayTableNode(node.child[child_n]);
       ImGui::TreePop();
     }

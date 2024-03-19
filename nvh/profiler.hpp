@@ -41,10 +41,10 @@
 namespace nvh {
 
 //////////////////////////////////////////////////////////////////////////
-/**
-    \class nvh::Profiler
+/** @DOC_START
+    # class nvh::Profiler
 
-    \brief The nvh::Profiler class is designed to measure timed sections.
+    > The nvh::Profiler class is designed to measure timed sections.
 
     Each section has a cpu and gpu time. Gpu times are typically provided
     by derived classes for each individual api (e.g. OpenGL, Vulkan etc.).
@@ -56,7 +56,7 @@ namespace nvh {
     derived classes reference it to share the same database.
 
     Profiler::Clock can be used standalone for time measuring.
-  */
+@DOC_END  */
 
 class Profiler
 {

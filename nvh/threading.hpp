@@ -28,10 +28,11 @@ namespace nvh {
 using DefaultDelayClock    = std::chrono::steady_clock;
 using DefaultDelayDuration = std::chrono::nanoseconds;
 
-/**
- * \class nvh::delayed_call class returned by delay_noreturn_for to track the thread created and possibly reset the
- * delay timer.
- */
+/** @DOC_START
+ # class nvh::delayed_call 
+ Class returned by delay_noreturn_for to track the thread created and possibly reset the
+ delay timer.
+@DOC_END */
 template <class Clock = DefaultDelayClock, class Duration = std::chrono::duration<double>>
 class delayed_call
 {
@@ -150,18 +151,18 @@ private:
   }
 };
 
-/**
- * Delay a call to a void function for sleep_duration.
- * 
- * \return A delayed_call object that holds the running thread.
- *
- * Example:
- * \code
- * // Create or update a delayed call to callback. Useful to consolidate multiple events into one call.
- * if(!m_delayedCall.delay_for(delay))
- *   m_delayedCall = nvh::delay_noreturn_for(delay, callback);
- * \endcode
- */
+/** @DOC_START
+ Delay a call to a void function for sleep_duration.
+ 
+ `return`: A delayed_call object that holds the running thread.
+
+Example:
+ ```cpp
+ // Create or update a delayed call to callback. Useful to consolidate multiple events into one call.
+ if(!m_delayedCall.delay_for(delay))
+   m_delayedCall = nvh::delay_noreturn_for(delay, callback);
+ ```
+@DOC_END */
 template <class Clock = DefaultDelayClock, class Duration = DefaultDelayDuration, class Function, class... Args>
 delayed_call<Clock, Duration> delay_noreturn_for(const Duration& sleep_duration, Function&& f, Args&&... args)
 {

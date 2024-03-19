@@ -2,7 +2,7 @@
 //  Courtesy from Sam Hocevar <sam@hocevar.net>
 //
 
-/// \nodoc (keyword to exclude this file from automatic README.md generation)
+/// @DOC_SKIP (keyword to exclude this file from automatic README.md generation)
 
 #pragma once
 

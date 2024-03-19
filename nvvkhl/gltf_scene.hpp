@@ -21,6 +21,14 @@
 #include <string>
 #include "nvh/gltfscene.hpp"
 
+/** @DOC_START
+# class nvvkhl::Scene
+
+>  This class is responsible for loading and managing a glTF scene. 
+
+It is using the `nvh::GltfScene` to load and manage the scene and `tinygltf` to parse the glTF file.
+
+@DOC_END */
 
 namespace nvvkhl {
 

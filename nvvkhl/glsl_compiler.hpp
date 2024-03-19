@@ -17,15 +17,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/*
+/** @DOC_START
+# class nvvkhl::GlslCompiler
 
-Compiling GLSL to Spir-V using shaderC
+>  This class is a wrapper around the shaderc compiler to help compiling GLSL to Spir-V using shaderC
 
-This class overloads the shaderc::Compiler to help
-compiling files which have includes.
-
-
-*/
+@DOC_END */
 
 
 #pragma once

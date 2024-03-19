@@ -27,6 +27,8 @@
 #ifndef MAT_EVAL_H
 #define MAT_EVAL_H 1
 
+#include "pbr_mat_struct.h"
+
 // This is the list of all textures
 #ifndef MAT_EVAL_TEXTURE_ARRAY
 #define MAT_EVAL_TEXTURE_ARRAY texturesMap

@@ -24,11 +24,14 @@
 #include "nvh/cameramanipulator.hpp"
 #include "nvvkhl/application.hpp"
 
-/*--------------------------------------------------------------------------------------------------
+/** @DOC_START
+# class nvvkhl::ElementCamera
 
-This is catching the interaction of the mouse and keyboard to modify the Singleton Camera of the scene.
+This class is an element of the application that is responsible for the camera manipulation. It is using the `nvh::CameraManipulator` to handle the camera movement and interaction.
 
---------------------------------------------------------------------------------------------------*/
+To use this class, you need to add it to the `nvvkhl::Application` using the `addElement` method.
+
+@DOC_END */
 
 
 namespace nvvkhl {

@@ -42,7 +42,7 @@ namespace nvvkhl {
 
 
 //--------------------------------------------------------------------------------------------------
-/**
+/** @DOC_START
 
 # class nvvkhl::AppBaseVk
 
@@ -58,11 +58,11 @@ for the render passes and the swapchain.
 
 An example will derive from this class:
 
-\code{.cpp}
+```cpp
 class VkSample : public AppBaseVk 
 {
 };
-\endcode
+```
 
 ## Setup
 
@@ -87,11 +87,11 @@ in a sample, but default implementation exist.
 
 Here is the dependency order:
 
-\code{.cpp}
+```cpp
   vkSample.createDepthBuffer();
   vkSample.createRenderPass();
   vkSample.createFrameBuffers();
-\endcode
+```cpp
 
 
 The nvvk::Swapchain will create n images, typically 3. With this information, AppBase is also creating 3 VkFence, 
@@ -140,7 +140,7 @@ will handle the default ImGui callback .
 
 **Note**: All the methods are virtual and can be overloaded if they are not doing the typical setup. 
 
-\code{.cpp}
+```cpp
   // Create example
   VulkanSample vkSample;
 
@@ -157,7 +157,7 @@ will handle the default ImGui callback .
   vkSample.setupGlfwCallbacks(window);
   
   ImGui_ImplGlfw_InitForVulkan(window, true);
-\endcode
+```
 
 ## Drawing loop
 
@@ -166,7 +166,7 @@ AppBase has a convenient function to tell if the window is minimize, therefore n
 work and contain a sleep(), so the CPU is not going crazy. 
 
 
-\code{.cpp}
+```cpp
 // Window system loop
 while(!glfwWindowShouldClose(window))
 {
@@ -176,7 +176,7 @@ while(!glfwWindowShouldClose(window))
 
   vkSample.display();  // infinitely drawing
 }
-\endcode
+```
 
 ## Display
 
@@ -190,7 +190,7 @@ A typical display() function will need the following:
 * End rendering
 * Submitting frame to display
 
-\code{.cpp}
+```cpp
 void VkSample::display()
 {
   // Acquire 
@@ -231,17 +231,17 @@ void VkSample::display()
   vkEndCommandBuffer(cmdBuf);
   submitFrame();
 }
-\endcode
+```
 
 ## Closing
 
 Finally, all resources can be destroyed by calling `destroy()` at the end of main().
 
-\code{.cpp}
+```cpp
   vkSample.destroy();
-\endcode
+```
 
-*/
+@DOC_END */
 struct AppBaseVkCreateInfo
 {
   VkInstance            instance{};

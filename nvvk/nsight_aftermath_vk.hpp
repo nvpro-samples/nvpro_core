@@ -19,7 +19,7 @@
 #pragma once
 
 namespace nvvk {
-
+//// @DOC_SKIP
 class GpuCrashTracker
 {
 public:

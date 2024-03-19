@@ -27,28 +27,38 @@
 
 namespace nvvkhl {
 
-//--------------------------------------------------------------------------------------------------
-// This is for easily adding debug printf to a sample using nvvkhl::application.
-//
-//  Create the element such that it will be available to the target application
-//    - Example:
-//        std::shared_ptr<nvvkhl::ElementDbgPrintf> g_dbgPrintf = std::make_shared<nvvkhl::ElementDbgPrintf>();
-//  Add to main
-//    - Before creating the nvvkhl::Application, set:
-//        spec.vkSetup.instanceCreateInfoExt = g_dbgPrintf->getFeatures();
-//    - Add the Element to the Application
-//        app->addElement(g_dbgPrintf);
-//  In the target application, push the mouse coordinated
-//    - m_pushConst.mouseCoord = g_dbgPrintf->getMouseCoord();
-//
-//  In the Shader, do:
-//    - Add the extension
-//        #extension GL_EXT_debug_printf : enable
-//    - Where to get the information
-//        ivec2 fragCoord = ivec2(floor(gl_FragCoord.xy));
-//        if(fragCoord == ivec2(pushC.mouseCoord))
-//          debugPrintfEXT("Value: %f\n", myVal);
-//
+/** @DOC_START
+# class nvvkhl::ElementDbgPrintf
+
+>  This class is an element of the application that is responsible for the debug printf in the shader. It is using the `VK_EXT_debug_printf` extension to print information from the shader.
+
+To use this class, you need to add it to the `nvvkhl::Application` using the `addElement` method.
+
+  Create the element such that it will be available to the target application
+  - Example:
+    ```cpp
+    std::shared_ptr<nvvkhl::ElementDbgPrintf> g_dbgPrintf = std::make_shared<nvvkhl::ElementDbgPrintf>();
+    ```
+  
+  Add to main
+  - Before creating the nvvkhl::Application, set:
+    ` spec.vkSetup.instanceCreateInfoExt = g_dbgPrintf->getFeatures(); `
+  - Add the Element to the Application
+    ` app->addElement(g_dbgPrintf); `
+  - In the target application, push the mouse coordinated
+    ` m_pushConst.mouseCoord = g_dbgPrintf->getMouseCoord(); `
+
+  In the Shader, do:
+  - Add the extension
+    ` #extension GL_EXT_debug_printf : enable `
+  - Where to get the information
+    ```cpp
+    ivec2 fragCoord = ivec2(floor(gl_FragCoord.xy));
+    if(fragCoord == ivec2(pushC.mouseCoord))
+      debugPrintfEXT("Value: %f\n", myVal);
+    ```
+@DOC_END */
+
 class ElementDbgPrintf : public nvvkhl::IAppElement
 {
 public:

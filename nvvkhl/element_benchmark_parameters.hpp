@@ -36,7 +36,9 @@
 
 namespace nvvkhl {
 
-/* --------------------------------------------------------------------------------------------------
+/** @DOC_START
+# class nvvkhl::ElementBenchmarkParameters
+
 This element allows you to control an application with command line parameters. There are default 
 parameters, but others can be added using the parameterLists().add(..) function.
 
@@ -60,7 +62,7 @@ There are default parameters that can be used:
 
 Example of Setup:
 
-```
+```cpp
 std::shared_ptr<nvvkhl::ElementBenchmarkParameters> g_benchmark;
 std::shared_ptr<nvvkhl::ElementProfiler>  g_profiler;
 
@@ -75,19 +77,20 @@ main() {
 }
 ```
 
+
 Applications can also get their parameters modified: 
 
-```
+```cpp
 void MySample::MySample() { 
     g_benchmark->parameterLists().add("speed|The speed", &m_speed);
     g_benchmark->parameterLists().add("color", &m_color, nullptr, 3);
     g_benchmark->parameterLists().add("complex", &m_complex, [&](int p){ doSomething(); });
-```
+```cpp
 
 
 Example of a benchmark.txt could look like
 
-```
+\code{.bat}
 #how many frames to average
 -benchmarkframes 12
 -winpos 10 10
@@ -103,7 +106,7 @@ benchmark "Image only"
 -screenshot "temporal_mdi.jpg"
 ```
 
--------------------------------------------------------------------------------------------------- */
+@DOC_END */
 
 
 class ElementBenchmarkParameters : public nvvkhl::IAppElement
@@ -242,7 +245,9 @@ private:
     m_parameterList.add("screenshot|makes a screenshot into this file", &m_config.screenshotFilename, [&](uint32_t) {
       // We don't want to capture the command line, only when it is part of the benchmark
       if(!m_config.screenshotFilename.empty() && !m_benchmark.content.empty())
-        NVPSystem::windowScreenshot(m_app->getWindowHandle(), m_config.screenshotFilename.c_str());
+      {
+        m_app->screenShot(m_config.screenshotFilename.c_str());
+      }
     });
 
     m_parameterList.add("benchmarkframes|Set number of benchmarkframes", &m_benchmark.frameLength);
@@ -375,7 +380,9 @@ private:
     if(closingApp)
     {
       if(!m_config.screenshotFilename.empty())
-        NVPSystem::windowScreenshot(m_app->getWindowHandle(), m_config.screenshotFilename.c_str());
+      {
+        m_app->screenShot(m_config.screenshotFilename.c_str());
+      }
 
       if(m_profiler)
       {

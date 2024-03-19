@@ -30,8 +30,8 @@
 namespace nvvk {
 
 //////////////////////////////////////////////////////////////////////////
-/**
-  \class nvvk::PushComputeDispatcher
+/** @DOC_START
+  # class nvvk::PushComputeDispatcher
 
   nvvk::PushComputeDispatcher is a convenience structure for easily creating
   compute-only pipelines by defining the bindings and providing SPV code.
@@ -41,7 +41,7 @@ namespace nvvk {
 
   Example:
 
-  \code{.cpp}
+  ```cpp
   
   enum BindingLocation
   {
@@ -70,8 +70,8 @@ namespace nvvk {
   myCompute.updateBufferBinding(BindingLocation::eMyBindingLocation, mySecondBuffer)
   myCompute.dispatch(cmd, targetThreadCount, &pushConstant);
   ...
-  \endcode
-*/
+  ```
+@DOC_END */
 
 
 /// Barrier types usable before and after the shader dispatch
@@ -100,8 +100,14 @@ struct PushComputeDispatcher
 
   TPushConstants pushConstants{};
 
-  std::vector<VkWriteDescriptorSet>         writes;
-  std::array<VkShaderModule, pipelineCount> shaderModules;
+  struct ShaderModule
+  {
+    VkShaderModule module{VK_NULL_HANDLE};
+    bool           isLocal{false};
+  };
+
+  std::vector<VkWriteDescriptorSet>       writes;
+  std::array<ShaderModule, pipelineCount> shaderModules;
 
   bool addBufferBinding(TBindingEnum index)
   {
@@ -198,13 +204,22 @@ struct PushComputeDispatcher
     moduleCreateInfo.codeSize = codeSize;
     moduleCreateInfo.pCode    = reinterpret_cast<uint32_t*>(shaderCode);
 
-    VkResult r = vkCreateShaderModule(device, &moduleCreateInfo, nullptr, &(shaderModules[pipelineIndex]));
-    if(r != VK_SUCCESS || shaderModules[pipelineIndex] == VK_NULL_HANDLE)
+    VkResult r = vkCreateShaderModule(device, &moduleCreateInfo, nullptr, &(shaderModules[pipelineIndex].module));
+    if(r != VK_SUCCESS || shaderModules[pipelineIndex].module == VK_NULL_HANDLE)
     {
       return false;
     }
+    shaderModules[pipelineIndex].isLocal = true;
     return true;
   }
+
+  bool setCode(VkShaderModule m, uint32_t pipelineIndex = 0u)
+  {
+    shaderModules[pipelineIndex].module  = m;
+    shaderModules[pipelineIndex].isLocal = false;
+    return m != VK_NULL_HANDLE;
+  }
+
   bool finalizePipeline(VkDevice device)
   {
 
@@ -231,7 +246,7 @@ struct PushComputeDispatcher
 
     for(uint32_t i = 0; i < pipelineCount; i++)
     {
-      stageCreateInfo.module = shaderModules[i];
+      stageCreateInfo.module = shaderModules[i].module;
 
       VkComputePipelineCreateInfo createInfo{VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO};
       createInfo.stage  = stageCreateInfo;
@@ -241,7 +256,10 @@ struct PushComputeDispatcher
       {
         return false;
       }
-      vkDestroyShaderModule(device, shaderModules[i], nullptr);
+      if(shaderModules[i].isLocal)
+      {
+        vkDestroyShaderModule(device, shaderModules[i].module, nullptr);
+      }
     }
     return true;
   }
@@ -262,8 +280,11 @@ struct PushComputeDispatcher
     {
       vkCmdPushConstants(cmd, layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(TPushConstants), constants);
     }
-    vkCmdPushDescriptorSetKHR(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, layout, 0, static_cast<uint32_t>(writes.size()),
-                              writes.data());
+    if(writes.size() > 0)
+    {
+      vkCmdPushDescriptorSetKHR(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, layout, 0, static_cast<uint32_t>(writes.size()),
+                                writes.data());
+    }
   }
 
   void dispatchThreads(VkCommandBuffer       cmd,

@@ -30,15 +30,15 @@
 namespace nvh {
 
 //////////////////////////////////////////////////////////////////////////
-/**
-    \class nvh::BitArray
+/** @DOC_START
+    # class nvh::BitArray
 
-    \brief The nvh::BitArray class implements a tightly packed boolean array using single bits stored in uint64_t values.
+    > The nvh::BitArray class implements a tightly packed boolean array using single bits stored in uint64_t values.
     Whenever you want large boolean arrays this representation is preferred for cache-efficiency.
     The Visitor and OffsetVisitor traversal mechanisms make use of cpu intrinsics to speed up iteration over bits.
   
     Example:
-    \code{.cpp}
+    ```cpp
     BitArray modifiedObjects(1024);
   
     // set some bits
@@ -56,10 +56,10 @@ namespace nvh {
   
     MyVisitor visitor;
     modifiedObjects.traverseBits(visitor);
-    \endcode
-  */
+    ```
+@DOC_END  */
 
-/** \brief Visitor which forwards the visitor operator with a fixed offset **/
+/** >  Visitor which forwards the visitor operator with a fixed offset **/
 template <typename Visitor>
 struct OffsetVisitor
 {
@@ -154,7 +154,7 @@ inline void bitTraverse(BitType bits, Visitor visitor)
 }
 #endif
 
-/** \brief Call visitor(index) for each bit set **/
+/** >  Call visitor(index) for each bit set **/
 template <typename BitType, typename Visitor>
 inline void bitTraverse(BitType* elements, size_t numberOfElements, Visitor& visitor)
 {
@@ -193,7 +193,7 @@ public:
   void clear();
   void fill();
 
-  /** \brief Change the number of bits in this array. The state of remaining bits is being kept.
+  /** >  Change the number of bits in this array. The state of remaining bits is being kept.
                New bits will be initialized to false.
         \param size New number of bits in this array
         \param defaultValue The new default value for the new bits
@@ -222,20 +222,20 @@ private:
   void   determineBitPosition(size_t index, size_t& element, size_t& bit) const;
   size_t determineNumberOfElements() const;
 
-  /** \brief Clear the last unused bits in the last element.
+  /** >  Clear the last unused bits in the last element.
         \remarks Clear bits whose number is >= m_size. those are traversed unconditional and would produce invalid results.
                  restrict shifting range to 0 to StorageBitsPerElement - 1 to handle the case usedBitsInLastElement==0
                  which would result in shifting StorageBitsPerElement which is undefined by the standard and not the desired operation.
     **/
   void clearUnusedBits();
 
-  /** \brief Set the last unused bits in the last element.
+  /** >  Set the last unused bits in the last element.
         \remarks Set bits whose number is >= m_size. This is required when expanding the vector with the bits set to true.
     **/
   void setUnusedBits();
 };
 
-/** \brief Determine the element / bit for the given index **/
+/** >  Determine the element / bit for the given index **/
 inline void BitArray::determineBitPosition(size_t index, size_t& element, size_t& bit) const
 {
   element = index / StorageBitsPerElement;
@@ -293,7 +293,7 @@ inline bool BitArray::getBit(size_t index) const
   return !!(m_bits[element] & (BitStorageType(1) << bit));
 }
 
-/** \brief call Visitor( size_t index ) on all bits which are set. **/
+/** >  call Visitor( size_t index ) on all bits which are set. **/
 template <typename Visitor>
 inline void BitArray::traverseBits(Visitor visitor)
 {

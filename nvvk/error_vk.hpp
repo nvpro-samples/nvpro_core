@@ -19,12 +19,12 @@
 
 
 //////////////////////////////////////////////////////////////////////////
-/**
-\fn nvvk::checkResult
-\brief Returns true on critical error result, logs errors.
+/** @DOC_START
+# Function nvvk::checkResult
+>  Returns true on critical error result, logs errors.
 
 Use `NVVK_CHECK(result)` to automatically log filename/linenumber.
-*/
+@DOC_END */
 
 #pragma once
 
@@ -36,11 +36,11 @@ namespace nvvk {
 bool checkResult(VkResult result, const char* message = nullptr);
 bool checkResult(VkResult result, const char* file, int32_t line);
 
-/**
-\fn nvvk::setCheckResultHook
-\brief Allow replacing nvvk::checkResult() calls. E.g. to catch
+/** @DOC_START
+# Function nvvk::setCheckResultHook
+>  Allow replacing nvvk::checkResult() calls. E.g. to catch
 `VK_ERROR_DEVICE_LOST` and wait for aftermath to write the crash dump.
-*/
+@DOC_END */
 using CheckResultCallback = std::function<bool(VkResult, const char*, int32_t, const char*)>;
 void setCheckResultHook(const CheckResultCallback& callback);
 

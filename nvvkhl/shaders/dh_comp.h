@@ -24,9 +24,16 @@
 #define WORKGROUP_SIZE 16  // Grid size used by compute shaders
 
 #ifdef __cplusplus
-inline VkExtent2D getGroupCounts(const VkExtent2D& size)
+
+/** @DOC_START
+# Function getGroupCounts
+>  Returns the number of workgroups needed to cover the size
+
+This function is used to calculate the number of workgroups needed to cover a given size. It is used in the compute shader to calculate the number of workgroups needed to cover the size of the image.
+@DOC_END  */
+inline VkExtent2D getGroupCounts(const VkExtent2D& size, int workgroupSize = WORKGROUP_SIZE)
 {
-  return VkExtent2D{(size.width + (WORKGROUP_SIZE - 1)) / WORKGROUP_SIZE, (size.height + (WORKGROUP_SIZE - 1)) / WORKGROUP_SIZE};
+  return VkExtent2D{(size.width + (workgroupSize - 1)) / workgroupSize, (size.height + (workgroupSize - 1)) / workgroupSize};
 }
 #endif  // __cplusplus
 

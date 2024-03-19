@@ -31,8 +31,8 @@
 namespace nvvk {
 
 //////////////////////////////////////////////////////////////////////////
-/**
-  \class nvvk::AppWindowProfilerVK
+/** @DOC_START
+  # class nvvk::AppWindowProfilerVK
 
   nvvk::AppWindowProfilerVK derives from nvh::AppWindowProfiler
   and overrides the context and swapbuffer functions.
@@ -45,7 +45,7 @@ namespace nvvk {
 
   The class comes with a nvvk::ProfilerVK instance that references the 
   AppWindowProfiler::m_profiler's data.
-*/
+@DOC_END */
 
 #define NV_PROFILE_VK_SECTION(name, cmd) const nvvk::ProfilerVK::Section _tempTimer(m_profilerVK, name, cmd)
 #define NV_PROFILE_VK_SPLIT() m_profilerVK.accumulationSplit()

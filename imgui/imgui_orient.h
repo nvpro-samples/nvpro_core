@@ -27,27 +27,35 @@
 #define M_PI 3.1415926535
 #endif
 
-// ----------------------------
-/// \struct ImOrient
-/// \brief This is a really nice implementation of an orientation widget; all due respect to the original author ;)
-///
-/// Notes from: www.github.com/cmaughan
-///
-/// Ported from AntTweakBar
-///
-/// Dependencies kept to a minimum.  I basically vectorized the original code, added a few math types, cleaned things up and
-/// made it clearer what the maths was doing.
-///
-/// I tried to make it more imgui-like, and removed all the excess stuff not needed here.  This still needs work.
-///
-/// I also added triangle culling because ImGui doesn't support winding clip
-///
-/// The widget works by transforming the 3D object to screen space and clipping the triangles.  This makes it work with any
-/// imgui back end, without modifications to the renderers.
-///
-/// \todo More cleanup.
-/// \todo Figure out what ShowDir is for.
-/// \todo Test direction vectors more
+/* @DOC_START
+
+# struct ImOrient
+> brief This is a really nice implementation of an orientation widget; all due respect to the original author ;)
+
+This is a port of the AntTweakBar orientation widget, which is a 3D orientation widget that allows the user to specify a
+3D orientation using a quaternion, axis-angle, or direction vector.  It is a very useful widget for 3D applications.
+
+--- @DOC_END ------------------------------------------------------- */
+
+/**
+Notes from: www.github.com/cmaughan
+
+Ported from AntTweakBar
+
+Dependencies kept to a minimum.  I basically vectorized the original code, added a few math types, cleaned things up and
+made it clearer what the maths was doing.
+
+ I tried to make it more imgui-like, and removed all the excess stuff not needed here.  This still needs work.
+
+ I also added triangle culling because ImGui doesn't support winding clip
+
+ The widget works by transforming the 3D object to screen space and clipping the triangles.  This makes it work with any
+ imgui back end, without modifications to the renderers.
+
+ \todo More cleanup.
+ \todo Figure out what ShowDir is for.
+ \todo Test direction vectors more
+*/
 
 // --------------------------
 // Firstly, a little math, missing from ImGui but needed for this widget

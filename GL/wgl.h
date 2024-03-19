@@ -34,7 +34,7 @@ extern "C" {
 **   https://github.com/KhronosGroup/OpenGL-Registry
 */
 
-/// \nodoc (keyword to exclude this file from automatic README.md generation)
+/// @DOC_SKIP (keyword to exclude this file from automatic README.md generation)
 
 #if defined(_WIN32) && !defined(APIENTRY) && !defined(__CYGWIN__) && !defined(__SCITECH_SNAP__)
 #define WIN32_LEAN_AND_MEAN 1

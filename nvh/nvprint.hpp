@@ -27,10 +27,10 @@
 #include <stdint.h>
 #include <string>
 
-/**
+/** @DOC_START
   Multiple functions and macros that should be used for logging purposes,
   rather than printf. These can print to multiple places at once
-  \fn nvprintf etc
+  # Function nvprintf etc
   
   Configuration:
   - nvprintSetLevel : sets default loglevel
@@ -73,7 +73,7 @@
   std::print-style functions are safer: they produce compile-time errors, and
   their format strings must be compile-time constants. Dynamic formatting
   should be performed outside of printing, like this:
-  ```
+  ```cpp
   ImGui::InputText("Enter a format string: ", userFormat, sizeof(userFormat));
   try
   {
@@ -90,7 +90,7 @@
   Printing to the Windows debug console is the only operation that assumes a
   text encoding, which is ANSI. In all other cases, strings are copied into
   the output.
-*/
+@DOC_END */
 
 
 // trick for pragma message so we can write:

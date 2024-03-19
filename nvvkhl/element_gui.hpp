@@ -36,9 +36,17 @@
 //
 
 namespace nvvkhl {
-//--------------------------------------------------------------------------------------------------
-// Simple default Quit menu
-//
+
+
+/** @DOC_START
+# class nvvkhl::ElementDefaultMenu
+
+>  This class is an element of the application that is responsible for the default menu of the application. It is using the `ImGui` library to create a menu with File/Exit and View/V-Sync.
+
+To use this class, you need to add it to the `nvvkhl::Application` using the `addElement` method.
+
+@DOC_END */
+
 class ElementDefaultMenu : public nvvkhl::IAppElement
 {
 public:
@@ -110,10 +118,15 @@ private:
   nvvkhl::Application* m_app{nullptr};
 };
 
+/** @DOC_START
+# class nvvkhl::ElementDefaultWindowTitle
 
-//--------------------------------------------------------------------------------------------------
-// Display simple information in the window title
-//
+>  This class is an element of the application that is responsible for the default window title of the application. It is using the `GLFW` library to set the window title with the application name, the size of the window and the frame rate.
+
+To use this class, you need to add it to the `nvvkhl::Application` using the `addElement` method.
+
+@DOC_END */
+
 class ElementDefaultWindowTitle : public nvvkhl::IAppElement
 {
 public:

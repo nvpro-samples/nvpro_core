@@ -78,6 +78,10 @@ struct SkyPushConstant
   mat4 mvp;
 };
 
+/** @DOC_START
+# Function initSkyShaderParameters
+>  Initializes the sky shader parameters with default values
+@DOC_END */
 inline ProceduralSkyShaderParameters initSkyShaderParameters()
 {
   ProceduralSkyShaderParameters p;
@@ -97,6 +101,10 @@ inline ProceduralSkyShaderParameters initSkyShaderParameters()
 }
 
 #ifndef __cplusplus
+/** @DOC_START
+# Function proceduralSky
+>  Return the color of the procedural sky shader
+@DOC_END  */
 inline vec3 proceduralSky(ProceduralSkyShaderParameters params, vec3 direction, float angularSizeOfPixel)
 {
   float elevation   = asin(clamp(dot(direction, params.directionUp), -1.0F, 1.0F));

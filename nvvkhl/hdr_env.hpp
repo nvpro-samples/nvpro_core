@@ -35,9 +35,12 @@ class Context;
 
 namespace nvvkhl {
 
-//--------------------------------------------------------------------------------------------------
-// Load an environment image (HDR) and create an acceleration structure for
-// important light sampling.
+/** @DOC_START
+# class nvvkhl::HdrEnv
+
+>  Load an environment image (HDR) and create an acceleration structure for important light sampling.
+  
+@DOC_END */
 class HdrEnv
 {
 public:

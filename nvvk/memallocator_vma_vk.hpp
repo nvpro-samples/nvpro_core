@@ -26,17 +26,17 @@
 #include "resourceallocator_vk.hpp"
 
 namespace nvvk {
-/**
- \class nvvk::VMAMemoryAllocator
+/** @DOC_START
+ # class nvvk::VMAMemoryAllocator
  nvvk::VMAMemoryAllocator using the GPUOpen [Vulkan Memory Allocator](https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator) underneath.
  As VMA comes as a header-only library, when using it you'll have to:
   1) provide _add_package_VMA() in your CMakeLists.txt
   2) put these lines into one of your compilation units:
-  \code{.cpp}
+  ```cpp
        #define VMA_IMPLEMENTATION
        #include "vk_mem_alloc.h"
-  \endcode
-*/
+  ```
+@DOC_END */
 class VMAMemoryAllocator : public MemAllocator
 {
 public:
@@ -70,11 +70,11 @@ private:
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/**
- \class nvvk::ResourceAllocatorVMA
+/** @DOC_START
+ # class nvvk::ResourceAllocatorVMA
  nvvk::ResourceAllocatorVMA is a convencience class creating, initializing and owning a nvvk::VmaAllocator
  and associated nvvk::MemAllocator object. 
-*/
+@DOC_END */
 class ResourceAllocatorVma : public ResourceAllocator
 {
 public:

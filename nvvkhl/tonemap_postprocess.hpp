@@ -23,9 +23,12 @@
 #include "nvvk/descriptorsets_vk.hpp"
 
 
-/*
+/** @DOC_START
 
-This class is meant to be use for displaying the final image rendered in linear space (sRGB).
+# class nvvkhl::TonemapperPostProcess
+
+>  This class is meant to be use for displaying the final image rendered in linear space (sRGB).
+
 
 There are two ways to use it, one which is graphic, the other is compute. 
 
@@ -40,7 +43,7 @@ There are two ways to use it, one which is graphic, the other is compute.
 Note: It is important in any cases to place a barrier if there is a transition from 
       fragment to compute and compute to fragment to avoid missing results.
 
-*/
+@DOC_END */
 
 
 // Forward declarations

@@ -30,8 +30,8 @@
 
 namespace nvh {
 
-/**
-    \class nvh::AppWindowProfiler
+/** @DOC_START
+    # class nvh::AppWindowProfiler
     nvh::AppWindowProfiler provides an alternative utility wrapper class around NVPWindow.
     It is useful to derive single-window applications from and is used by some
     but not all nvpro-samples.
@@ -45,7 +45,7 @@ namespace nvh {
     - logfile based on devicename (depends on context)
     - optional context/swapchain interface
       the derived classes nvvk/appwindowprofiler_vk and nvgl/appwindowprofiler_gl make use of this
-  */
+@DOC_END  */
 
 #define NV_PROFILE_BASE_SECTION(name) nvh::Profiler::Section _tempTimer(m_profiler, name)
 #define NV_PROFILE_BASE_SPLIT() m_profiler.accumulationSplit()

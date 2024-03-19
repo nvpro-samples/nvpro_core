@@ -295,7 +295,8 @@ void nvvkhl::NvmlMonitor::DeviceInfo::refresh(void* dev)
   CHECK_NVML_SUPPORT(nvmlDeviceGetBoardId(device, &boardId.get()), boardId);
 
   partNumber.get().resize(NVML_DEVICE_PART_NUMBER_BUFFER_SIZE);
-  CHECK_NVML_SUPPORT(nvmlDeviceGetBoardPartNumber(device, partNumber.get().data(), partNumber.get().size()), partNumber);
+  CHECK_NVML_SUPPORT(
+      nvmlDeviceGetBoardPartNumber(device, partNumber.get().data(), static_cast<uint32_t>(partNumber.get().size())), partNumber);
 
   nvmlBrandType_t brandType;
   CHECK_NVML_SUPPORT(nvmlDeviceGetBrand(device, &brandType), brand);
@@ -361,20 +362,20 @@ void nvvkhl::NvmlMonitor::DeviceInfo::refresh(void* dev)
 
   infoROMImageVersion.get().resize(NVML_DEVICE_INFOROM_VERSION_BUFFER_SIZE);
   CHECK_NVML_SUPPORT(nvmlDeviceGetInforomImageVersion(device, infoROMImageVersion.get().data(),
-                                                      infoROMImageVersion.get().size()),
+                                                      static_cast<uint32_t>(infoROMImageVersion.get().size())),
                      infoROMImageVersion);
 
   infoROMOEMVersion.get().resize(NVML_DEVICE_INFOROM_VERSION_BUFFER_SIZE);
   infoROMECCVersion.get().resize(NVML_DEVICE_INFOROM_VERSION_BUFFER_SIZE);
   infoROMPowerVersion.get().resize(NVML_DEVICE_INFOROM_VERSION_BUFFER_SIZE);
   CHECK_NVML_SUPPORT(nvmlDeviceGetInforomVersion(device, NVML_INFOROM_OEM, infoROMOEMVersion.get().data(),
-                                                 infoROMOEMVersion.get().size()),
+                                                 static_cast<uint32_t>(infoROMOEMVersion.get().size())),
                      infoROMOEMVersion);
   CHECK_NVML_SUPPORT(nvmlDeviceGetInforomVersion(device, NVML_INFOROM_ECC, infoROMECCVersion.get().data(),
-                                                 infoROMECCVersion.get().size()),
+                                                 static_cast<uint32_t>(infoROMECCVersion.get().size())),
                      infoROMECCVersion);
   CHECK_NVML_SUPPORT(nvmlDeviceGetInforomVersion(device, NVML_INFOROM_POWER, infoROMPowerVersion.get().data(),
-                                                 infoROMPowerVersion.get().size()),
+                                                 static_cast<uint32_t>(infoROMPowerVersion.get().size())),
                      infoROMPowerVersion);
 
   CHECK_NVML_SUPPORT(nvmlDeviceGetMaxPcieLinkGeneration(device, &maxLinkGen.get()), maxLinkGen);
@@ -382,14 +383,15 @@ void nvvkhl::NvmlMonitor::DeviceInfo::refresh(void* dev)
   CHECK_NVML_SUPPORT(nvmlDeviceGetMinorNumber(device, &minorNumber.get()), minorNumber);
   CHECK_NVML_SUPPORT(nvmlDeviceGetMultiGpuBoard(device, &multiGpuBool.get()), multiGpuBool);
   deviceName.get().resize(NVML_DEVICE_NAME_V2_BUFFER_SIZE);
-  CHECK_NVML_SUPPORT(nvmlDeviceGetName(device, deviceName.get().data(), deviceName.get().size()), deviceName);
+  CHECK_NVML_SUPPORT(nvmlDeviceGetName(device, deviceName.get().data(), static_cast<uint32_t>(deviceName.get().size())), deviceName);
 
   CHECK_NVML_SUPPORT(nvmlDeviceGetSupportedClocksThrottleReasons(device, reinterpret_cast<long long unsigned int*>(
                                                                              &supportedClocksThrottleReasons.get())),
                      supportedClocksThrottleReasons);
 
   vbiosVersion.get().resize(NVML_DEVICE_VBIOS_VERSION_BUFFER_SIZE);
-  CHECK_NVML_SUPPORT(nvmlDeviceGetVbiosVersion(device, vbiosVersion.get().data(), vbiosVersion.get().size()), vbiosVersion);
+  CHECK_NVML_SUPPORT(
+      nvmlDeviceGetVbiosVersion(device, vbiosVersion.get().data(), static_cast<uint32_t>(vbiosVersion.get().size())), vbiosVersion);
 
   CHECK_NVML_SUPPORT(nvmlDeviceGetTemperatureThreshold(device, NVML_TEMPERATURE_THRESHOLD_SHUTDOWN,
                                                        &tempThresholdShutdown.get()),

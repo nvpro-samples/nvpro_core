@@ -20,15 +20,14 @@
 
 #pragma once
 
-#pragma warning(disable : 4201)
 #include <array>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <string>
 
 namespace nvh {
-/**
-  \class nvh::CameraManipulator
+/** @DOC_START
+  # class nvh::CameraManipulator
 
   nvh::CameraManipulator is a camera manipulator help class
   It allow to simply do
@@ -54,7 +53,7 @@ namespace nvh {
 
   Note: There is a singleton `CameraManip` which can be use across the entire application
 
-  \code{.cpp}
+  ```cpp
   // Retrieve/set camera information
   CameraManip.getLookat(eye, center, up);
   CameraManip.setLookat(eye, center, glm::vec3(m_upVector == 0, m_upVector == 1, m_upVector == 2));
@@ -72,9 +71,9 @@ namespace nvh {
   CameraManip.wheel(delta > 0 ? 1 : -1, m_inputs);
   // Retrieve the matrix to push to the shader
   m_ubo.view = CameraManip.getMatrix();	
-  \endcode
+  ````
 
-*/
+@DOC_END */
 
 class CameraManipulator
 {

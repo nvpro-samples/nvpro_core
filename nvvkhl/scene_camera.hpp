@@ -28,10 +28,12 @@
 
 namespace nvvkhl {
 
-//--------------------------------------------------------------------------------------------------
-// Setting up the camera in the GUI from the camera found in the scene
-// or, fit the camera to see the scene.
-//
+
+/** @DOC_START
+# Function nvvkhl::setCameraFromScene
+>  Set the camera from the scene, if no camera is found, it will fit the camera to the scene.
+@DOC_END */
+
 static void setCameraFromScene(const std::string& m_filename, const nvh::GltfScene& m_scene)
 {
   ImGuiH::SetCameraJsonFile(std::filesystem::path(m_filename).stem().string());

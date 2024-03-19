@@ -27,6 +27,14 @@
 
 #include "gltf_scene_vk.hpp"
 
+/** @DOC_START
+# class nvvkhl::SceneRtx
+
+>  This class is responsible for the ray tracing acceleration structure. 
+
+It is using the `nvvkhl::Scene` and `nvvkhl::SceneVk` information to create the acceleration structure.
+
+ @DOC_END */
 namespace nvvkhl {
 
 class SceneRtx

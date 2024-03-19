@@ -22,16 +22,29 @@
 
 namespace nvvkhl {
 
-//--------------------------------------------------------------------------------------------------
-// This is an element to the application that can redirect all logs to a ImGui window in the
-// application
-//
-// Usage:
-// static nvvkhl::SampleAppLog g_logger;
-// nvprintSetCallback([](int /*level*/, const char* fmt) { g_logger.addLog("%s", fmt); });
-//
-//  app->addElement(std::make_unique<nvvkhl::ElementLogger>(&g_logger, true));  // Add logger window
-//
+/** @DOC_START
+# class nvvkhl::ElementLogger
+
+>  This class is an element of the application that can redirect all logs to a ImGui window in the application
+
+To use this class, you need to add it to the `nvvkhl::Application` using the `addElement` method.
+  
+Create the element such that it will be available to the target application
+
+Example:
+  ```cpp
+  static nvvkhl::SampleAppLog g_logger;
+  nvprintSetCallback([](int level, const char* fmt)
+  {
+    g_logger.addLog("%s", fmt);
+  });
+  
+  app->addElement(std::make_unique<nvvkhl::ElementLogger>(&g_logger, true));  // Add logger window
+  ```
+  
+@DOC_END */
+
+// Helper structure to hold the log
 struct SampleAppLog
 {
 public:

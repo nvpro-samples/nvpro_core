@@ -30,8 +30,8 @@
 #include "sparse_image_vk.hpp"
 
 
-/**
- \class nvvk::ResourceAllocator
+/** @DOC_START
+ # class nvvk::ResourceAllocator
 
  The goal of nvvk::ResourceAllocator is to aid creation of typical Vulkan
  resources (VkBuffer, VkImage and VkAccelerationStructure).
@@ -72,7 +72,7 @@
  > They are geared towards ease of use in this sample framework, and 
  > not optimized nor meant for production code.
 
- \code{.cpp}
+ ```cpp
  nvvk::DeviceMemoryAllocator memAllocator;
  nvvk::ResourceAllocator     resAllocator;
 
@@ -101,7 +101,7 @@
  // trigger garbage collection somewhere per frame
  resAllocator.releaseStaging();
 
- \endcode
+ ```
 
  Separation of memory allocation and resource creation is very flexible, but it
  can be tedious to set up for simple usecases. nvvk offers three helper ResourceAllocator
@@ -119,7 +119,7 @@
  memory
  ExplicitDeviceMaskResourceAllocator overrides the devicemask of allocations such that
  objects can be created on a specific device in a device group.
- */
+ @DOC_END */
 
 namespace nvvk {
 
@@ -334,10 +334,10 @@ protected:
 
 class DeviceMemoryAllocator;
 
-/**
- \class nvvk::ResourceAllocatorDma
+/** @DOC_START
+ # class nvvk::ResourceAllocatorDma
  nvvk::ResourceAllocatorDMA is a convencience class owning a nvvk::DMAMemoryAllocator and nvvk::DeviceMemoryAllocator object
-*/
+@DOC_END */
 class ResourceAllocatorDma : public ResourceAllocator
 {
 public:
@@ -372,10 +372,10 @@ protected:
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/**
- \class nvvk::ResourceAllocatorDedicated
- \brief nvvk::ResourceAllocatorDedicated is a convencience class automatically creating and owning a DedicatedMemoryAllocator object
- */
+/** @DOC_START
+ # class nvvk::ResourceAllocatorDedicated
+ >  nvvk::ResourceAllocatorDedicated is a convencience class automatically creating and owning a DedicatedMemoryAllocator object
+ @DOC_END */
 class ResourceAllocatorDedicated : public ResourceAllocator
 {
 public:
@@ -397,12 +397,12 @@ protected:
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/**
+/** @DOC_START
  #class nvvk::ExportResourceAllocator
 
  ExportResourceAllocator specializes the object allocation process such that resulting memory allocations are
  exportable and buffers and images can be bound to external memory.
-*/
+@DOC_END */
 class ExportResourceAllocator : public ResourceAllocator
 {
 public:
@@ -422,11 +422,11 @@ protected:
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/**
- \class nvvk::ExportResourceAllocatorDedicated
+/** @DOC_START
+ # class nvvk::ExportResourceAllocatorDedicated
  nvvk::ExportResourceAllocatorDedicated is a resource allocator that is using DedicatedMemoryAllocator to allocate memory
  and at the same time it'll make all allocations exportable.
-*/
+@DOC_END */
 class ExportResourceAllocatorDedicated : public ExportResourceAllocator
 {
 public:
@@ -445,11 +445,11 @@ protected:
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/**
- \class nvvk::ExplicitDeviceMaskResourceAllocator
+/** @DOC_START
+ # class nvvk::ExplicitDeviceMaskResourceAllocator
  nvvk::ExplicitDeviceMaskResourceAllocator is a resource allocator that will inject a specific devicemask into each
  allocation, making the created allocations and objects available to only the devices in the mask.
-*/
+@DOC_END */
 class ExplicitDeviceMaskResourceAllocator : public ResourceAllocator
 {
 public:

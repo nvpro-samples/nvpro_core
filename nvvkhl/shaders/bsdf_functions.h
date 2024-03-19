@@ -22,6 +22,10 @@
 #include "bsdf_structs.h"    // Bsdf*,
 #include "pbr_mat_struct.h"  // PbrMaterial
 
+/** @DOC_START
+# Function absorptionCoefficient
+>  Compute the absorption coefficient of the material
+@DOC_END */
 vec3 absorptionCoefficient(in PbrMaterial mat)
 {
   float tmp1 = mat.attenuationDistance;
@@ -29,7 +33,10 @@ vec3 absorptionCoefficient(in PbrMaterial mat)
                        -vec3(log(mat.attenuationColor.x), log(mat.attenuationColor.y), log(mat.attenuationColor.z)) / tmp1.xxx;
 }
 
-
+/** @DOC_START
+# Function bsdfEvaluate
+>  Evaluate the BSDF for the given material
+@DOC_END */
 void bsdfEvaluate(inout BsdfEvaluateData data, in PbrMaterial mat)
 {
   // Initialization
@@ -70,6 +77,10 @@ void bsdfEvaluate(inout BsdfEvaluateData data, in PbrMaterial mat)
   data.pdf          = mix(specularPDF, diffusePDF, diffuseRatio);
 }
 
+/** @DOC_START
+# Function bsdfSample
+>  Sample the BSDF for the given material
+@DOC_END */
 void bsdfSample(inout BsdfSampleData data, in PbrMaterial mat)
 {
   // Initialization

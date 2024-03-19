@@ -19,22 +19,22 @@
 
 
 //--------------------------------------------------------------------------------------------------
-/** 
-  \class InputParser
-  \brief InputParser is a Simple command line parser
+/** @DOC_START
+  # class InputParser
+  > InputParser is a Simple command line parser
   
   Example of usage for: test.exe -f name.txt -size 200 100
   
   Parsing the command line: mandatory '-f' for the filename of the scene
 
-  \code{.cpp}
+  ```cpp
   nvh::InputParser parser(argc, argv);
   std::string filename = parser.getString("-f");
   if(filename.empty())  filename = "default.txt";
   if(parser.exist("-size") {
         auto values = parser.getInt2("-size");
-  \endcode
-*/
+  ```
+@DOC_END */
 
 #pragma once
 #include <string>

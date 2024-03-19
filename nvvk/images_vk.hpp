@@ -27,7 +27,7 @@
 
 namespace nvvk {
 //////////////////////////////////////////////////////////////////////////
-/**
+/** @DOC_START
     # functions in nvvk
 
     - makeImageMemoryBarrier : returns VkImageMemoryBarrier for an image based on provided layouts and access flags.
@@ -44,7 +44,7 @@ namespace nvvk {
     - makeImageCubeCreateInfo : aids cube descriptor set updating
     - makeImageViewCreateInfo : aids common image view creation, derives info from VkImageCreateInfo
     - makeImage2DViewCreateInfo : aids 2d image view creation
-  */
+@DOC_END */
 
 VkImageMemoryBarrier makeImageMemoryBarrier(VkImage            image,
                                             VkAccessFlags      srcAccess,

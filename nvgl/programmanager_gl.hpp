@@ -31,8 +31,8 @@
 
 namespace nvgl {
 //////////////////////////////////////////////////////////////////////////
-/**
-    \class nvgl::ProgramManager
+/** @DOC_START
+    # class nvgl::ProgramManager
 
     The nvgl::ProgramManager manages OpenGL programs generated from shader files (GLSL)
 
@@ -44,7 +44,7 @@ namespace nvgl {
 
     Example:
 
-    \code{.cpp}
+```cpp
     ProgramManager mgr;
 
     // derived from ShaderFileManager
@@ -56,8 +56,8 @@ namespace nvgl {
     id = mgr.createProgram({{GL_VERTEX_SHADER, "object.vert.glsl"},{GL_FRAGMENT_SHADER, "object.frag.glsl"}}):
 
     glUseProgram(mgr.get(id));
-    \endcode
-  */
+```
+@DOC_END  */
 
 
 class ProgramID

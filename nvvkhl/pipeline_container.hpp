@@ -21,7 +21,12 @@
 
 namespace nvvkhl {
 
-struct PipelineContainer  // Small multi-pipeline container
+/** @DOC_START
+# struct nvvkhl::PipelineContainer
+
+>  Small multi-pipeline container
+@DOC_END */
+struct PipelineContainer
 {
   std::vector<VkPipeline> plines;
   VkPipelineLayout        layout{VK_NULL_HANDLE};

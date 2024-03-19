@@ -14,14 +14,16 @@
 
 namespace ImGuiH {
 
-/**
+/*  @DOC_START -------------------------------------------------------
+ 
   # functions in ImGuiH
   
   - CameraWidget : CameraWidget is a Camera widget for the the Camera Manipulator
   - SetCameraJsonFile : set the name (without .json) of the setting file. It will load and replace all camera and settings
   - SetHomeCamera : set the home camera - replace the one on load
   - AddCamera : adding a camera to the list of cameras
-  */
+
+ --- @DOC_END ------------------------------------------------------- */
 
 bool CameraWidget(nvh::CameraManipulator& cameraM = nvh::CameraManipulator::Singleton());
 

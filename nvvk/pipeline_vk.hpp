@@ -28,13 +28,13 @@
 
 namespace nvvk {
 //--------------------------------------------------------------------------------------------------
-/** 
+/** @DOC_START
   # functions in nvvk
 
   - nvprintPipelineStats : prints stats of the pipeline using VK_KHR_pipeline_executable_properties (don't forget to enable extension and set VK_PIPELINE_CREATE_CAPTURE_STATISTICS_BIT_KHR)
   - dumpPipelineStats    : dumps stats of the pipeline using VK_KHR_pipeline_executable_properties to a text file (don't forget to enable extension and set VK_PIPELINE_CREATE_CAPTURE_STATISTICS_BIT_KHR)
   - dumpPipelineBinCodes : dumps shader binaries using VK_KHR_pipeline_executable_properties to multiple binary files (don't forget to enable extension and set VK_PIPELINE_CREATE_CAPTURE_INTERNAL_REPRESENTATIONS_BIT_KHR)
-*/
+@DOEC_END */
 // nvprints stats to LOGLEVEL_STATS stream
 void nvprintPipelineStats(VkDevice device, VkPipeline pipeline, const char* name, bool verbose = false);
 // writes stats into single file
@@ -44,8 +44,8 @@ void dumpPipelineStats(VkDevice device, VkPipeline pipeline, const char* fileNam
 void dumpPipelineInternals(VkDevice device, VkPipeline pipeline, const char* baseFileName);
 
 //--------------------------------------------------------------------------------------------------
-/** 
-\struct nvvk::GraphicsPipelineState
+/** @DOC_START
+# struct nvvk::GraphicsPipelineState
 
 Most graphic pipelines have similar states, therefore the helper `GraphicsPipelineStage` holds all the elements and 
 initialize the structures with the proper default values, such as the primitive type, `PipelineColorBlendAttachmentState` 
@@ -53,7 +53,7 @@ with their mask, `DynamicState` for viewport and scissor, adjust depth test if e
 example. 
 
 Example of usage :
-\code{.cpp}
+```cpp
 nvvk::GraphicsPipelineState pipelineState();
 pipelineState.depthStencilState.setDepthTestEnable(true);
 pipelineState.rasterizationState.setCullMode(vk::CullModeFlagBits::eNone);
@@ -62,8 +62,8 @@ pipelineState.addAttributeDescriptions ({
     {0, 0, vk::Format::eR32G32B32Sfloat, static_cast<uint32_t>(offsetof(Vertex, pos))},
     {1, 0, vk::Format::eR32G32B32Sfloat, static_cast<uint32_t>(offsetof(Vertex, nrm))},
     {2, 0, vk::Format::eR32G32B32Sfloat, static_cast<uint32_t>(offsetof(Vertex, col))}});
-\endcode
-*/
+```
+@DOC_END */
 
 
 struct GraphicsPipelineState
@@ -371,14 +371,14 @@ protected:
 
 
 //--------------------------------------------------------------------------------------------------
-/** 
-\struct nvvk::GraphicsPipelineGenerator
+/** @DOC_START
+# struct nvvk::GraphicsPipelineGenerator
 
 The graphics pipeline generator takes a GraphicsPipelineState object and pipeline-specific information such as 
 the render pass and pipeline layout to generate the final pipeline. 
 
 Example of usage :
-\code{.cpp}
+```cpp
 nvvk::GraphicsPipelineState pipelineState();
 ...
 nvvk::GraphicsPipelineGenerator pipelineGenerator(m_device, m_pipelineLayout, m_renderPass, pipelineState);
@@ -386,8 +386,8 @@ pipelineGenerator.addShader(readFile("spv/vert_shader.vert.spv"), VkShaderStageF
 pipelineGenerator.addShader(readFile("spv/frag_shader.frag.spv"), VkShaderStageFlagBits::eFragment);
 
 m_pipeline = pipelineGenerator.createPipeline();
-\endcode
-*/
+```
+@DOC_END */
 
 struct GraphicsPipelineGenerator
 {
@@ -575,14 +575,14 @@ private:
 
 
 //--------------------------------------------------------------------------------------------------
-/** 
-\class nvvk::GraphicsPipelineGeneratorCombined
+/** @DOC_START
+# class nvvk::GraphicsPipelineGeneratorCombined
 
 In some cases the application may have each state associated to a single pipeline. For convenience, 
 nvvk::GraphicsPipelineGeneratorCombined combines both the state and generator into a single object.
 
 Example of usage :
-\code{.cpp}
+```cpp
 nvvk::GraphicsPipelineGeneratorCombined pipelineGenerator(m_device, m_pipelineLayout, m_renderPass);
 pipelineGenerator.depthStencilState.setDepthTestEnable(true);
 pipelineGenerator.rasterizationState.setCullMode(vk::CullModeFlagBits::eNone);
@@ -596,8 +596,8 @@ pipelineGenerator.addShader(readFile("spv/vert_shader.vert.spv"), VkShaderStageF
 pipelineGenerator.addShader(readFile("spv/frag_shader.frag.spv"), VkShaderStageFlagBits::eFragment);
 
 m_pipeline = pipelineGenerator.createPipeline();
-\endcode
-*/
+```
+@DOC_END */
 
 
 struct GraphicsPipelineGeneratorCombined : public GraphicsPipelineState, public GraphicsPipelineGenerator
@@ -611,15 +611,15 @@ struct GraphicsPipelineGeneratorCombined : public GraphicsPipelineState, public 
 
 
 //--------------------------------------------------------------------------------------------------
-/** 
-\struct nvvk::GraphicShaderObjectPipeline
+/** @DOC_START
+# struct nvvk::GraphicShaderObjectPipeline
 
 This is a helper to set the dynamic graphics pipeline state for shader object
  - Set the pipeline state as you would do for a regular pipeline
  - Call cmdSetPipelineState to set the pipeline state in the command buffer
 
 Example of usage :
-\code{.cpp}
+```cpp
   // Member of the class
   nvvk::GraphicShaderObjectPipeline m_shaderObjPipeline;
 
@@ -637,8 +637,8 @@ Example of usage :
   m_shaderObjPipeline.setViewportScissor(m_app->getViewportSize());
   m_shaderObjPipeline.cmdSetPipelineState(cmd);
 
-\endcode
-*/
+```
+@DOC_START */
 
 struct GraphicShaderObjectPipeline : GraphicsPipelineState
 {

@@ -17,15 +17,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/// \nodoc (keyword to exclude this file from automatic README.md generation)
+/// @DOC_SKIP (keyword to exclude this file from automatic README.md generation)
 
 #ifndef NV_GLSLTYPES_INCLUDED
 #define NV_GLSLTYPES_INCLUDED
 
-/**
+/** @DOC_START
   # type definitions for nvgl and nvmath
   Sets up vector, matrix etc. types available in GLSL
-*/
+@DOC_END */
 
 #include <stdint.h>
 

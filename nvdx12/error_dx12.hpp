@@ -19,12 +19,12 @@
 
 
 //////////////////////////////////////////////////////////////////////////
-/**
-\fn nvdx12::checkResult
-\brief Returns true on critical error result, logs errors.
+/** @DOC_START
+# function nvdx12::checkResult
+> Returns true on critical error result, logs errors.
 
 Use `HR_CHECK(result)` to automatically log filename/linenumber.
-*/
+@DOC_END */
 
 #pragma once
 

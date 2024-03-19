@@ -39,8 +39,8 @@
 namespace nvvk {
 
 //////////////////////////////////////////////////////////////////////////
-/**
-  \class nvvk::ShaderModuleManager
+/** @DOC_START
+  # class nvvk::ShaderModuleManager
 
   The nvvk::ShaderModuleManager manages VkShaderModules stored in files (SPIR-V or GLSL)
 
@@ -59,7 +59,7 @@ namespace nvvk {
 
   Example:
 
-  \code{.cpp}
+  ```cpp
   ShaderModuleManager mgr(myDevice);
 
   // derived from ShaderFileManager
@@ -73,8 +73,8 @@ namespace nvvk {
 
   // ... later use module
   info.module = mgr.get(vid);
-  \endcode
-*/
+  ```
+@DOC_END */
 
 class ShaderModuleID
 {

@@ -23,8 +23,8 @@
 
 namespace nvh {
 
-/**
-      \fn nvh::radixsort
+/** @DOC_START
+      # function nvh::radixsort
 
       The radixsort function sorts the provided keys based on
       BYTES many bytes stored inside TKey starting at BYTEOFFSET.
@@ -32,7 +32,7 @@ namespace nvh {
       
       For example:
       
-      \code{.cpp}
+      ```cpp
       struct MyData {
         uint32_t objectIdentifier;
         uint16_t objectSortKey;
@@ -50,8 +50,8 @@ namespace nvh {
 
       // result can point either to indicesIn or indicesTemp (we swap the arrays
       // after each byte iteration)
-      \endcode
-    */
+      ```
+@DOC_END    */
 
 template <uint32_t BYTEOFFSET, uint32_t BYTES, typename TKey>
 uint32_t* radixsort(uint32_t numIndices, const TKey* keys, uint32_t* indicesIn, uint32_t* indicesTemp)

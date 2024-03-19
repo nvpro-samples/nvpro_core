@@ -26,12 +26,12 @@
 #include <vulkan/vulkan_core.h>
 
 namespace nvvk {
-/**
+/** @DOC_START
 # functions in nvvk
 
 - createShaderModule : create the shader module from various binary code inputs
 - createShaderStageInfo: create the shader module and setup the stage from the incoming binary code
-*/
+@DOC_END */
 inline VkShaderModule createShaderModule(VkDevice device, const uint32_t* binarycode, size_t sizeInBytes)
 {
   VkShaderModuleCreateInfo createInfo = {};

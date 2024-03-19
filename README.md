@@ -12,6 +12,8 @@ It means that you must clone this repository (with submodules) prior to trying t
 * **nvh**: API agnostic helpers to simplify the code of samples.
 * **nvgl**: helpers for OpenGL
 * **nvvk**: helpers for Vulkan (to aid extension use and simplify initialization of Vulkan structs, some files were generated from scripting)
+* **nvvkhl**: helpers for Vulkan High-Level for creating samples; applications, loading scenes, HDR-environment, G-Buffers, etc.
+* **nvvkhl/shaders**: commonly use functions for shading, tonemaper, etc.
 * **nvoptix**: helpers for Optix
 * **nvdx12**: helpers for DirectX 12
 * **nvmath**: math library used by most samples

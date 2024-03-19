@@ -28,10 +28,10 @@
 
 namespace nvh {
 //////////////////////////////////////////////////////////////////////////
-/**
-    \class nvh::CameraControl
+/** @DOC_START
+    # class nvh::CameraControl
 
-    \brief nvh::CameraControl is a utility class to create a viewmatrix based on mouse inputs.
+    > nvh::CameraControl is a utility class to create a viewmatrix based on mouse inputs.
   
     It can operate in perspective or orthographic mode (`m_sceneOrtho==true`).
   
@@ -50,7 +50,7 @@ namespace nvh {
   
     Speed of movement/rotation etc. is influenced by `m_sceneDimension` as well as the 
     sensitivity values.
-  */
+@DOC_END  */
 
 class CameraControl
 {

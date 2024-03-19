@@ -54,17 +54,18 @@ inline void __cdecl operator delete(void* ptr, const char* file, int line)
 
 #include <nvh/nvprint.hpp>
 
-////////////////////////////////////////////////////////////////////////
-/// \class NVPSystem
-/// \brief NVPSystem is a utility class to handle some basic system
-/// functionality that all projects likely make use of.
-///
-/// It does not require any window to be opened.
-/// Typical usage is calling init right after main and deinit
-/// in the end, or use the NVPSystem object for that.
-/// init
-/// - calls glfwInit and registers the error callback for it
-/// - sets up and log filename based on projectName via nvprintSetLogFileName
+/* @DOC_START
+# class NVPSystem
+>  NVPSystem is a utility class to handle some basic system
+functionality that all projects likely make use of.
+It does not require any window to be opened.
+Typical usage is calling init right after main and deinit
+in the end, or use the NVPSystem object for that.
+init
+- calls glfwInit and registers the error callback for it
+- sets up and log filename based on projectName via nvprintSetLogFileName
+@DOC_END */
+
 class NVPSystem
 {
 public:

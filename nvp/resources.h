@@ -1,7 +1,7 @@
 //{{NO_DEPENDENCIES}}
 // Microsoft Visual C++ generated include file.
 // Used by Bak3dView.rc
-/// \nodoc
+/// @DOC_SKIP
 #define IDC_MYICON                      2
 #define IDD_OPENGL_DIALOG               102
 #define IDD_ABOUTBOX                    103
