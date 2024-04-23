@@ -64,17 +64,31 @@ class ElementDbgPrintf : public nvvkhl::IAppElement
 public:
   ElementDbgPrintf() = default;
 
-  static VkValidationFeaturesEXT* getFeatures()
+  static VkLayerSettingsCreateInfoEXT* getFeatures()
   {
     // #debug_printf
-    static VkValidationFeaturesEXT                    features{VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT};
-    static std::vector<VkValidationFeatureEnableEXT>  enables{VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT};
-    static std::vector<VkValidationFeatureDisableEXT> disables{};
-    features.enabledValidationFeatureCount  = static_cast<uint32_t>(enables.size());
-    features.pEnabledValidationFeatures     = enables.data();
-    features.disabledValidationFeatureCount = static_cast<uint32_t>(disables.size());
-    features.pDisabledValidationFeatures    = disables.data();
-    return &features;
+    // Adding the GPU debug information to the KHRONOS validation layer
+    // See: https://vulkan.lunarg.com/doc/sdk/1.3.275.0/linux/khronos_validation_layer.html
+    static const char*    layer_name           = "VK_LAYER_KHRONOS_validation";
+    static const char*    validate_gpu_based[] = {"GPU_BASED_DEBUG_PRINTF"};
+    static const VkBool32 printf_verbose       = VK_FALSE;
+    static const VkBool32 printf_to_stdout     = VK_FALSE;
+    static const int32_t  printf_buffer_size   = 1024;
+
+    static const VkLayerSettingEXT settings[] = {
+        {layer_name, "validate_gpu_based", VK_LAYER_SETTING_TYPE_STRING_EXT,
+         static_cast<uint32_t>(std::size(validate_gpu_based)), &validate_gpu_based},
+        {layer_name, "printf_verbose", VK_LAYER_SETTING_TYPE_BOOL32_EXT, 1, &printf_verbose},
+        {layer_name, "printf_to_stdout", VK_LAYER_SETTING_TYPE_BOOL32_EXT, 1, &printf_to_stdout},
+        {layer_name, "printf_buffer_size", VK_LAYER_SETTING_TYPE_INT32_EXT, 1, &printf_buffer_size},
+    };
+
+    static VkLayerSettingsCreateInfoEXT layer_settings_create_info = {
+        .sType        = VK_STRUCTURE_TYPE_LAYER_SETTINGS_CREATE_INFO_EXT,
+        .settingCount = static_cast<uint32_t>(std::size(settings)),
+        .pSettings    = settings,
+    };
+    return &layer_settings_create_info;
   }
 
   // Return the relative mouse coordinates in the window named "Viewport"
@@ -91,7 +105,13 @@ public:
                                      const VkDebugUtilsMessengerCallbackDataEXT* callbackData, void* userData) -> VkBool32 {
       // Get rid of all the extra message we don't need
       std::string clean_msg = callbackData->pMessage;
-      clean_msg             = clean_msg.substr(clean_msg.find_last_of('|') + 1);
+
+      const std::string searchStr = "vkQueueSubmit(): ";
+      std::size_t       pos       = clean_msg.find(searchStr);
+      if(pos != std::string::npos)
+      {
+        clean_msg = clean_msg.substr(pos + searchStr.size() + 1);  // Remove everything before the search string
+      }
       LOGI("%s", clean_msg.c_str());  // <- This will end up in the Logger
       return VK_FALSE;                // to continue
     };

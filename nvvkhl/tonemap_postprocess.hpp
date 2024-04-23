@@ -21,6 +21,7 @@
 #include <memory>
 #include "shaders/dh_tonemap.h"
 #include "nvvk/descriptorsets_vk.hpp"
+#include "nvvk/resourceallocator_vk.hpp"
 
 
 /** @DOC_START
@@ -53,12 +54,10 @@ class DebugUtil;
 }  // namespace nvvk
 
 namespace nvvkhl {
-class AllocVma;
-
 
 struct TonemapperPostProcess
 {
-  TonemapperPostProcess(nvvk::Context* ctx, AllocVma* alloc);
+  TonemapperPostProcess(nvvk::Context* ctx, nvvk::ResourceAllocator* alloc);
   ~TonemapperPostProcess();
 
   void createGraphicPipeline(VkFormat colorFormat, VkFormat depthFormat);

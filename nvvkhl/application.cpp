@@ -237,11 +237,9 @@ void nvvkhl::Application::init(ApplicationCreateInfo& info)
   ImGui::CreateContext();
   ImGuiIO& io = ImGui::GetIO();
 
-  m_iniFilename  = path_ini.string();
-  io.IniFilename = m_iniFilename.c_str();
-  io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
-  io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;      // Enable Docking
-  io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;    // Enable Multi-Viewport / Platform Windows
+  m_iniFilename                        = path_ini.string();
+  io.IniFilename                       = m_iniFilename.c_str();
+  io.ConfigFlags                       = info.imguiConfigFlags;
   io.ConfigWindowsMoveFromTitleBarOnly = true;
 
   // Setup Dear ImGui style
@@ -965,7 +963,7 @@ void nvvkhl::Application::saveScreenShot(const std::string& filename, int qualit
 
   // Copy the data and adjust for the row pitch
   std::vector<uint8_t> pixels(size.width * size.height * 4);
-  for (uint32_t y = 0; y < size.height; y++)
+  for(uint32_t y = 0; y < size.height; y++)
   {
     memcpy(pixels.data() + y * size.width * 4, data, size.width * 4);
     data += subResourceLayout.rowPitch;

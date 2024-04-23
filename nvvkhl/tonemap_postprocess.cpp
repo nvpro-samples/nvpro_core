@@ -34,7 +34,7 @@
 #include "tonemap_postprocess.hpp"
 
 namespace nvvkhl {
-TonemapperPostProcess::TonemapperPostProcess(nvvk::Context* ctx, AllocVma* alloc)
+TonemapperPostProcess::TonemapperPostProcess(nvvk::Context* ctx, nvvk::ResourceAllocator* alloc)
     : m_ctx(ctx)
     , m_dutil(std::make_unique<nvvk::DebugUtil>(ctx->m_device))
     , m_dsetGraphics(std::make_unique<nvvk::DescriptorSetContainer>(ctx->m_device))

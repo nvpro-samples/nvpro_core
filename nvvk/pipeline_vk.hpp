@@ -229,6 +229,15 @@ struct GraphicsPipelineState
     }
   }
 
+  void setBlendAttachmentColorMask(uint32_t attachment, VkColorComponentFlags mask)
+  {
+    assert(attachment < blendAttachmentStates.size());
+    if(attachment <= blendAttachmentStates.size())
+    {
+      blendAttachmentStates[attachment].colorWriteMask = mask;
+    }
+  }
+
   uint32_t addBlendAttachmentState(const VkPipelineColorBlendAttachmentState& blendState)
   {
     blendAttachmentStates.push_back(blendState);
@@ -652,7 +661,7 @@ struct GraphicShaderObjectPipeline : GraphicsPipelineState
   GraphicShaderObjectPipeline()
   {
     viewports.resize(1);  // There should be at least one viewport
-    scissors.resize(1);   // 
+    scissors.resize(1);   //
   }
 
   // Set the viewport and scissor to the full extent

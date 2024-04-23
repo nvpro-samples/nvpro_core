@@ -88,11 +88,11 @@ vec3 brdfLambertian(vec3 diffuseColor, float metallic)
 //-----------------------------------------------------------------------
 // https://github.com/KhronosGroup/glTF/tree/master/specification/2.0#acknowledgments AppendixB
 //-----------------------------------------------------------------------
-vec3 brdfSpecularGGX(vec3 f0, vec3 f90, float alphaRoughness, float VdotH, float NdotL, float NdotV, float nDotH)
+vec3 brdfSpecularGGX(vec3 f0, vec3 f90, float alphaRoughness, float VdotH, float NdotL, float NdotV, float NdotH)
 {
   vec3  f   = fresnelSchlick(f0, f90, VdotH);
   float vis = smithJointGGX(NdotL, NdotV, alphaRoughness);  // Vis = G / (4 * NdotL * NdotV)
-  float d   = distributionGGX(nDotH, alphaRoughness);
+  float d   = distributionGGX(NdotH, alphaRoughness);
 
   return f * vis * d;
 }
@@ -111,6 +111,24 @@ vec3 ggxSampling(float alphaRoughness, float r1, float r2)
   float sinTheta = sqrt(1.0 - cosTheta * cosTheta);
 
   return vec3(sinTheta * cos(phi), sinTheta * sin(phi), cosTheta);
+}
+
+// Return false if it produce a total internal reflection
+bool refract(vec3 incident, vec3 normal, float eta, out vec3 transmitted)
+{
+  float cosTheta = dot(incident, normal);
+  float k        = 1.0F - eta * eta * (1.0F - cosTheta * cosTheta);
+
+  if(k < 0.0F)
+  {
+    // Total internal reflection
+    return false;
+  }
+  else
+  {
+    transmitted = eta * incident - (eta * cosTheta + sqrt(k)) * normal;
+    return true;
+  }
 }
 
 

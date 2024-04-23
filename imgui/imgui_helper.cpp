@@ -90,6 +90,7 @@ bool Combo(const char* label, size_t numEnums, const Enum* enums, void* valuePtr
   {
     for(size_t i = 0; i < numEnums; i++)
     {
+      ImGui::BeginDisabled(enums[i].disabled);
       bool is_selected = i == idx;
       if(ImGui::Selectable(enums[i].name.c_str(), is_selected))
       {
@@ -111,6 +112,7 @@ bool Combo(const char* label, size_t numEnums, const Enum* enums, void* valuePtr
       {
         ImGui::SetItemDefaultFocus();  // Set the initial focus when opening the combo (scrolling + for keyboard navigation support in the upcoming navigation branch)
       }
+      ImGui::EndDisabled();
     }
     ImGui::EndCombo();
   }

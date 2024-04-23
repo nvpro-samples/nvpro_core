@@ -39,6 +39,12 @@ vec3 saturate(vec3 x)
   return clamp(x, vec3(0.0F), vec3(1.0F));
 }
 
+// Return the luminance of a color
+float luminance(in vec3 color)
+{
+  return color.x * 0.2126F + color.y * 0.7152F + color.z * 0.0722F;
+}
+
 vec3 slerp(vec3 a, vec3 b, float angle, float t)
 {
   t            = saturate(t);

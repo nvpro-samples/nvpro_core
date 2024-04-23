@@ -21,7 +21,6 @@
 #include "backends/imgui_impl_vulkan.h"
 #include "nvvk/images_vk.hpp"
 #include "nvvk/resourceallocator_vk.hpp"
-#include "nvvkhl/alloc_vma.hpp"
 #include "nvvkhl/application.hpp"
 #include <iosfwd>
 

@@ -383,6 +383,7 @@ struct Enum
     bool  bvalue;
   };
   std::string name;
+  bool        disabled = false;
 };
 
 bool Combo(const char*     label,
@@ -443,26 +444,27 @@ public:
     entries[type].valueType    = TYPE_FLOAT;
   }
 
-  void enumAdd(uint32_t type, int value, const char* name)
+  void enumAdd(uint32_t type, int value, const char* name, bool disabled = false)
   {
     if(type >= entries.size())
     {
       entries.resize(type + 1ULL);
     }
-    entries[type].enums.push_back({{value}, name});
+    entries[type].enums.push_back({{value}, name, disabled});
     entries[type].valueChanged = false;
     entries[type].valueType = TYPE_INT;  // the user must be consistent so that he adds only the same type for the same combo !
   }
 
-  void enumAdd(uint32_t type, float value, const char* name)
+  void enumAdd(uint32_t type, float value, const char* name, bool disabled = false)
   {
     if(type >= entries.size())
     {
       entries.resize(type + 1ULL);
     }
     Enum e;
-    e.fvalue = value;
-    e.name   = name;
+    e.fvalue   = value;
+    e.name     = name;
+    e.disabled = disabled;
     entries[type].enums.push_back(e);
     entries[type].valueChanged = false;
     entries[type].valueType = TYPE_FLOAT;  // the user must be consistent so that he adds only the same type for the same combo !

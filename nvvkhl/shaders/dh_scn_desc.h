@@ -27,6 +27,7 @@
 namespace nvvkhl_shaders {
 
 using mat4 = glm::mat4;
+using mat3 = glm::mat3;
 using vec4 = glm::vec4;
 using vec3 = glm::vec3;
 #endif  // __cplusplus
@@ -60,9 +61,6 @@ struct SceneDescription
   uint64_t primInfoAddress;
 };
 
-// shadingModel
-#define MATERIAL_METALLICROUGHNESS 0
-#define MATERIAL_SPECULARGLOSSINESS 1
 // alphaMode
 #define ALPHA_OPAQUE 0
 #define ALPHA_MASK 1
@@ -70,23 +68,18 @@ struct SceneDescription
 
 struct GltfShadeMaterial
 {
+  // Core
   vec4 pbrBaseColorFactor;
   vec3 emissiveFactor;
   int  pbrBaseColorTexture;
 
   int   normalTexture;
   float normalTextureScale;
-  int   shadingModel;
+  int   _pad0;
   float pbrRoughnessFactor;
 
   float pbrMetallicFactor;
   int   pbrMetallicRoughnessTexture;
-  int   khrSpecularGlossinessTexture;
-  int   khrDiffuseTexture;
-
-  vec4  khrDiffuseFactor;
-  vec3  khrSpecularFactor;
-  float khrGlossinessFactor;
 
   int   emissiveTexture;
   int   alphaMode;
@@ -101,12 +94,21 @@ struct GltfShadeMaterial
   vec3  attenuationColor;
   float thicknessFactor;
   int   thicknessTexture;
+  bool  thinWalled;
   float attenuationDistance;
   // KHR_materials_clearcoat
   float clearcoatFactor;
   float clearcoatRoughness;
   int   clearcoatTexture;
   int   clearcoatRoughnessTexture;
+  int   clearcoatNormalTexture;
+  // KHR_materials_specular
+  float specularFactor;
+  int   specularTexture;
+  vec3  specularColorFactor;
+  int   specularColorTexture;
+  // KHR_texture_transform
+  mat3 uvTransform;
 };
 
 #ifdef __cplusplus

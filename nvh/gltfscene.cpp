@@ -70,25 +70,9 @@ void GltfScene::importMaterials(const tinygltf::Model& tmodel)
     gmat.metallicRoughnessTexture = tpbr.metallicRoughnessTexture.index;
     gmat.roughnessFactor          = static_cast<float>(tpbr.roughnessFactor);
 
-    // KHR_materials_pbrSpecularGlossiness
-    if(tmat.extensions.find(KHR_MATERIALS_PBRSPECULARGLOSSINESS_EXTENSION_NAME) != tmat.extensions.end())
-    {
-      gmat.shadingModel = 1;
-
-      const auto& ext = tmat.extensions.find(KHR_MATERIALS_PBRSPECULARGLOSSINESS_EXTENSION_NAME)->second;
-      getVec4(ext, "diffuseFactor", gmat.specularGlossiness.diffuseFactor);
-      getFloat(ext, "glossinessFactor", gmat.specularGlossiness.glossinessFactor);
-      getVec3(ext, "specularFactor", gmat.specularGlossiness.specularFactor);
-      getTexId(ext, "diffuseTexture", gmat.specularGlossiness.diffuseTexture);
-      getTexId(ext, "specularGlossinessTexture", gmat.specularGlossiness.specularGlossinessTexture);
-    }
-
     // KHR_materials_specular
     if(tmat.extensions.find(KHR_MATERIALS_SPECULAR_EXTENSION_NAME) != tmat.extensions.end())
     {
-      // Since KHR_materials_specular affects the metallic-roughness model:
-      gmat.shadingModel = 0;
-
       const auto& ext = tmat.extensions.find(KHR_MATERIALS_SPECULAR_EXTENSION_NAME)->second;
       getFloat(ext, "specularFactor", gmat.specular.specularFactor);
       getTexId(ext, "specularTexture", gmat.specular.specularTexture);
@@ -257,8 +241,11 @@ void GltfScene::importDrawableNodes(const tinygltf::Model& tmodel, GltfAttribute
     for(const auto& tprimitive : tmesh.primitives)
     {
       processMesh(tmodel, tprimitive, requestedAttributes, forceRequested, tmesh.name);
-      m_primMeshes.back().tmesh = &tmesh;
-      m_primMeshes.back().tprim = &tprimitive;
+      if(!m_primMeshes.empty())
+      {
+        m_primMeshes.back().tmesh = &tmesh;
+        m_primMeshes.back().tprim = &tprimitive;
+      }
     }
   }
 
@@ -917,7 +904,6 @@ void GltfScene::checkRequiredExtensions(const tinygltf::Model& tmodel)
   std::set<std::string> supportedExtensions{
       KHR_LIGHTS_PUNCTUAL_EXTENSION_NAME,
       KHR_TEXTURE_TRANSFORM_EXTENSION_NAME,
-      KHR_MATERIALS_PBRSPECULARGLOSSINESS_EXTENSION_NAME,
       KHR_MATERIALS_SPECULAR_EXTENSION_NAME,
       KHR_MATERIALS_UNLIT_EXTENSION_NAME,
       KHR_MATERIALS_ANISOTROPY_EXTENSION_NAME,

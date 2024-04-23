@@ -24,7 +24,7 @@
 #include "shaders/dh_scn_desc.h"
 #include "nvh/timesampler.hpp"
 
-nvvkhl::SceneRtx::SceneRtx(nvvk::Context* ctx, AllocVma* alloc, uint32_t queueFamilyIndex)
+nvvkhl::SceneRtx::SceneRtx(nvvk::Context* ctx, nvvk::ResourceAllocator* alloc, uint32_t queueFamilyIndex)
     : m_ctx(ctx)
     , m_alloc(alloc)
 {
@@ -142,7 +142,7 @@ void nvvkhl::SceneRtx::createTopLevelAS(const nvh::GltfScene& scn, VkBuildAccele
     }
 
     // Need to skip the cull flag in traceray_rtx for double sided materials
-    if(mat.doubleSided == 1)
+    if(mat.doubleSided == 1 || mat.volume.thicknessFactor > 0.0F)
     {
       flags |= VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
     }

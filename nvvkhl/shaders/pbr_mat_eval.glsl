@@ -56,45 +56,19 @@ vec4 srgbToLinear(in vec4 sRgb)
 }
 
 
-float getPerceivedBrightness(vec3 vector)
-{
-  return sqrt(0.299f * vector.x * vector.x + 0.587f * vector.y * vector.y + 0.114f * vector.z * vector.z);
-}
-
-
-//-------------------------------------------------------------------------------------------------
-// Specular-Glossiness converter
-// See: // https://github.com/KhronosGroup/glTF/blob/master/extensions/2.0/Khronos/KHR_materials_pbrSpecularGlossiness/examples/convert-between-workflows/js/three.pbrUtilities.js#L34
-//-------------------------------------------------------------------------------------------------
-float solveMetallic(vec3 diffuse, vec3 specular, float one_minus_specular_strength)
-{
-  float specular_brightness = getPerceivedBrightness(specular);
-
-  if(specular_brightness < g_min_reflectance)
-  {
-    return 0.f;
-  }
-
-  float diffuse_brightness = getPerceivedBrightness(diffuse);
-
-  float a = g_min_reflectance;
-  float b = diffuse_brightness * one_minus_specular_strength / (1.f - g_min_reflectance) + specular_brightness - 2.f * g_min_reflectance;
-  float c = g_min_reflectance - specular_brightness;
-  float d = max(b * b - 4.0F * a * c, 0.0F);
-
-  return clamp((-b + sqrt(d)) / (2.0F * a), 0.0F, 1.0F);
-}
-
-
 //-----------------------------------------------------------------------
 // From the incoming material return the material for evaluating PBR
 //-----------------------------------------------------------------------
-PbrMaterial evaluateMaterial(in GltfShadeMaterial material, in vec3 normal, in vec3 tangent, in vec3 bitangent, in vec2 texCoord)
+PbrMaterial evaluateMaterial(in GltfShadeMaterial material, in vec3 normal, in vec3 tangent, in vec3 bitangent, in vec2 texCoord, in bool isInside)
 {
   float perceptual_roughness = 0.0F;
   float metallic             = 0.0F;
   vec3  f0                   = vec3(0.0F);
-  vec4  base_color           = vec4(0.0F, 0.0F, 0.0F, 1.0F);
+  vec3  f90                  = vec3(1.0F);
+  vec4  baseColor            = vec4(0.0F, 0.0F, 0.0F, 1.0F);
+
+  // KHR_texture_transform
+  texCoord = vec2(vec3(texCoord, 1) * material.uvTransform);
 
   // Normal Map
   if(material.normalTexture > -1)
@@ -106,8 +80,7 @@ PbrMaterial evaluateMaterial(in GltfShadeMaterial material, in vec3 normal, in v
     normal = normalize(tbn * normal_vector);
   }
 
-
-  if(material.shadingModel == MATERIAL_METALLICROUGHNESS)
+  // Metallic-Roughness
   {
     perceptual_roughness = material.pbrRoughnessFactor;
     metallic             = material.pbrMetallicFactor;
@@ -120,41 +93,18 @@ PbrMaterial evaluateMaterial(in GltfShadeMaterial material, in vec3 normal, in v
     }
 
     // The albedo may be defined from a base texture or a flat color
-    base_color = material.pbrBaseColorFactor;
+    baseColor = material.pbrBaseColorFactor;
     if(material.pbrBaseColorTexture > -1.0F)
     {
-      base_color *= texture(MAT_EVAL_TEXTURE_ARRAY[nonuniformEXT(material.pbrBaseColorTexture)], texCoord);
+      baseColor *= texture(MAT_EVAL_TEXTURE_ARRAY[nonuniformEXT(material.pbrBaseColorTexture)], texCoord);
     }
-    vec3 specular_color = mix(vec3(g_min_reflectance), vec3(base_color), float(metallic));
+    vec3 specular_color = mix(vec3(g_min_reflectance), vec3(baseColor), float(metallic));
     f0                  = specular_color;
   }
-  // Specular-Glossiness which will be converted to metallic-roughness
-  else if(material.shadingModel == MATERIAL_SPECULARGLOSSINESS)
-  {
-    f0                   = material.khrSpecularFactor;
-    perceptual_roughness = material.khrGlossinessFactor;
 
-    if(material.khrSpecularGlossinessTexture > -1.0F)
-    {
-      vec4 sg_sample =
-          srgbToLinear(textureLod(MAT_EVAL_TEXTURE_ARRAY[nonuniformEXT(material.khrSpecularGlossinessTexture)], texCoord, 0));
-      perceptual_roughness *= sg_sample.a;  // glossiness to roughness
-      f0 *= sg_sample.rgb;                  // specular
-    }
+  // Protection
+  metallic = clamp(metallic, 0.0F, 1.0F);
 
-    perceptual_roughness = 1.0F - perceptual_roughness;
-
-    vec4 diffuse_color = material.khrDiffuseFactor;
-    if(material.khrDiffuseTexture > -1.0F)
-    {
-      diffuse_color *= srgbToLinear(textureLod(MAT_EVAL_TEXTURE_ARRAY[nonuniformEXT(material.khrDiffuseTexture)], texCoord, 0));
-    }
-
-    vec3  specular_color              = f0;  // f0 = specular
-    float one_minus_specular_strength = 1.0F - max(max(f0.r, f0.g), f0.b);
-    base_color.rgb                    = diffuse_color.rgb * one_minus_specular_strength;
-    metallic                          = solveMetallic(diffuse_color.rgb, specular_color, one_minus_specular_strength);
-  }
 
   // Emissive term
   vec3 emissive = material.emissiveFactor;
@@ -163,43 +113,83 @@ PbrMaterial evaluateMaterial(in GltfShadeMaterial material, in vec3 normal, in v
     emissive *= vec3(texture(MAT_EVAL_TEXTURE_ARRAY[material.emissiveTexture], texCoord));
   }
 
+  // KHR_materials_specular
+  // https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Khronos/KHR_materials_specular
+  vec4 specularColorTexture = vec4(1.0F);
+  if(material.specularColorTexture > -1)
+  {
+    specularColorTexture = textureLod(texturesMap[nonuniformEXT(material.specularColorTexture)], texCoord, 0);
+  }
+  float specularTexture = 1.0F;
+  if(material.specularTexture > -1)
+  {
+    specularTexture = textureLod(texturesMap[nonuniformEXT(material.specularTexture)], texCoord, 0).a;
+  }
+
+
+  // Dielectric Specular
+  float ior1 = 1.0F;
+  float ior2 = material.ior;
+  if(isInside)
+  {
+    ior1 = material.ior;
+    ior2 = 1.0F;
+  }
+  float iorRatio    = ((ior1 - ior2) / (ior1 + ior2));
+  float iorRatioSqr = iorRatio * iorRatio;
+
+  vec3  dielectricSpecularF0  = material.specularColorFactor * specularColorTexture.rgb;
+  float dielectricSpecularF90 = material.specularFactor * specularTexture;
+
+  f0  = mix(min(iorRatioSqr * dielectricSpecularF0, vec3(1.0F)) * dielectricSpecularF0, baseColor.rgb, metallic);
+  f90 = vec3(mix(dielectricSpecularF90, 1.0F, metallic));
+
 
   // Material Evaluated
   PbrMaterial pbrMat;
-  pbrMat.albedo    = base_color;
+  pbrMat.albedo    = baseColor;
   pbrMat.f0        = f0;
+  pbrMat.f90       = f90;
   pbrMat.roughness = perceptual_roughness;
-  pbrMat.metallic  = clamp(metallic, 0.0F, 1.0F);
-  pbrMat.emissive  = max(vec3(0), emissive);
+  pbrMat.metallic  = metallic;
+  pbrMat.emissive  = max(vec3(0.0F), emissive);
   pbrMat.normal    = normal;
+  pbrMat.eta       = (material.thicknessFactor == 0.0F) ? 1.0F : ior1 / ior2;
 
   // KHR_materials_transmission
-  pbrMat.transmission = material.transmissionFactor;
+  pbrMat.transmissionFactor = material.transmissionFactor;
   if(material.transmissionTexture > -1)
   {
-    pbrMat.transmission *= textureLod(texturesMap[nonuniformEXT(material.transmissionTexture)], texCoord, 0).r;
+    pbrMat.transmissionFactor *= textureLod(texturesMap[nonuniformEXT(material.transmissionTexture)], texCoord, 0).r;
   }
 
   // KHR_materials_ior
   pbrMat.ior = material.ior;
+
   // KHR_materials_volume
   pbrMat.attenuationColor    = material.attenuationColor;
   pbrMat.attenuationDistance = material.attenuationDistance;
-  pbrMat.thinWalled          = material.thicknessFactor == 0;
+  pbrMat.thicknessFactor     = material.thicknessFactor;
+
   // KHR_materials_clearcoat
-  pbrMat.clearcoat          = material.clearcoatFactor;
+  pbrMat.clearcoatFactor    = material.clearcoatFactor;
   pbrMat.clearcoatRoughness = material.clearcoatRoughness;
   if(material.clearcoatTexture > -1)
   {
-    pbrMat.clearcoat *= textureLod(texturesMap[nonuniformEXT(material.clearcoatTexture)], texCoord, 0).r;
+    pbrMat.clearcoatFactor *= textureLod(texturesMap[nonuniformEXT(material.clearcoatTexture)], texCoord, 0).r;
   }
   if(material.clearcoatRoughnessTexture > -1)
   {
     pbrMat.clearcoatRoughness *= textureLod(texturesMap[nonuniformEXT(material.clearcoatRoughnessTexture)], texCoord, 0).g;
   }
-  pbrMat.clearcoatRoughness = max(pbrMat.clearcoatRoughness, 0.001);
+  pbrMat.clearcoatRoughness = max(pbrMat.clearcoatRoughness, 0.001F);
 
   return pbrMat;
+}
+
+PbrMaterial evaluateMaterial(in GltfShadeMaterial material, in vec3 normal, in vec3 tangent, in vec3 bitangent, in vec2 texCoord)
+{
+  return evaluateMaterial(material, normal, tangent, bitangent, texCoord, false);
 }
 
 #endif  // MAT_EVAL_H

@@ -22,7 +22,7 @@
 #include "nvvk/context_vk.hpp"
 #include "nvvk/debug_util_vk.hpp"
 #include "nvvk/raytraceKHR_vk.hpp"
-#include "nvvkhl/alloc_vma.hpp"
+#include "nvvk/resourceallocator_vk.hpp"
 #include "nvvkhl/pipeline_container.hpp"
 
 #include "gltf_scene_vk.hpp"
@@ -40,7 +40,7 @@ namespace nvvkhl {
 class SceneRtx
 {
 public:
-  SceneRtx(nvvk::Context* ctx, AllocVma* alloc, uint32_t queueFamilyIndex = 0U);
+  SceneRtx(nvvk::Context* ctx, nvvk::ResourceAllocator* alloc, uint32_t queueFamilyIndex = 0U);
   ~SceneRtx();
 
   // Create both bottom and top level acceleration structures
@@ -70,8 +70,8 @@ protected:
                                                             VkDeviceAddress          vertexAddress,
                                                             VkDeviceAddress          indexAddress);
 
-  nvvk::Context* m_ctx;
-  AllocVma*      m_alloc;
+  nvvk::Context*           m_ctx;
+  nvvk::ResourceAllocator* m_alloc;
 
   VkPhysicalDeviceRayTracingPipelinePropertiesKHR m_rtProperties{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR};
   nvvk::RaytracingBuilderKHR m_rtBuilder;

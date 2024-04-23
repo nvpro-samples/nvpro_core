@@ -24,23 +24,23 @@
 
 struct PbrMaterial
 {
-  vec4  albedo;
-  float roughness;
-  float metallic;
-  vec3  normal;
-  vec3  emissive;
-  vec3  f0;
-  // KHR_materials_transmission
-  float transmission;
-  // KHR_materials_ior
-  float ior;
-  // KHR_materials_volume
-  vec3  attenuationColor;
-  float attenuationDistance;
-  bool  thinWalled;
-  // KHR_materials_clearcoat
-  float clearcoat;
-  float clearcoatRoughness;
+  vec4  albedo;               // base color
+  float roughness;            // 0 = smooth, 1 = rough
+  float metallic;             // 0 = dielectric, 1 = metallic
+  vec3  normal;               // shading normal
+  vec3  emissive;             // emissive color
+  vec3  f0;                   // full reflectance color (n incidence angle)
+  vec3  f90;                  // reflectance color at grazing angle
+  float eta;                  // index of refraction
+  float specularWeight;       // product of specularFactor and specularTexture.a
+  float transmissionFactor;   // KHR_materials_transmission
+  float ior;                  // KHR_materials_ior
+  vec3  attenuationColor;     // KHR_materials_volume
+  float attenuationDistance;  // KHR_materials_volume
+  float thicknessFactor;      // KHR_materials_volume
+  float clearcoatFactor;      // KHR_materials_clearcoat
+  float clearcoatRoughness;   // KHR_materials_clearcoat
+  vec3  clearcoatNormal;      // KHR_materials_clearcoat
 };
 
 #endif

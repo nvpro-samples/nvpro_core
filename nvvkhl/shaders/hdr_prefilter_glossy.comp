@@ -46,7 +46,7 @@ layout(set = 1, binding = eImpSamples,  scalar)	buffer _EnvAccel { EnvAccel envS
 layout(set = 1, binding = eHdr) uniform sampler2D hdrTexture;
 
 layout(push_constant) uniform HdrPushBlock_  { HdrPushBlock pc; };
-  // clang-format on
+// clang-format on
 
 #include "constants.glsl"
 #include "func.glsl"

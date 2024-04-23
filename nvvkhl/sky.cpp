@@ -33,38 +33,9 @@ using namespace glm;
 #include "nvvkhl/shaders/dh_comp.h"
 #include "_autogen/sky.comp.h"
 
-// clang-format off
-template <typename T> inline T square(T a) {return a * a;}
-// clang-format on
 
 namespace nvvkhl {
-static nvvkhl_shaders::ProceduralSkyShaderParameters fillShaderParameters(const SkyParameters& input)
-{
-  nvvkhl_shaders::ProceduralSkyShaderParameters output{};
 
-  float light_angular_size = glm::clamp(input.angularSize, glm::radians(0.1F), glm::radians(90.F));
-  float light_solid_angle  = 4.0F * glm::pi<float>() * square(sinf(light_angular_size * 0.5F));
-  float light_radiance     = input.intensity / light_solid_angle;
-
-  if(input.maxLightRadiance > 0.F)
-  {
-    light_radiance = std::min(light_radiance, input.maxLightRadiance);
-  }
-
-  output.directionToLight   = glm::normalize(-input.direction);
-  output.angularSizeOfLight = light_angular_size;
-  output.lightColor         = light_radiance * input.color;
-  output.glowSize           = glm::radians(glm::clamp(input.glowSize, 0.F, 90.F));
-  output.skyColor           = input.skyColor * input.brightness;
-  output.glowIntensity      = glm::clamp(input.glowIntensity, 0.F, 1.F);
-  output.horizonColor       = input.horizonColor * input.brightness;
-  output.horizonSize        = glm::radians(glm::clamp(input.horizonSize, 0.F, 90.F));
-  output.groundColor        = input.groundColor * input.brightness;
-  output.glowSharpness      = glm::clamp(input.glowSharpness, 1.F, 10.F);
-  output.directionUp        = normalize(input.directionUp);
-
-  return output;
-}
 
 SkyDome::SkyDome(nvvk::Context* ctx, nvvk::ResourceAllocator* allocator)
 {
@@ -165,7 +136,7 @@ void SkyDome::destroy()
 
 void SkyDome::updateParameterBuffer(VkCommandBuffer cmd) const
 {
-  nvvkhl_shaders::ProceduralSkyShaderParameters output = fillShaderParameters(m_skyParams);
+  nvvkhl_shaders::ProceduralSkyShaderParameters output = fillSkyShaderParameters(m_skyParams);
   vkCmdUpdateBuffer(cmd, m_skyInfoBuf.buffer, 0, sizeof(nvvkhl_shaders::ProceduralSkyShaderParameters), &output);
 
   // Make sure the buffer is available when using it
@@ -189,36 +160,7 @@ nvvkhl_shaders::Light SkyDome::getSun() const
 
 bool SkyDome::onUI()
 {
-  using PE = ImGuiH::PropertyEditor;
-
-  bool changed{false};
-
-  glm::vec3 dir = m_skyParams.direction;
-  changed |= ImGuiH::azimuthElevationSliders(dir, true, m_skyParams.directionUp.y == 1.0F);
-  m_skyParams.direction = dir;
-  // clang-format off
-    changed |= PE::entry("Color", [&]() { return ImGui::ColorEdit3("##1", &m_skyParams.color.x, ImGuiColorEditFlags_Float);                                   });
-    changed |= PE::entry("Irradiance", [&]() { return ImGui::SliderFloat("##1", &m_skyParams.intensity, 0.F, 100.F, "%.2f", ImGuiSliderFlags_Logarithmic);    });
-    changed |= PE::entry("Angular Size", [&]() { return ImGui::SliderAngle("##1", &m_skyParams.angularSize, 0.1F, 20.F);                                      });
-  // clang-format on
-
-
-  if(PE::treeNode("Extra"))
-  {
-    // clang-format off
-      changed |= PE::entry("Brightness", [&]() { return ImGui::SliderFloat("Brightness", &m_skyParams.brightness, 0.F, 1.F);         });
-      changed |= PE::entry("Glow Size", [&]() { return ImGui::SliderFloat("Glow Size", &m_skyParams.glowSize, 0.F, 90.F);           });
-      changed |= PE::entry("Glow Sharpness", [&]() { return ImGui::SliderFloat("Glow Sharpness", &m_skyParams.glowSharpness, 1.F, 10.F); });
-      changed |= PE::entry("Glow Intensity", [&]() { return ImGui::SliderFloat("Glow Intensity", &m_skyParams.glowIntensity, 0.F, 1.F);  });
-      changed |= PE::entry("Horizon Size", [&]() { return ImGui::SliderFloat("Horizon Size", &m_skyParams.horizonSize, 0.F, 90.F);     });
-      changed |= PE::entry("Sky Color", [&]() { return ImGui::ColorEdit3("Sky Color", &m_skyParams.skyColor.x, ImGuiColorEditFlags_Float);         });
-      changed |= PE::entry("Horizon Color", [&]() { return ImGui::ColorEdit3("Horizon Color", &m_skyParams.horizonColor.x, ImGuiColorEditFlags_Float); });
-      changed |= PE::entry("Ground Color", [&]() { return ImGui::ColorEdit3("Ground Color", &m_skyParams.groundColor.x, ImGuiColorEditFlags_Float);   });
-    // clang-format on
-    PE::treePop();
-  }
-
-  return changed;
+  return skyParametersUI(m_skyParams);
 }
 
 }  // namespace nvvkhl

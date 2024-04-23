@@ -63,17 +63,6 @@
 
 namespace nvh {
 
-// https://github.com/KhronosGroup/glTF/blob/master/extensions/2.0/Khronos/KHR_materials_pbrSpecularGlossiness/README.md
-#define KHR_MATERIALS_PBRSPECULARGLOSSINESS_EXTENSION_NAME "KHR_materials_pbrSpecularGlossiness"
-struct KHR_materials_pbrSpecularGlossiness
-{
-  glm::vec4 diffuseFactor{1.f, 1.f, 1.f, 1.f};
-  int       diffuseTexture{-1};
-  glm::vec3 specularFactor{1.f, 1.f, 1.f};
-  float     glossinessFactor{1.f};
-  int       specularGlossinessTexture{-1};
-};
-
 // https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_materials_specular/README.md
 #define KHR_MATERIALS_SPECULAR_EXTENSION_NAME "KHR_materials_specular"
 struct KHR_materials_specular
@@ -187,8 +176,6 @@ struct KHR_materials_emissive_strength
 // https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md#reference-material
 struct GltfMaterial
 {
-  int shadingModel{0};  // 0: metallic-roughness, 1: specular-glossiness
-
   // pbrMetallicRoughness
   glm::vec4 baseColorFactor{1.f, 1.f, 1.f, 1.f};
   int       baseColorTexture{-1};
@@ -208,7 +195,6 @@ struct GltfMaterial
   float occlusionTextureStrength{1};
 
   // Extensions
-  KHR_materials_pbrSpecularGlossiness specularGlossiness;
   KHR_materials_specular              specular;
   KHR_texture_transform               textureTransform;
   KHR_materials_clearcoat             clearcoat;

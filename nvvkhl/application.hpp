@@ -102,6 +102,8 @@ struct ApplicationCreateInfo
   std::vector<int>             ignoreDbgMessages;            // Turn off debug messages
   ImVec4                       clearColor{0.F, 0.F, 0.F, 1.F};
   std::function<void(ImGuiID)> dockSetup;  // Allow to configure the dock layout
+  ImGuiConfigFlags             imguiConfigFlags =
+      ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_DockingEnable | ImGuiConfigFlags_ViewportsEnable;
 };
 
 

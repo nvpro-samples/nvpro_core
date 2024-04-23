@@ -31,7 +31,7 @@
 
 #include "shaders/dh_scn_desc.h"
 
-nvvkhl::SceneVk::SceneVk(nvvk::Context* ctx, AllocVma* alloc)
+nvvkhl::SceneVk::SceneVk(nvvk::Context* ctx, nvvk::ResourceAllocator* alloc)
     : m_ctx(ctx)
     , m_alloc(alloc)
 {
@@ -75,23 +75,17 @@ void nvvkhl::SceneVk::createMaterialBuffer(VkCommandBuffer cmd, const nvh::GltfS
   for(const auto& m : scn.m_materials)
   {
     nvvkhl_shaders::GltfShadeMaterial s{};
-    s.emissiveFactor               = m.emissiveFactor;
-    s.emissiveTexture              = m.emissiveTexture;
-    s.khrDiffuseFactor             = m.specularGlossiness.diffuseFactor;
-    s.khrDiffuseTexture            = m.specularGlossiness.diffuseTexture;
-    s.khrSpecularFactor            = m.specularGlossiness.specularFactor;
-    s.khrGlossinessFactor          = m.specularGlossiness.glossinessFactor;
-    s.khrSpecularGlossinessTexture = m.specularGlossiness.specularGlossinessTexture;
-    s.normalTexture                = m.normalTexture;
-    s.normalTextureScale           = m.normalTextureScale;
-    s.pbrBaseColorFactor           = m.baseColorFactor;
-    s.pbrBaseColorTexture          = m.baseColorTexture;
-    s.pbrMetallicFactor            = m.metallicFactor;
-    s.pbrMetallicRoughnessTexture  = m.metallicRoughnessTexture;
-    s.pbrRoughnessFactor           = m.roughnessFactor;
-    s.shadingModel                 = m.shadingModel;
-    s.alphaMode                    = m.alphaMode;
-    s.alphaCutoff                  = m.alphaCutoff;
+    s.emissiveFactor              = m.emissiveFactor;
+    s.emissiveTexture             = m.emissiveTexture;
+    s.normalTexture               = m.normalTexture;
+    s.normalTextureScale          = m.normalTextureScale;
+    s.pbrBaseColorFactor          = m.baseColorFactor;
+    s.pbrBaseColorTexture         = m.baseColorTexture;
+    s.pbrMetallicFactor           = m.metallicFactor;
+    s.pbrMetallicRoughnessTexture = m.metallicRoughnessTexture;
+    s.pbrRoughnessFactor          = m.roughnessFactor;
+    s.alphaMode                   = m.alphaMode;
+    s.alphaCutoff                 = m.alphaCutoff;
     // KHR_materials_transmission
     s.transmissionFactor  = m.transmission.factor;
     s.transmissionTexture = m.transmission.texture;
@@ -105,8 +99,16 @@ void nvvkhl::SceneVk::createMaterialBuffer(VkCommandBuffer cmd, const nvh::GltfS
     // KHR_materials_clearcoat
     s.clearcoatFactor           = m.clearcoat.factor;
     s.clearcoatRoughness        = m.clearcoat.roughnessFactor;
-    s.clearcoatTexture          = m.clearcoat.texture;
     s.clearcoatRoughnessTexture = m.clearcoat.roughnessTexture;
+    s.clearcoatTexture          = m.clearcoat.texture;
+    s.clearcoatNormalTexture    = m.clearcoat.normalTexture;
+    // KHR_materials_specular
+    s.specularFactor       = m.specular.specularFactor;
+    s.specularTexture      = m.specular.specularTexture;
+    s.specularColorFactor  = m.specular.specularColorFactor;
+    s.specularColorTexture = m.specular.specularColorTexture;
+    // KHR_texture_transform
+    s.uvTransform = m.textureTransform.uvTransform;
     // KHR_materials_emissive_strength
     s.emissiveFactor *= m.emissiveStrength.emissiveStrength;
 

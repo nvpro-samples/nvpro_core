@@ -22,7 +22,8 @@
 #include <filesystem>
 
 #include "nvvk/debug_util_vk.hpp"
-#include "nvvkhl/alloc_vma.hpp"
+#include "nvvk/context_vk.hpp"
+#include "nvvk/resourceallocator_vk.hpp"
 
 #include "gltf_scene.hpp"
 
@@ -42,7 +43,7 @@ namespace nvvkhl {
 class SceneVk
 {
 public:
-  SceneVk(nvvk::Context* ctx, AllocVma* alloc);
+  SceneVk(nvvk::Context* ctx, nvvk::ResourceAllocator* alloc);
   virtual ~SceneVk() { destroy(); }
 
   virtual void create(VkCommandBuffer cmd, const nvvkhl::Scene& scn);
@@ -84,7 +85,7 @@ protected:
 
   //--
   nvvk::Context*                   m_ctx;
-  AllocVma*                        m_alloc;
+  nvvk::ResourceAllocator*         m_alloc;
   std::unique_ptr<nvvk::DebugUtil> m_dutil;
 
   nvvk::Buffer              m_bMaterial;

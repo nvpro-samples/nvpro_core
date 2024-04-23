@@ -20,19 +20,19 @@
 #ifndef BSDF_STRUCTS_H
 #define BSDF_STRUCTS_H 1
 
-#define BSDF_EVENT_ABSORB 0
-#define BSDF_EVENT_DIFFUSE 1
-#define BSDF_EVENT_GLOSSY (1 << 1)
-#define BSDF_EVENT_SPECULAR (1 << 2)
-#define BSDF_EVENT_REFLECTION (1 << 3)
-#define BSDF_EVENT_TRANSMISSION (1 << 4)
+#define BSDF_EVENT_ABSORB 0               // 0
+#define BSDF_EVENT_DIFFUSE 1              // 1
+#define BSDF_EVENT_GLOSSY (1 << 1)        // 2
+#define BSDF_EVENT_SPECULAR (1 << 2)      // 4
+#define BSDF_EVENT_REFLECTION (1 << 3)    // 8
+#define BSDF_EVENT_TRANSMISSION (1 << 4)  // 16
 
-#define BSDF_EVENT_DIFFUSE_REFLECTION (BSDF_EVENT_DIFFUSE | BSDF_EVENT_REFLECTION)
-#define BSDF_EVENT_DIFFUSE_TRANSMISSION (BSDF_EVENT_DIFFUSE | BSDF_EVENT_TRANSMISSION)
-#define BSDF_EVENT_GLOSSY_REFLECTION (BSDF_EVENT_GLOSSY | BSDF_EVENT_REFLECTION)
-#define BSDF_EVENT_GLOSSY_TRANSMISSION (BSDF_EVENT_GLOSSY | BSDF_EVENT_TRANSMISSION)
-#define BSDF_EVENT_SPECULAR_REFLECTION (BSDF_EVENT_SPECULAR | BSDF_EVENT_REFLECTION)
-#define BSDF_EVENT_SPECULAR_TRANSMISSION (BSDF_EVENT_SPECULAR | BSDF_EVENT_TRANSMISSION)
+#define BSDF_EVENT_DIFFUSE_REFLECTION (BSDF_EVENT_DIFFUSE | BSDF_EVENT_REFLECTION)        // 9
+#define BSDF_EVENT_DIFFUSE_TRANSMISSION (BSDF_EVENT_DIFFUSE | BSDF_EVENT_TRANSMISSION)    // 17
+#define BSDF_EVENT_GLOSSY_REFLECTION (BSDF_EVENT_GLOSSY | BSDF_EVENT_REFLECTION)          // 10
+#define BSDF_EVENT_GLOSSY_TRANSMISSION (BSDF_EVENT_GLOSSY | BSDF_EVENT_TRANSMISSION)      // 18
+#define BSDF_EVENT_SPECULAR_REFLECTION (BSDF_EVENT_SPECULAR | BSDF_EVENT_REFLECTION)      // 12
+#define BSDF_EVENT_SPECULAR_TRANSMISSION (BSDF_EVENT_SPECULAR | BSDF_EVENT_TRANSMISSION)  // 20
 
 #define BSDF_USE_MATERIAL_IOR (-1.0)
 
@@ -42,8 +42,6 @@
 @DOC_END */
 struct BsdfEvaluateData
 {
-  vec3  ior1;          // [in] inside ior
-  vec3  ior2;          // [in] outside ior
   vec3  k1;            // [in] Toward the incoming ray
   vec3  k2;            // [in] Toward the sampled light
   vec3  bsdf_diffuse;  // [out] Diffuse contribution
@@ -57,8 +55,6 @@ struct BsdfEvaluateData
 @DOC_END  */
 struct BsdfSampleData
 {
-  vec3  ior1;           // [in] inside ior
-  vec3  ior2;           // [in] outside ior
   vec3  k1;             // [in] Toward the incoming ray
   vec3  k2;             // [in] Toward the sampled light
   vec4  xi;             // [in] 4 random [0..1]

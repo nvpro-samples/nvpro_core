@@ -66,6 +66,9 @@ This is it and the execution time on the GPU for each part will be showing in th
 #include "nvvk/error_vk.hpp"
 #include "nvvk/profiler_vk.hpp"
 
+#define PROFILER_GRAPH_TEMPORAL_SMOOTHING 20.f
+#define PROFILER_GRAPH_MINIMAL_LUMINANCE 0.1f
+
 namespace nvvkhl {
 
 class ElementProfiler : public nvvkhl::IAppElement, public nvvk::ProfilerVK
@@ -147,6 +150,11 @@ public:
         renderPieChart();
         ImGui::EndTabItem();
       }
+      if(ImGui::BeginTabItem("LineChart"))
+      {
+        renderLineChart();
+        ImGui::EndTabItem();
+      }
       ImGui::EndTabBar();
     }
 
@@ -171,6 +179,7 @@ private:
     float                    cpuTime = 0.f;
     float                    gpuTime = -1.f;
     std::vector<MyEntryNode> child;
+    Entry*                   entry = nullptr;
   };
 
   uint32_t addEntries(std::vector<MyEntryNode>& nodes, uint32_t startIndex, uint32_t endIndex, uint32_t currentLevel)
@@ -185,7 +194,7 @@ private:
       entryNode.name    = entry.name.empty() ? "N/A" : entry.name;
       entryNode.gpuTime = static_cast<float>(entry.gpuTime.getAveraged() / 1000.);
       entryNode.cpuTime = static_cast<float>(entry.cpuTime.getAveraged() / 1000.);
-
+      entryNode.entry   = &entry;
       if(entry.level == LEVEL_SINGLESHOT)
       {
         m_single.child.push_back(entryNode);
@@ -239,7 +248,12 @@ private:
 
     static ImGuiTableFlags s_flags = ImGuiTableFlags_BordersV | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_Resizable
                                      | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoBordersInBody;
-
+    bool copy = false;
+    if(ImGui::Button("Copy"))
+    {
+      ImGui::LogToClipboard();
+      copy = true;
+    }
     if(ImGui::BeginTable("EntryTable", 3, s_flags))
     {
       // The first column will use the default _WidthStretch when ScrollX is Off and _WidthFixed when ScrollX is On
@@ -257,6 +271,10 @@ private:
       }
 
       ImGui::EndTable();
+    }
+    if(copy)
+    {
+      ImGui::LogFinish();
     }
   }
 
@@ -317,6 +335,151 @@ private:
     }
   }
 
+
+  static uint32_t wangHash(uint32_t seed)
+  {
+    seed = (seed ^ 61) ^ (seed >> 16);
+    seed *= 9;
+    seed = seed ^ (seed >> 4);
+    seed *= 0x27d4eb2d;
+    seed = seed ^ (seed >> 15);
+    return seed;
+  }
+
+  static ImColor uintToColor(uint32_t v)
+  {
+    uint32_t hashed = wangHash(v);
+
+    float r = (hashed & 0xFF) / 255.f;
+    hashed  = hashed >> 8;
+    float g = (hashed & 0xFF) / 255.f;
+    hashed  = hashed >> 8;
+    float b = (hashed & 0xFF) / 255.f;
+
+    // Boost luminance of darker colors for visibility
+    float luminance = (0.2126f * r + 0.7152f * g + 0.0722f * b);
+    float boost     = std::max(1.f, PROFILER_GRAPH_MINIMAL_LUMINANCE / luminance);
+
+    return ImColor(r * boost, g * boost, b * boost, 1.f);
+  }
+
+  //-------------------------------------------------------------------------------------------------
+  // Rendering the data as a cumulated line chart
+  //
+  void renderLineChart()
+  {
+    std::vector<const char*>        gpuTimesLabels(m_node.child.size());
+    std::vector<std::vector<float>> gpuTimes(m_node.child.size());
+    std::vector<float>              cpuTimes(m_data->cpuTime.numValid);
+    static float                    maxY       = 0.f;
+    float                           avgCpuTime = 0.f;
+    for(size_t i = 0; i < m_node.child.size(); i++)
+    {
+      gpuTimesLabels[i] = m_node.child[i].name.c_str();
+
+      if(m_node.child[i].entry)
+      {
+        gpuTimes[i].resize(m_node.child[i].entry->gpuTime.numValid);
+        for(size_t j = 0; j < m_node.child[i].entry->gpuTime.numValid; j++)
+        {
+          uint32_t index = (m_node.child[i].entry->gpuTime.index - m_node.child[i].entry->gpuTime.numValid + j) % m_data->numAveraging;
+          gpuTimes[i][j] = float(m_node.child[i].entry->gpuTime.times[index] / 1000.0);
+          if(i > 0)
+          {
+            gpuTimes[i][j] += gpuTimes[i - 1][j];
+          }
+        }
+      }
+    }
+
+    for(size_t j = 0; j < m_data->cpuTime.numValid; j++)
+    {
+      uint32_t index = (m_data->cpuTime.index - m_data->cpuTime.numValid + j) % m_data->numAveraging;
+      cpuTimes[j]    = float(m_data->cpuTime.times[index] / 1000.0);
+      avgCpuTime += cpuTimes[j];
+    }
+    if(m_data->cpuTime.numValid > 0)
+    {
+      avgCpuTime /= m_data->cpuTime.numValid;
+    }
+    if(maxY == 0.f)
+    {
+      maxY = avgCpuTime;
+    }
+    else
+    {
+      maxY = (PROFILER_GRAPH_TEMPORAL_SMOOTHING * maxY + avgCpuTime) / (PROFILER_GRAPH_TEMPORAL_SMOOTHING + 1.f);
+    }
+
+    if(gpuTimes.size() > 0 && gpuTimes[0].size() > 0)
+    {
+      const ImPlotFlags     plotFlags = ImPlotFlags_NoBoxSelect | ImPlotFlags_NoMouseText | ImPlotFlags_Crosshairs;
+      const ImPlotAxisFlags axesFlags = ImPlotAxisFlags_Lock | ImPlotAxisFlags_NoLabel;
+
+      if(ImPlot::BeginPlot("##Line1", ImVec2(-1, -1), plotFlags))
+      {
+        ImPlot::SetupLegend(ImPlotLocation_NorthWest, ImPlotLegendFlags_NoButtons);
+        ImPlot::SetupAxes(nullptr, "Count", axesFlags | ImPlotAxisFlags_NoTickLabels, axesFlags);
+        ImPlot::SetupAxesLimits(0, m_node.child[0].entry->gpuTime.numValid, 0, maxY * 1.2f, ImPlotCond_Always);
+
+        ImPlot::SetAxes(ImAxis_X1, ImAxis_Y1);
+        ImPlot::SetNextLineStyle(ImColor(0.03f, 0.45f, 0.02f, 1.0f), 0.1f);
+
+        ImPlot::PlotLine("CPU", cpuTimes.data(), (int)cpuTimes.size());
+
+        ImPlot::PushStyleVar(ImPlotStyleVar_FillAlpha, 1.f);
+        ImPlot::SetAxes(ImAxis_X1, ImAxis_Y1);
+
+        for(size_t i = 0; i < m_node.child.size(); i++)
+        {
+          size_t index = m_node.child.size() - i - 1;
+
+          uint32_t h = 0;
+          for(size_t j = 0; j < m_node.child[index].name.size(); j++)
+          {
+            h = wangHash(h + m_node.child[index].name[j]);
+          }
+          ImPlot::SetNextFillStyle(uintToColor(h));
+          ImPlot::PlotShaded(m_node.child[index].name.c_str(), gpuTimes[index].data(), (int)gpuTimes[index].size(),
+                             -INFINITY, 1.0, 0.0, 0, 0);
+        }
+        ImPlot::PopStyleVar();
+
+        if(ImPlot::IsPlotHovered())
+        {
+          ImPlotPoint        mouse       = ImPlot::GetPlotMousePos();
+          int                mouseOffset = (int(mouse.x)) % (int)gpuTimes[0].size();
+          std::vector<float> localTimes(m_node.child.size());
+          ImGui::BeginTooltip();
+
+          ImGui::Text("CPU: %.3f ms", cpuTimes[mouseOffset]);
+
+          float totalGpu = 0.f;
+          for(size_t i = 0; i < m_node.child.size(); i++)
+          {
+            if(i == 0)
+            {
+              localTimes[i] = gpuTimes[i][mouseOffset];
+            }
+            else
+            {
+              localTimes[i] = gpuTimes[i][mouseOffset] - gpuTimes[i - 1][mouseOffset];
+            }
+            totalGpu += localTimes[i];
+          }
+          ImGui::Text("GPU: %.3f ms", totalGpu);
+          for(size_t i = 0; i < m_node.child.size(); i++)
+          {
+            ImGui::Text("  %s: %.3f ms (%.1f%%)", m_node.child[i].name.c_str(), localTimes[i], localTimes[i] * 100.f / totalGpu);
+          }
+
+          ImGui::EndTooltip();
+        }
+
+        ImPlot::EndPlot();
+      }
+    }
+  }
 
   // This goes in the .ini file and remember the state of the window [open/close]
   void addSettingsHandler()
