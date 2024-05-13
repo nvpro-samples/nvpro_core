@@ -971,7 +971,7 @@ static void tooltip(const std::string& text, ImGuiHoveredFlags flags = ImGuiHove
 {
   if(ImGui::IsItemHovered(flags) && ImGui::BeginTooltip())
   {
-    ImGui::Text("%s", text.c_str());
+    ImGui::Text(text.c_str());
     ImGui::EndTooltip();
   }
 }
@@ -1619,7 +1619,7 @@ void ElementInspectorInternal::imGuiComputeVariable(uint32_t i, bool isCopy)
 
     if(!computeVar.comment.empty())
     {
-      ImGui::TextDisabled("%s", computeVar.comment.c_str());
+      ImGui::TextDisabled(computeVar.comment.c_str());
     }
     if(computeVar.isAllocated)
     {
@@ -1671,10 +1671,10 @@ void ElementInspectorInternal::imGuiImage(uint32_t imageIndex, ImVec2& imageSize
   {
 
 
-    ImGui::TextDisabled("%s", img.name.c_str());
+    ImGui::TextDisabled(img.name.c_str());
     if(!img.comment.empty())
     {
-      ImGui::TextDisabled("%s", img.comment.c_str());
+      ImGui::TextDisabled(img.comment.c_str());
     }
     ImGui::SameLine();
     if(ImGui::Button(img.tableView ? "Image view" : "Table view"))
@@ -1738,7 +1738,7 @@ void ElementInspectorInternal::imGuiImage(uint32_t imageIndex, ImVec2& imageSize
                 static_cast<uint32_t>(center.x) + static_cast<uint32_t>(imageSize.x) * static_cast<uint32_t>(center.y);
 
             contents += pixelIndex * img.formatSizeInBytes;
-            ImGui::Text("%s", bufferEntryToString(contents, img.format).c_str());
+            ImGui::Text(bufferEntryToString(contents, img.format).c_str());
             m_alloc->unmap(img.hostBuffer);
             ImVec2 currentPos = ImGui::GetCursorPos();
             ImGui::Image(img.imguiImage, ImVec2(SQUARE_BUTTON_SIZE, SQUARE_BUTTON_SIZE), uv0, uv1);
@@ -1954,7 +1954,7 @@ void ElementInspectorInternal::imGuiBuffer(InspectedBuffer& buf,
     bool is1d = extent.y == 1 && extent.z == 1;
     if(!buf.comment.empty())
     {
-      ImGui::TextDisabled("%s", buf.comment.c_str());
+      ImGui::TextDisabled(buf.comment.c_str());
     }
 
     if(!buf.isCopy)
@@ -2163,7 +2163,7 @@ void ElementInspectorInternal::imGuiBuffer(InspectedBuffer& buf,
         if(buf.showSnapshot)
         {
           ImGui::TableNextColumn();
-          ImGui::Text("%s", (std::string("SNAPSHOT\n") + valueFormatToString(buf.format[i])).c_str());
+          ImGui::Text((std::string("SNAPSHOT\n") + valueFormatToString(buf.format[i])).c_str());
           tooltip(valueFormatTypeToString(buf.format[i]));
           imguiPushActiveButtonStyle(buf.format[i].hexDisplay);
           if(ImGui::Button(fmt::format("Hex##Buffer{}{}", buf.name, i).c_str()))
@@ -2184,7 +2184,7 @@ void ElementInspectorInternal::imGuiBuffer(InspectedBuffer& buf,
         if(buf.showDynamic)
         {
           ImGui::TableNextColumn();
-          ImGui::Text("%s", valueFormatToString(buf.format[i]).c_str());
+          ImGui::Text(valueFormatToString(buf.format[i]).c_str());
           tooltip(valueFormatTypeToString(buf.format[i]));
           imguiPushActiveButtonStyle(buf.format[i].hexDisplay);
           if(ImGui::Button(fmt::format("Hex##Buffer{}{}", buf.name, i).c_str()))
@@ -2726,7 +2726,7 @@ void ElementInspectorInternal::imGuiGrid(uint32_t index, InspectedComputeVariabl
 
 void ElementInspectorInternal::imGuiBlock(uint32_t absoluteBlockIndex, InspectedComputeVariables& computeVar, uint32_t offsetInBytes)
 {
-  ImGui::Text("%s", fmt::format("Block {} {}", absoluteBlockIndex, multiDimUvec3ToString(getBlockIndex(absoluteBlockIndex, computeVar)))
+  ImGui::Text(fmt::format("Block {} {}", absoluteBlockIndex, multiDimUvec3ToString(getBlockIndex(absoluteBlockIndex, computeVar)))
                   .c_str());
 
   uint32_t warpsPerBlock = (computeVar.blockSize.x * computeVar.blockSize.y * computeVar.blockSize.z) / WARP_SIZE;
@@ -2931,7 +2931,7 @@ void ElementInspectorInternal::imGuiColumns(const InspectedBuffer& buffer, uint3
 
         ImGui::TablePushBackgroundChannel();
         ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg, backgroundColor);
-        ImGui::Text("%s", cellText.c_str());
+        ImGui::Text(cellText.c_str());
         ImGui::TablePopBackgroundChannel();
       }
       if(buffer.showDynamic)
@@ -2942,7 +2942,7 @@ void ElementInspectorInternal::imGuiColumns(const InspectedBuffer& buffer, uint3
 
         ImGui::TablePushBackgroundChannel();
         ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg, backgroundColor);
-        ImGui::Text("%s", cellText.c_str());
+        ImGui::Text(cellText.c_str());
         ImGui::TablePopBackgroundChannel();
       }
     }
@@ -2959,7 +2959,7 @@ void ElementInspectorInternal::imGuiWarp(uint32_t                   absoluteBloc
   const uint8_t* contents         = var.mappedContents + offsetInBytes;
   const uint8_t* snapshotContents = var.snapshotContents.data() + offsetInBytes;
   auto&          format           = var.format;
-  ImGui::Text("%s", fmt::format("Warp {}", index).c_str());
+  ImGui::Text(fmt::format("Warp {}", index).c_str());
 
   ImGui::BeginTable(fmt::format("Warp {}{}", index, m_childIndex++).c_str(),
                     2 + (static_cast<int32_t>(format.size()) * ((var.showDynamic ? 1 : 0) + (var.showSnapshot ? 1 : 0))),
@@ -2976,7 +2976,7 @@ void ElementInspectorInternal::imGuiWarp(uint32_t                   absoluteBloc
     if(var.showSnapshot)
     {
       ImGui::TableNextColumn();
-      ImGui::Text("%s", (std::string("SNAPSHOT\n") + valueFormatToString(format[i])).c_str());
+      ImGui::Text((std::string("SNAPSHOT\n") + valueFormatToString(format[i])).c_str());
       imguiPushActiveButtonStyle(format[i].hexDisplay);
       if(ImGui::Button(fmt::format("Hex##{}", i).c_str()))
       {
@@ -2988,7 +2988,7 @@ void ElementInspectorInternal::imGuiWarp(uint32_t                   absoluteBloc
     if(var.showDynamic)
     {
       ImGui::TableNextColumn();
-      ImGui::Text("%s", valueFormatToString(format[i]).c_str());
+      ImGui::Text(valueFormatToString(format[i]).c_str());
       imguiPushActiveButtonStyle(format[i].hexDisplay);
       if(ImGui::Button(fmt::format("Hex##{}", i).c_str()))
       {
