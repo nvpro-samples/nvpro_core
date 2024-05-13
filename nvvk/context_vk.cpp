@@ -28,6 +28,7 @@
 
 #include <nvvk/debug_util_vk.hpp>
 #include <nvp/perproject_globals.hpp>
+#include <iostream>
 
 namespace nvvk {
 
