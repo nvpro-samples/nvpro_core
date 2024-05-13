@@ -1165,23 +1165,11 @@ std::vector<VkLayerProperties> Context::getInstanceLayers()
 {
   uint32_t                       count;
   std::vector<VkLayerProperties> layerProperties;
-  std::vector<VkLayerProperties> actualLayerProperties;
-
-
   NVVK_CHECK(vkEnumerateInstanceLayerProperties(&count, nullptr));
   layerProperties.resize(count);
   NVVK_CHECK(vkEnumerateInstanceLayerProperties(&count, layerProperties.data()));
   layerProperties.resize(std::min(layerProperties.size(), size_t(count)));
-
-  for(auto layer : layerProperties)
-  {
-    if(strcmp(layer.layerName, "VK_LAYER_INTEL_nullhw") == 0)
-    {
-      actualLayerProperties.push_back(layer);
-    }
-  }
-
-  return actualLayerProperties;
+  return layerProperties;
 }
 
 std::vector<VkExtensionProperties> Context::getInstanceExtensions()
