@@ -20,12 +20,13 @@
 #pragma once
 
 #include <filesystem>
+#include <set>
 
 #include "nvvk/debug_util_vk.hpp"
 #include "nvvk/context_vk.hpp"
 #include "nvvk/resourceallocator_vk.hpp"
 
-#include "gltf_scene.hpp"
+#include "nvh/gltfscene.hpp"
 
 
 /** @DOC_START
@@ -43,18 +44,31 @@ namespace nvvkhl {
 class SceneVk
 {
 public:
-  SceneVk(nvvk::Context* ctx, nvvk::ResourceAllocator* alloc);
+  // Those are potential buffers that can be created for vertices
+  struct VertexBuffers
+  {
+    nvvk::Buffer position;
+    nvvk::Buffer normal;
+    nvvk::Buffer tangent;
+    nvvk::Buffer texCoord0;
+    nvvk::Buffer color;
+  };
+
+  SceneVk(VkDevice device, VkPhysicalDevice physicalDevice, nvvk::ResourceAllocator* alloc);
   virtual ~SceneVk() { destroy(); }
 
-  virtual void create(VkCommandBuffer cmd, const nvvkhl::Scene& scn);
+  virtual void create(VkCommandBuffer cmd, const nvh::gltf::Scene& scn);
+  void         update(VkCommandBuffer cmd, const nvh::gltf::Scene& scn);
+  void         updateRenderNodeBuffer(VkCommandBuffer cmd, const nvh::gltf::Scene& scn);
+  void         updateMaterialBuffer(VkCommandBuffer cmd, const nvh::gltf::Scene& scn);
   virtual void destroy();
 
   // Getters
   const nvvk::Buffer&               material() const { return m_bMaterial; }
-  const nvvk::Buffer&               primInfo() const { return m_bPrimInfo; }
-  const nvvk::Buffer&               instances() const { return m_bInstances; }
+  const nvvk::Buffer&               primInfo() const { return m_bRenderPrim; }
+  const nvvk::Buffer&               instances() const { return m_bRenderNode; }
   const nvvk::Buffer&               sceneDesc() const { return m_bSceneDesc; }
-  const std::vector<nvvk::Buffer>&  vertices() const { return m_bVertices; }
+  const std::vector<VertexBuffers>& vertexBuffers() const { return m_vertexBuffers; }
   const std::vector<nvvk::Buffer>&  indices() const { return m_bIndices; }
   const std::vector<nvvk::Texture>& textures() const { return m_textures; }
   uint32_t                          nbTextures() const { return static_cast<uint32_t>(m_textures.size()); }
@@ -73,27 +87,30 @@ protected:
     std::vector<std::vector<uint8_t>> mipData;
   };
 
-  virtual void createMaterialBuffer(VkCommandBuffer cmd, const nvh::GltfScene& scn);
-  virtual void createInstanceInfoBuffer(VkCommandBuffer cmd, const nvh::GltfScene& scn);
-  virtual void createVertexBuffer(VkCommandBuffer cmd, const nvh::GltfScene& scn);
-  virtual void createTextureImages(VkCommandBuffer cmd, const tinygltf::Model& tiny, const std::filesystem::path& basedir);
+  virtual void createMaterialBuffer(VkCommandBuffer cmd, const std::vector<tinygltf::Material>& materials);
+  virtual void createRenderNodeBuffer(VkCommandBuffer cmd, const nvh::gltf::Scene& scn);
+  virtual void createVertexBuffers(VkCommandBuffer cmd, const nvh::gltf::Scene& scn);
+  virtual void createTextureImages(VkCommandBuffer cmd, const tinygltf::Model& model, const std::filesystem::path& basedir);
 
-  void findSrgbImages(const tinygltf::Model& tiny);
+  void findSrgbImages(const tinygltf::Model& model);
 
   virtual void loadImage(const std::filesystem::path& basedir, const tinygltf::Image& gltfImage, int imageID);
   virtual bool createImage(const VkCommandBuffer& cmd, SceneImage& image);
 
   //--
-  nvvk::Context*                   m_ctx;
+  VkDevice         m_device{VK_NULL_HANDLE};
+  VkPhysicalDevice m_physicalDevice{VK_NULL_HANDLE};
+
   nvvk::ResourceAllocator*         m_alloc;
   std::unique_ptr<nvvk::DebugUtil> m_dutil;
 
   nvvk::Buffer              m_bMaterial;
-  nvvk::Buffer              m_bPrimInfo;
-  nvvk::Buffer              m_bInstances;
+  nvvk::Buffer              m_bRenderPrim;
+  nvvk::Buffer              m_bRenderNode;
   nvvk::Buffer              m_bSceneDesc;
-  std::vector<nvvk::Buffer> m_bVertices;
   std::vector<nvvk::Buffer> m_bIndices;
+
+  std::vector<VertexBuffers> m_vertexBuffers;
 
   std::vector<SceneImage>    m_images;
   std::vector<nvvk::Texture> m_textures;  // Vector of all textures of the scene

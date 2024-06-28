@@ -195,30 +195,30 @@ public:
         MAT_TO_INTERNAL_CASE(ElementInspector::eU64Mat2x2, eUint64, glm::uvec2(2, 2));
         MAT_TO_INTERNAL_CASE(ElementInspector::eU64Mat2x3, eUint64, glm::uvec2(2, 3));
         MAT_TO_INTERNAL_CASE(ElementInspector::eU64Mat2x4, eUint64, glm::uvec2(2, 4));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eU8Mat3x2, eUint8, glm::uvec2(2, 2));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eU8Mat3x3, eUint8, glm::uvec2(2, 3));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eU8Mat3x4, eUint8, glm::uvec2(2, 4));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eU16Mat3x2, eUint16, glm::uvec2(2, 2));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eU16Mat3x3, eUint16, glm::uvec2(2, 3));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eU16Mat3x4, eUint16, glm::uvec2(2, 4));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eU32Mat3x2, eUint32, glm::uvec2(2, 2));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eU32Mat3x3, eUint32, glm::uvec2(2, 3));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eU32Mat3x4, eUint32, glm::uvec2(2, 4));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eU64Mat3x2, eUint64, glm::uvec2(2, 2));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eU64Mat3x3, eUint64, glm::uvec2(2, 3));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eU64Mat3x4, eUint64, glm::uvec2(2, 4));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eU8Mat4x2, eUint8, glm::uvec2(2, 2));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eU8Mat4x3, eUint8, glm::uvec2(2, 3));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eU8Mat4x4, eUint8, glm::uvec2(2, 4));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eU16Mat4x2, eUint16, glm::uvec2(2, 2));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eU16Mat4x3, eUint16, glm::uvec2(2, 3));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eU16Mat4x4, eUint16, glm::uvec2(2, 4));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eU32Mat4x2, eUint32, glm::uvec2(2, 2));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eU32Mat4x3, eUint32, glm::uvec2(2, 3));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eU32Mat4x4, eUint32, glm::uvec2(2, 4));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eU64Mat4x2, eUint64, glm::uvec2(2, 2));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eU64Mat4x3, eUint64, glm::uvec2(2, 3));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eU64Mat4x4, eUint64, glm::uvec2(2, 4));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eU8Mat3x2, eUint8, glm::uvec2(3, 2));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eU8Mat3x3, eUint8, glm::uvec2(3, 3));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eU8Mat3x4, eUint8, glm::uvec2(3, 4));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eU16Mat3x2, eUint16, glm::uvec2(3, 2));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eU16Mat3x3, eUint16, glm::uvec2(3, 3));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eU16Mat3x4, eUint16, glm::uvec2(3, 4));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eU32Mat3x2, eUint32, glm::uvec2(3, 2));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eU32Mat3x3, eUint32, glm::uvec2(3, 3));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eU32Mat3x4, eUint32, glm::uvec2(3, 4));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eU64Mat3x2, eUint64, glm::uvec2(3, 2));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eU64Mat3x3, eUint64, glm::uvec2(3, 3));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eU64Mat3x4, eUint64, glm::uvec2(3, 4));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eU8Mat4x2, eUint8, glm::uvec2(4, 2));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eU8Mat4x3, eUint8, glm::uvec2(4, 3));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eU8Mat4x4, eUint8, glm::uvec2(4, 4));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eU16Mat4x2, eUint16, glm::uvec2(4, 2));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eU16Mat4x3, eUint16, glm::uvec2(4, 3));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eU16Mat4x4, eUint16, glm::uvec2(4, 4));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eU32Mat4x2, eUint32, glm::uvec2(4, 2));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eU32Mat4x3, eUint32, glm::uvec2(4, 3));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eU32Mat4x4, eUint32, glm::uvec2(4, 4));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eU64Mat4x2, eUint64, glm::uvec2(4, 2));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eU64Mat4x3, eUint64, glm::uvec2(4, 3));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eU64Mat4x4, eUint64, glm::uvec2(4, 4));
         MAT_TO_INTERNAL_CASE(ElementInspector::eS8Mat2x2, eInt8, glm::uvec2(2, 2));
         MAT_TO_INTERNAL_CASE(ElementInspector::eS8Mat2x3, eInt8, glm::uvec2(2, 3));
         MAT_TO_INTERNAL_CASE(ElementInspector::eS8Mat2x4, eInt8, glm::uvec2(2, 4));
@@ -231,48 +231,48 @@ public:
         MAT_TO_INTERNAL_CASE(ElementInspector::eS64Mat2x2, eInt64, glm::uvec2(2, 2));
         MAT_TO_INTERNAL_CASE(ElementInspector::eS64Mat2x3, eInt64, glm::uvec2(2, 3));
         MAT_TO_INTERNAL_CASE(ElementInspector::eS64Mat2x4, eInt64, glm::uvec2(2, 4));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eS8Mat3x2, eInt8, glm::uvec2(2, 2));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eS8Mat3x3, eInt8, glm::uvec2(2, 3));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eS8Mat3x4, eInt8, glm::uvec2(2, 4));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eS16Mat3x2, eInt16, glm::uvec2(2, 2));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eS16Mat3x3, eInt16, glm::uvec2(2, 3));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eS16Mat3x4, eInt16, glm::uvec2(2, 4));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eS32Mat3x2, eInt32, glm::uvec2(2, 2));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eS32Mat3x3, eInt32, glm::uvec2(2, 3));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eS32Mat3x4, eInt32, glm::uvec2(2, 4));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eS64Mat3x2, eInt64, glm::uvec2(2, 2));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eS64Mat3x3, eInt64, glm::uvec2(2, 3));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eS64Mat3x4, eInt64, glm::uvec2(2, 4));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eS8Mat4x2, eInt8, glm::uvec2(2, 2));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eS8Mat4x3, eInt8, glm::uvec2(2, 3));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eS8Mat4x4, eInt8, glm::uvec2(2, 4));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eS16Mat4x2, eInt16, glm::uvec2(2, 2));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eS16Mat4x3, eInt16, glm::uvec2(2, 3));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eS16Mat4x4, eInt16, glm::uvec2(2, 4));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eS32Mat4x2, eInt32, glm::uvec2(2, 2));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eS32Mat4x3, eInt32, glm::uvec2(2, 3));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eS32Mat4x4, eInt32, glm::uvec2(2, 4));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eS64Mat4x2, eInt64, glm::uvec2(2, 2));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eS64Mat4x3, eInt64, glm::uvec2(2, 3));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eS64Mat4x4, eInt64, glm::uvec2(2, 4));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eS8Mat3x2, eInt8, glm::uvec2(3, 2));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eS8Mat3x3, eInt8, glm::uvec2(3, 3));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eS8Mat3x4, eInt8, glm::uvec2(3, 4));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eS16Mat3x2, eInt16, glm::uvec2(3, 2));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eS16Mat3x3, eInt16, glm::uvec2(3, 3));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eS16Mat3x4, eInt16, glm::uvec2(3, 4));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eS32Mat3x2, eInt32, glm::uvec2(3, 2));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eS32Mat3x3, eInt32, glm::uvec2(3, 3));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eS32Mat3x4, eInt32, glm::uvec2(3, 4));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eS64Mat3x2, eInt64, glm::uvec2(3, 2));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eS64Mat3x3, eInt64, glm::uvec2(3, 3));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eS64Mat3x4, eInt64, glm::uvec2(3, 4));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eS8Mat4x2, eInt8, glm::uvec2(4, 2));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eS8Mat4x3, eInt8, glm::uvec2(4, 3));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eS8Mat4x4, eInt8, glm::uvec2(4, 4));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eS16Mat4x2, eInt16, glm::uvec2(4, 2));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eS16Mat4x3, eInt16, glm::uvec2(4, 3));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eS16Mat4x4, eInt16, glm::uvec2(4, 4));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eS32Mat4x2, eInt32, glm::uvec2(4, 2));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eS32Mat4x3, eInt32, glm::uvec2(4, 3));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eS32Mat4x4, eInt32, glm::uvec2(4, 4));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eS64Mat4x2, eInt64, glm::uvec2(4, 2));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eS64Mat4x3, eInt64, glm::uvec2(4, 3));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eS64Mat4x4, eInt64, glm::uvec2(4, 4));
         MAT_TO_INTERNAL_CASE(ElementInspector::eF16Mat2x2, eFloat16, glm::uvec2(2, 2));
         MAT_TO_INTERNAL_CASE(ElementInspector::eF16Mat2x3, eFloat16, glm::uvec2(2, 3));
         MAT_TO_INTERNAL_CASE(ElementInspector::eF16Mat2x4, eFloat16, glm::uvec2(2, 4));
         MAT_TO_INTERNAL_CASE(ElementInspector::eF32Mat2x2, eFloat32, glm::uvec2(2, 2));
         MAT_TO_INTERNAL_CASE(ElementInspector::eF32Mat2x3, eFloat32, glm::uvec2(2, 3));
         MAT_TO_INTERNAL_CASE(ElementInspector::eF32Mat2x4, eFloat32, glm::uvec2(2, 4));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eF16Mat3x2, eFloat16, glm::uvec2(2, 2));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eF16Mat3x3, eFloat16, glm::uvec2(2, 3));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eF16Mat3x4, eFloat16, glm::uvec2(2, 4));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eF32Mat3x2, eFloat32, glm::uvec2(2, 2));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eF32Mat3x3, eFloat32, glm::uvec2(2, 3));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eF32Mat3x4, eFloat32, glm::uvec2(2, 4));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eF16Mat4x2, eFloat16, glm::uvec2(2, 2));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eF16Mat4x3, eFloat16, glm::uvec2(2, 3));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eF16Mat4x4, eFloat16, glm::uvec2(2, 4));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eF32Mat4x2, eFloat32, glm::uvec2(2, 2));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eF32Mat4x3, eFloat32, glm::uvec2(2, 3));
-        MAT_TO_INTERNAL_CASE(ElementInspector::eF32Mat4x4, eFloat32, glm::uvec2(2, 4));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eF16Mat3x2, eFloat16, glm::uvec2(3, 2));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eF16Mat3x3, eFloat16, glm::uvec2(3, 3));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eF16Mat3x4, eFloat16, glm::uvec2(3, 4));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eF32Mat3x2, eFloat32, glm::uvec2(3, 2));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eF32Mat3x3, eFloat32, glm::uvec2(3, 3));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eF32Mat3x4, eFloat32, glm::uvec2(3, 4));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eF16Mat4x2, eFloat16, glm::uvec2(4, 2));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eF16Mat4x3, eFloat16, glm::uvec2(4, 3));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eF16Mat4x4, eFloat16, glm::uvec2(4, 4));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eF32Mat4x2, eFloat32, glm::uvec2(4, 2));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eF32Mat4x3, eFloat32, glm::uvec2(4, 3));
+        MAT_TO_INTERNAL_CASE(ElementInspector::eF32Mat4x4, eFloat32, glm::uvec2(4, 4));
       }
     }
     return res;
@@ -2388,10 +2388,13 @@ void ElementInspectorInternal::saveCsvHeader(std::ofstream& out, const std::vect
 {
   for(size_t i = 0; i < format.size(); i++)
   {
-    out << valueFormatToString(format[i]);
-    if(i < (format.size() - 1))
+    if(format[i].flags == ElementInspector::eVisible)
     {
-      out << ", ";
+      out << valueFormatToString(format[i]);
+      if(i < (format.size() - 1))
+      {
+        out << ", ";
+      }
     }
   }
   out << std::endl;
@@ -3155,6 +3158,18 @@ void ElementInspectorInternal::initImageInspection(uint32_t index, const Element
     return;
   }
 
+  if(info.format.empty())
+  {
+    LOGE("initImageInspection error: info.format must not be empty");
+    return;
+  }
+  if(info.createInfo.extent.width * info.createInfo.extent.height == 0)
+  {
+    LOGE("initImageInspection error: the extent in info.createInfo must not be 0");
+    return;
+  }
+
+
   checkFormatFlag(info.format);
   ElementInspectorInternal::InspectedImage& inspectedImage = m_inspectedImages[index];
 
@@ -3242,6 +3257,16 @@ void ElementInspectorInternal::initBufferInspection(uint32_t index, const Elemen
     return;
   }
   checkFormatFlag(info.format);
+  if(info.entryCount == 0)
+  {
+    LOGE("initBufferInspection error: info.entryCount must be > 0\n");
+    return;
+  }
+  if(info.format.empty())
+  {
+    LOGE("initBufferInspection error: info.format must not be empty\n");
+    return;
+  }
   createInspectedBuffer(m_inspectedBuffers[index], info.sourceBuffer, info.name, toInternalFormat(info.format),
                         info.entryCount, info.comment, info.minEntry, info.viewMin, info.viewMax);
 }
@@ -3424,6 +3449,11 @@ std::string ElementInspectorInternal::bufferEntryToString(const uint8_t* content
   for(size_t i = 0; i < format.size(); i++)
   {
 
+    if(format[i].flags == ElementInspector::eHidden)
+    {
+      continue;
+    }
+
     if(format[i].hexDisplay)
     {
       sss << "0x" << std::uppercase << std::setfill('0') << std::setw(valueFormatSizeInBytes(format[i]) * 2) << std::hex;
@@ -3568,6 +3598,13 @@ void ElementInspectorInternal::initComputeInspection(uint32_t index, const Eleme
     return;
   }
   checkFormatFlag(info.format);
+
+  if(info.format.empty())
+  {
+    LOGE("initComputeInspection error: info.format must not be empty\n");
+    return;
+  }
+
   InspectedComputeVariables& var = m_inspectedComputeVariables[index];
 
   var.blocksPerRow = info.uiBlocksPerRow;
@@ -3748,6 +3785,12 @@ void ElementInspectorInternal::initCustomInspection(uint32_t index, const Elemen
     return;
   }
   checkFormatFlag(info.format);
+
+  if(info.format.empty())
+  {
+    LOGE("initCustomInspection error: info.format must not be empty\n");
+    return;
+  }
   InspectedCustomVariables& var = m_inspectedCustomVariables[index];
 
 
@@ -3907,6 +3950,11 @@ void ElementInspectorInternal::initFragmentInspection(uint32_t index, const Elem
   }
 
   checkFormatFlag(info.format);
+  if(info.format.empty())
+  {
+    LOGE("initFragmentInspection error: info.format must not be empty\n");
+    return;
+  }
   InspectedFragmentVariables& var = m_inspectedFragmentVariables[index];
 
   var.renderSize  = info.renderSize;

@@ -45,6 +45,7 @@ public:
   }
 
   static void setEnabled(bool state) { s_enabled = state; }
+  static bool isEnabled() { return s_enabled; }
 
   void setup(VkDevice device) { m_device = device; }
 

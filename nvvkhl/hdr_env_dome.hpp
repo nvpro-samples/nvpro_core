@@ -50,7 +50,7 @@ class HdrEnvDome
 {
 public:
   HdrEnvDome() = default;
-  HdrEnvDome(nvvk::Context* ctx, nvvk::ResourceAllocator* allocator, uint32_t queueFamilyIndex = 0U);
+  HdrEnvDome(VkDevice device, VkPhysicalDevice physicalDevice, nvvk::ResourceAllocator* allocator, uint32_t queueFamilyIndex = 0U);
   ~HdrEnvDome() { destroy(); }
 
   void setup(const VkDevice& device, const VkPhysicalDevice& physicalDevice, uint32_t familyIndex, nvvk::ResourceAllocator* allocator);

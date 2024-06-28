@@ -49,9 +49,9 @@ std::vector<nvvkhl_shaders::EnvAccel> createEnvironmentAccel(float*&         pix
                                                              float&          average,
                                                              float&          integral);
 
-HdrEnv::HdrEnv(nvvk::Context* ctx, nvvk::ResourceAllocator* allocator, uint32_t queueFamilyIndex)
+HdrEnv::HdrEnv(VkDevice device, VkPhysicalDevice physicalDevice, nvvk::ResourceAllocator* allocator, uint32_t queueFamilyIndex)
 {
-  setup(ctx->m_device, ctx->m_physicalDevice, queueFamilyIndex, allocator);
+  setup(device, physicalDevice, queueFamilyIndex, allocator);
 }
 
 

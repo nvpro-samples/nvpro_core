@@ -122,6 +122,7 @@ bool refract(vec3 incident, vec3 normal, float eta, out vec3 transmitted)
   if(k < 0.0F)
   {
     // Total internal reflection
+    transmitted = incident;
     return false;
   }
   else

@@ -76,15 +76,20 @@ struct ElementCamera : public nvvkhl::IAppElement
     }
   }
 
-  void onResize(uint32_t width, uint32_t height) override { CameraManip.setWindowSize(width, height); }
+  void onResize(uint32_t width, uint32_t height) override
+  {
+    CameraManip.setWindowSize(width, height);
+    m_viewportSize = ImVec2(static_cast<float>(width), static_cast<float>(height));
+  }
+
 
   //--------------------------------------------------------------------------------------------------
   // Fit the camera to the Bounding box
   //
   void fitCamera(const glm::vec3& boxMin, const glm::vec3& boxMax, bool instantFit /*= true*/) const
   {
-    float aspect_ratio = static_cast<float>(m_viewportSize.x / m_viewportSize.y);
-    CameraManip.fit(boxMin, boxMax, instantFit, false, aspect_ratio);
+    float aspectRatio = static_cast<float>(m_viewportSize.x / m_viewportSize.y);
+    CameraManip.fit(boxMin, boxMax, instantFit, true, aspectRatio);
   }
 
   void setSceneRadius(float r) { m_sceneRadius = r; }

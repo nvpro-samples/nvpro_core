@@ -93,6 +93,17 @@ Buffer ResourceAllocator::createBuffer(const VkBufferCreateInfo& info_, const Vk
     destroy(resultBuffer);
   }
 
+  // Get the device address if requested
+  if(info_.usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT)
+  {
+    VkBufferDeviceAddressInfo info = {VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO};
+    info.buffer                    = resultBuffer.buffer;
+    if(vkGetBufferDeviceAddress != NULL)
+      resultBuffer.address = vkGetBufferDeviceAddress(m_device, &info);
+    else if(vkGetBufferDeviceAddressKHR != NULL)
+      resultBuffer.address = vkGetBufferDeviceAddressKHR(m_device, &info);
+  }
+
   return resultBuffer;
 }
 
@@ -498,7 +509,7 @@ uint32_t ResourceAllocator::getMemoryType(uint32_t typeBits, const VkMemoryPrope
 }
 
 
-AccelNV ResourceAllocator::createAcceleration(VkAccelerationStructureCreateInfoNV& accel_)
+AccelNV ResourceAllocator::createAcceleration(const VkAccelerationStructureCreateInfoNV& accel_)
 {
   AccelNV resultAccel;
   // Create the acceleration structure
@@ -539,16 +550,24 @@ void ResourceAllocator::destroy(AccelNV& a_)
   a_ = AccelNV();
 }
 
-AccelKHR ResourceAllocator::createAcceleration(VkAccelerationStructureCreateInfoKHR& accel_)
+AccelKHR ResourceAllocator::createAcceleration(const VkAccelerationStructureCreateInfoKHR& accel_)
 {
   AccelKHR resultAccel;
   // Allocating the buffer to hold the acceleration structure
   resultAccel.buffer = createBuffer(accel_.size, VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR
                                                      | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);
   // Setting the buffer
-  accel_.buffer = resultAccel.buffer.buffer;
+  VkAccelerationStructureCreateInfoKHR accel = accel_;
+  accel.buffer                               = resultAccel.buffer.buffer;
   // Create the acceleration structure
-  vkCreateAccelerationStructureKHR(m_device, &accel_, nullptr, &resultAccel.accel);
+  vkCreateAccelerationStructureKHR(m_device, &accel, nullptr, &resultAccel.accel);
+
+  if(vkGetAccelerationStructureDeviceAddressKHR != nullptr)
+  {
+    VkAccelerationStructureDeviceAddressInfoKHR info{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR};
+    info.accelerationStructure = resultAccel.accel;
+    resultAccel.address        = vkGetAccelerationStructureDeviceAddressKHR(m_device, &info);
+  }
 
   return resultAccel;
 }

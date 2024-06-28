@@ -34,19 +34,19 @@
 #include "tonemap_postprocess.hpp"
 
 namespace nvvkhl {
-TonemapperPostProcess::TonemapperPostProcess(nvvk::Context* ctx, nvvk::ResourceAllocator* alloc)
-    : m_ctx(ctx)
-    , m_dutil(std::make_unique<nvvk::DebugUtil>(ctx->m_device))
-    , m_dsetGraphics(std::make_unique<nvvk::DescriptorSetContainer>(ctx->m_device))
-    , m_dsetCompute(std::make_unique<nvvk::DescriptorSetContainer>(ctx->m_device))
+TonemapperPostProcess::TonemapperPostProcess(VkDevice device, nvvk::ResourceAllocator* alloc)
+    : m_device(device)
+    , m_dutil(std::make_unique<nvvk::DebugUtil>(m_device))
+    , m_dsetGraphics(std::make_unique<nvvk::DescriptorSetContainer>(m_device))
+    , m_dsetCompute(std::make_unique<nvvk::DescriptorSetContainer>(m_device))
 {
   m_settings = nvvkhl_shaders::defaultTonemapper();
 }
 
 TonemapperPostProcess::~TonemapperPostProcess()
 {
-  vkDestroyPipeline(m_ctx->m_device, m_graphicsPipeline, nullptr);
-  vkDestroyPipeline(m_ctx->m_device, m_computePipeline, nullptr);
+  vkDestroyPipeline(m_device, m_graphicsPipeline, nullptr);
+  vkDestroyPipeline(m_device, m_computePipeline, nullptr);
   m_dsetGraphics->deinit();
   m_dsetCompute->deinit();
 }
@@ -74,7 +74,7 @@ void TonemapperPostProcess::createGraphicPipeline(VkFormat colorFormat, VkFormat
   nvvk::GraphicsPipelineState pstate;
   pstate.rasterizationState.cullMode = VK_CULL_MODE_NONE;
 
-  nvvk::GraphicsPipelineGenerator pgen(m_ctx->m_device, d->getPipeLayout(), prend_info, pstate);
+  nvvk::GraphicsPipelineGenerator pgen(m_device, d->getPipeLayout(), prend_info, pstate);
   pgen.addShader(std::vector<uint32_t>{std::begin(passthrough_vert), std::end(passthrough_vert)}, VK_SHADER_STAGE_VERTEX_BIT);
   pgen.addShader(std::vector<uint32_t>{std::begin(tonemapper_frag), std::end(tonemapper_frag)}, VK_SHADER_STAGE_FRAGMENT_BIT);
 
@@ -88,7 +88,7 @@ void TonemapperPostProcess::createComputePipeline()
 {
   m_mode = TmMode::eCompute;
 
-  nvvk::DebugUtil dbg(m_ctx->m_device);
+  nvvk::DebugUtil dbg(m_device);
 
   auto& d = m_dsetCompute;
   d->addBinding(nvvkhl_shaders::eTonemapperInput, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_COMPUTE_BIT);
@@ -103,18 +103,18 @@ void TonemapperPostProcess::createComputePipeline()
 
   VkPipelineShaderStageCreateInfo stage_info{VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
   stage_info.stage  = VK_SHADER_STAGE_COMPUTE_BIT;
-  stage_info.module = nvvk::createShaderModule(m_ctx->m_device, tonemapper_comp, sizeof(tonemapper_comp));
+  stage_info.module = nvvk::createShaderModule(m_device, tonemapper_comp, sizeof(tonemapper_comp));
   stage_info.pName  = "main";
 
   VkComputePipelineCreateInfo comp_info{VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO};
   comp_info.layout = d->getPipeLayout();
   comp_info.stage  = stage_info;
 
-  vkCreateComputePipelines(m_ctx->m_device, {}, 1, &comp_info, nullptr, &m_computePipeline);
+  vkCreateComputePipelines(m_device, {}, 1, &comp_info, nullptr, &m_computePipeline);
   m_dutil->DBG_NAME(m_computePipeline);
 
   // Clean up
-  vkDestroyShaderModule(m_ctx->m_device, comp_info.stage.module, nullptr);
+  vkDestroyShaderModule(m_device, comp_info.stage.module, nullptr);
 }
 
 void TonemapperPostProcess::updateGraphicDescriptorSets(VkDescriptorImageInfo inImage)
@@ -167,36 +167,25 @@ bool TonemapperPostProcess::onUI()
 {
   bool changed{false};
 
-  const char* items[] = {"Filmic", "Uncharted", "Gamma"};
+  const char* items[] = {"Filmic", "Uncharted 2", "Clip", "ACES", "AgX", "Khronos PBR"};
 
-  using namespace ImGuiH;
-  PropertyEditor::begin();
-  changed |= PropertyEditor::entry("Method", [&]() {
-    return ImGui::Combo("combo", &m_settings.method, items, IM_ARRAYSIZE(items));
-  });
-  changed |= PropertyEditor::entry("Active", [&]() {
-    return ImGui::Checkbox("##1", reinterpret_cast<bool*>(&m_settings.isActive));
-  });
+  namespace PE = ImGuiH::PropertyEditor;
+  PE::begin();
+  changed |= PE::Combo("Method", &m_settings.method, items, IM_ARRAYSIZE(items));
   changed |=
-      PropertyEditor::entry("Exposure", [&]() { return ImGui::SliderFloat("##1", &m_settings.exposure, 0.001F, 5.0F); });
-  changed |=
-      PropertyEditor::entry("Brightness", [&]() { return ImGui::SliderFloat("##1", &m_settings.brightness, 0.0F, 2.0F); });
-  changed |=
-      PropertyEditor::entry("Contrast", [&]() { return ImGui::SliderFloat("##1", &m_settings.contrast, 0.0F, 2.0F); });
-  changed |=
-      PropertyEditor::entry("Saturation", [&]() { return ImGui::SliderFloat("##1", &m_settings.saturation, 0.0F, 2.0F); });
-  changed |=
-      PropertyEditor::entry("Vignette", [&]() { return ImGui::SliderFloat("##1", &m_settings.vignette, 0.0F, 1.0F); });
-  ImGui::BeginDisabled(m_settings.method == nvvkhl_shaders::eTonemapFilmic);
-  changed |= PropertyEditor::entry("Gamma", [&]() { return ImGui::SliderFloat("##1", &m_settings.gamma, 1.0F, 2.2F); });
-  ImGui::EndDisabled();
-  if(PropertyEditor::entry(
-         " ", [&]() { return ImGui::SmallButton("reset"); }, "Resetting to the original values"))
+      PE::entry("Active", [&]() { return ImGui::Checkbox("Active", reinterpret_cast<bool*>(&m_settings.isActive)); });
+  changed |= PE::SliderFloat("Exposure", &m_settings.exposure, 0.001F, 5.0F);
+  changed |= PE::SliderFloat("Brightness", &m_settings.brightness, 0.0F, 2.0F);
+  changed |= PE::SliderFloat("Contrast", &m_settings.contrast, 0.0F, 2.0F);
+  changed |= PE::SliderFloat("Saturation", &m_settings.saturation, 0.0F, 2.0F);
+  changed |= PE::SliderFloat("Vignette", &m_settings.vignette, 0.0F, 1.0F);
+
+  if(ImGui::SmallButton("reset"))
   {
     m_settings = nvvkhl_shaders::defaultTonemapper();
     changed    = true;
   }
-  PropertyEditor::end();
+  PE::end();
   return changed;
 }
 

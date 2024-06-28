@@ -86,7 +86,8 @@ public:
     m_app = app;
 
     nvvk::ProfilerVK::init(m_app->getDevice(), m_app->getPhysicalDevice());
-    nvvk::ProfilerVK::setLabelUsage(m_app->getContext()->hasInstanceExtension(VK_EXT_DEBUG_UTILS_EXTENSION_NAME));
+    bool hasDebugUtils = nvvk::DebugUtil::isEnabled();
+    nvvk::ProfilerVK::setLabelUsage(hasDebugUtils);
     nvvk::ProfilerVK::beginFrame();
   }
 

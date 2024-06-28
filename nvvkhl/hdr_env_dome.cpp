@@ -47,9 +47,9 @@
 
 namespace nvvkhl {
 
-HdrEnvDome::HdrEnvDome(nvvk::Context* ctx, nvvk::ResourceAllocator* allocator, uint32_t queueFamilyIndex)
+HdrEnvDome::HdrEnvDome(VkDevice device, VkPhysicalDevice physicalDevice, nvvk::ResourceAllocator* allocator, uint32_t queueFamilyIndex)
 {
-  setup(ctx->m_device, ctx->m_physicalDevice, queueFamilyIndex, allocator);
+  setup(device, physicalDevice, queueFamilyIndex, allocator);
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -165,7 +165,9 @@ void HdrEnvDome::draw(const VkCommandBuffer& cmdBuf,
 
   // Information to the compute shader
   nvvkhl_shaders::HdrDomePushConstant pc{};
-  pc.mvp = glm::inverse(view) * glm::inverse(proj);  // This will be to have a world direction vector pointing to the pixel
+  glm::mat4                           noTranslate = view;
+  noTranslate[3]                                  = glm::vec4(0, 0, 0, 1);  // Remove translation
+  pc.mvp = glm::inverse(noTranslate) * glm::inverse(proj);  // This will be to have a world direction vector pointing to the pixel
   pc.multColor = glm::vec4(*color);
   pc.rotation  = rotation;
 

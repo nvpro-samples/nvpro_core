@@ -28,7 +28,7 @@
 
 # class nvvkhl::TonemapperPostProcess
 
->  This class is meant to be use for displaying the final image rendered in linear space (sRGB).
+> Takes an image in linear RGB, tonemaps it, converts it to sRGB, and applies color correction.
 
 
 There are two ways to use it, one which is graphic, the other is compute. 
@@ -57,7 +57,7 @@ namespace nvvkhl {
 
 struct TonemapperPostProcess
 {
-  TonemapperPostProcess(nvvk::Context* ctx, nvvk::ResourceAllocator* alloc);
+  TonemapperPostProcess(VkDevice device, nvvk::ResourceAllocator* alloc);
   ~TonemapperPostProcess();
 
   void createGraphicPipeline(VkFormat colorFormat, VkFormat depthFormat);
@@ -79,7 +79,8 @@ struct TonemapperPostProcess
   nvvkhl_shaders::Tonemapper& settings() { return m_settings; };  // returning access to setting values
 
 private:
-  nvvk::Context*                   m_ctx{nullptr};
+  VkDevice m_device{VK_NULL_HANDLE};
+
   std::unique_ptr<nvvk::DebugUtil> m_dutil;
 
 

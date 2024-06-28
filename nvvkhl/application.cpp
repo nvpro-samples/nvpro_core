@@ -85,6 +85,10 @@
 uint32_t                                        nvvkhl::Application::m_currentFrameIndex{0};
 std::vector<std::vector<std::function<void()>>> nvvkhl::Application::m_resourceFreeQueue;
 
+// Vulkan functions
+static PFN_vkCmdBeginDebugUtilsLabelEXT app_vkCmdBeginDebugUtilsLabelEXT = 0;
+static PFN_vkCmdEndDebugUtilsLabelEXT   app_vkCmdEndDebugUtilsLabelEXT   = 0;
+
 // Forward declaration
 void ImplVulkanH_CreateOrResizeWindow(VkInstance                   instance,
                                       VkPhysicalDevice             physical_device,
@@ -143,6 +147,7 @@ void nvvkhl::Application::init(ApplicationCreateInfo& info)
                   / std::filesystem::path(std::string("log_") + getProjectName() + std::string(".txt"));
   auto path_ini = std::filesystem::path(NVPSystem::exePath()) / std::filesystem::path(getProjectName() + std::string(".ini"));
 
+
   m_clearColor            = info.clearColor;
   m_dockSetup             = info.dockSetup;
   m_hasUndockableViewport = info.hasUndockableViewport;
@@ -191,37 +196,57 @@ void nvvkhl::Application::init(ApplicationCreateInfo& info)
   }
 
   // Adding required extensions
-  nvvk::ContextCreateInfo& vk_setup         = info.vkSetup;
-  uint32_t                 extensions_count = 0;
-  const char**             extensions       = glfwGetRequiredInstanceExtensions(&extensions_count);
-  for(uint32_t i = 0; i < extensions_count; i++)
+  if(info.instance == VK_NULL_HANDLE)
   {
-    vk_setup.instanceExtensions.emplace_back(extensions[i]);
-  }
-  vk_setup.deviceExtensions.emplace_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
-  vk_setup.instanceExtensions.emplace_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+    nvvk::ContextCreateInfo& vk_setup         = info.vkSetup;
+    uint32_t                 extensions_count = 0;
+    const char**             extensions       = glfwGetRequiredInstanceExtensions(&extensions_count);
+    for(uint32_t i = 0; i < extensions_count; i++)
+    {
+      vk_setup.instanceExtensions.emplace_back(extensions[i]);
+    }
+    vk_setup.deviceExtensions.emplace_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+    vk_setup.instanceExtensions.emplace_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 
-  // Vulkan context creation
-  m_context = std::make_shared<nvvk::Context>();
-  for(auto& dbg_msg : info.ignoreDbgMessages)
-  {
-    m_context->ignoreDebugMessage(dbg_msg);  // Turn-off messages
+    // Vulkan context creation
+    m_context = std::make_shared<nvvk::Context>();
+    for(auto& dbg_msg : info.ignoreDbgMessages)
+    {
+      m_context->ignoreDebugMessage(dbg_msg);  // Turn-off messages
+    }
+    m_context->init(vk_setup);
+    m_instance       = m_context->m_instance;
+    m_device         = m_context->m_device;
+    m_physicalDevice = m_context->m_physicalDevice;
+    m_queues         = {m_context->m_queueGCT, m_context->m_queueC, m_context->m_queueT};
   }
-  m_context->init(vk_setup);
+  else
+  {
+    m_instance       = info.instance;
+    m_device         = info.device;
+    m_physicalDevice = info.physicalDevice;
+    m_queues         = info.queues;
+    assert(m_instance != VK_NULL_HANDLE && m_device != VK_NULL_HANDLE && m_physicalDevice != VK_NULL_HANDLE);
+  }
+
+  // In case the Debug extension wasn't set, those functions will be null.
+  app_vkCmdBeginDebugUtilsLabelEXT =
+      (PFN_vkCmdBeginDebugUtilsLabelEXT)vkGetInstanceProcAddr(m_instance, "vkCmdBeginDebugUtilsLabelEXT");
+  app_vkCmdEndDebugUtilsLabelEXT = (PFN_vkCmdEndDebugUtilsLabelEXT)vkGetInstanceProcAddr(m_instance, "vkCmdEndDebugUtilsLabelEXT");
 
 
   createDescriptorPool();
 
   VkCommandPoolCreateInfo pool_create_info{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
   pool_create_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-  vkCreateCommandPool(m_context->m_device, &pool_create_info, m_allocator, &m_cmdPool);
+  vkCreateCommandPool(m_device, &pool_create_info, m_allocator, &m_cmdPool);
 
   VkPipelineCacheCreateInfo pipeline_cache_info{VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO};
-  vkCreatePipelineCache(m_context->m_device, &pipeline_cache_info, m_allocator, &m_pipelineCache);
+  vkCreatePipelineCache(m_device, &pipeline_cache_info, m_allocator, &m_pipelineCache);
 
   // Create Window Surface
   VkSurfaceKHR surface = nullptr;
-  NVVK_CHECK(glfwCreateWindowSurface(m_context->m_instance, m_windowHandle, m_allocator, &surface));
+  NVVK_CHECK(glfwCreateWindowSurface(m_instance, m_windowHandle, m_allocator, &surface));
 
   // Create framebuffers
   int w{0};
@@ -258,11 +283,11 @@ void nvvkhl::Application::init(ApplicationCreateInfo& info)
   // Setup Platform/Renderer backends
   ImGui_ImplGlfw_InitForVulkan(m_windowHandle, true);
   ImGui_ImplVulkan_InitInfo init_info = {};
-  init_info.Instance                  = m_context->m_instance;
-  init_info.PhysicalDevice            = m_context->m_physicalDevice;
-  init_info.Device                    = m_context->m_device;
-  init_info.QueueFamily               = m_context->m_queueGCT.familyIndex;
-  init_info.Queue                     = m_context->m_queueGCT.queue;
+  init_info.Instance                  = m_instance;
+  init_info.PhysicalDevice            = m_physicalDevice;
+  init_info.Device                    = m_device;
+  init_info.QueueFamily               = m_queues[0].familyIndex;
+  init_info.Queue                     = m_queues[0].queue;
   init_info.PipelineCache             = m_pipelineCache;
   init_info.DescriptorPool            = m_descriptorPool;
   init_info.RenderPass                = wd->RenderPass;
@@ -292,7 +317,7 @@ void nvvkhl::Application::shutdown()
   }
 
   // Cleanup
-  vkDeviceWaitIdle(m_context->m_device);
+  vkDeviceWaitIdle(m_device);
 
   // Free all resources
   resetFreeQueue(0);
@@ -313,14 +338,15 @@ void nvvkhl::Application::shutdown()
   m_elements.clear();
 
   // Cleanup Vulkan Window
-  ImGui_ImplVulkanH_DestroyWindow(m_context->m_instance, m_context->m_device, m_mainWindowData.get(), m_allocator);
+  ImGui_ImplVulkanH_DestroyWindow(m_instance, m_device, m_mainWindowData.get(), m_allocator);
 
   // Vulkan cleanup
-  vkDestroyPipelineCache(m_context->m_device, m_pipelineCache, m_allocator);
-  vkDestroyCommandPool(m_context->m_device, m_cmdPool, m_allocator);
-  vkDestroyDescriptorPool(m_context->m_device, m_descriptorPool, m_allocator);
+  vkDestroyPipelineCache(m_device, m_pipelineCache, m_allocator);
+  vkDestroyCommandPool(m_device, m_cmdPool, m_allocator);
+  vkDestroyDescriptorPool(m_device, m_descriptorPool, m_allocator);
 
-  m_context->deinit();
+  if(m_context)
+    m_context->deinit();
 
   // Glfw cleanup
   glfwDestroyWindow(m_windowHandle);
@@ -338,7 +364,7 @@ void nvvkhl::Application::setupVulkanWindow(VkSurfaceKHR surface, int width, int
 
   // Check for WSI support
   VkBool32 res = VK_FALSE;
-  NVVK_CHECK(vkGetPhysicalDeviceSurfaceSupportKHR(m_context->m_physicalDevice, m_context->m_queueGCT.familyIndex, wd->Surface, &res));
+  NVVK_CHECK(vkGetPhysicalDeviceSurfaceSupportKHR(m_physicalDevice, m_queues[0].familyIndex, wd->Surface, &res));
   if(res != VK_TRUE)
   {
     fprintf(stderr, "Error no WSI support on physical device\n");
@@ -350,15 +376,15 @@ void nvvkhl::Application::setupVulkanWindow(VkSurfaceKHR surface, int width, int
                                                                 VK_FORMAT_B8G8R8_UNORM, VK_FORMAT_R8G8B8_UNORM};
   const VkColorSpaceKHR         request_surface_color_space  = VK_COLORSPACE_SRGB_NONLINEAR_KHR;
   wd->SurfaceFormat =
-      ImGui_ImplVulkanH_SelectSurfaceFormat(m_context->m_physicalDevice, wd->Surface, request_surface_image_format.data(),
+      ImGui_ImplVulkanH_SelectSurfaceFormat(m_physicalDevice, wd->Surface, request_surface_image_format.data(),
                                             static_cast<int>(request_surface_image_format.size()), request_surface_color_space);
 
   // Select Present Mode
-  setPresentMode(m_context->m_physicalDevice, wd);
+  setPresentMode(m_physicalDevice, wd);
 
   // Create SwapChain, RenderPass, Framebuffer, etc.
-  ImplVulkanH_CreateOrResizeWindow(m_context->m_instance, m_context->m_physicalDevice, m_context->m_device, wd,
-                                   m_context->m_queueGCT.familyIndex, m_allocator, width, height, m_minImageCount);
+  ImplVulkanH_CreateOrResizeWindow(m_instance, m_physicalDevice, m_device, wd, m_queues[0].familyIndex, m_allocator,
+                                   width, height, m_minImageCount);
 }
 
 
@@ -388,12 +414,11 @@ void nvvkhl::Application::run()
       glfwGetFramebufferSize(m_windowHandle, &width, &height);
       if(width > 0 && height > 0)
       {
-        setPresentMode(m_context->m_physicalDevice, wd);
+        setPresentMode(m_physicalDevice, wd);
 
         ImGui_ImplVulkan_SetMinImageCount(m_minImageCount);
-        ImplVulkanH_CreateOrResizeWindow(m_context->m_instance, m_context->m_physicalDevice, m_context->m_device,
-                                         m_mainWindowData.get(), m_context->m_queueGCT.familyIndex, m_allocator, width,
-                                         height, m_minImageCount);
+        ImplVulkanH_CreateOrResizeWindow(m_instance, m_physicalDevice, m_device, m_mainWindowData.get(),
+                                         m_queues[0].familyIndex, m_allocator, width, height, m_minImageCount);
         resetFreeQueue(wd->ImageCount);
         m_mainWindowData->FrameIndex = 0;
         m_swapChainRebuild           = false;
@@ -482,7 +507,7 @@ void nvvkhl::Application::run()
     if(m_screenShotRequested)
     {
       m_screenShotRequested = false;
-      vkDeviceWaitIdle(m_context->m_device);
+      vkDeviceWaitIdle(m_device);
       saveScreenShot(m_screenShotFilename, m_screenShotQuality);
     }
 
@@ -612,8 +637,7 @@ void nvvkhl::Application::frameRender()
 
   VkSemaphore image_acquired_semaphore  = wd->FrameSemaphores[wd->SemaphoreIndex].ImageAcquiredSemaphore;
   VkSemaphore render_complete_semaphore = wd->FrameSemaphores[wd->SemaphoreIndex].RenderCompleteSemaphore;
-  VkResult    err = vkAcquireNextImageKHR(m_context->m_device, wd->Swapchain, UINT64_MAX, image_acquired_semaphore,
-                                          VK_NULL_HANDLE, &wd->FrameIndex);
+  VkResult err = vkAcquireNextImageKHR(m_device, wd->Swapchain, UINT64_MAX, image_acquired_semaphore, VK_NULL_HANDLE, &wd->FrameIndex);
   if(err == VK_ERROR_OUT_OF_DATE_KHR || err == VK_SUBOPTIMAL_KHR)
   {
     m_swapChainRebuild = true;
@@ -625,8 +649,8 @@ void nvvkhl::Application::frameRender()
 
   ImGui_ImplVulkanH_Frame* fd = &wd->Frames[wd->FrameIndex];
   {
-    NVVK_CHECK(vkWaitForFences(m_context->m_device, 1, &fd->Fence, VK_TRUE, UINT64_MAX));  // wait indefinitely instead of periodically checking
-    NVVK_CHECK(vkResetFences(m_context->m_device, 1, &fd->Fence));
+    NVVK_CHECK(vkWaitForFences(m_device, 1, &fd->Fence, VK_TRUE, UINT64_MAX));  // wait indefinitely instead of periodically checking
+    NVVK_CHECK(vkResetFences(m_device, 1, &fd->Fence));
   }
   {
     // Free resources in queue
@@ -637,7 +661,7 @@ void nvvkhl::Application::frameRender()
     m_resourceFreeQueue[m_currentFrameIndex].clear();
   }
   {
-    NVVK_CHECK(vkResetCommandPool(m_context->m_device, fd->CommandPool, 0));
+    NVVK_CHECK(vkResetCommandPool(m_device, fd->CommandPool, 0));
     VkCommandBufferBeginInfo info = {};
     info.sType                    = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     info.flags |= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
@@ -663,9 +687,11 @@ void nvvkhl::Application::frameRender()
   {
     // Record Dear Imgui primitives into command buffer
     VkDebugUtilsLabelEXT s{VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT, nullptr, "ImGui_ImplVulkan_RenderDrawData", {1.0f, 1.0f, 1.0f, 1.0f}};
-    vkCmdBeginDebugUtilsLabelEXT(fd->CommandBuffer, &s);
+    if(app_vkCmdBeginDebugUtilsLabelEXT)
+      app_vkCmdBeginDebugUtilsLabelEXT(fd->CommandBuffer, &s);
     ImGui_ImplVulkan_RenderDrawData(draw_data, fd->CommandBuffer);
-    vkCmdEndDebugUtilsLabelEXT(fd->CommandBuffer);
+    if(app_vkCmdEndDebugUtilsLabelEXT)
+      app_vkCmdEndDebugUtilsLabelEXT(fd->CommandBuffer);
   }
 
   // Submit command buffer
@@ -694,7 +720,7 @@ void nvvkhl::Application::frameRender()
     submits.pSignalSemaphoreInfos    = m_signalSemaphores.data();
 
     NVVK_CHECK(vkEndCommandBuffer(fd->CommandBuffer));
-    NVVK_CHECK(vkQueueSubmit2(m_context->m_queueGCT.queue, 1, &submits, fd->Fence));
+    NVVK_CHECK(vkQueueSubmit2(m_queues[0].queue, 1, &submits, fd->Fence));
   }
 }
 
@@ -727,7 +753,7 @@ void nvvkhl::Application::framePresent()
   info.swapchainCount     = 1;
   info.pSwapchains        = &wd->Swapchain;
   info.pImageIndices      = &wd->FrameIndex;
-  VkResult err            = vkQueuePresentKHR(m_context->m_queueGCT.queue, &info);
+  VkResult err            = vkQueuePresentKHR(m_queues[0].queue, &info);
   if(err == VK_ERROR_OUT_OF_DATE_KHR || err == VK_SUBOPTIMAL_KHR)
   {
     m_swapChainRebuild = true;
@@ -787,12 +813,12 @@ void nvvkhl::Application::createDescriptorPool()
   pool_info.maxSets       = 1000 * static_cast<uint32_t>(pool_sizes.size());
   pool_info.poolSizeCount = static_cast<uint32_t>(pool_sizes.size());
   pool_info.pPoolSizes    = pool_sizes.data();
-  NVVK_CHECK(vkCreateDescriptorPool(m_context->m_device, &pool_info, nullptr, &m_descriptorPool));
+  NVVK_CHECK(vkCreateDescriptorPool(m_device, &pool_info, nullptr, &m_descriptorPool));
 }
 
 void nvvkhl::Application::resetFreeQueue(uint32_t size)
 {
-  vkDeviceWaitIdle(m_context->m_device);
+  vkDeviceWaitIdle(m_device);
 
   for(auto& queue : m_resourceFreeQueue)
   {
@@ -826,7 +852,7 @@ VkCommandBuffer nvvkhl::Application::createTempCmdBuffer()
   allocate_info.commandPool        = m_cmdPool;
   allocate_info.level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
   VkCommandBuffer cmd_buffer       = nullptr;
-  vkAllocateCommandBuffers(m_context->m_device, &allocate_info, &cmd_buffer);
+  vkAllocateCommandBuffers(m_device, &allocate_info, &cmd_buffer);
 
   VkCommandBufferBeginInfo begin_info{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
   begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
@@ -842,9 +868,9 @@ void nvvkhl::Application::submitAndWaitTempCmdBuffer(VkCommandBuffer cmd)
   VkSubmitInfo submit_info{VK_STRUCTURE_TYPE_SUBMIT_INFO};
   submit_info.commandBufferCount = 1;
   submit_info.pCommandBuffers    = &cmd;
-  vkQueueSubmit(m_context->m_queueGCT.queue, 1, &submit_info, {});
-  vkQueueWaitIdle(m_context->m_queueGCT.queue);
-  vkFreeCommandBuffers(m_context->m_device, m_cmdPool, 1, &cmd);
+  vkQueueSubmit(m_queues[0].queue, 1, &submit_info, {});
+  vkQueueWaitIdle(m_queues[0].queue);
+  vkFreeCommandBuffers(m_device, m_cmdPool, 1, &cmd);
 }
 
 void nvvkhl::Application::onFileDrop(const char* filename)
@@ -942,13 +968,13 @@ void nvvkhl::Application::saveScreenShot(const std::string& filename, int qualit
 {
   ImGui_ImplVulkanH_Window* wd       = m_mainWindowData.get();
   VkExtent2D                size     = {uint32_t(wd->Width), uint32_t(wd->Height)};
-  VkDevice                  device   = m_context->m_device;
+  VkDevice                  device   = m_device;
   VkImage                   srcImage = wd->Frames[wd->FrameIndex].Backbuffer;
   VkImage                   dstImage;
   VkDeviceMemory            dstImageMemory;
 
   VkCommandBuffer cmd = createTempCmdBuffer();
-  imageToRgba8Linear(cmd, device, m_context->m_physicalDevice, srcImage, size, dstImage, dstImageMemory);
+  imageToRgba8Linear(cmd, device, m_physicalDevice, srcImage, size, dstImage, dstImageMemory);
   submitAndWaitTempCmdBuffer(cmd);
 
   // Get layout of the image (including offset and row pitch)
@@ -1103,8 +1129,6 @@ void ImplVulkanH_CreateWindowSwapChain(VkPhysicalDevice             physical_dev
   wd->ImageCount      = 0;
   if(wd->RenderPass)
     vkDestroyRenderPass(device, wd->RenderPass, allocator);
-  if(wd->Pipeline)
-    vkDestroyPipeline(device, wd->Pipeline, allocator);
 
   // If min image count was not specified, request different count of images dependent on selected present mode
   if(min_image_count == 0)

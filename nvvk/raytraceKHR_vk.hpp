@@ -65,30 +65,20 @@ const VkAccelerationStructureKHR tlas = m.rtBuilder.getAccelerationStructure()
 
 #include <mutex>
 #include <vulkan/vulkan_core.h>
+#include <glm/glm.hpp>
 
 #if VK_KHR_acceleration_structure
 
-#include "resourceallocator_vk.hpp"
+
 #include "commands_vk.hpp"  // this is only needed here to satisfy some samples that rely on it
 #include "debug_util_vk.hpp"
 #include "nvh/nvprint.hpp"  // this is only needed here to satisfy some samples that rely on it
-#include <glm/glm.hpp>
-#include <type_traits>
+#include "resourceallocator_vk.hpp"
+#include "nvvk/acceleration_structures.hpp"
 
 
 namespace nvvk {
 
-// Convert a Mat4x4 to the matrix required by acceleration structures
-inline VkTransformMatrixKHR toTransformMatrixKHR(glm::mat4 matrix)
-{
-  // VkTransformMatrixKHR uses a row-major memory layout, while glm::mat4
-  // uses a column-major memory layout. We transpose the matrix so we can
-  // memcpy the matrix's data directly.
-  glm::mat4            temp = glm::transpose(matrix);
-  VkTransformMatrixKHR out_matrix;
-  memcpy(&out_matrix, &temp, sizeof(VkTransformMatrixKHR));
-  return out_matrix;
-}
 
 // Ray tracing BLAS and TLAS builder
 class RaytracingBuilderKHR
@@ -152,11 +142,11 @@ public:
 
     // Command buffer to create the TLAS
     nvvk::CommandPool genCmdBuf(m_device, m_queueIndex);
-    VkCommandBuffer   cmdBuf = genCmdBuf.createCommandBuffer();
+    VkCommandBuffer   cmd = genCmdBuf.createCommandBuffer();
 
     // Create a buffer holding the actual instance data (matrices++) for use by the AS builder
     nvvk::Buffer instancesBuffer;  // Buffer of instances containing the matrices and BLAS ids
-    instancesBuffer = m_alloc->createBuffer(cmdBuf, instances,
+    instancesBuffer = m_alloc->createBuffer(cmd, instances,
                                             VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT
                                                 | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR);
     NAME_VK(instancesBuffer.buffer);
@@ -167,15 +157,15 @@ public:
     VkMemoryBarrier barrier{VK_STRUCTURE_TYPE_MEMORY_BARRIER};
     barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
     barrier.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
-    vkCmdPipelineBarrier(cmdBuf, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
-                         0, 1, &barrier, 0, nullptr, 0, nullptr);
+    vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+                         VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, 0, 1, &barrier, 0, nullptr, 0, nullptr);
 
     // Creating the TLAS
     nvvk::Buffer scratchBuffer;
-    cmdCreateTlas(cmdBuf, countInstance, instBufferAddr, scratchBuffer, flags, update, motion);
+    cmdCreateTlas(cmd, countInstance, instBufferAddr, scratchBuffer, flags, update, motion);
 
     // Finalizing and destroying temporary data
-    genCmdBuf.submitAndWait(cmdBuf);  // queueWaitIdle inside.
+    genCmdBuf.submitAndWait(cmd);  // queueWaitIdle inside.
     m_alloc->finalizeAndReleaseStaging();
     m_alloc->destroy(scratchBuffer);
     m_alloc->destroy(instancesBuffer);
@@ -203,23 +193,7 @@ protected:
   nvvk::DebugUtil          m_debug;
   nvvk::CommandPool        m_cmdPool;
 
-  struct BuildAccelerationStructure
-  {
-    VkAccelerationStructureBuildGeometryInfoKHR buildInfo{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR};
-    VkAccelerationStructureBuildSizesInfoKHR sizeInfo{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR};
-    const VkAccelerationStructureBuildRangeInfoKHR* rangeInfo;
-    nvvk::AccelKHR                                  as;  // result acceleration structure
-    nvvk::AccelKHR                                  cleanupAS;
-  };
 
-
-  void cmdCreateBlas(VkCommandBuffer                          cmdBuf,
-                     std::vector<uint32_t>                    indices,
-                     std::vector<BuildAccelerationStructure>& buildAs,
-                     VkDeviceAddress                          scratchAddress,
-                     VkQueryPool                              queryPool);
-  void cmdCompactBlas(VkCommandBuffer cmdBuf, std::vector<uint32_t> indices, std::vector<BuildAccelerationStructure>& buildAs, VkQueryPool queryPool);
-  void destroyNonCompacted(std::vector<uint32_t> indices, std::vector<BuildAccelerationStructure>& buildAs);
   bool hasFlag(VkFlags item, VkFlags flag) { return (item & flag) == flag; }
 };
 

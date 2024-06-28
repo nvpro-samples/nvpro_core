@@ -126,8 +126,9 @@ namespace nvvk {
 // Objects
 struct Buffer
 {
-  VkBuffer  buffer = VK_NULL_HANDLE;
-  MemHandle memHandle{nullptr};
+  VkBuffer        buffer = VK_NULL_HANDLE;
+  MemHandle       memHandle{nullptr};
+  VkDeviceAddress address{0};
 };
 
 struct Image
@@ -153,6 +154,7 @@ struct AccelKHR
 {
   VkAccelerationStructureKHR accel = VK_NULL_HANDLE;
   nvvk::Buffer               buffer;
+  VkDeviceAddress            address{0};
 };
 
 //--------------------------------------------------------------------------------------------------
@@ -260,13 +262,13 @@ public:
   //--------------------------------------------------------------------------------------------------
   // Create the acceleration structure
   //
-  nvvk::AccelNV createAcceleration(VkAccelerationStructureCreateInfoNV& accel_);
+  nvvk::AccelNV createAcceleration(const VkAccelerationStructureCreateInfoNV& accel_);
 
 
   //--------------------------------------------------------------------------------------------------
   // Create the acceleration structure
   //
-  nvvk::AccelKHR createAcceleration(VkAccelerationStructureCreateInfoKHR& accel_);
+  nvvk::AccelKHR createAcceleration(const VkAccelerationStructureCreateInfoKHR& accel_);
 
   //--------------------------------------------------------------------------------------------------
   // Acquire a sampler with the provided information (see nvvk::SamplerPool for details).

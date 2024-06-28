@@ -30,7 +30,7 @@ void StagingMemoryManager::init(MemAllocator* memAllocator, VkDeviceSize staging
   assert(!m_device);
   m_device = memAllocator->getDevice();
 
-  m_subToDevice.init(memAllocator, stagingBlockSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+  m_subToDevice.init(memAllocator, stagingBlockSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
                      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, true);
   m_subFromDevice.init(memAllocator, stagingBlockSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
@@ -141,6 +141,33 @@ const void* StagingMemoryManager::cmdFromBuffer(VkCommandBuffer cmd, VkBuffer bu
   vkCmdCopyBuffer(cmd, buffer, dstBuffer, 1, &cpy);
 
   return mapping;
+}
+
+const void* StagingMemoryManager::cmdFromAddressNV(VkCommandBuffer cmd, VkDeviceAddress address, VkDeviceSize size)
+{
+  // Temporary host visible staging buffer
+  VkBuffer     dstBuffer;
+  VkDeviceSize dstOffset;
+  void*        dstMapping = getStagingSpace(size, dstBuffer, dstOffset, false);
+  assert(dstMapping);
+  VkBufferDeviceAddressInfo stagingAddressInfo{VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, nullptr, dstBuffer};
+  VkDeviceAddress           stagingAddress = vkGetBufferDeviceAddress(m_device, &stagingAddressInfo) + dstOffset;
+
+  // Temporary buffer to hold the VkCopyMemoryIndirectCommandNV
+  VkBuffer                      cmdBuffer;
+  VkDeviceSize                  cmdOffset;
+  VkCopyMemoryIndirectCommandNV cmdCopyMemory{address, stagingAddress, size};
+  void*                         cmdMapping = getStagingSpace(sizeof(cmdCopyMemory) + 4, cmdBuffer, cmdOffset, true);
+  assert(cmdMapping);
+  VkBufferDeviceAddressInfo cmdCopyAddressInfo{VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, nullptr, cmdBuffer};
+  VkDeviceAddress           cmdCopyAddress = vkGetBufferDeviceAddress(m_device, &cmdCopyAddressInfo) + cmdOffset;
+  size_t                    alignment      = (0 - cmdCopyAddress) & 3;  // copyBufferAddress must be 4 byte aligned
+  reinterpret_cast<char*&>(cmdMapping) += alignment;
+  cmdCopyAddress += alignment;
+  memcpy(cmdMapping, &cmdCopyMemory, sizeof(cmdCopyMemory));
+  assert((cmdCopyAddress & 3) == 0);
+  vkCmdCopyMemoryIndirectNV(cmd, cmdCopyAddress, 1, sizeof(cmdCopyMemory));
+  return dstMapping;
 }
 
 const void* StagingMemoryManager::cmdFromImage(VkCommandBuffer                 cmd,

@@ -88,7 +88,7 @@ inline nvvkhl_shaders::ProceduralSkyShaderParameters fillSkyShaderParameters(con
 
 inline bool skyParametersUI(SkyParameters& skyParams)
 {
-  using PE = ImGuiH::PropertyEditor;
+  namespace PE = ImGuiH::PropertyEditor;
 
   bool changed{false};
 
@@ -96,9 +96,9 @@ inline bool skyParametersUI(SkyParameters& skyParams)
   changed |= ImGuiH::azimuthElevationSliders(dir, true, skyParams.directionUp.y == 1.0F);
   skyParams.direction = dir;
   // clang-format off
-    changed |= PE::entry("Color", [&]() { return ImGui::ColorEdit3("##1", &skyParams.color.x, ImGuiColorEditFlags_Float);                                   });
-    changed |= PE::entry("Irradiance", [&]() { return ImGui::SliderFloat("##1", &skyParams.intensity, 0.F, 100.F, "%.2f", ImGuiSliderFlags_Logarithmic);    });
-    changed |= PE::entry("Angular Size", [&]() { return ImGui::SliderAngle("##1", &skyParams.angularSize, 0.1F, 20.F);                                      });
+    changed |= PE::ColorEdit3("Color", &skyParams.color.x, ImGuiColorEditFlags_Float);                                   
+    changed |= PE::SliderFloat("Irradiance", &skyParams.intensity, 0.F, 100.F, "%.2f", ImGuiSliderFlags_Logarithmic);    
+    changed |= PE::SliderAngle("Angular Size", &skyParams.angularSize, 0.1F, 20.F);
   // clang-format on
 
 
@@ -134,7 +134,9 @@ The `draw` method is responsible for rendering the sky dome for the rasterizer. 
 class SkyDome
 {
 public:
-  SkyDome(nvvk::Context* ctx, nvvk::ResourceAllocator* allocator);
+  SkyDome(VkDevice device, nvvk::ResourceAllocator* allocator);
+  ~SkyDome();
+
   void setup(const VkDevice& device, nvvk::ResourceAllocator* allocator);
   void setOutImage(const VkDescriptorImageInfo& outimage);
   void draw(const VkCommandBuffer& cmd, const glm::mat4& view, const glm::mat4& proj, const VkExtent2D& size);

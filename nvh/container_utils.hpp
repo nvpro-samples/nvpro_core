@@ -14,30 +14,27 @@
 template <typename T, size_t size>
 constexpr uint32_t arraySize(const T (&)[size])
 {
-  constexpr uint32_t u32_size = static_cast<uint32_t>(size);
-  static_assert(size == u32_size, "32-bit overflow");
-  return u32_size;
+  static_assert(size <= UINT32_MAX, "32-bit overflow");
+  return static_cast<uint32_t>(size);
 }
 
 template <typename T, size_t size>
 constexpr uint32_t arraySize(const std::array<T, size>&)
 {
-  constexpr uint32_t u32_size = static_cast<uint32_t>(size);
-  static_assert(size == u32_size, "32-bit overflow");
-  return u32_size;
+  static_assert(size <= UINT32_MAX, "32-bit overflow");
+  return static_cast<uint32_t>(size);
 }
 
 // Checked 32-bit array size function for vectors.
 template <typename T, typename Allocator>
-constexpr uint32_t arraySize(const std::vector<T, Allocator>& vector)
+uint32_t arraySize(const std::vector<T, Allocator>& vector)
 {
-  auto     size     = vector.size();
-  uint32_t u32_size = static_cast<uint32_t>(size);
-  if(u32_size != size)
+  auto size = vector.size();
+  if(size > UINT32_MAX)
   {
     assert(!"32-bit overflow");
   }
-  return u32_size;
+  return static_cast<uint32_t>(size);
 }
 
 namespace nvh {

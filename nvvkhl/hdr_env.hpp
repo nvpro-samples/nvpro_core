@@ -45,7 +45,7 @@ class HdrEnv
 {
 public:
   HdrEnv() = default;
-  HdrEnv(nvvk::Context* ctx, nvvk::ResourceAllocator* allocator, uint32_t queueFamilyIndex = 0U);
+  HdrEnv(VkDevice device, VkPhysicalDevice physicalDevice, nvvk::ResourceAllocator* allocator, uint32_t queueFamilyIndex = 0U);
   ~HdrEnv() { destroy(); }
 
   void setup(const VkDevice& device, const VkPhysicalDevice& physicalDevice, uint32_t familyIndex, nvvk::ResourceAllocator* allocator);

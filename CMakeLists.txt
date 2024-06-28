@@ -119,7 +119,33 @@ if(USING_VULKANSDK)
     add_definitions(-DVK_USE_PLATFORM_XCB_KHR)
     add_definitions(-DVK_USE_PLATFORM_XLIB_KHR)
   endif(UNIX)
-endif()
+
+  # The following checks if Python is available and run the script to generate the Vulkan extensions
+  # using the version of Vulkan SDK installed on the system
+  option(VULKAN_generate_extensions "Regenerate nvvk/extensions_vk.cpp from the currently installed Vulkan SDK version at configuration time." ON)
+  if(VULKAN_generate_extensions)
+    find_package (Python COMPONENTS Interpreter)
+    if(Python_FOUND)
+      execute_process(
+        COMMAND ${Python_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/nvvk/extensions_vk.py --beta
+        RESULT_VARIABLE PYTHON_SCRIPT_RESULT
+        OUTPUT_VARIABLE PYTHON_SCRIPT_OUTPUT
+        ERROR_VARIABLE PYTHON_SCRIPT_ERROR
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_STRIP_TRAILING_WHITESPACE
+      )
+      # Check if the Python script ran successfully
+      if(PYTHON_SCRIPT_RESULT EQUAL 0)
+          message(STATUS "Vulkan extensions generated:")
+          message(STATUS "${PYTHON_SCRIPT_OUTPUT}")
+      else()
+          message(ERROR "Error running Python script:")
+          message(ERROR "${PYTHON_SCRIPT_ERROR}")
+      endif()
+    endif(Python_FOUND)
+  endif(VULKAN_generate_extensions)
+
+endif(USING_VULKANSDK)
 
 if(USING_IMGUI)
   set(IMGUI_SOURCE 

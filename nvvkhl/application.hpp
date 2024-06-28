@@ -21,7 +21,7 @@
 
 #include <functional>
 #include <memory>
-#include <vulkan/vulkan_core.h>
+#include <vulkan/vulkan.h>
 
 #include <glm/glm.hpp>
 #include "nvvk/context_vk.hpp"
@@ -91,19 +91,24 @@ struct IAppElement;
 // Information for creating the application
 struct ApplicationCreateInfo
 {
-  std::string                  name{"Vulkan App"};           // Name of the GLFW
-  int32_t                      width{-1};                    // Width of the Window
-  int32_t                      height{-1};                   // Height of the window
-  bool                         vSync{true};                  // Is V-Sync on by default?
-  bool                         useMenu{true};                // Is the application will have a menubar?
-  bool                         useDockMenu{false};           // Is there an extra menubar ?
-  bool                         hasUndockableViewport{true};  // Create and use a default viewport
-  nvvk::ContextCreateInfo      vkSetup{};                    // Vulkan creation context information (see nvvk::Context)
-  std::vector<int>             ignoreDbgMessages;            // Turn off debug messages
-  ImVec4                       clearColor{0.F, 0.F, 0.F, 1.F};
-  std::function<void(ImGuiID)> dockSetup;  // Allow to configure the dock layout
-  ImGuiConfigFlags             imguiConfigFlags =
+  std::string                            name{"Vulkan App"};           // Name of the GLFW
+  int32_t                                width{-1};                    // Width of the Window
+  int32_t                                height{-1};                   // Height of the window
+  bool                                   vSync{true};                  // Is V-Sync on by default?
+  bool                                   useMenu{true};                // Is the application will have a menubar?
+  bool                                   useDockMenu{false};           // Is there an extra menubar ?
+  bool                                   hasUndockableViewport{true};  // Create and use a default viewport
+  [[deprecated]] nvvk::ContextCreateInfo vkSetup{};          // Vulkan creation context information (see nvvk::Context)
+  std::vector<int>                       ignoreDbgMessages;  // Turn off debug messages
+  ImVec4                                 clearColor{0.F, 0.F, 0.F, 1.F};
+  std::function<void(ImGuiID)>           dockSetup;  // Allow to configure the dock layout
+  ImGuiConfigFlags                       imguiConfigFlags =
       ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_DockingEnable | ImGuiConfigFlags_ViewportsEnable;
+  // External Vulkan context
+  VkInstance                        instance{VK_NULL_HANDLE};
+  VkDevice                          device{VK_NULL_HANDLE};
+  VkPhysicalDevice                  physicalDevice{VK_NULL_HANDLE};
+  std::vector<nvvk::Context::Queue> queues{};
 };
 
 
@@ -131,7 +136,7 @@ public:
   void setVsync(bool v);                         // Set V-Sync on or off
   void setViewportClearColor(ImVec4 col) { m_clearColor = col; }
 
-  // Following three functions affect the preparationg of the current frame's submit info.
+  // Following three functions affect the preparation of the current frame's submit info.
   // Content is appended to vectors that are reset every frame
   void addWaitSemaphore(const VkSemaphoreSubmitInfoKHR& wait);
   void addSignalSemaphore(const VkSemaphoreSubmitInfoKHR& signal);
@@ -142,19 +147,21 @@ public:
   void            submitAndWaitTempCmdBuffer(VkCommandBuffer cmd);
 
   // Getters
-  inline std::shared_ptr<nvvk::Context> getContext() { return m_context; }  // Return the Vulkan context
-  inline VkCommandPool     getCommandPool() { return m_cmdPool; }  // Return command pool to create command buffers
-  inline GLFWwindow*       getWindowHandle() { return m_windowHandle; }  // Return the handle of the Window
+  [[deprecated]] inline std::shared_ptr<nvvk::Context> getContext() { return m_context; }  // Return the Vulkan context
+  inline VkCommandPool getCommandPool() const { return m_cmdPool; }  // Return command pool to create command buffers
+  inline GLFWwindow*   getWindowHandle() { return m_windowHandle; }  // Return the handle of the Window
   inline const VkExtent2D& getViewportSize() { return m_viewportSize; }  // Return the size of the rendering viewport
   inline const VkExtent2D& getWindowSize() { return m_windowSize; }      // Return the size of the window
-  inline VkDevice          getDevice() { return m_context->m_device; }
-  inline VkInstance        getInstance() { return m_context->m_instance; }
-  inline VkPhysicalDevice  getPhysicalDevice() { return m_context->m_physicalDevice; }
-  inline const nvvk::Context::Queue& getQueueGCT() { return m_context->m_queueGCT; }
-  inline const nvvk::Context::Queue& getQueueC() { return m_context->m_queueC; }
-  inline const nvvk::Context::Queue& getQueueT() { return m_context->m_queueT; }
+  inline VkDevice          getDevice() const { return m_device; }
+  inline VkInstance        getInstance() const { return m_instance; }
+  inline VkPhysicalDevice  getPhysicalDevice() const { return m_physicalDevice; }
+  inline const nvvk::Context::Queue& getQueue(uint32_t index) const { return m_queues[index]; }
   inline const uint32_t              getFrameCycleIndex() const { return m_currentFrameIndex; }
   inline const uint32_t              getFrameCycleSize() const { return uint32_t(m_resourceFreeQueue.size()); }
+
+  [[deprecated]] inline const nvvk::Context::Queue& getQueueGCT() const { return m_queues[0]; }
+  [[deprecated]] inline const nvvk::Context::Queue& getQueueC() const { return m_queues[1]; }
+  [[deprecated]] inline const nvvk::Context::Queue& getQueueT() const { return m_queues[2]; }
 
   void onFileDrop(const char* filename);
   void screenShot(const std::string& filename, int quality = 100);  // Delay the screen shot to the end of the frame
@@ -172,12 +179,12 @@ private:
 
   void resetFreeQueue(uint32_t size);
 
-  std::shared_ptr<nvvk::Context>            m_context;
-  std::vector<std::shared_ptr<IAppElement>> m_elements;
+  [[deprecated]] std::shared_ptr<nvvk::Context> m_context;
+  std::vector<std::shared_ptr<IAppElement>>     m_elements;
 
   bool        m_running{false};               // Is currently running
   bool        m_useMenubar{true};             // Will use a menubar
-  bool        m_useDockMenubar{false};        // Will use an exta menubar
+  bool        m_useDockMenubar{false};        // Will use an extra menubar
   bool        m_vsyncWanted{true};            // Wanting swapchain with vsync
   bool        m_vsyncSet{true};               // Vsync currently set
   int         m_minImageCount{2};             // Nb frames in-flight
@@ -185,6 +192,12 @@ private:
   bool        m_hasUndockableViewport{true};  // Using a default viewport
   std::string m_iniFilename;                  // Holds on .ini name
   ImVec4      m_clearColor{0.0F, 0.0F, 0.0F, 1.0F};
+
+  // Vulkan resources
+  VkInstance                        m_instance{VK_NULL_HANDLE};
+  VkDevice                          m_device{VK_NULL_HANDLE};
+  VkPhysicalDevice                  m_physicalDevice{VK_NULL_HANDLE};
+  std::vector<nvvk::Context::Queue> m_queues{};
 
   VkCommandPool          m_cmdPool{VK_NULL_HANDLE};         //
   VkPipelineCache        m_pipelineCache{VK_NULL_HANDLE};   // Cache for pipeline/shaders
@@ -237,5 +250,39 @@ struct IAppElement
   virtual ~IAppElement() = default;
 };
 
+
+inline void addSurfaceExtensions(std::vector<const char*>& instanceExtensions)
+{
+  instanceExtensions.emplace_back(VK_KHR_SURFACE_EXTENSION_NAME);
+#if defined(VK_USE_PLATFORM_WIN32_KHR)
+  instanceExtensions.emplace_back(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
+#endif
+#if defined(VK_USE_PLATFORM_XCB_KHR)
+  instanceExtensions.emplace_back(VK_KHR_XCB_SURFACE_EXTENSION_NAME);
+#endif
+#if defined(VK_USE_PLATFORM_XLIB_KHR)
+  instanceExtensions.emplace_back(VK_KHR_XLIB_SURFACE_EXTENSION_NAME);
+#endif
+#if defined(VK_USE_PLATFORM_WAYLAND_KHR)
+  instanceExtensions.emplace_back(VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME);
+#endif
+#if defined(VK_USE_PLATFORM_ANDROID_KHR)
+  instanceExtensions.emplace_back(VK_KHR_ANDROID_SURFACE_EXTENSION_NAME);
+#endif
+#if defined(VK_USE_PLATFORM_IOS_MVK)
+  instanceExtensions.emplace_back(VK_MVK_IOS_SURFACE_EXTENSION_NAME);
+#endif
+#if defined(VK_USE_PLATFORM_MACOS_MVK)
+  instanceExtensions.emplace_back(VK_MVK_MACOS_SURFACE_EXTENSION_NAME);
+#endif
+}
+
+inline void addSurfaceExtensions(std::vector<nvvk::ContextCreateInfo::Entry>& instanceExtensions)
+{
+  std::vector<const char*> extensions;
+  addSurfaceExtensions(extensions);
+  for(auto& ext : extensions)
+    instanceExtensions.emplace_back(ext);
+}
 
 }  // namespace nvvkhl

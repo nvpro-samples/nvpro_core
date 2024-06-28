@@ -21,18 +21,18 @@
 
 #include "nvvk/context_vk.hpp"
 #include "nvvk/debug_util_vk.hpp"
-#include "nvvk/raytraceKHR_vk.hpp"
 #include "nvvk/resourceallocator_vk.hpp"
 #include "nvvkhl/pipeline_container.hpp"
 
 #include "gltf_scene_vk.hpp"
+#include "nvvk/acceleration_structures.hpp"
 
 /** @DOC_START
 # class nvvkhl::SceneRtx
 
 >  This class is responsible for the ray tracing acceleration structure. 
 
-It is using the `nvvkhl::Scene` and `nvvkhl::SceneVk` information to create the acceleration structure.
+It is using the `nvh::gltf::Scene` and `nvvkhl::SceneVk` information to create the acceleration structure.
 
  @DOC_END */
 namespace nvvkhl {
@@ -40,41 +40,57 @@ namespace nvvkhl {
 class SceneRtx
 {
 public:
-  SceneRtx(nvvk::Context* ctx, nvvk::ResourceAllocator* alloc, uint32_t queueFamilyIndex = 0U);
+  SceneRtx(VkDevice device, VkPhysicalDevice physicalDevice, nvvk::ResourceAllocator* alloc, uint32_t queueFamilyIndex = 0U);
   ~SceneRtx();
 
-  // Create both bottom and top level acceleration structures
-  void create(const Scene&                         scn,
-              const SceneVk&                       scnVk,
-              VkBuildAccelerationStructureFlagsKHR flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR
-                                                           | VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_KHR);
-  // Create all bottom level acceleration structures (BLAS)
-  virtual void createBottomLevelAS(const nvh::GltfScene& scn,
-                                   const SceneVk&        scnVk,
-                                   VkBuildAccelerationStructureFlagsKHR flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR
-                                                                                | VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_KHR);
+  // Create both bottom and top level acceleration structures (cannot compact)
+  void create(VkCommandBuffer cmd, const nvh::gltf::Scene& scn, const SceneVk& scnVk, VkBuildAccelerationStructureFlagsKHR flags);
+  // Create the bottom level acceleration structure
+  void createBottomLevelAccelerationStructure(const nvh::gltf::Scene& scene, const SceneVk& sceneVk, VkBuildAccelerationStructureFlagsKHR flags);
+  // Build the bottom level acceleration structure
+  bool cmdBuildBottomLevelAccelerationStructure(VkCommandBuffer cmd, VkDeviceSize hintMaxBudget = 512'000'000);
 
-  // Create the top level acceleration structures, referencing all BLAS
-  virtual void createTopLevelAS(const nvh::GltfScene& scn,
-                                VkBuildAccelerationStructureFlagsKHR flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR
-                                                                             | VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_KHR);
+  // Create the top level acceleration structure
+  void cmdCreateBuildTopLevelAccelerationStructure(VkCommandBuffer cmd, const nvh::gltf::Scene& scene);
+  // Compact the bottom level acceleration structure
+  void cmdCompactBlas(VkCommandBuffer cmd);
+  // Destroy the original acceleration structures that was compacted
+  void destroyNonCompactedBlas();
+  // Update the instance buffer and build the TLAS (animation)
+  void updateTopLevelAS(VkCommandBuffer cmd, const nvh::gltf::Scene& scene);
 
   // Return the constructed acceleration structure
   VkAccelerationStructureKHR tlas();
 
-
+  // Destroy all acceleration structures
   void destroy();
+  void destroyScratchBuffers();
 
 protected:
-  nvvk::RaytracingBuilderKHR::BlasInput primitiveToGeometry(const nvh::GltfPrimMesh& prim,
-                                                            VkDeviceAddress          vertexAddress,
-                                                            VkDeviceAddress          indexAddress);
-
-  nvvk::Context*           m_ctx;
-  nvvk::ResourceAllocator* m_alloc;
-
   VkPhysicalDeviceRayTracingPipelinePropertiesKHR m_rtProperties{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR};
-  nvvk::RaytracingBuilderKHR m_rtBuilder;
+  VkPhysicalDeviceAccelerationStructurePropertiesKHR m_rtASProperties{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR};
+
+  nvvk::AccelerationStructureGeometryInfo renderPrimitiveToAsGeometry(const nvh::gltf::RenderPrimitive& prim,
+                                                                      VkDeviceAddress                   vertexAddress,
+                                                                      VkDeviceAddress                   indexAddress);
+
+  VkDevice         m_device         = VK_NULL_HANDLE;
+  VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
+
+  nvvk::ResourceAllocator*           m_alloc = nullptr;
+  std::unique_ptr<nvvk::DebugUtil>   m_dutil;
+  std::unique_ptr<nvvk::BlasBuilder> m_blasBuilder;
+
+  std::vector<nvvk::AccelerationStructureBuildData> m_blasBuildData;
+  std::vector<nvvk::AccelKHR>                       m_blasAccel;
+
+  nvvk::AccelerationStructureBuildData            m_tlasBuildData;
+  nvvk::AccelKHR                                  m_tlasAccel;
+  std::vector<VkAccelerationStructureInstanceKHR> m_tlasInstances;
+
+  nvvk::Buffer m_blasScratchBuffer;
+  nvvk::Buffer m_tlasScratchBuffer;
+  nvvk::Buffer m_instancesBuffer;
 };
 
 }  // namespace nvvkhl

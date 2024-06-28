@@ -96,7 +96,7 @@ struct PushComputeDispatcher
   std::unordered_map<TBindingEnum, std::unique_ptr<VkDescriptorBufferInfo>>                       bufferInfos;
   std::unordered_map<TBindingEnum, std::unique_ptr<VkWriteDescriptorSetAccelerationStructureKHR>> accelInfos;
   std::unordered_map<TBindingEnum, std::unique_ptr<VkAccelerationStructureKHR>>                   accel;
-  std::unordered_map<TBindingEnum, std::unique_ptr<VkDescriptorImageInfo>>                        sampledImageInfos;
+  std::unordered_map<TBindingEnum, std::unique_ptr<VkDescriptorImageInfo>>                        imageInfos;
 
   TPushConstants pushConstants{};
 
@@ -148,17 +148,31 @@ struct PushComputeDispatcher
   }
   bool addSampledImageBinding(TBindingEnum index)
   {
-    if(sampledImageInfos.find(index) == sampledImageInfos.end())
+    if(imageInfos.find(index) == imageInfos.end())
     {
       bindings.addBinding(VkDescriptorSetLayoutBinding{uint32_t(index), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,
                                                        VK_SHADER_STAGE_COMPUTE_BIT});
-      sampledImageInfos[index] = std::make_unique<VkDescriptorImageInfo>();
-      auto* info               = sampledImageInfos[index].get();
+      imageInfos[index] = std::make_unique<VkDescriptorImageInfo>();
+      auto* info        = imageInfos[index].get();
       writes.emplace_back(bindings.makeWrite(0, index, info));
       return true;
     }
     return false;
   }
+
+  bool addStorageImageBinding(TBindingEnum index)
+  {
+    if(imageInfos.find(index) == imageInfos.end())
+    {
+      bindings.addBinding(VkDescriptorSetLayoutBinding{uint32_t(index), VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT});
+      imageInfos[index] = std::make_unique<VkDescriptorImageInfo>();
+      auto* info        = imageInfos[index].get();
+      writes.emplace_back(bindings.makeWrite(0, index, info));
+      return true;
+    }
+    return false;
+  }
+
 
   bool updateBufferBinding(TBindingEnum index, VkBuffer buffer)
   {
@@ -186,10 +200,23 @@ struct PushComputeDispatcher
                                  VkImageView   view    = VK_NULL_HANDLE,
                                  VkImageLayout layout  = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
   {
-    auto it = sampledImageInfos.find(index);
-    if(it != sampledImageInfos.end())
+    auto it = imageInfos.find(index);
+    if(it != imageInfos.end())
     {
       it->second->sampler     = sampler;
+      it->second->imageView   = view;
+      it->second->imageLayout = layout;
+      return true;
+    }
+    return false;
+  }
+
+  bool updateStorageImageBinding(TBindingEnum index, VkImageView view = VK_NULL_HANDLE, VkImageLayout layout = VK_IMAGE_LAYOUT_GENERAL)
+  {
+    auto it = imageInfos.find(index);
+    if(it != imageInfos.end())
+    {
+      it->second->sampler     = VK_NULL_HANDLE;
       it->second->imageView   = view;
       it->second->imageLayout = layout;
       return true;
@@ -392,7 +419,7 @@ struct PushComputeDispatcher
     bufferInfos.clear();
     accelInfos.clear();
     accel.clear();
-    sampledImageInfos.clear();
+    imageInfos.clear();
     writes.clear();
     bindings.clear();
   }

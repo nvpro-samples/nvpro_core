@@ -73,11 +73,11 @@ void evalTransmission(in BsdfEvaluateData data, in PbrMaterial mat, out EvalData
     return;
 
   vec3 refractedDir;
-  bool totalInternalRefraction = refract(data.k2, mat.normal, mat.eta, refractedDir);
+  bool isRefracted = refract(data.k2, mat.normal, mat.eta, refractedDir);
 
-  if(!totalInternalRefraction)
+  if(isRefracted)
   {
-    //eval.bsdf = mat.albedo.rgb * mat.transmissionFactor;
+    // eval.bsdf = mat.albedo.rgb * mat.transmissionFactor;
     eval.pdf = abs(dot(refractedDir, mat.normal));
   }
 }

@@ -70,10 +70,10 @@ struct RayPickerKHR
 public:
   struct PickInfo
   {
-    glm::mat4 modelViewInv;    // inverse model view matrix
-    glm::mat4 perspectiveInv;  // inverse perspective matrix
-    float     pickX{0};        // normalized X position
-    float     pickY{0};        // normalized Y position
+    glm::mat4 modelViewInv{1};    // inverse model view matrix
+    glm::mat4 perspectiveInv{1};  // inverse perspective matrix
+    float     pickX{0};           // normalized X position
+    float     pickY{0};           // normalized Y position
   } m_pickInfo;
 
   struct PickResult
@@ -88,9 +88,9 @@ public:
   };
 
   RayPickerKHR() = default;
-  RayPickerKHR(nvvk::Context* ctx, nvvk::ResourceAllocator* allocator, uint32_t queueFamilyIndex = 0)
+  RayPickerKHR(VkDevice device, VkPhysicalDevice physicalDevice, nvvk::ResourceAllocator* allocator, uint32_t queueFamilyIndex = 0)
   {
-    setup(ctx->m_device, ctx->m_physicalDevice, queueFamilyIndex, allocator);
+    setup(device, physicalDevice, queueFamilyIndex, allocator);
   }
 
   void setup(const VkDevice& device, const VkPhysicalDevice& physicalDevice, uint32_t queueFamilyIndex, nvvk::ResourceAllocator* allocator)

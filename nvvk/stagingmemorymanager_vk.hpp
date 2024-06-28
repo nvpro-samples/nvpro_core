@@ -208,6 +208,15 @@ public:
     return (const T*)cmdFromBuffer(cmd, buffer, offset, size);
   }
 
+  // Requires VK_NV_copy_memory_indirect to be enabled
+  const void* cmdFromAddressNV(VkCommandBuffer cmd, VkDeviceAddress address, VkDeviceSize size);
+
+  template <class T>
+  const T* cmdFromAddressNVT(VkCommandBuffer cmd, VkDeviceAddress address, VkDeviceSize size)
+  {
+    return (const T*)cmdFromAddressNV(cmd, address, size);
+  }
+
   // closes the batch of staging resources since last finalize call
   // and associates it with a fence for later release.
   void finalizeResources(VkFence fence = VK_NULL_HANDLE);

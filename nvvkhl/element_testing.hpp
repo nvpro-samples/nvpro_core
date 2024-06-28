@@ -82,7 +82,7 @@ public:
         }
         return VK_FALSE;
       };
-      NVVK_CHECK(vkCreateDebugUtilsMessengerEXT(m_app->getContext()->m_instance, &dbg_messenger_create_info, nullptr, &m_dbgMessenger));
+      NVVK_CHECK(vkCreateDebugUtilsMessengerEXT(m_app->getInstance(), &dbg_messenger_create_info, nullptr, &m_dbgMessenger));
     }
   }
 
@@ -90,7 +90,7 @@ public:
   {
     if(m_settings.enabled)
     {
-      vkDestroyDebugUtilsMessengerEXT(m_app->getContext()->m_instance, m_dbgMessenger, nullptr);
+      vkDestroyDebugUtilsMessengerEXT(m_app->getInstance(), m_dbgMessenger, nullptr);
       // Signal errors
       if(!m_errorMessages.empty())
       {

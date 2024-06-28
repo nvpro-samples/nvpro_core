@@ -25,6 +25,8 @@ namespace ImGuiH {
 using nlohmann::json;
 using Gui = ImGuiH::Control;
 
+namespace PE = ImGuiH::PropertyEditor;
+
 //--------------------------------------------------------------------------------------------------
 // Holds all saved cameras in a vector of Cameras
 // - The first camera in the list is the HOME camera, the one that was set before this is called.
@@ -157,9 +159,6 @@ struct CameraManager
     {
       m_doLoadSetting = false;
 
-      // Clear all cameras except the HOME
-      removedSavedCameras();
-
       std::ifstream i(m_jsonFilename);
       if(!i.is_open())
         return;
@@ -259,35 +258,29 @@ static std::unique_ptr<CameraManager> sCamMgr;
 //
 void CurrentCameraTab(nvh::CameraManipulator& cameraM, nvh::CameraManipulator::Camera& camera, bool& changed, bool& instantSet)
 {
-
   bool y_is_up = camera.up.y == 1;
 
-  PropertyEditor::begin();
-  PropertyEditor::entry(
-      "Eye", [&] { return ImGui::InputFloat3("##Eye", &camera.eye.x, "%.5f"); }, "Position of the Camera");
+  PE::begin();
+  PE::InputFloat3("Eye", &camera.eye.x, "%.5f", 0, "Position of the Camera");
   changed |= ImGui::IsItemDeactivatedAfterEdit();
-  PropertyEditor::entry(
-      "Center", [&] { return ImGui::InputFloat3("##Ctr", &camera.ctr.x, "%.5f"); }, "Center of camera interest");
+  PE::InputFloat3("Center", &camera.ctr.x, "%.5f", 0, "Center of camera interest");
   changed |= ImGui::IsItemDeactivatedAfterEdit();
-  changed |= PropertyEditor::entry(
+  changed |= PE::entry(
       "Y is UP", [&] { return ImGui::Checkbox("##Y", &y_is_up); }, "Is Y pointing up or Z?");
-  if(PropertyEditor::entry(
-         "FOV",
-         [&] { return ImGui::SliderFloat("##Y", &camera.fov, 1.F, 179.F, "%.1f deg", ImGuiSliderFlags_Logarithmic); },
-         "Field of view in degrees"))
+  if(PE::SliderFloat("FOV", &camera.fov, 1.F, 179.F, "%.1f deg", ImGuiSliderFlags_Logarithmic, "Field of view in degrees"))
   {
     instantSet = true;
     changed    = true;
   }
 
-  if(PropertyEditor::treeNode("Clip planes"))
+  if(PE::treeNode("Clip planes"))
   {
     glm::vec2 clip = cameraM.getClipPlanes();
-    PropertyEditor::entry("Near", [&] { return ImGui::InputFloat("##CN", &clip.x); });
+    PE::InputFloat("Near", &clip.x);
     changed |= ImGui::IsItemDeactivatedAfterEdit();
-    PropertyEditor::entry("Far", [&] { return ImGui::InputFloat("##CF", &clip.y); });
+    PE::InputFloat("Far", &clip.y);
     changed |= ImGui::IsItemDeactivatedAfterEdit();
-    PropertyEditor::treePop();
+    PE::treePop();
     cameraM.setClipPlanes(clip);
   }
 
@@ -331,7 +324,7 @@ void CurrentCameraTab(nvh::CameraManipulator& cameraM, nvh::CameraManipulator::C
     }
   }
   ImGuiH::tooltip("Paste from the clipboard the current camera: {eye}, {ctr}, {up}");
-  PropertyEditor::end();
+  PE::end();
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -407,12 +400,12 @@ void SavedCameraTab(nvh::CameraManipulator& cameraM, nvh::CameraManipulator::Cam
 void CameraExtraTab(nvh::CameraManipulator& cameraM, bool& changed)
 {
   // Navigation Mode
-  PropertyEditor::begin();
+  PE::begin();
   auto mode     = cameraM.getMode();
   auto speed    = cameraM.getSpeed();
   auto duration = static_cast<float>(cameraM.getAnimationDuration());
 
-  changed |= PropertyEditor::entry(
+  changed |= PE::entry(
       "Navigation",
       [&] {
         int rmode = static_cast<int>(mode);
@@ -427,15 +420,13 @@ void CameraExtraTab(nvh::CameraManipulator& cameraM, bool& changed)
       },
       "Camera Navigation Mode");
 
-  changed |= PropertyEditor::entry(
-      "Speed", [&] { return ImGui::SliderFloat("##S", &speed, 0.01F, 10.0F); }, "Changing the default speed movement");
-  changed |= PropertyEditor::entry(
-      "Transition", [&] { return ImGui::SliderFloat("##S", &duration, 0.0F, 2.0F); }, "Nb seconds to move to new position");
+  changed |= PE::SliderFloat("Speed", &speed, 0.01F, 10.0F, "%.3f", 0, "Changing the default speed movement");
+  changed |= PE::SliderFloat("Transition", &duration, 0.0F, 2.0F, "%.3f", 0, "Nb seconds to move to new position");
 
   cameraM.setSpeed(speed);
   cameraM.setAnimationDuration(duration);
 
-  PropertyEditor::end();
+  PE::end();
 }
 
 //--------------------------------------------------------------------------------------------------

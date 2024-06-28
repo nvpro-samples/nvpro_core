@@ -24,208 +24,349 @@
 #include <sstream>
 #include "stb_image.h"
 
-#include "nvvk/images_vk.hpp"
+#include "fileformats/tinygltf_utils.hpp"
+#include "nvh/gltfscene.hpp"
 #include "nvh/parallel_work.hpp"
 #include "nvh/timesampler.hpp"
 #include "nvvk/buffers_vk.hpp"
-
+#include "nvvk/images_vk.hpp"
 #include "shaders/dh_scn_desc.h"
 
-nvvkhl::SceneVk::SceneVk(nvvk::Context* ctx, nvvk::ResourceAllocator* alloc)
-    : m_ctx(ctx)
+nvvkhl::SceneVk::SceneVk(VkDevice device, VkPhysicalDevice physicalDevice, nvvk::ResourceAllocator* alloc)
+    : m_device(device)
+    , m_physicalDevice(physicalDevice)
     , m_alloc(alloc)
 {
-  m_dutil = std::make_unique<nvvk::DebugUtil>(ctx->m_device);  // Debug utility
+  m_dutil = std::make_unique<nvvk::DebugUtil>(m_device);  // Debug utility
 }
 
 //--------------------------------------------------------------------------------------------------
-// Create all Vulkan resources to hold a nvvkhl::Scene
+// Create all Vulkan resources to hold a nvh::gltf::Scene
 //
-void nvvkhl::SceneVk::create(VkCommandBuffer cmd, const nvvkhl::Scene& scn)
+void nvvkhl::SceneVk::create(VkCommandBuffer cmd, const nvh::gltf::Scene& scn)
 {
   nvh::ScopedTimer st(__FUNCTION__);
   destroy();  // Make sure not to leave allocated buffers
 
   namespace fs     = std::filesystem;
-  fs::path basedir = fs::path(scn.filename()).parent_path();
-  createMaterialBuffer(cmd, scn.scene());
-  createInstanceInfoBuffer(cmd, scn.scene());
-  createVertexBuffer(cmd, scn.scene());
-  createTextureImages(cmd, scn.model(), basedir);
+  fs::path basedir = fs::path(scn.getFilename()).parent_path();
+  createMaterialBuffer(cmd, scn.getModel().materials);
+  createRenderNodeBuffer(cmd, scn);
+  createVertexBuffers(cmd, scn);
+  createTextureImages(cmd, scn.getModel(), basedir);
 
   // Buffer references
   nvvkhl_shaders::SceneDescription scene_desc{};
-  scene_desc.materialAddress = nvvk::getBufferDeviceAddress(m_ctx->m_device, m_bMaterial.buffer);
-  scene_desc.primInfoAddress = nvvk::getBufferDeviceAddress(m_ctx->m_device, m_bPrimInfo.buffer);
-  scene_desc.instInfoAddress = nvvk::getBufferDeviceAddress(m_ctx->m_device, m_bInstances.buffer);
-  m_bSceneDesc               = m_alloc->createBuffer(cmd, sizeof(nvvkhl_shaders::SceneDescription), &scene_desc,
-                                                     VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);
+  scene_desc.materialAddress        = m_bMaterial.address;
+  scene_desc.renderPrimitiveAddress = m_bRenderPrim.address;
+  scene_desc.renderNodeAddress      = m_bRenderNode.address;
+  m_bSceneDesc                      = m_alloc->createBuffer(cmd, sizeof(nvvkhl_shaders::SceneDescription), &scene_desc,
+                                                            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);
   m_dutil->DBG_NAME(m_bSceneDesc.buffer);
+}
+
+
+void nvvkhl::SceneVk::update(VkCommandBuffer cmd, const nvh::gltf::Scene& scn)
+{
+  updateMaterialBuffer(cmd, scn);
+  updateRenderNodeBuffer(cmd, scn);
+}
+
+nvvkhl_shaders::GltfShadeMaterial getShaderMaterial(const tinygltf::Material& srcMat)
+{
+  nvvkhl_shaders::GltfShadeMaterial dstMat = nvvkhl_shaders::defaultGltfMaterial();
+  if(!srcMat.emissiveFactor.empty())
+    dstMat.emissiveFactor = glm::make_vec3<double>(srcMat.emissiveFactor.data());
+  dstMat.emissiveTexture             = srcMat.emissiveTexture.index;
+  dstMat.normalTexture               = srcMat.normalTexture.index;
+  dstMat.normalTextureScale          = static_cast<float>(srcMat.normalTexture.scale);
+  dstMat.pbrBaseColorFactor          = glm::make_vec4<double>(srcMat.pbrMetallicRoughness.baseColorFactor.data());
+  dstMat.pbrBaseColorTexture         = srcMat.pbrMetallicRoughness.baseColorTexture.index;
+  dstMat.pbrMetallicFactor           = static_cast<float>(srcMat.pbrMetallicRoughness.metallicFactor);
+  dstMat.pbrMetallicRoughnessTexture = srcMat.pbrMetallicRoughness.metallicRoughnessTexture.index;
+  dstMat.pbrRoughnessFactor          = static_cast<float>(srcMat.pbrMetallicRoughness.roughnessFactor);
+  dstMat.alphaMode   = srcMat.alphaMode == "OPAQUE" ? 0 : (srcMat.alphaMode == "MASK" ? 1 : 2 /*BLEND*/);
+  dstMat.alphaCutoff = static_cast<float>(srcMat.alphaCutoff);
+  KHR_materials_transmission transmission = tinygltf::utils::getTransmission(srcMat);
+  dstMat.transmissionFactor               = transmission.factor;
+  dstMat.transmissionTexture              = transmission.texture.index;
+  KHR_materials_ior ior                   = tinygltf::utils::getIor(srcMat);
+  dstMat.ior                              = ior.ior;
+  KHR_materials_volume volume             = tinygltf::utils::getVolume(srcMat);
+  dstMat.attenuationColor                 = volume.attenuationColor;
+  dstMat.thicknessFactor                  = volume.thicknessFactor;
+  dstMat.thicknessTexture                 = volume.thicknessTexture.index;
+  dstMat.attenuationDistance              = volume.attenuationDistance;
+  KHR_materials_clearcoat clearcoat       = tinygltf::utils::getClearcoat(srcMat);
+  dstMat.clearcoatFactor                  = clearcoat.factor;
+  dstMat.clearcoatRoughness               = clearcoat.roughnessFactor;
+  dstMat.clearcoatRoughnessTexture        = clearcoat.roughnessTexture.index;
+  dstMat.clearcoatTexture                 = clearcoat.texture.index;
+  dstMat.clearcoatNormalTexture           = clearcoat.normalTexture.index;
+  KHR_materials_specular specular         = tinygltf::utils::getSpecular(srcMat);
+  dstMat.specularFactor                   = specular.specularFactor;
+  dstMat.specularTexture                  = specular.specularTexture.index;
+  dstMat.specularColorFactor              = specular.specularColorFactor;
+  dstMat.specularColorTexture             = specular.specularColorTexture.index;
+  KHR_texture_transform textureTransform = tinygltf::utils::getTextureTransform(srcMat.pbrMetallicRoughness.baseColorTexture);
+  dstMat.uvTransform                               = textureTransform.uvTransform;
+  KHR_materials_emissive_strength emissiveStrength = tinygltf::utils::getEmissiveStrength(srcMat);
+  dstMat.emissiveFactor *= emissiveStrength.emissiveStrength;
+
+  return dstMat;
 }
 
 //--------------------------------------------------------------------------------------------------
 // Create a buffer of all materials, with only the elements we need
 //
-void nvvkhl::SceneVk::createMaterialBuffer(VkCommandBuffer cmd, const nvh::GltfScene& scn)
+void nvvkhl::SceneVk::createMaterialBuffer(VkCommandBuffer cmd, const std::vector<tinygltf::Material>& materials)
 {
   nvh::ScopedTimer st(__FUNCTION__);
 
-  std::vector<nvvkhl_shaders::GltfShadeMaterial> shade_materials;
-  shade_materials.reserve(scn.m_materials.size());
-  for(const auto& m : scn.m_materials)
-  {
-    nvvkhl_shaders::GltfShadeMaterial s{};
-    s.emissiveFactor              = m.emissiveFactor;
-    s.emissiveTexture             = m.emissiveTexture;
-    s.normalTexture               = m.normalTexture;
-    s.normalTextureScale          = m.normalTextureScale;
-    s.pbrBaseColorFactor          = m.baseColorFactor;
-    s.pbrBaseColorTexture         = m.baseColorTexture;
-    s.pbrMetallicFactor           = m.metallicFactor;
-    s.pbrMetallicRoughnessTexture = m.metallicRoughnessTexture;
-    s.pbrRoughnessFactor          = m.roughnessFactor;
-    s.alphaMode                   = m.alphaMode;
-    s.alphaCutoff                 = m.alphaCutoff;
-    // KHR_materials_transmission
-    s.transmissionFactor  = m.transmission.factor;
-    s.transmissionTexture = m.transmission.texture;
-    // KHR_materials_ior
-    s.ior = m.ior.ior;
-    // KHR_materials_volume
-    s.attenuationColor    = m.volume.attenuationColor;
-    s.thicknessFactor     = m.volume.thicknessFactor;
-    s.thicknessTexture    = m.volume.thicknessTexture;
-    s.attenuationDistance = m.volume.attenuationDistance;
-    // KHR_materials_clearcoat
-    s.clearcoatFactor           = m.clearcoat.factor;
-    s.clearcoatRoughness        = m.clearcoat.roughnessFactor;
-    s.clearcoatRoughnessTexture = m.clearcoat.roughnessTexture;
-    s.clearcoatTexture          = m.clearcoat.texture;
-    s.clearcoatNormalTexture    = m.clearcoat.normalTexture;
-    // KHR_materials_specular
-    s.specularFactor       = m.specular.specularFactor;
-    s.specularTexture      = m.specular.specularTexture;
-    s.specularColorFactor  = m.specular.specularColorFactor;
-    s.specularColorTexture = m.specular.specularColorTexture;
-    // KHR_texture_transform
-    s.uvTransform = m.textureTransform.uvTransform;
-    // KHR_materials_emissive_strength
-    s.emissiveFactor *= m.emissiveStrength.emissiveStrength;
+  using namespace tinygltf;
 
-    shade_materials.emplace_back(s);
+  std::vector<nvvkhl_shaders::GltfShadeMaterial> shade_materials;
+  shade_materials.reserve(materials.size());
+  for(const auto& srcMat : materials)
+  {
+    shade_materials.emplace_back(getShaderMaterial(srcMat));
   }
+
   m_bMaterial = m_alloc->createBuffer(cmd, shade_materials,
                                       VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);
   m_dutil->DBG_NAME(m_bMaterial.buffer);
 }
 
+void nvvkhl::SceneVk::updateMaterialBuffer(VkCommandBuffer cmd, const nvh::gltf::Scene& scn)
+{
+  const std::vector<tinygltf::Material>& materials = scn.getModel().materials;
+
+  std::vector<nvvkhl_shaders::GltfShadeMaterial> shade_materials;
+  shade_materials.reserve(materials.size());
+  for(const auto& srcMat : materials)
+  {
+    shade_materials.emplace_back(getShaderMaterial(srcMat));
+  }
+  m_alloc->getStaging()->cmdToBuffer(cmd, m_bMaterial.buffer, 0, shade_materials.size() * sizeof(nvvkhl_shaders::GltfShadeMaterial),
+                                     shade_materials.data());
+}
+
+
 //--------------------------------------------------------------------------------------------------
 // Array of instance information
 // - Use by the vertex shader to retrieve the position of the instance
-void nvvkhl::SceneVk::createInstanceInfoBuffer(VkCommandBuffer cmd, const nvh::GltfScene& scn)
+void nvvkhl::SceneVk::createRenderNodeBuffer(VkCommandBuffer cmd, const nvh::gltf::Scene& scn)
 {
   nvh::ScopedTimer st(__FUNCTION__);
 
-  std::vector<nvvkhl_shaders::InstanceInfo> inst_info;
-  for(const auto& node : scn.m_nodes)
+  std::vector<nvvkhl_shaders::RenderNode> inst_info;
+  for(const auto& obj : scn.getRenderNodes())
   {
-    nvvkhl_shaders::InstanceInfo info{};
-    info.objectToWorld = node.worldMatrix;
-    info.worldToObject = glm::inverse(node.worldMatrix);
+    nvvkhl_shaders::RenderNode info{};
+    info.objectToWorld = obj.worldMatrix;
+    info.worldToObject = glm::inverse(obj.worldMatrix);
+    info.materialID    = obj.materialID;
+    info.renderPrimID  = obj.renderPrimID;
     inst_info.emplace_back(info);
   }
-  m_bInstances = m_alloc->createBuffer(cmd, inst_info, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);
-  m_dutil->DBG_NAME(m_bInstances.buffer);
+  m_bRenderNode = m_alloc->createBuffer(cmd, inst_info, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);
+  m_dutil->DBG_NAME(m_bRenderNode.buffer);
 }
+
+void nvvkhl::SceneVk::updateRenderNodeBuffer(VkCommandBuffer cmd, const nvh::gltf::Scene& scn)
+{
+  // nvh::ScopedTimer st(__FUNCTION__);
+
+  std::vector<nvvkhl_shaders::RenderNode> inst_info;
+  inst_info.reserve(scn.getRenderNodes().size());
+  for(const auto& obj : scn.getRenderNodes())
+  {
+    nvvkhl_shaders::RenderNode info{};
+    info.objectToWorld = obj.worldMatrix;
+    info.worldToObject = glm::inverse(obj.worldMatrix);
+    info.materialID    = obj.materialID;
+    info.renderPrimID  = obj.renderPrimID;
+    inst_info.emplace_back(info);
+  }
+  m_alloc->getStaging()->cmdToBuffer(cmd, m_bRenderNode.buffer, 0,
+                                     inst_info.size() * sizeof(nvvkhl_shaders::RenderNode), inst_info.data());
+}
+
+
+// Function to create attribute buffers in Vulkan only if the attribute is present
+template <typename T>
+void createAttributeBuffer(const std::string&         attributeName,  // Name of the attribute: POSITION, NORMAL, ...
+                           const tinygltf::Model&     model,          // GLTF model
+                           const tinygltf::Primitive& primitive,      // GLTF primitive
+                           VkCommandBuffer            cmd,            // Command buffer to record the copy
+                           nvvk::ResourceAllocator*   alloc,          // Allocator to create the buffer
+                           int                        usageFlag,      // Usage of the buffer
+                           nvvk::Buffer&              attributeBuffer)             // Buffer to be created
+{
+  if(primitive.attributes.find(attributeName) != primitive.attributes.end())
+  {
+    const tinygltf::Accessor&   accessor = model.accessors[primitive.attributes.at(attributeName)];
+    const tinygltf::BufferView& view     = model.bufferViews[accessor.bufferView];
+
+    // The most common case is that the buffer is directly readable as T
+    if((view.byteStride == 0 || view.byteStride == sizeof(T)) && !accessor.sparse.isSparse)
+    {
+      const float* bufferData =
+          reinterpret_cast<const float*>(&(model.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
+      attributeBuffer = alloc->createBuffer(cmd, sizeof(T) * accessor.count, bufferData, usageFlag);
+    }
+    else
+    {
+      // If the stride is different, we need to copy the data
+      std::vector<T> tempData;  //(accessor.count);
+      //nvh::copyAccessorData(tempData, 0, model, accessor, 0, accessor.count);
+      tinygltf::utils::getAccessorData(model, accessor, tempData);
+      attributeBuffer = alloc->createBuffer(cmd, tempData, usageFlag);
+    }
+  }
+}
+
 
 //--------------------------------------------------------------------------------------------------
 // Creating information per primitive
 // - Create a buffer of Vertex and Index for each primitive
 // - Each primInfo has a reference to the vertex and index buffer, and which material id it uses
 //
-void nvvkhl::SceneVk::createVertexBuffer(VkCommandBuffer cmd, const nvh::GltfScene& scn)
+void nvvkhl::SceneVk::createVertexBuffers(VkCommandBuffer cmd, const nvh::gltf::Scene& scene)
 {
   nvh::ScopedTimer st(__FUNCTION__);
 
-  std::vector<nvvkhl_shaders::PrimMeshInfo> prim_info;  // The array of all primitive information
-  uint32_t                                  prim_idx{0};
+  //const auto& gltfScene = scene.scene();
+  const auto& model = scene.getModel();
 
-  auto usage_flag = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT  // Buffer read/write access within shaders, without size limitation
-                    | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT  // The buffer can be referred to using its address instead of a binding
-                    | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR  // Usage as a data source for acceleration structure builds
-                    | VK_BUFFER_USAGE_TRANSFER_DST_BIT                                      // Buffer can be copied into
-                    | VK_BUFFER_USAGE_TRANSFER_SRC_BIT;  // Buffer can be copied from (e.g. for inspection)
+  std::vector<nvvkhl_shaders::RenderPrimitive> renderPrim;  // The array of all primitive information
 
-  // Primitives in glTF can be reused, this allow to retrieve them
-  std::unordered_map<std::string, nvvk::Buffer> cache_primitive;
+  auto usageFlag = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT  // Buffer read/write access within shaders, without size limitation
+                   | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT  // The buffer can be referred to using its address instead of a binding
+                   | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR  // Usage as a data source for acceleration structure builds
+                   | VK_BUFFER_USAGE_TRANSFER_DST_BIT                                      // Buffer can be copied into
+                   | VK_BUFFER_USAGE_TRANSFER_SRC_BIT;  // Buffer can be copied from (e.g. for inspection)
 
-  prim_info.resize(scn.m_primMeshes.size());
-  m_bVertices.resize(scn.m_primMeshes.size());
-  m_bIndices.resize(scn.m_primMeshes.size());
 
-  for(const auto& prim_mesh : scn.m_primMeshes)
+  size_t numUniquePrimitive = scene.getNumRenderPrimitives();
+  m_bIndices.resize(numUniquePrimitive);
+  m_vertexBuffers.resize(numUniquePrimitive);
+  renderPrim.resize(numUniquePrimitive);
+
+  for(size_t primID = 0; primID < scene.getNumRenderPrimitives(); primID++)
   {
-    // Create a key to find a primitive that is already uploaded
-    std::stringstream o;
-    o << prim_mesh.vertexOffset << ":" << prim_mesh.vertexCount;
-    std::string key = o.str();
+    const tinygltf::Primitive& primitive     = scene.getRenderPrimitive(primID).primitive;
+    VertexBuffers&             vertexBuffers = m_vertexBuffers[primID];
 
-    nvvk::Buffer v_buffer;  // Vertex buffer result
-    auto         it = cache_primitive.find(key);
-    if(it == cache_primitive.end())
+    createAttributeBuffer<glm::vec3>("POSITION", model, primitive, cmd, m_alloc,
+                                     usageFlag | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, vertexBuffers.position);
+    createAttributeBuffer<glm::vec3>("NORMAL", model, primitive, cmd, m_alloc, usageFlag, vertexBuffers.normal);
+    createAttributeBuffer<glm::vec2>("TEXCOORD_0", model, primitive, cmd, m_alloc, usageFlag, vertexBuffers.texCoord0);
+    createAttributeBuffer<glm::vec4>("TANGENT", model, primitive, cmd, m_alloc, usageFlag, vertexBuffers.tangent);
+
+    if(tinygltf::utils::hasElementName(primitive.attributes, "COLOR_0"))
     {
-      // Filling in parallel the vector of vertex used on the GPU
-      std::vector<nvvkhl_shaders::Vertex> vertices(prim_mesh.vertexCount);
-      for(uint32_t v_ctx = 0; v_ctx < prim_mesh.vertexCount; v_ctx++)
+      // For color, we need to pack it into a single int
+      const tinygltf::Accessor& accessor = model.accessors[primitive.attributes.at("COLOR_0")];
+      std::vector<glm::vec4>    tempVec4Data(accessor.count);
+      std::vector<uint32_t>     tempIntData(accessor.count);
+      tinygltf::utils::copyAccessorData(tempVec4Data, 0, model, accessor, 0, accessor.count);
+      for(size_t i = 0; i < accessor.count; i++)
       {
-        size_t           idx = prim_mesh.vertexOffset + v_ctx;
-        const glm::vec3& p   = scn.m_positions[idx];
-        const glm::vec3& n   = scn.m_normals[idx];
-        const glm::vec4& t   = scn.m_tangents[idx];
-        const glm::vec2& u   = scn.m_texcoords0[idx];
-
-        nvvkhl_shaders::Vertex& v = vertices[v_ctx];
-        v.position                = glm::vec4(p, u.x);  // Adding texcoord to the end of position and normal vector
-        v.normal                  = glm::vec4(n, u.y);
-        v.tangent                 = t;
+        tempIntData[i] = glm::packUnorm4x8(tempVec4Data[i]);
       }
+      vertexBuffers.color = m_alloc->createBuffer(cmd, tempIntData, usageFlag);
+    }
 
-      // Buffer of Vertex per primitive
-      v_buffer = m_alloc->createBuffer(cmd, vertices, usage_flag | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
-      m_dutil->DBG_NAME_IDX(v_buffer.buffer, prim_idx);
-      cache_primitive[key] = v_buffer;
-    }
-    else
-    {
-      v_buffer = it->second;
-    }
-    m_bVertices[prim_idx] = v_buffer;
+    // Debug name
+    if(vertexBuffers.position.buffer != VK_NULL_HANDLE)
+      m_dutil->DBG_NAME_IDX(vertexBuffers.position.buffer, primID);
+    if(vertexBuffers.normal.buffer != VK_NULL_HANDLE)
+      m_dutil->DBG_NAME_IDX(vertexBuffers.normal.buffer, primID);
+    if(vertexBuffers.texCoord0.buffer != VK_NULL_HANDLE)
+      m_dutil->DBG_NAME_IDX(vertexBuffers.texCoord0.buffer, primID);
+    if(vertexBuffers.tangent.buffer != VK_NULL_HANDLE)
+      m_dutil->DBG_NAME_IDX(vertexBuffers.tangent.buffer, primID);
+    if(vertexBuffers.color.buffer != VK_NULL_HANDLE)
+      m_dutil->DBG_NAME_IDX(vertexBuffers.color.buffer, primID);
+
 
     // Buffer of indices
-    std::vector<uint32_t> indices(prim_mesh.indexCount);
-    memcpy(indices.data(), &scn.m_indices[prim_mesh.firstIndex], sizeof(uint32_t) * prim_mesh.indexCount);
+    std::vector<uint32_t> indexBuffer;
+    if(primitive.indices > -1)
+    {
+      const tinygltf::Accessor&   accessor   = model.accessors[primitive.indices];
+      const tinygltf::BufferView& bufferView = model.bufferViews[accessor.bufferView];
+      const tinygltf::Buffer&     buffer     = model.buffers[bufferView.buffer];
+      assert(accessor.sparse.isSparse == false);
+      indexBuffer.resize(accessor.count);
+      switch(accessor.componentType)
+      {
+        case TINYGLTF_PARAMETER_TYPE_UNSIGNED_INT: {
+          const uint32_t* buf = reinterpret_cast<const uint32_t*>(&buffer.data[accessor.byteOffset + bufferView.byteOffset]);
+          std::memcpy(indexBuffer.data(), buf, accessor.count * sizeof(uint32_t));
+          break;
+        }
+        case TINYGLTF_PARAMETER_TYPE_UNSIGNED_SHORT: {
+          const uint16_t* buf = reinterpret_cast<const uint16_t*>(&buffer.data[accessor.byteOffset + bufferView.byteOffset]);
+          for(size_t index = 0; index < accessor.count; index++)
+          {
+            indexBuffer[index] = buf[index];
+          }
+          break;
+        }
+        case TINYGLTF_PARAMETER_TYPE_UNSIGNED_BYTE: {
+          const uint8_t* buf = reinterpret_cast<const uint8_t*>(&buffer.data[accessor.byteOffset + bufferView.byteOffset]);
+          for(size_t index = 0; index < accessor.count; index++)
+          {
+            indexBuffer[index] = buf[index];
+          }
+          break;
+        }
+      }
+    }
+    else
+    {  // Primitive without indices, creating them
+      const tinygltf::Accessor& accessor = model.accessors[primitive.attributes.at("POSITION")];
 
-    auto i_buffer = m_alloc->createBuffer(cmd, indices, usage_flag | VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
-    m_dutil->DBG_NAME_IDX(i_buffer.buffer, prim_idx);
-    m_bIndices[prim_idx] = i_buffer;
+      indexBuffer.resize(accessor.count);
+      for(auto i = 0; i < accessor.count; i++)
+        indexBuffer[i] = i;
+    }
 
-    // Primitive information, material Id and addresses of buffers
-    prim_info[prim_idx].materialIndex = prim_mesh.materialIndex;
-    prim_info[prim_idx].vertexAddress = nvvk::getBufferDeviceAddress(m_ctx->m_device, v_buffer.buffer);
-    prim_info[prim_idx].indexAddress  = nvvk::getBufferDeviceAddress(m_ctx->m_device, i_buffer.buffer);
+    // Creating the buffer for the indices
+    nvvk::Buffer& i_buffer = m_bIndices[primID];
+    i_buffer               = m_alloc->createBuffer(cmd, indexBuffer, usageFlag | VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+    m_dutil->DBG_NAME_IDX(i_buffer.buffer, primID);
 
-    prim_idx++;
+    // Filling the primitive information
+    renderPrim[primID].indexAddress = i_buffer.address;
+
+    nvvkhl_shaders::VertexBuffers vBuf = {};
+    vBuf.positionAddress               = vertexBuffers.position.address;
+    vBuf.normalAddress                 = vertexBuffers.normal.address;
+    vBuf.tangentAddress                = vertexBuffers.tangent.address;
+    vBuf.texCoord0Address              = vertexBuffers.texCoord0.address;
+    vBuf.colorAddress                  = vertexBuffers.color.address;
+    renderPrim[primID].vertexBuffer    = vBuf;
   }
 
   // Creating the buffer of all primitive information
-  m_bPrimInfo = m_alloc->createBuffer(cmd, prim_info, usage_flag);
-  m_dutil->DBG_NAME(m_bPrimInfo.buffer);
+  m_bRenderPrim = m_alloc->createBuffer(cmd, renderPrim, usageFlag);
+  m_dutil->DBG_NAME(m_bRenderPrim.buffer);
+
+  // Barrier to make sure the data is in the GPU
+  VkMemoryBarrier barrier{VK_STRUCTURE_TYPE_MEMORY_BARRIER};
+  barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+  barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
+  vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+                       VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, 0, 1, &barrier, 0, nullptr, 0, nullptr);
 }
 
 //--------------------------------------------------------------------------------------------------------------
 // Returning the Vulkan sampler information from the information in the tinygltf
 //
-VkSamplerCreateInfo getSampler(const tinygltf::Model& tiny, int index)
+VkSamplerCreateInfo getSampler(const tinygltf::Model& model, int index)
 {
   VkSamplerCreateInfo samplerInfo{VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
   samplerInfo.minFilter  = VK_FILTER_LINEAR;
@@ -236,7 +377,7 @@ VkSamplerCreateInfo getSampler(const tinygltf::Model& tiny, int index)
   if(index < 0)
     return samplerInfo;
 
-  const auto& sampler = tiny.samplers[index];
+  const auto& sampler = model.samplers[index];
 
   const std::map<int, VkFilter> filters = {{9728, VK_FILTER_NEAREST}, {9729, VK_FILTER_LINEAR},
                                            {9984, VK_FILTER_NEAREST}, {9985, VK_FILTER_LINEAR},
@@ -268,7 +409,7 @@ VkSamplerCreateInfo getSampler(const tinygltf::Model& tiny, int index)
 //--------------------------------------------------------------------------------------------------------------
 // This is creating all images stored in textures
 //
-void nvvkhl::SceneVk::createTextureImages(VkCommandBuffer cmd, const tinygltf::Model& tiny, const std::filesystem::path& basedir)
+void nvvkhl::SceneVk::createTextureImages(VkCommandBuffer cmd, const tinygltf::Model& model, const std::filesystem::path& basedir)
 {
   nvh::ScopedTimer st(std::string(__FUNCTION__) + "\n");
 
@@ -279,7 +420,7 @@ void nvvkhl::SceneVk::createTextureImages(VkCommandBuffer cmd, const tinygltf::M
   default_sampler.maxLod     = FLT_MAX;
 
   // Find and all textures/images that should be sRgb encoded.
-  findSrgbImages(tiny);
+  findSrgbImages(model);
 
   // Make dummy image(1,1), needed as we cannot have an empty array
   auto addDefaultImage = [&](uint32_t idx, const std::array<uint8_t, 4>& color) {
@@ -299,13 +440,13 @@ void nvvkhl::SceneVk::createTextureImages(VkCommandBuffer cmd, const tinygltf::M
   };
 
   // Load images in parallel
-  m_images.resize(tiny.images.size());
-  uint32_t          num_threads = std::min((uint32_t)tiny.images.size(), std::thread::hardware_concurrency());
+  m_images.resize(model.images.size());
+  uint32_t          num_threads = std::min((uint32_t)model.images.size(), std::thread::hardware_concurrency());
   const std::string indent      = st.indent();
   nvh::parallel_batches<1>(  // Not batching
-      tiny.images.size(),
+      model.images.size(),
       [&](uint64_t i) {
-        const auto& image = tiny.images[i];
+        const auto& image = model.images[i];
         LOGI("%s(%" PRIu64 ") %s \n", indent.c_str(), i, image.uri.c_str());
         loadImage(basedir, image, static_cast<int>(i));
       },
@@ -321,24 +462,24 @@ void nvvkhl::SceneVk::createTextureImages(VkCommandBuffer cmd, const tinygltf::M
   }
 
   // Add default image if nothing was loaded
-  if(tiny.images.empty())
+  if(model.images.empty())
   {
     m_images.resize(1);
     addDefaultImage(0, {255, 255, 255, 255});
   }
 
   // Creating the textures using the above images
-  m_textures.reserve(tiny.textures.size());
-  for(size_t i = 0; i < tiny.textures.size(); i++)
+  m_textures.reserve(model.textures.size());
+  for(size_t i = 0; i < model.textures.size(); i++)
   {
-    int source_image = tiny.textures[i].source;
-    if(source_image >= tiny.images.size() || source_image < 0)
+    int source_image = model.textures[i].source;
+    if(source_image >= model.images.size() || source_image < 0)
     {
       addDefaultTexture();  // Incorrect source image
       continue;
     }
 
-    VkSamplerCreateInfo sampler = getSampler(tiny, tiny.textures[i].sampler);
+    VkSamplerCreateInfo sampler = getSampler(model, model.textures[i].sampler);
 
     SceneImage&           scn_image = m_images[source_image];
     VkImageViewCreateInfo iv_info   = nvvk::makeImageViewCreateInfo(scn_image.nvvkImage.image, scn_image.createInfo);
@@ -346,7 +487,7 @@ void nvvkhl::SceneVk::createTextureImages(VkCommandBuffer cmd, const tinygltf::M
   }
 
   // Add a default texture, cannot work with empty descriptor set
-  if(tiny.textures.empty())
+  if(model.textures.empty())
   {
     addDefaultTexture();
   }
@@ -355,12 +496,12 @@ void nvvkhl::SceneVk::createTextureImages(VkCommandBuffer cmd, const tinygltf::M
 //-------------------------------------------------------------------------------------------------
 // Some images must be sRgb encoded, we find them and will be uploaded with the _SRGB format.
 //
-void nvvkhl::SceneVk::findSrgbImages(const tinygltf::Model& tiny)
+void nvvkhl::SceneVk::findSrgbImages(const tinygltf::Model& model)
 {
   // Lambda helper functions
   auto addImage = [&](int texID) {
     if(texID > -1)
-      m_sRgbImages.insert(tiny.textures[texID].source);
+      m_sRgbImages.insert(model.textures[texID].source);
   };
 
   // For images in extensions
@@ -374,9 +515,9 @@ void nvvkhl::SceneVk::findSrgbImages(const tinygltf::Model& tiny)
   };
 
   // Loop over all materials and find the sRgb textures
-  for(size_t matID = 0; matID < tiny.materials.size(); matID++)
+  for(size_t matID = 0; matID < model.materials.size(); matID++)
   {
-    const auto& mat = tiny.materials[matID];
+    const auto& mat = model.materials[matID];
     // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#metallic-roughness-material
     addImage(mat.pbrMetallicRoughness.baseColorTexture.index);
     addImage(mat.emissiveTexture.index);
@@ -394,9 +535,9 @@ void nvvkhl::SceneVk::findSrgbImages(const tinygltf::Model& tiny)
   }
 
   // Special, if the 'extra' in the texture has a gamma defined greater than 1.0, it is sRGB
-  for(size_t texID = 0; texID < tiny.textures.size(); texID++)
+  for(size_t texID = 0; texID < model.textures.size(); texID++)
   {
-    const auto& texture = tiny.textures[texID];
+    const auto& texture = model.textures[texID];
     if(texture.extras.Has("gamma") && texture.extras.Get("gamma").GetNumberAsDouble() > 1.0)
     {
       m_sRgbImages.insert(texture.source);
@@ -477,7 +618,7 @@ void nvvkhl::SceneVk::loadImage(const std::filesystem::path& basedir, const tiny
 
     stbi_image_free(data);
   }
-  else
+  else if(gltfImage.width > 0 && gltfImage.height > 0 && !gltfImage.image.empty())
   {  // Loaded internally using GLB
     image.size   = VkExtent2D{(uint32_t)gltfImage.width, (uint32_t)gltfImage.height};
     image.format = is_srgb ? VK_FORMAT_R8G8B8A8_SRGB : VK_FORMAT_R8G8B8A8_UNORM;
@@ -497,7 +638,7 @@ bool nvvkhl::SceneVk::createImage(const VkCommandBuffer& cmd, SceneImage& image)
   // Check if we can generate mipmap with the the incoming image
   bool               can_generate_mipmaps = false;
   VkFormatProperties format_properties;
-  vkGetPhysicalDeviceFormatProperties(m_ctx->m_physicalDevice, format, &format_properties);
+  vkGetPhysicalDeviceFormatProperties(m_physicalDevice, format, &format_properties);
   if((format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_BLIT_DST_BIT) == VK_FORMAT_FEATURE_BLIT_DST_BIT)
     can_generate_mipmaps = true;
   if(image.mipData.size() > 1)  // Use only the number of levels defined
@@ -559,23 +700,15 @@ bool nvvkhl::SceneVk::createImage(const VkCommandBuffer& cmd, SceneImage& image)
 
 void nvvkhl::SceneVk::destroy()
 {
-  try
+  for(auto& vb : m_vertexBuffers)
   {
-    std::set<VkBuffer> v_set;  // Vertex buffer can be shared
-    for(auto& v : m_bVertices)
-    {
-      if(v_set.find(v.buffer) == v_set.end())
-      {
-        v_set.insert(v.buffer);
-        m_alloc->destroy(v);  // delete only the one that was not deleted
-      }
-    }
+    m_alloc->destroy(vb.position);
+    m_alloc->destroy(vb.normal);
+    m_alloc->destroy(vb.tangent);
+    m_alloc->destroy(vb.texCoord0);
+    m_alloc->destroy(vb.color);
   }
-  catch(const std::bad_alloc& /* e */)
-  {
-    assert(!"Failed to allocate memory to identify which vertex buffers to destroy!");
-  }
-  m_bVertices.clear();
+  m_vertexBuffers.clear();
 
   for(auto& i : m_bIndices)
   {
@@ -584,8 +717,8 @@ void nvvkhl::SceneVk::destroy()
   m_bIndices.clear();
 
   m_alloc->destroy(m_bMaterial);
-  m_alloc->destroy(m_bPrimInfo);
-  m_alloc->destroy(m_bInstances);
+  m_alloc->destroy(m_bRenderPrim);
+  m_alloc->destroy(m_bRenderNode);
   m_alloc->destroy(m_bSceneDesc);
 
   for(auto& i : m_images)
@@ -596,7 +729,7 @@ void nvvkhl::SceneVk::destroy()
 
   for(auto& t : m_textures)
   {
-    vkDestroyImageView(m_ctx->m_device, t.descriptor.imageView, nullptr);
+    vkDestroyImageView(m_device, t.descriptor.imageView, nullptr);
   }
   m_textures.clear();
 

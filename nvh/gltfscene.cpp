@@ -17,6 +17,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <filesystem>
 
 #include "gltfscene.hpp"
 #include "boundingbox.hpp"
@@ -31,16 +32,976 @@
 
 #include <glm/gtx/norm.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include "timesampler.hpp"
 
 
-namespace nvh {
+// Loading a GLTF file and extracting all information
+bool nvh::gltf::Scene::load(const std::string& filename)
+{
+  nvh::ScopedTimer st(std::string(__FUNCTION__) + "\n");
+  LOGI("%s%s\n", nvh::ScopedTimer::indent().c_str(), filename.c_str());
 
-#define EXTENSION_ATTRIB_IRAY "NV_attributes_iray"
+  m_filename = filename;
+  m_model    = {};
+  tinygltf::TinyGLTF tcontext;
+  std::string        warn;
+  std::string        error;
+  tcontext.SetMaxExternalFileSize(1ULL << 33);  // 8GB
+  auto ext = std::filesystem::path(filename).extension().string();
+  bool result{false};
+  if(ext == ".gltf")
+  {
+    result = tcontext.LoadASCIIFromFile(&m_model, &error, &warn, filename);
+  }
+  else if(ext == ".glb")
+  {
+    result = tcontext.LoadBinaryFromFile(&m_model, &error, &warn, filename);
+  }
+  else
+  {
+    LOGE("Unknown file extension: %s\n", ext.c_str());
+    return false;
+  }
+
+  if(!result)
+  {
+    LOGE("Error loading file: %s\n", filename.c_str());
+    LOGW("%s%s\n", st.indent().c_str(), warn.c_str());
+    LOGE("%s%s\n", st.indent().c_str(), error.c_str());
+    clearParsedData();
+    //assert(!"Error while loading scene");
+    return result;
+  }
+
+  m_currentScene   = m_model.defaultScene > -1 ? m_model.defaultScene : 0;
+  m_currentVariant = 0;  // Default KHR_materials_variants
+  parseScene();
+
+  return result;
+}
+
+bool nvh::gltf::Scene::save(const std::string& filename)
+{
+  nvh::ScopedTimer st(std::string(__FUNCTION__) + "\n");
+
+  std::string saveFilename = filename;
+
+  // Make sure the extension is correct
+  std::string ext = std::filesystem::path(filename).extension().string();
+  if(ext != ".gltf")
+  {
+    // replace the extension
+    saveFilename = std::filesystem::path(filename).replace_extension(".gltf").string();
+  }
+
+  // Copy the images to the destination folder
+  if(!m_model.images.empty())
+  {
+    std::string srcPath   = std::filesystem::path(m_filename).parent_path().string();
+    std::string dstPath   = std::filesystem::path(filename).parent_path().string();
+    int         numCopied = 0;
+    for(auto& image : m_model.images)
+    {
+      std::string uri_decoded;
+      tinygltf::URIDecode(image.uri, &uri_decoded, nullptr);  // ex. whitespace may be represented as %20
+
+      std::string srcFile = srcPath + "/" + uri_decoded;
+      std::string dstFile = dstPath + "/" + uri_decoded;
+      if(srcFile != dstFile)
+      {
+        if(std::filesystem::copy_file(srcFile, dstFile, std::filesystem::copy_options::update_existing))
+          numCopied++;
+      }
+    }
+    if(numCopied > 0)
+      LOGI("%sImages copied: %d\n", st.indent().c_str(), numCopied);
+  }
+
+  // Save the glTF file
+  tinygltf::TinyGLTF tcontext;
+  bool               result = tcontext.WriteGltfSceneToFile(&m_model, saveFilename, false, false, true, false);
+  LOGI("%sSaved: %s\n", st.indent().c_str(), saveFilename.c_str());
+  return result;
+}
+
+
+void nvh::gltf::Scene::takeModel(tinygltf::Model&& model)
+{
+  m_model = std::move(model);
+  parseScene();
+}
+
+void nvh::gltf::Scene::setCurrentScene(int sceneID)
+{
+  assert(sceneID >= 0 && sceneID < static_cast<int>(m_model.scenes.size()) && "Invalid scene ID");
+  m_currentScene = sceneID;
+  parseScene();
+}
+
+// Parses the scene from the glTF model, initializing and setting up scene elements, materials, animations, and the camera.
+void nvh::gltf::Scene::parseScene()
+{
+  // Ensure there are nodes in the glTF model and the current scene ID is valid
+  assert(m_model.nodes.size() > 0 && "No nodes in the glTF file");
+  assert(m_currentScene >= 0 && m_currentScene < static_cast<int>(m_model.scenes.size()) && "Invalid scene ID");
+
+  // Clear previous scene data and initialize scene elements
+  clearParsedData();
+  setSceneElementsDefaultNames();
+
+  // Ensure only one top node per scene, creating a new node if necessary
+  // This is done to be able to transform the entire scene as a single node
+  for(auto& scene : m_model.scenes)
+  {
+    createRootIfMultipleNodes(scene);
+  }
+  m_sceneRootNode = m_model.scenes[m_currentScene].nodes[0];  // Set the root node of the scene
+
+  // There must be at least one material in the scene
+  if(m_model.materials.empty())
+  {
+    m_model.materials.emplace_back();
+  }
+
+  // Collect all draw objects; RenderNode and RenderPrimitive
+  // Also it will be used  to compute the scene bounds for the camera
+  for(auto& sceneNode : m_model.scenes[m_currentScene].nodes)
+  {
+    tinygltf::utils::traverseSceneGraph(m_model, sceneNode, glm::mat4(1), nullptr, nullptr,
+                                        [this](int nodeID, const glm::mat4& worldMat) {
+                                          return handleRenderNode(nodeID, worldMat);
+                                        });
+  }
+
+  // Search for the first camera in the scene and exit traversal upon finding it
+  for(auto& sceneNode : m_model.scenes[m_currentScene].nodes)
+  {
+    tinygltf::utils::traverseSceneGraph(
+        m_model, sceneNode, glm::mat4(1),
+        [&](int nodeID, glm::mat4 mat) {
+          m_sceneCameraNode = nodeID;
+          return true;  // Stop traversal
+        },
+        nullptr, nullptr);
+  }
+
+  // Create a default camera if none is found in the scene
+  if(m_sceneCameraNode == -1)
+  {
+    createSceneCamera();
+  }
+
+  // Parse various scene components
+  parseVariants();
+  parseAnimations();
+}
+
+// Set the default names for the scene elements if they are empty
+void nvh::gltf::Scene::setSceneElementsDefaultNames()
+{
+  auto setDefaultName = [](auto& elements, const std::string& prefix) {
+    for(size_t i = 0; i < elements.size(); ++i)
+    {
+      if(elements[i].name.empty())
+      {
+        elements[i].name = fmt::format("{}-{}", prefix, i);
+      }
+    }
+  };
+
+  setDefaultName(m_model.scenes, "Scene");
+  setDefaultName(m_model.meshes, "Mesh");
+  setDefaultName(m_model.materials, "Material");
+  setDefaultName(m_model.nodes, "Node");
+  setDefaultName(m_model.cameras, "Camera");
+  setDefaultName(m_model.lights, "Light");
+}
+
+
+// Creates a new root node for the scene and assigns existing top nodes as its children.
+void nvh::gltf::Scene::createRootIfMultipleNodes(tinygltf::Scene& scene)
+{
+  // Already a single node in the scene
+  if(scene.nodes.size() == 1)
+    return;
+
+  tinygltf::Node newNode;
+  newNode.name = scene.name;
+  newNode.children.swap(scene.nodes);  // Move the scene nodes to the new node
+  m_model.nodes.push_back(newNode);    // Add to then to avoid invalidating any references
+  scene.nodes.clear();                 // Should be already empty, due to the swap
+  scene.nodes.push_back(int(m_model.nodes.size()) - 1);
+}
+
+// If there is no camera in the scene, we create one
+// The camera is placed at the center of the scene, looking at the scene
+void nvh::gltf::Scene::createSceneCamera()
+{
+  tinygltf::Camera& tcamera        = m_model.cameras.emplace_back();  // Add a camera
+  int               newCameraIndex = static_cast<int>(m_model.cameras.size() - 1);
+  tinygltf::Node&   tnode          = m_model.nodes.emplace_back();  // Add a node for the camera
+  int               newNodeIndex   = static_cast<int>(m_model.nodes.size() - 1);
+  tnode.name                       = "Camera";
+  tnode.camera                     = newCameraIndex;
+  int rootID                       = m_model.scenes[m_currentScene].nodes[0];
+  m_model.nodes[rootID].children.push_back(newNodeIndex);  // Add the camera node to the root
+
+  // Set the camera to look at the scene
+  nvh::Bbox bbox   = getSceneBounds();
+  glm::vec3 center = bbox.center();
+  glm::vec3 eye = center + glm::vec3(0, 0, bbox.radius() * 2.414f);  //2.414 units away from the center of the sphere to fit it within a 45 - degree FOV
+  glm::vec3 up                    = glm::vec3(0, 1, 0);
+  tcamera.type                    = "perspective";
+  tcamera.name                    = "Camera";
+  tcamera.perspective.aspectRatio = 16.0f / 9.0f;
+  tcamera.perspective.yfov        = glm::radians(45.0f);
+  tcamera.perspective.zfar        = bbox.radius() * 10.0f;
+  tcamera.perspective.znear       = bbox.radius() * 0.1f;
+
+  // Add extra information to the node/camera
+  tinygltf::Value::Object extras;
+  extras["camera::eye"]    = tinygltf::utils::convertToTinygltfValue(3, glm::value_ptr(eye));
+  extras["camera::center"] = tinygltf::utils::convertToTinygltfValue(3, glm::value_ptr(center));
+  extras["camera::up"]     = tinygltf::utils::convertToTinygltfValue(3, glm::value_ptr(up));
+  tnode.extras             = tinygltf::Value(extras);
+
+  // Set the node transformation
+  tnode.translation = {eye.x, eye.y, eye.z};
+  glm::quat q       = glm::quatLookAt(glm::normalize(center - eye), up);
+  tnode.rotation    = {q.x, q.y, q.z, q.w};
+}
+
+// This function will update the matrices and the materials of the render nodes
+void nvh::gltf::Scene::updateRenderNodes()
+{
+  const tinygltf::Scene& scene = m_model.scenes[m_currentScene];
+  assert(scene.nodes.size() > 0 && "No nodes in the glTF file");
+  //assert(scene.nodes.size() == 1 && "Only one top node per scene is supported");
+  assert(m_sceneRootNode > -1 && "No root node in the scene");
+
+  uint32_t renderNodeID = 0;  // Index of the render node
+  for(auto& sceneNode : scene.nodes)
+  {
+    tinygltf::utils::traverseSceneGraph(m_model, sceneNode, glm::mat4(1), nullptr, nullptr, [&](int nodeID, const glm::mat4& mat) {
+      tinygltf::Node&       tnode = m_model.nodes[nodeID];
+      const tinygltf::Mesh& mesh  = m_model.meshes[tnode.mesh];
+      for(size_t j = 0; j < mesh.primitives.size(); j++)
+      {
+        const tinygltf::Primitive& primitive  = mesh.primitives[j];
+        gltf::RenderNode&          renderNode = m_renderNodes[renderNodeID];
+        renderNode.worldMatrix                = mat;
+        renderNode.materialID                 = getMaterialVariantIndex(primitive, m_currentVariant);
+        renderNodeID++;
+      }
+      return false;  // Continue traversal
+    });
+  }
+}
+
+void nvh::gltf::Scene::setCurrentVariant(int variant)
+{
+  m_currentVariant = variant;
+  // Updating the render nodes with the new material variant
+  updateRenderNodes();
+}
+
+
+void nvh::gltf::Scene::clearParsedData()
+{
+  m_cameras.clear();
+  m_lights.clear();
+  m_animations.clear();
+  m_renderNodes.clear();
+  m_renderPrimitives.clear();
+  m_uniquePrimitiveIndex.clear();
+  m_variants.clear();
+  m_numTriangles    = 0;
+  m_sceneBounds     = {};
+  m_sceneCameraNode = -1;
+  m_sceneRootNode   = -1;
+}
+
+void nvh::gltf::Scene::destroy()
+{
+  clearParsedData();
+  m_filename = {};
+  m_model    = {};
+}
+
+
+// Get the unique index of a primitive, and add it to the list if it is not already there
+int nvh::gltf::Scene::getUniqueRenderPrimitive(const tinygltf::Primitive& primitive)
+{
+  const std::string& key = tinygltf::utils::generatePrimitiveKey(primitive);
+
+  // Attempt to insert the key with the next available index if it doesn't exist
+  auto [it, inserted] = m_uniquePrimitiveIndex.try_emplace(key, static_cast<int>(m_uniquePrimitiveIndex.size()));
+
+  // If the primitive was newly inserted, add it to the render primitives list
+  if(inserted)
+  {
+    gltf::RenderPrimitive renderPrim;
+    renderPrim.primitive   = primitive;
+    renderPrim.vertexCount = int(tinygltf::utils::getVertexCount(m_model, primitive));
+    renderPrim.indexCount  = int(tinygltf::utils::getIndexCount(m_model, primitive));
+    m_renderPrimitives.push_back(renderPrim);
+  }
+
+  return it->second;
+}
+
+
+// Function to extract eye, center, and up vectors from a view matrix
+inline void extractCameraVectors(const glm::mat4& viewMatrix, const glm::vec3& sceneCenter, glm::vec3& eye, glm::vec3& center, glm::vec3& up)
+{
+  eye                    = glm::vec3(viewMatrix[3]);
+  glm::mat3 rotationPart = glm::mat3(viewMatrix);
+  glm::vec3 forward      = -rotationPart * glm::vec3(0.0f, 0.0f, 1.0f);
+
+  // Project sceneCenter onto the forward vector
+  glm::vec3 eyeToSceneCenter = sceneCenter - eye;
+  float     projectionLength = std::abs(glm::dot(eyeToSceneCenter, forward));
+  center                     = eye + projectionLength * forward;
+
+  up = glm::vec3(0.0f, 1.0f, 0.0f);  // Assume the up vector is always (0, 1, 0)
+}
+
+
+// Retrieve the list of render cameras in the scene.
+// This function returns a vector of render cameras present in the scene. If the `force`
+// parameter is set to true, it clears and regenerates the list of cameras.
+//
+// Parameters:
+// - force: If true, forces the regeneration of the camera list.
+//
+// Returns:
+// - A const reference to the vector of render cameras.
+const std::vector<nvh::gltf::RenderCamera>& nvh::gltf::Scene::getRenderCameras(bool force /*= false*/)
+{
+  if(force)
+  {
+    m_cameras.clear();
+  }
+
+  if(m_cameras.empty())
+  {
+    assert(m_sceneRootNode > -1 && "No root node in the scene");
+    tinygltf::utils::traverseSceneGraph(m_model, m_sceneRootNode, glm::mat4(1), [&](int nodeID, const glm::mat4& worldMatrix) {
+      return handleCameraTraversal(nodeID, worldMatrix);
+    });
+  }
+  return m_cameras;
+}
+
+
+bool nvh::gltf::Scene::handleCameraTraversal(int nodeID, const glm::mat4& worldMatrix)
+{
+  tinygltf::Node& node = m_model.nodes[nodeID];
+  m_sceneCameraNode    = nodeID;
+
+  tinygltf::Camera&  tcam = m_model.cameras[node.camera];
+  gltf::RenderCamera camera;
+  if(tcam.type == "perspective")
+  {
+    camera.type  = gltf::RenderCamera::CameraType::ePerspective;
+    camera.znear = tcam.perspective.znear;
+    camera.zfar  = tcam.perspective.zfar;
+    camera.yfov  = tcam.perspective.yfov;
+  }
+  else
+  {
+    camera.type  = gltf::RenderCamera::CameraType::eOrthographic;
+    camera.znear = tcam.orthographic.znear;
+    camera.zfar  = tcam.orthographic.zfar;
+    camera.xmag  = tcam.orthographic.xmag;
+    camera.ymag  = tcam.orthographic.ymag;
+  }
+
+  nvh::Bbox bbox = getSceneBounds();
+  // From the view matrix, we extract the eye, center, and up vectors
+  extractCameraVectors(worldMatrix, bbox.center(), camera.eye, camera.center, camera.up);
+
+  // If the node/camera has extras, we extract the eye, center, and up vectors from the extras
+  auto& extras = node.extras;
+  if(extras.IsObject())
+  {
+    tinygltf::utils::getArrayValue(extras, "camera::eye", camera.eye);
+    tinygltf::utils::getArrayValue(extras, "camera::center", camera.center);
+    tinygltf::utils::getArrayValue(extras, "camera::up", camera.up);
+  }
+
+  m_cameras.push_back(camera);
+  return false;
+}
+
+// Retrieve the list of render lights in the scene.
+// This function returns a vector of render lights present in the scene. If the `force`
+// parameter is set to true, it clears and regenerates the list of lights.
+//
+// Parameters:
+// - force: If true, forces the regeneration of the light list.
+//
+// Returns:
+// - A const reference to the vector of render lights.
+const std::vector<nvh::gltf::RenderLight>& nvh::gltf::Scene::getRenderLights(bool force)
+{
+  if(force)
+  {
+    m_lights.clear();
+  }
+
+  if(m_lights.empty())
+  {
+    assert(m_sceneRootNode > -1 && "No root node in the scene");
+    tinygltf::utils::traverseSceneGraph(m_model, m_sceneRootNode, glm::mat4(1), nullptr, [&](int nodeID, const glm::mat4& worldMatrix) {
+      tinygltf::Node&   node = m_model.nodes[nodeID];
+      gltf::RenderLight renderLight;
+      renderLight.light       = m_model.lights[node.light];
+      renderLight.worldMatrix = worldMatrix;
+      m_lights.push_back(renderLight);
+      return false;  // Continue traversal
+    });
+  }
+
+  return m_lights;
+}
+
+
+// Return the bounding volume of the scene
+nvh::Bbox nvh::gltf::Scene::getSceneBounds()
+{
+  if(!m_sceneBounds.isEmpty())
+    return m_sceneBounds;
+
+  for(const gltf::RenderNode& rnode : m_renderNodes)
+  {
+    glm::vec3 minValues = {0.f, 0.f, 0.f};
+    glm::vec3 maxValues = {0.f, 0.f, 0.f};
+
+    const gltf::RenderPrimitive& rprim    = m_renderPrimitives[rnode.renderPrimID];
+    const tinygltf::Accessor&    accessor = m_model.accessors[rprim.primitive.attributes.at("POSITION")];
+    if(!accessor.minValues.empty())
+      minValues = glm::vec3(accessor.minValues[0], accessor.minValues[1], accessor.minValues[2]);
+    if(!accessor.maxValues.empty())
+      maxValues = glm::vec3(accessor.maxValues[0], accessor.maxValues[1], accessor.maxValues[2]);
+    nvh::Bbox bbox(minValues, maxValues);
+    bbox = bbox.transform(rnode.worldMatrix);
+    m_sceneBounds.insert(bbox);
+  }
+
+  if(m_sceneBounds.isEmpty() || !m_sceneBounds.isVolume())
+  {
+    LOGE("glTF: Scene bounding box invalid, Setting to: [-1,-1,-1], [1,1,1]");
+    m_sceneBounds.insert({-1.0f, -1.0f, -1.0f});
+    m_sceneBounds.insert({1.0f, 1.0f, 1.0f});
+  }
+
+  return m_sceneBounds;
+}
+
+// Handles the creation of render nodes for a given primitive in the scene.
+// For each primitive in the node's mesh, it:
+// - Generates a unique render primitive index.
+// - Creates a render node with the appropriate world matrix, material ID, render primitive ID, primitive ID, and reference node ID.
+// If the primitive has the EXT_mesh_gpu_instancing extension, multiple render nodes are created for instancing.
+// Otherwise, a single render node is added to the render nodes list.
+// Returns false to continue traversal of the scene graph.
+bool nvh::gltf::Scene::handleRenderNode(int nodeID, glm::mat4 worldMatrix)
+{
+  const tinygltf::Node& node = m_model.nodes[nodeID];
+  const tinygltf::Mesh& mesh = m_model.meshes[node.mesh];
+  for(size_t primID = 0; primID < mesh.primitives.size(); primID++)
+  {
+    const tinygltf::Primitive& primitive    = mesh.primitives[primID];
+    int                        rprimID      = getUniqueRenderPrimitive(primitive);
+    int                        numTriangles = m_renderPrimitives[rprimID].indexCount / 3;
+
+    nvh::gltf::RenderNode renderNode;
+    renderNode.worldMatrix  = worldMatrix;
+    renderNode.materialID   = getMaterialVariantIndex(primitive, m_currentVariant);
+    renderNode.renderPrimID = rprimID;
+    renderNode.primID       = static_cast<int>(primID);
+    renderNode.refNodeID    = nodeID;
+
+    if(tinygltf::utils::hasElementName(node.extensions, EXT_MESH_GPU_INSTANCING_EXTENSION_NAME))
+    {
+      const tinygltf::Value& ext = tinygltf::utils::getElementValue(node.extensions, EXT_MESH_GPU_INSTANCING_EXTENSION_NAME);
+      const tinygltf::Value& attributes   = ext.Get("attributes");
+      size_t                 numInstances = handleGpuInstancing(attributes, renderNode, worldMatrix);
+      m_numTriangles += numTriangles * static_cast<uint32_t>(numInstances);  // Statistics
+    }
+    else
+    {
+      m_renderNodes.push_back(renderNode);
+      m_numTriangles += numTriangles;  // Statistics
+    }
+  }
+  return false;  // Continue traversal
+}
+
+// Handle GPU instancing : EXT_mesh_gpu_instancing
+size_t nvh::gltf::Scene::handleGpuInstancing(const tinygltf::Value& attributes, gltf::RenderNode renderNode, glm::mat4 worldMatrix)
+{
+  std::vector<glm::vec3> translations = tinygltf::utils::extractAttributeData<glm::vec3>(m_model, attributes, "TRANSLATION");
+  std::vector<glm::quat> rotations = tinygltf::utils::extractAttributeData<glm::quat>(m_model, attributes, "ROTATION");
+  std::vector<glm::vec3> scales    = tinygltf::utils::extractAttributeData<glm::vec3>(m_model, attributes, "SCALE");
+  size_t                 numInstances = std::max({translations.size(), rotations.size(), scales.size()});
+
+  // Note: the specification says, that the number of elements in the attributes should be the same if they are present
+  for(size_t i = 0; i < numInstances; i++)
+  {
+    gltf::RenderNode instNode    = renderNode;
+    glm::vec3        translation = glm::vec3(0.0f, 0.0f, 0.0f);
+    glm::quat        rotation    = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+    glm::vec3        scale       = glm::vec3(1.0f, 1.0f, 1.0f);
+    if(!translations.empty())
+      translation = translations[i];
+    if(!rotations.empty())
+      rotation = rotations[i];
+    if(!scales.empty())
+      scale = scales[i];
+
+    glm::mat4 mat = glm::translate(glm::mat4(1.0f), translation) * glm::mat4_cast(rotation) * glm::scale(glm::mat4(1.0f), scale);
+
+    instNode.worldMatrix = worldMatrix * mat;
+    m_renderNodes.push_back(instNode);
+  }
+  return numInstances;
+}
+
+//-------------------------------------------------------------------------------------------------
+// Find which nodes are solid or translucent, helps for raster rendering
+//
+std::vector<uint32_t> nvh::gltf::Scene::getShadedNodes(PipelineType type)
+{
+  std::vector<uint32_t> result;
+
+  for(uint32_t i = 0; i < m_renderNodes.size(); i++)
+  {
+    const auto& tmat               = m_model.materials[m_renderNodes[i].materialID];
+    float       transmissionFactor = 0;
+    if(tinygltf::utils::hasElementName(tmat.extensions, KHR_MATERIALS_TRANSMISSION_EXTENSION_NAME))
+    {
+      const auto& ext = tinygltf::utils::getElementValue(tmat.extensions, KHR_MATERIALS_TRANSMISSION_EXTENSION_NAME);
+      tinygltf::utils::getValue(ext, "transmissionFactor", transmissionFactor);
+    }
+    switch(type)
+    {
+      case eRasterSolid:
+        if(tmat.alphaMode == "OPAQUE" && !tmat.doubleSided && (transmissionFactor == 0.0F))
+          result.push_back(i);
+        break;
+      case eRasterSolidDoubleSided:
+        if(tmat.alphaMode == "OPAQUE" && tmat.doubleSided)
+          result.push_back(i);
+        break;
+      case eRasterBlend:
+        if(tmat.alphaMode != "OPAQUE" || (transmissionFactor != 0))
+          result.push_back(i);
+        break;
+      case eRasterAll:
+        result.push_back(i);
+        break;
+    }
+  }
+  return result;
+}
+
+tinygltf::Node nvh::gltf::Scene::getSceneRootNode() const
+{
+  const tinygltf::Scene& scene = m_model.scenes[m_currentScene];
+  assert(scene.nodes.size() == 1 && "There should be exactly one node under the scene.");
+  const tinygltf::Node& node = m_model.nodes[scene.nodes[0]];  // Root node
+
+  return node;
+}
+
+void nvh::gltf::Scene::setSceneRootNode(const tinygltf::Node& node)
+{
+  const tinygltf::Scene& scene = m_model.scenes[m_currentScene];
+  assert(scene.nodes.size() == 1 && "There should be exactly one node under the scene.");
+  tinygltf::Node& rootNode = m_model.nodes[scene.nodes[0]];  // Root node
+  rootNode                 = node;
+
+  updateRenderNodes();
+}
+
+void nvh::gltf::Scene::setSceneCamera(const nvh::gltf::RenderCamera& camera)
+{
+  assert(m_sceneCameraNode != -1 && "No camera node found in the scene");
+
+  // Set the tinygltf::Node
+  tinygltf::Node& tnode = m_model.nodes[m_sceneCameraNode];
+  glm::quat       q     = glm::quatLookAt(glm::normalize(camera.center - camera.eye), camera.up);
+  tnode.translation     = {camera.eye.x, camera.eye.y, camera.eye.z};
+  tnode.rotation        = {q.x, q.y, q.z, q.w};
+
+  // Set the tinygltf::Camera
+  tinygltf::Camera& tcamera = m_model.cameras[tnode.camera];
+  tcamera.type              = "perspective";
+  tcamera.perspective.znear = camera.znear;
+  tcamera.perspective.zfar  = camera.zfar;
+  tcamera.perspective.yfov  = camera.yfov;
+
+  // Add extras to the tinygltf::Camera, to store the eye, center, and up vectors
+  tinygltf::Value::Object extras;
+  extras["camera::eye"]    = tinygltf::utils::convertToTinygltfValue(3, glm::value_ptr(camera.eye));
+  extras["camera::center"] = tinygltf::utils::convertToTinygltfValue(3, glm::value_ptr(camera.center));
+  extras["camera::up"]     = tinygltf::utils::convertToTinygltfValue(3, glm::value_ptr(camera.up));
+  tnode.extras             = tinygltf::Value(extras);
+}
+
+// Collects all animation data
+void nvh::gltf::Scene::parseAnimations()
+{
+  m_animations.clear();
+  m_animations.reserve(m_model.animations.size());
+  for(tinygltf::Animation& anim : m_model.animations)
+  {
+    Animation animation;
+
+    // Samplers
+    for(auto& samp : anim.samplers)
+    {
+      AnimationSampler sampler;
+
+      if(samp.interpolation == "LINEAR")
+      {
+        sampler.interpolation = AnimationSampler::InterpolationType::eLinear;
+      }
+      if(samp.interpolation == "STEP")
+      {
+        sampler.interpolation = AnimationSampler::InterpolationType::eStep;
+      }
+      if(samp.interpolation == "CUBICSPLINE")
+      {
+        sampler.interpolation = AnimationSampler::InterpolationType::eCubicSpline;
+      }
+
+      // Read sampler input time values
+      {
+        const tinygltf::Accessor&   accessor   = m_model.accessors[samp.input];
+        const tinygltf::BufferView& bufferView = m_model.bufferViews[accessor.bufferView];
+        const tinygltf::Buffer&     buffer     = m_model.buffers[bufferView.buffer];
+
+        assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
+
+        sampler.inputs.resize(accessor.count);
+        std::memcpy(sampler.inputs.data(), &buffer.data[accessor.byteOffset + bufferView.byteOffset],
+                    accessor.count * sizeof(float));
+
+        // Protect against invalid values
+        for(auto input : sampler.inputs)
+        {
+          if(input < animation.start)
+          {
+            animation.start = input;
+          }
+          if(input > animation.end)
+          {
+            animation.end = input;
+          }
+        }
+      }
+
+      // Read sampler output T/R/S values
+      {
+        const tinygltf::Accessor&   accessor   = m_model.accessors[samp.output];
+        const tinygltf::BufferView& bufferView = m_model.bufferViews[accessor.bufferView];
+        const tinygltf::Buffer&     buffer     = m_model.buffers[bufferView.buffer];
+        const uint8_t*              dataPtr8   = &buffer.data[accessor.byteOffset + bufferView.byteOffset];
+
+        assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
+
+        switch(accessor.type)
+        {
+          case TINYGLTF_TYPE_VEC3: {
+            const glm::vec3* dataPtr = reinterpret_cast<const glm::vec3*>(dataPtr8);
+            for(size_t index = 0; index < accessor.count; index++)
+            {
+              sampler.outputsVec4.push_back(glm::vec4(*dataPtr++, 0.0f));
+            }
+            break;
+          }
+          case TINYGLTF_TYPE_VEC4: {
+            const glm::vec4* dataPtr = reinterpret_cast<const glm::vec4*>(dataPtr8);
+            for(size_t index = 0; index < accessor.count; index++)
+            {
+              sampler.outputsVec4.push_back(*dataPtr++);
+            }
+            break;
+          }
+          case TINYGLTF_TYPE_SCALAR: {
+            sampler.outputsFloat.resize(sampler.inputs.size());
+            size_t       elemPerKey = accessor.count / sampler.inputs.size();
+            const float* dataPtr    = reinterpret_cast<const float*>(dataPtr8);
+            for(size_t i = 0; i < sampler.inputs.size(); i++)
+            {
+              for(int j = 0; j < elemPerKey; j++)
+              {
+                sampler.outputsFloat[i].push_back(*dataPtr++);
+              }
+            }
+            break;
+          }
+          default: {
+            LOGE("unknown type");
+            break;
+          }
+        }
+      }
+
+      animation.samplers.push_back(sampler);
+    }
+
+    // Channels
+    for(auto& source : anim.channels)
+    {
+      AnimationChannel channel;
+
+      if(source.target_path == "rotation")
+      {
+        channel.path = AnimationChannel::PathType::eRotation;
+      }
+      if(source.target_path == "translation")
+      {
+        channel.path = AnimationChannel::PathType::eTranslation;
+      }
+      if(source.target_path == "scale")
+      {
+        channel.path = AnimationChannel::PathType::eScale;
+      }
+      if(source.target_path == "weights")
+      {
+        channel.path = AnimationChannel::PathType::eWeights;
+      }
+      channel.samplerIndex = source.sampler;
+      channel.node         = source.target_node;
+
+      animation.channels.push_back(channel);
+    }
+
+    m_animations.push_back(animation);
+  }
+}
+
+bool nvh::gltf::Scene::updateAnimations(float deltaTime)
+{
+  bool animated = false;
+  for(size_t i = 0; i < m_animations.size(); i++)
+  {
+    animated |= updateAnimation(uint32_t(i), deltaTime, false);
+  }
+  if(animated)
+    updateRenderNodes();
+  return animated;
+}
+
+
+bool nvh::gltf::Scene::resetAnimations()
+{
+  bool animated = false;
+  for(size_t i = 0; i < m_animations.size(); i++)
+  {
+    animated |= updateAnimation(uint32_t(i), 0, true);
+  }
+  if(animated)
+    updateRenderNodes();
+  return animated;
+}
+
+
+// Update a specific animation
+bool nvh::gltf::Scene::updateAnimation(uint32_t animationIndex, float deltaTime, bool reset)
+{
+  bool animated = false;
+
+  Animation& animation = m_animations[animationIndex];
+
+  animation.currentTime += deltaTime;
+  if(animation.currentTime > animation.end)
+  {
+    animation.currentTime -= animation.end;
+  }
+
+  if(reset)
+  {
+    animation.currentTime = animation.start;
+  }
+
+  float time = animation.currentTime;
+
+  for(auto& channel : animation.channels)
+  {
+    tinygltf::Node&   tnode   = m_model.nodes[channel.node];
+    AnimationSampler& sampler = animation.samplers[channel.samplerIndex];
+
+    for(auto i = 0; i < int(sampler.inputs.size()) - 1; i++)
+    {
+      // With reset, use the first keyframe
+      if(reset)
+        time = sampler.inputs[0];
+
+      if(sampler.inputs[i] <= time && time <= sampler.inputs[i + 1])
+      {
+        float keyDelta = sampler.inputs[i + 1] - sampler.inputs[i];
+        float t        = (time - sampler.inputs[i]) / keyDelta;
+        //t       = std::clamp(t, 0.0f, 1.0f);
+
+        animated = true;
+
+        if(sampler.interpolation == AnimationSampler::InterpolationType::eLinear)
+        {
+          switch(channel.path)
+          {
+            case AnimationChannel::PathType::eRotation: {
+              const glm::quat q1 = glm::make_quat(glm::value_ptr(sampler.outputsVec4[i]));
+              const glm::quat q2 = glm::make_quat(glm::value_ptr(sampler.outputsVec4[i + 1]));
+              glm::quat       q  = glm::normalize(glm::slerp(q1, q2, t));
+              tnode.rotation     = {q.x, q.y, q.z, q.w};
+              break;
+            }
+            case AnimationChannel::PathType::eTranslation: {
+              glm::vec3 trans   = glm::mix(sampler.outputsVec4[i], sampler.outputsVec4[i + 1], t);
+              tnode.translation = {trans.x, trans.y, trans.z};
+              break;
+            }
+            case AnimationChannel::PathType::eScale: {
+              glm::vec3 s = glm::mix(sampler.outputsVec4[i], sampler.outputsVec4[i + 1], t);
+              tnode.scale = {s.x, s.y, s.z};
+              break;
+            }
+            case AnimationChannel::PathType::eWeights: {
+              {
+                static bool onceFlag = true;
+                if(onceFlag)
+                {
+                  LOGE("AnimationChannel::PathType::WEIGHTS not implemented");
+                  onceFlag = false;
+                }
+                break;
+              }
+            }
+          }
+        }
+        else if(sampler.interpolation == AnimationSampler::InterpolationType::eStep)
+        {
+          switch(channel.path)
+          {
+            case AnimationChannel::PathType::eRotation: {
+              glm::quat q    = glm::quat(sampler.outputsVec4[i]);
+              tnode.rotation = {q.x, q.y, q.z, q.w};
+              break;
+            }
+            case AnimationChannel::PathType::eTranslation: {
+              glm::vec3 t       = glm::vec3(sampler.outputsVec4[i]);
+              tnode.translation = {t.x, t.y, t.z};
+              break;
+            }
+            case AnimationChannel::PathType::eScale: {
+              glm::vec3 s = glm::vec3(sampler.outputsVec4[i]);
+              tnode.scale = {s.x, s.y, s.z};
+              break;
+            }
+          }
+        }
+        else if(sampler.interpolation == AnimationSampler::InterpolationType::eCubicSpline)
+        {
+          int prevIndex = i * 3;
+          int nextIndex = (i + 1) * 3;
+          int A         = 0;
+          int V         = 1;
+          int B         = 2;
+
+          float tSq = t * t;
+          float tCb = tSq * t;
+          float tD  = keyDelta;
+
+          const glm::vec4 v0 = sampler.outputsVec4[prevIndex + V];
+          const glm::vec4 a  = sampler.outputsVec4[nextIndex + A];
+          const glm::vec4 b  = sampler.outputsVec4[prevIndex + B];
+          const glm::vec4 v1 = sampler.outputsVec4[nextIndex + V];
+
+          // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#interpolation-cubic
+          glm::vec4 result = ((2 * tCb - 3 * tSq + 1) * v0) + (tD * (tCb - 2 * tSq + t) * b)
+                             + ((-2 * tCb + 3 * tSq) * v1) + (tD * (tCb - tSq) * a);
+
+          switch(channel.path)
+          {
+            case AnimationChannel::PathType::eRotation: {
+              glm::quat quatResult = glm::make_quat(glm::value_ptr(result));
+              quatResult           = glm::normalize(quatResult);
+              tnode.rotation       = {quatResult.x, quatResult.y, quatResult.z, quatResult.w};
+              break;
+            }
+            case AnimationChannel::PathType::eTranslation: {
+              tnode.translation = {result.x, result.y, result.z};
+              break;
+            }
+            case AnimationChannel::PathType::eScale: {
+              tnode.scale = {result.x, result.y, result.z};
+              break;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return animated;
+}
+
+// Parse the variants of the materials
+void nvh::gltf::Scene::parseVariants()
+{
+  if(m_model.extensions.find(KHR_MATERIALS_VARIANTS_EXTENSION_NAME) != m_model.extensions.end())
+  {
+    const auto& ext = m_model.extensions.find(KHR_MATERIALS_VARIANTS_EXTENSION_NAME)->second;
+    if(ext.Has("variants"))
+    {
+      auto& variants = ext.Get("variants");
+      for(size_t i = 0; i < variants.ArrayLen(); i++)
+      {
+        std::string name = variants.Get(int(i)).Get("name").Get<std::string>();
+        m_variants.push_back(name);
+      }
+    }
+  }
+}
+
+// Return the material index based on the variant, or the material set on the primitive
+int nvh::gltf::Scene::getMaterialVariantIndex(const tinygltf::Primitive& primitive, int currentVariant)
+{
+  if(primitive.extensions.find(KHR_MATERIALS_VARIANTS_EXTENSION_NAME) != primitive.extensions.end())
+  {
+    const auto& ext     = primitive.extensions.find(KHR_MATERIALS_VARIANTS_EXTENSION_NAME)->second;
+    auto&       mapping = ext.Get("mappings");
+    for(auto& map : mapping.Get<tinygltf::Value::Array>())
+    {
+      auto& variants   = map.Get("variants");
+      int   materialID = map.Get("material").Get<int>();
+      for(auto& variant : variants.Get<tinygltf::Value::Array>())
+      {
+        int variantID = variant.Get<int>();
+        if(variantID == currentVariant)
+          return materialID;
+      }
+    }
+  }
+
+  return std::max(0, primitive.material);
+}
+
+
+// ***********************************************************************************************************************
+// DEPRICATED SECTION
+// ***********************************************************************************************************************
+
 
 //--------------------------------------------------------------------------------------------------
 // Collect the value of all materials
 //
-void GltfScene::importMaterials(const tinygltf::Model& tmodel)
+void nvh::GltfScene::importMaterials(const tinygltf::Model& tmodel)
 {
   m_materials.reserve(tmodel.materials.size());
 
@@ -70,109 +1031,19 @@ void GltfScene::importMaterials(const tinygltf::Model& tmodel)
     gmat.metallicRoughnessTexture = tpbr.metallicRoughnessTexture.index;
     gmat.roughnessFactor          = static_cast<float>(tpbr.roughnessFactor);
 
-    // KHR_materials_specular
-    if(tmat.extensions.find(KHR_MATERIALS_SPECULAR_EXTENSION_NAME) != tmat.extensions.end())
-    {
-      const auto& ext = tmat.extensions.find(KHR_MATERIALS_SPECULAR_EXTENSION_NAME)->second;
-      getFloat(ext, "specularFactor", gmat.specular.specularFactor);
-      getTexId(ext, "specularTexture", gmat.specular.specularTexture);
-      getVec3(ext, "specularColorFactor", gmat.specular.specularColorFactor);
-      getTexId(ext, "specularColorTexture", gmat.specular.specularColorTexture);
-    }
-
-    // KHR_texture_transform
-    if(tpbr.baseColorTexture.extensions.find(KHR_TEXTURE_TRANSFORM_EXTENSION_NAME) != tpbr.baseColorTexture.extensions.end())
-    {
-      const auto& ext = tpbr.baseColorTexture.extensions.find(KHR_TEXTURE_TRANSFORM_EXTENSION_NAME)->second;
-      auto&       tt  = gmat.textureTransform;
-      getVec2(ext, "offset", tt.offset);
-      getVec2(ext, "scale", tt.scale);
-      getFloat(ext, "rotation", tt.rotation);
-      getInt(ext, "texCoord", tt.texCoord);
-
-      // Computing the transformation
-      auto translation = glm::mat3(1, 0, tt.offset.x, 0, 1, tt.offset.y, 0, 0, 1);
-      auto rotation = glm::mat3(cos(tt.rotation), sin(tt.rotation), 0, -sin(tt.rotation), cos(tt.rotation), 0, 0, 0, 1);
-      auto scale    = glm::mat3(tt.scale.x, 0, 0, 0, tt.scale.y, 0, 0, 0, 1);
-      tt.uvTransform = scale * rotation * translation;
-    }
-
-    // KHR_materials_unlit
-    if(tmat.extensions.find(KHR_MATERIALS_UNLIT_EXTENSION_NAME) != tmat.extensions.end())
-    {
-      gmat.unlit.active = 1;
-    }
-
-    // KHR_materials_anisotropy
-    if(tmat.extensions.find(KHR_MATERIALS_ANISOTROPY_EXTENSION_NAME) != tmat.extensions.end())
-    {
-      const auto& ext = tmat.extensions.find(KHR_MATERIALS_ANISOTROPY_EXTENSION_NAME)->second;
-      getFloat(ext, "anisotropy", gmat.anisotropy.factor);
-      getVec3(ext, "anisotropyDirection", gmat.anisotropy.direction);
-      getTexId(ext, "anisotropyTexture", gmat.anisotropy.texture);
-    }
-
-    // KHR_materials_clearcoat
-    if(tmat.extensions.find(KHR_MATERIALS_CLEARCOAT_EXTENSION_NAME) != tmat.extensions.end())
-    {
-      const auto& ext = tmat.extensions.find(KHR_MATERIALS_CLEARCOAT_EXTENSION_NAME)->second;
-      getFloat(ext, "clearcoatFactor", gmat.clearcoat.factor);
-      getTexId(ext, "clearcoatTexture", gmat.clearcoat.texture);
-      getFloat(ext, "clearcoatRoughnessFactor", gmat.clearcoat.roughnessFactor);
-      getTexId(ext, "clearcoatRoughnessTexture", gmat.clearcoat.roughnessTexture);
-      getTexId(ext, "clearcoatNormalTexture", gmat.clearcoat.normalTexture);
-    }
-
-    // KHR_materials_sheen
-    if(tmat.extensions.find(KHR_MATERIALS_SHEEN_EXTENSION_NAME) != tmat.extensions.end())
-    {
-      const auto& ext = tmat.extensions.find(KHR_MATERIALS_SHEEN_EXTENSION_NAME)->second;
-      getVec3(ext, "sheenColorFactor", gmat.sheen.colorFactor);
-      getTexId(ext, "sheenColorTexture", gmat.sheen.colorTexture);
-      getFloat(ext, "sheenRoughnessFactor", gmat.sheen.roughnessFactor);
-      getTexId(ext, "sheenRoughnessTexture", gmat.sheen.roughnessTexture);
-    }
-
-    // KHR_materials_transmission
-    if(tmat.extensions.find(KHR_MATERIALS_TRANSMISSION_EXTENSION_NAME) != tmat.extensions.end())
-    {
-      const auto& ext = tmat.extensions.find(KHR_MATERIALS_TRANSMISSION_EXTENSION_NAME)->second;
-      getFloat(ext, "transmissionFactor", gmat.transmission.factor);
-      getTexId(ext, "transmissionTexture", gmat.transmission.texture);
-    }
-
-    // KHR_materials_ior
-    if(tmat.extensions.find(KHR_MATERIALS_IOR_EXTENSION_NAME) != tmat.extensions.end())
-    {
-      const auto& ext = tmat.extensions.find(KHR_MATERIALS_IOR_EXTENSION_NAME)->second;
-      getFloat(ext, "ior", gmat.ior.ior);
-    }
-
-    // KHR_materials_volume
-    if(tmat.extensions.find(KHR_MATERIALS_VOLUME_EXTENSION_NAME) != tmat.extensions.end())
-    {
-      const auto& ext = tmat.extensions.find(KHR_MATERIALS_VOLUME_EXTENSION_NAME)->second;
-      getFloat(ext, "thicknessFactor", gmat.volume.thicknessFactor);
-      getTexId(ext, "thicknessTexture", gmat.volume.thicknessTexture);
-      getFloat(ext, "attenuationDistance", gmat.volume.attenuationDistance);
-      getVec3(ext, "attenuationColor", gmat.volume.attenuationColor);
-    };
-
-    // KHR_materials_displacement
-    if(tmat.extensions.find(KHR_MATERIALS_DISPLACEMENT_NAME) != tmat.extensions.end())
-    {
-      const auto& ext = tmat.extensions.find(KHR_MATERIALS_DISPLACEMENT_NAME)->second;
-      getTexId(ext, "displacementGeometryTexture", gmat.displacement.displacementGeometryTexture);
-      getFloat(ext, "displacementGeometryFactor", gmat.displacement.displacementGeometryFactor);
-      getFloat(ext, "displacementGeometryOffset", gmat.displacement.displacementGeometryOffset);
-    }
-
-    // KHR_materials_emissive_strength
-    if(tmat.extensions.find(KHR_MATERIALS_EMISSIVE_STRENGTH_NAME) != tmat.extensions.end())
-    {
-      const auto& ext = tmat.extensions.find(KHR_MATERIALS_EMISSIVE_STRENGTH_NAME)->second;
-      getFloat(ext, "emissiveStrength", gmat.emissiveStrength.emissiveStrength);
-    }
+    // Extensions
+    gmat.specular         = tinygltf::utils::getSpecular(tmat);
+    gmat.textureTransform = tinygltf::utils::getTextureTransform(tpbr.baseColorTexture);
+    gmat.unlit            = tinygltf::utils::getUnlit(tmat);
+    gmat.anisotropy       = tinygltf::utils::getAnisotropy(tmat);
+    gmat.clearcoat        = tinygltf::utils::getClearcoat(tmat);
+    gmat.sheen            = tinygltf::utils::getSheen(tmat);
+    gmat.transmission     = tinygltf::utils::getTransmission(tmat);
+    gmat.ior              = tinygltf::utils::getIor(tmat);
+    gmat.volume           = tinygltf::utils::getVolume(tmat);
+    gmat.displacement     = tinygltf::utils::getDisplacement(tmat);
+    gmat.emissiveStrength = tinygltf::utils::getEmissiveStrength(tmat);
+    gmat.emissiveFactor *= gmat.emissiveStrength.emissiveStrength;
 
     m_materials.emplace_back(gmat);
   }
@@ -189,7 +1060,9 @@ void GltfScene::importMaterials(const tinygltf::Model& tmodel)
 //--------------------------------------------------------------------------------------------------
 // Linearize the scene graph to world space nodes.
 //
-void GltfScene::importDrawableNodes(const tinygltf::Model& tmodel, GltfAttributes requestedAttributes, GltfAttributes forceRequested /*= GltfAttributes::All*/)
+void nvh::GltfScene::importDrawableNodes(const tinygltf::Model& tmodel,
+                                         GltfAttributes         requestedAttributes,
+                                         GltfAttributes         forceRequested /*= GltfAttributes::All*/)
 {
   checkRequiredExtensions(tmodel);
 
@@ -282,9 +1155,37 @@ void GltfScene::importDrawableNodes(const tinygltf::Model& tmodel, GltfAttribute
 }
 
 //--------------------------------------------------------------------------------------------------
+// Return the matrix of the node
+//
+static glm::mat4 getLocalMatrix(const tinygltf::Node& tnode)
+{
+  glm::mat4 mtranslation{1};
+  glm::mat4 mscale{1};
+  glm::mat4 mrot{1};
+  glm::mat4 matrix{1};
+  glm::quat mrotation;
+
+  if(!tnode.translation.empty())
+    mtranslation = glm::translate(glm::mat4(1), glm::vec3(tnode.translation[0], tnode.translation[1], tnode.translation[2]));
+  if(!tnode.scale.empty())
+    mscale = glm::scale(glm::mat4(1), glm::vec3(tnode.scale[0], tnode.scale[1], tnode.scale[2]));
+  if(!tnode.rotation.empty())
+  {
+    mrotation = glm::make_quat(tnode.rotation.data());
+    mrot      = glm::mat4_cast(mrotation);
+  }
+  if(!tnode.matrix.empty())
+  {
+    matrix = glm::make_mat4(tnode.matrix.data());
+  }
+  return mtranslation * mrot * mscale * matrix;
+}
+
+
+//--------------------------------------------------------------------------------------------------
 //
 //
-void GltfScene::processNode(const tinygltf::Model& tmodel, int& nodeIdx, const glm::mat4& parentMatrix)
+void nvh::GltfScene::processNode(const tinygltf::Model& tmodel, int& nodeIdx, const glm::mat4& parentMatrix)
 {
   const auto& tnode = tmodel.nodes[nodeIdx];
 
@@ -310,26 +1211,13 @@ void GltfScene::processNode(const tinygltf::Model& tmodel, int& nodeIdx, const g
     camera.cam         = tmodel.cameras[tmodel.nodes[nodeIdx].camera];
 
     // If the node has the Iray extension, extract the camera information.
-    if(hasExtension(tnode.extensions, EXTENSION_ATTRIB_IRAY))
+    if(tinygltf::utils::hasElementName(tnode.extensions, EXTENSION_ATTRIB_IRAY))
     {
       auto& iray_ext   = tnode.extensions.at(EXTENSION_ATTRIB_IRAY);
       auto& attributes = iray_ext.Get("attributes");
-      for(size_t idx = 0; idx < attributes.ArrayLen(); idx++)
-      {
-        auto&       attrib   = attributes.Get((int)idx);
-        std::string attName  = attrib.Get("name").Get<std::string>();
-        auto&       attValue = attrib.Get("value");
-        if(attValue.IsArray())
-        {
-          auto vec = getVector<float>(attValue);
-          if(attName == "iview:position")
-            camera.eye = {vec[0], vec[1], vec[2]};
-          else if(attName == "iview:interest")
-            camera.center = {vec[0], vec[1], vec[2]};
-          else if(attName == "iview:up")
-            camera.up = {vec[0], vec[1], vec[2]};
-        }
-      }
+      tinygltf::utils::getArrayValue(attributes, "iview:position", camera.eye);
+      tinygltf::utils::getArrayValue(attributes, "iview:interest", camera.center);
+      tinygltf::utils::getArrayValue(attributes, "iview:up", camera.up);
     }
 
     m_cameras.emplace_back(camera);
@@ -354,11 +1242,11 @@ void GltfScene::processNode(const tinygltf::Model& tmodel, int& nodeIdx, const g
 //--------------------------------------------------------------------------------------------------
 // Extracting the values to a linear buffer
 //
-void GltfScene::processMesh(const tinygltf::Model&     tmodel,
-                            const tinygltf::Primitive& tmesh,
-                            GltfAttributes             requestedAttributes,
-                            GltfAttributes             forceRequested,
-                            const std::string&         name)
+void nvh::GltfScene::processMesh(const tinygltf::Model&     tmodel,
+                                 const tinygltf::Primitive& tmesh,
+                                 GltfAttributes             requestedAttributes,
+                                 GltfAttributes             forceRequested,
+                                 const std::string&         name)
 {
   // Only triangles are supported
   // 0:point, 1:lines, 2:line_loop, 3:line_strip, 4:triangles, 5:triangle_strip, 6:triangle_fan
@@ -403,19 +1291,19 @@ void GltfScene::processMesh(const tinygltf::Model&     tmodel,
     {
       case TINYGLTF_PARAMETER_TYPE_UNSIGNED_INT: {
         primitiveIndices32u.resize(indexAccessor.count);
-        copyAccessorData(primitiveIndices32u, 0, tmodel, indexAccessor, 0, indexAccessor.count);
+        tinygltf::utils::copyAccessorData(primitiveIndices32u, 0, tmodel, indexAccessor, 0, indexAccessor.count);
         m_indices.insert(m_indices.end(), primitiveIndices32u.begin(), primitiveIndices32u.end());
         break;
       }
       case TINYGLTF_PARAMETER_TYPE_UNSIGNED_SHORT: {
         primitiveIndices16u.resize(indexAccessor.count);
-        copyAccessorData(primitiveIndices16u, 0, tmodel, indexAccessor, 0, indexAccessor.count);
+        tinygltf::utils::copyAccessorData(primitiveIndices16u, 0, tmodel, indexAccessor, 0, indexAccessor.count);
         m_indices.insert(m_indices.end(), primitiveIndices16u.begin(), primitiveIndices16u.end());
         break;
       }
       case TINYGLTF_PARAMETER_TYPE_UNSIGNED_BYTE: {
         primitiveIndices8u.resize(indexAccessor.count);
-        copyAccessorData(primitiveIndices8u, 0, tmodel, indexAccessor, 0, indexAccessor.count);
+        tinygltf::utils::copyAccessorData(primitiveIndices8u, 0, tmodel, indexAccessor, 0, indexAccessor.count);
         m_indices.insert(m_indices.end(), primitiveIndices8u.begin(), primitiveIndices8u.end());
         break;
       }
@@ -437,7 +1325,7 @@ void GltfScene::processMesh(const tinygltf::Model&     tmodel,
   {
     // POSITION
     {
-      const bool hadPosition = getAttribute<glm::vec3>(tmodel, tmesh, m_positions, "POSITION");
+      const bool hadPosition = tinygltf::utils::getAttribute<glm::vec3>(tmodel, tmesh, m_positions, "POSITION");
       if(!hadPosition)
       {
         LOGE("This glTF file is invalid: it had a primitive with no POSITION attribute.\n");
@@ -481,7 +1369,7 @@ void GltfScene::processMesh(const tinygltf::Model&     tmodel,
     // NORMAL
     if(hasFlag(requestedAttributes, GltfAttributes::Normal))
     {
-      bool normalCreated = getAttribute<glm::vec3>(tmodel, tmesh, m_normals, "NORMAL");
+      bool normalCreated = tinygltf::utils::getAttribute<glm::vec3>(tmodel, tmesh, m_normals, "NORMAL");
 
       if(!normalCreated && hasFlag(forceRequested, GltfAttributes::Normal))
         createNormals(resultMesh);
@@ -490,9 +1378,9 @@ void GltfScene::processMesh(const tinygltf::Model&     tmodel,
     // TEXCOORD_0
     if(hasFlag(requestedAttributes, GltfAttributes::Texcoord_0))
     {
-      bool texcoordCreated = getAttribute<glm::vec2>(tmodel, tmesh, m_texcoords0, "TEXCOORD_0");
+      bool texcoordCreated = tinygltf::utils::getAttribute<glm::vec2>(tmodel, tmesh, m_texcoords0, "TEXCOORD_0");
       if(!texcoordCreated)
-        texcoordCreated = getAttribute<glm::vec2>(tmodel, tmesh, m_texcoords0, "TEXCOORD");
+        texcoordCreated = tinygltf::utils::getAttribute<glm::vec2>(tmodel, tmesh, m_texcoords0, "TEXCOORD");
       if(!texcoordCreated && hasFlag(forceRequested, GltfAttributes::Texcoord_0))
         createTexcoords(resultMesh);
     }
@@ -501,7 +1389,7 @@ void GltfScene::processMesh(const tinygltf::Model&     tmodel,
     // TANGENT
     if(hasFlag(requestedAttributes, GltfAttributes::Tangent))
     {
-      bool tangentCreated = getAttribute<glm::vec4>(tmodel, tmesh, m_tangents, "TANGENT");
+      bool tangentCreated = tinygltf::utils::getAttribute<glm::vec4>(tmodel, tmesh, m_tangents, "TANGENT");
 
       if(!tangentCreated && hasFlag(forceRequested, GltfAttributes::Tangent))
         createTangents(resultMesh);
@@ -510,7 +1398,7 @@ void GltfScene::processMesh(const tinygltf::Model&     tmodel,
     // COLOR_0
     if(hasFlag(requestedAttributes, GltfAttributes::Color_0))
     {
-      bool colorCreated = getAttribute<glm::vec4>(tmodel, tmesh, m_colors0, "COLOR_0");
+      bool colorCreated = tinygltf::utils::getAttribute<glm::vec4>(tmodel, tmesh, m_colors0, "COLOR_0");
       if(!colorCreated && hasFlag(forceRequested, GltfAttributes::Color_0))
         createColors(resultMesh);
     }
@@ -524,7 +1412,7 @@ void GltfScene::processMesh(const tinygltf::Model&     tmodel,
 }  // namespace nvh
 
 
-void GltfScene::createNormals(GltfPrimMesh& resultMesh)
+void nvh::GltfScene::createNormals(GltfPrimMesh& resultMesh)
 {
   // Need to compute the normals
   std::vector<glm::vec3> geonormal(resultMesh.vertexCount);
@@ -548,7 +1436,7 @@ void GltfScene::createNormals(GltfPrimMesh& resultMesh)
   m_normals.insert(m_normals.end(), geonormal.begin(), geonormal.end());
 }
 
-void GltfScene::createTexcoords(GltfPrimMesh& resultMesh)
+void nvh::GltfScene::createTexcoords(GltfPrimMesh& resultMesh)
 {
 
   // Set them all to zero
@@ -631,7 +1519,7 @@ void GltfScene::createTexcoords(GltfPrimMesh& resultMesh)
   }
 }
 
-void GltfScene::createTangents(GltfPrimMesh& resultMesh)
+void nvh::GltfScene::createTangents(GltfPrimMesh& resultMesh)
 {
 
   // #TODO - Should calculate tangents using default MikkTSpace algorithms
@@ -716,41 +1604,14 @@ void GltfScene::createTangents(GltfPrimMesh& resultMesh)
   }
 }
 
-void GltfScene::createColors(GltfPrimMesh& resultMesh)
+void nvh::GltfScene::createColors(GltfPrimMesh& resultMesh)
 {
   // Set them all to one
   m_colors0.insert(m_colors0.end(), resultMesh.vertexCount, glm::vec4(1, 1, 1, 1));
 }
 
-//--------------------------------------------------------------------------------------------------
-// Return the matrix of the node
-//
-glm::mat4 getLocalMatrix(const tinygltf::Node& tnode)
-{
-  glm::mat4 mtranslation{1};
-  glm::mat4 mscale{1};
-  glm::mat4 mrot{1};
-  glm::mat4 matrix{1};
-  glm::quat mrotation;
 
-  if(!tnode.translation.empty())
-    mtranslation = glm::translate(glm::mat4(1), glm::vec3(tnode.translation[0], tnode.translation[1], tnode.translation[2]));
-  if(!tnode.scale.empty())
-    mscale = glm::scale(glm::mat4(1), glm::vec3(tnode.scale[0], tnode.scale[1], tnode.scale[2]));
-  if(!tnode.rotation.empty())
-  {
-    mrotation = glm::make_quat(tnode.rotation.data());
-    mrot      = glm::mat4_cast(mrotation);
-  }
-  if(!tnode.matrix.empty())
-  {
-    matrix = glm::make_mat4(tnode.matrix.data());
-  }
-  return mtranslation * mrot * mscale * matrix;
-}
-
-
-void GltfScene::destroy()
+void nvh::GltfScene::destroy()
 {
   m_materials.clear();
   m_nodes.clear();
@@ -779,7 +1640,7 @@ void GltfScene::destroy()
 //--------------------------------------------------------------------------------------------------
 // Get the dimension of the scene
 //
-void GltfScene::computeSceneDimensions()
+void nvh::GltfScene::computeSceneDimensions()
 {
   Bbox scnBbox;
 
@@ -825,7 +1686,7 @@ static uint32_t recursiveTriangleCount(const tinygltf::Model& model, int nodeIdx
 //--------------------------------------------------------------------------------------------------
 // Retrieving information about the scene
 //
-GltfStats GltfScene::getStatistics(const tinygltf::Model& tinyModel)
+nvh::GltfStats nvh::GltfScene::getStatistics(const tinygltf::Model& tinyModel)
 {
   GltfStats stats;
 
@@ -883,7 +1744,7 @@ GltfStats GltfScene::getStatistics(const tinygltf::Model& tinyModel)
 //   of the scene, the camera center will be equal to the scene center.
 // - The up vector is always Y up for now.
 //
-void GltfScene::computeCamera()
+void nvh::GltfScene::computeCamera()
 {
   for(auto& camera : m_cameras)
   {
@@ -899,7 +1760,7 @@ void GltfScene::computeCamera()
   }
 }
 
-void GltfScene::checkRequiredExtensions(const tinygltf::Model& tmodel)
+void nvh::GltfScene::checkRequiredExtensions(const tinygltf::Model& tmodel)
 {
   std::set<std::string> supportedExtensions{
       KHR_LIGHTS_PUNCTUAL_EXTENSION_NAME,
@@ -925,7 +1786,7 @@ void GltfScene::checkRequiredExtensions(const tinygltf::Model& tmodel)
   }
 }
 
-void GltfScene::findUsedMeshes(const tinygltf::Model& tmodel, std::set<uint32_t>& usedMeshes, int nodeIdx)
+void nvh::GltfScene::findUsedMeshes(const tinygltf::Model& tmodel, std::set<uint32_t>& usedMeshes, int nodeIdx)
 {
   const auto& node = tmodel.nodes[nodeIdx];
   if(node.mesh >= 0)
@@ -937,7 +1798,7 @@ void GltfScene::findUsedMeshes(const tinygltf::Model& tmodel, std::set<uint32_t>
 //--------------------------------------------------------------------------------------------------
 //
 //
-void GltfScene::exportDrawableNodes(tinygltf::Model& tmodel, GltfAttributes requestedAttributes)
+void nvh::GltfScene::exportDrawableNodes(tinygltf::Model& tmodel, GltfAttributes requestedAttributes)
 {
 
   // We are rewriting buffer 0, but we will keep the information accessing the other buffers.
@@ -987,28 +1848,28 @@ void GltfScene::exportDrawableNodes(tinygltf::Model& tmodel, GltfAttributes requ
     uint32_t len{0};
   };
   OffsetLen olIdx, olPos, olNrm, olTan, olCol, olTex;
-  olIdx.len    = appendData(tBuffer, m_indices);
+  olIdx.len    = tinygltf::utils::appendData(tBuffer, m_indices);
   olPos.offset = olIdx.offset + olIdx.len;
-  olPos.len    = appendData(tBuffer, m_positions);
+  olPos.len    = tinygltf::utils::appendData(tBuffer, m_positions);
   olNrm.offset = olPos.offset + olPos.len;
   if(hasFlag(requestedAttributes, GltfAttributes::Normal) && !m_normals.empty())
   {
-    olNrm.len = appendData(tBuffer, m_normals);
+    olNrm.len = tinygltf::utils::appendData(tBuffer, m_normals);
   }
   olTex.offset = olNrm.offset + olNrm.len;
   if(hasFlag(requestedAttributes, GltfAttributes::Texcoord_0) && !m_texcoords0.empty())
   {
-    olTex.len = appendData(tBuffer, m_texcoords0);
+    olTex.len = tinygltf::utils::appendData(tBuffer, m_texcoords0);
   }
   olTan.offset = olTex.offset + olTex.len;
   if(hasFlag(requestedAttributes, GltfAttributes::Tangent) && !m_tangents.empty())
   {
-    olTan.len = appendData(tBuffer, m_tangents);
+    olTan.len = tinygltf::utils::appendData(tBuffer, m_tangents);
   }
   olCol.offset = olTan.offset + olTan.len;
   if(hasFlag(requestedAttributes, GltfAttributes::Color_0) && !m_colors0.empty())
   {
-    olCol.len = appendData(tBuffer, m_colors0);
+    olCol.len = tinygltf::utils::appendData(tBuffer, m_colors0);
   }
 
   glm::dmat4 identityMat(1);
@@ -1289,5 +2150,3 @@ void GltfScene::exportDrawableNodes(tinygltf::Model& tmodel, GltfAttributes requ
     tmodel.accessors.push_back(t);
   }
 }
-
-}  // namespace nvh

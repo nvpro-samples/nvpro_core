@@ -19,12 +19,17 @@ endif()
 if(POLICY CMP0074)
   cmake_policy(SET CMP0074 NEW)
 endif()
+# Allow target_link_libraries() to link with targets in other directories;
+# this fixes cases where two samples use KTX.
+if(POLICY CMP0079)
+  cmake_policy(SET CMP0079 NEW)
+endif()
 
 
 # Set the C/C++ specified in the projects as requirements
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_C_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 # Find includes in corresponding build directories
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
@@ -549,36 +554,33 @@ macro(_add_package_Cuda)
   if(CUDA_TOOLKIT_ROOT_DIR)
     string(REPLACE "\\" "/" CUDA_TOOLKIT_ROOT_DIR ${CUDA_TOOLKIT_ROOT_DIR})
   endif()
-  find_package(CUDA QUIET)
-  if(CUDA_FOUND)
+  find_package(CUDAToolkit)
+  if(CUDAToolkit_FOUND)
       add_definitions("-DCUDA_PATH=R\"(${CUDA_TOOLKIT_ROOT_DIR})\"")
       Message(STATUS "--> using package CUDA (${CUDA_VERSION})")
       add_definitions(-DNVP_SUPPORTS_CUDA)
-      include_directories(${CUDA_INCLUDE_DIRS})
-      LIST(APPEND LIBRARIES_OPTIMIZED ${CUDA_LIBRARIES} )
-      LIST(APPEND LIBRARIES_DEBUG ${CUDA_LIBRARIES} )
-      # STRANGE: default CUDA package finder from cmake doesn't give anything to find cuda.lib
+      include_directories(${CUDAToolkit_INCLUDE_DIRS})
       if(WIN32)
         if((ARCH STREQUAL "x86"))
-          LIST(APPEND LIBRARIES_DEBUG "${CUDA_TOOLKIT_ROOT_DIR}/lib/Win32/cuda.lib" )
-          LIST(APPEND LIBRARIES_DEBUG "${CUDA_TOOLKIT_ROOT_DIR}/lib/Win32/cudart.lib" )
-          LIST(APPEND LIBRARIES_OPTIMIZED "${CUDA_TOOLKIT_ROOT_DIR}/lib/Win32/cuda.lib" )
-          LIST(APPEND LIBRARIES_OPTIMIZED "${CUDA_TOOLKIT_ROOT_DIR}/lib/Win32/cudart.lib" )
+          LIST(APPEND LIBRARIES_DEBUG "${CUDAToolkit_LIBRARY_DIR}/cuda.lib" )
+          LIST(APPEND LIBRARIES_DEBUG "${CUDAToolkit_LIBRARY_DIR}/cudart.lib" )
+          LIST(APPEND LIBRARIES_OPTIMIZED "${CUDAToolkit_LIBRARY_DIR}/cuda.lib" )
+          LIST(APPEND LIBRARIES_OPTIMIZED "${CUDAToolkit_LIBRARY_DIR}/cudart.lib" )
         else()
-          LIST(APPEND LIBRARIES_DEBUG "${CUDA_TOOLKIT_ROOT_DIR}/lib/x64/cuda.lib" )
-          LIST(APPEND LIBRARIES_DEBUG "${CUDA_TOOLKIT_ROOT_DIR}/lib/x64/cudart.lib" )
-          LIST(APPEND LIBRARIES_DEBUG "${CUDA_TOOLKIT_ROOT_DIR}/lib/x64/nvrtc.lib" )
-          LIST(APPEND LIBRARIES_OPTIMIZED "${CUDA_TOOLKIT_ROOT_DIR}/lib/x64/cuda.lib" )
-          LIST(APPEND LIBRARIES_OPTIMIZED "${CUDA_TOOLKIT_ROOT_DIR}/lib/x64/cudart.lib" )
-          LIST(APPEND LIBRARIES_OPTIMIZED "${CUDA_TOOLKIT_ROOT_DIR}/lib/x64/nvrtc.lib" )
+          LIST(APPEND LIBRARIES_DEBUG "${CUDAToolkit_LIBRARY_DIR}/cuda.lib" )
+          LIST(APPEND LIBRARIES_DEBUG "${CUDAToolkit_LIBRARY_DIR}/cudart.lib" )
+          LIST(APPEND LIBRARIES_DEBUG "${CUDAToolkit_LIBRARY_DIR}/nvrtc.lib" )
+          LIST(APPEND LIBRARIES_OPTIMIZED "${CUDAToolkit_LIBRARY_DIR}/cuda.lib" )
+          LIST(APPEND LIBRARIES_OPTIMIZED "${CUDAToolkit_LIBRARY_DIR}/cudart.lib" )
+          LIST(APPEND LIBRARIES_OPTIMIZED "${CUDAToolkit_LIBRARY_DIR}/nvrtc.lib" )
         endif()
       else()
         LIST(APPEND LIBRARIES_DEBUG "libcuda.so" )
-        LIST(APPEND LIBRARIES_DEBUG "${CUDA_TOOLKIT_ROOT_DIR}/lib64/libcudart.so" )
-        LIST(APPEND LIBRARIES_DEBUG "${CUDA_TOOLKIT_ROOT_DIR}/lib64/libnvrtc.so" )
+        LIST(APPEND LIBRARIES_DEBUG "${CUDAToolkit_LIBRARY_DIR}/libcudart.so" )
+        LIST(APPEND LIBRARIES_DEBUG "${CUDAToolkit_LIBRARY_DIR}/libnvrtc.so" )
         LIST(APPEND LIBRARIES_OPTIMIZED "libcuda.so" )
-        LIST(APPEND LIBRARIES_OPTIMIZED "${CUDA_TOOLKIT_ROOT_DIR}/lib64/libcudart.so" )
-        LIST(APPEND LIBRARIES_OPTIMIZED "${CUDA_TOOLKIT_ROOT_DIR}/lib64/libnvrtc.so" )
+        LIST(APPEND LIBRARIES_OPTIMIZED "${CUDAToolkit_LIBRARY_DIR}/libcudart.so" )
+        LIST(APPEND LIBRARIES_OPTIMIZED "${CUDAToolkit_LIBRARY_DIR}/libnvrtc.so" )
       endif()
       #LIST(APPEND PACKAGE_SOURCE_FILES ${CUDA_HEADERS} ) Not available anymore with cmake 3.3... we might have to list them by hand
       # source_group(CUDA FILES ${CUDA_HEADERS} )  Not available anymore with cmake 3.3
@@ -823,7 +825,7 @@ function(nvcuda_compile_ptx)
   set(multiValueArgs NVCC_OPTIONS SOURCES)
   CMAKE_PARSE_ARGUMENTS(NVCUDA_COMPILE_PTX "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
   
-Message(STATUS "NVCUDA_COMPILE_PTX ${options} ${oneValueArgs} ${multiValueArgs} ")
+  #Message(STATUS "${NVCUDA_COMPILE_PTX} ${options} ${oneValueArgs} ${multiValueArgs} ")
 
   # Match the bitness of the ptx to the bitness of the application
   set( MACHINE "--machine=32" )
@@ -839,12 +841,13 @@ Message(STATUS "NVCUDA_COMPILE_PTX ${options} ${oneValueArgs} ${multiValueArgs} 
     set( output "${NVCUDA_COMPILE_PTX_TARGET_PATH}/${input_we}.ptx" )
     LIST( APPEND PTX_FILES  ${output} )
     
-    message(STATUS "${CUDA_NVCC_EXECUTABLE} ${MACHINE} --ptx ${NVCUDA_COMPILE_PTX_NVCC_OPTIONS} ${input} -o ${output} WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}")
+    #message(WARNING "${CUDAToolkit_NVCC_EXECUTABLE} ${MACHINE} --ptx ${NVCUDA_COMPILE_PTX_NVCC_OPTIONS} ${input} -o ${output}")
     
     add_custom_command(
       OUTPUT  ${output}
       DEPENDS ${input}
-      COMMAND ${CUDA_NVCC_EXECUTABLE} ${MACHINE} --ptx ${NVCUDA_COMPILE_PTX_NVCC_OPTIONS} ${input} -o ${output} WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+      COMMAND ${CMAKE_COMMAND} -E echo ${CUDAToolkit_NVCC_EXECUTABLE} ${MACHINE} --ptx ${NVCUDA_COMPILE_PTX_NVCC_OPTIONS} ${input} -o ${output}
+      COMMAND ${CUDAToolkit_NVCC_EXECUTABLE} ${MACHINE} --ptx ${NVCUDA_COMPILE_PTX_NVCC_OPTIONS} ${input} -o ${output}
       COMMAND ${CMAKE_COMMAND} -E echo ${NVCUDA_COMPILE_PTX_TARGET_PATH}
     )
   ENDFOREACH( )
@@ -862,7 +865,7 @@ function(nvcuda_compile_cubin)
   set(multiValueArgs NVCC_OPTIONS SOURCES)
   CMAKE_PARSE_ARGUMENTS(NVCUDA_COMPILE_CUBIN "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
   
-Message(STATUS "NVCUDA_COMPILE_CUBIN ${options} ${oneValueArgs} ${multiValueArgs} ")
+  #Message(STATUS "${NVCUDA_COMPILE_CUBIN} ${options} ${oneValueArgs} ${multiValueArgs} ")
 
   # Match the bitness of the cubin to the bitness of the application
   set( MACHINE "--machine=32" )
@@ -878,13 +881,12 @@ Message(STATUS "NVCUDA_COMPILE_CUBIN ${options} ${oneValueArgs} ${multiValueArgs
     set( output "${NVCUDA_COMPILE_CUBIN_TARGET_PATH}/${input_we}.cubin" )
     LIST( APPEND CUBIN_FILES  ${output} )
     
-    message(STATUS "${CUDA_NVCC_EXECUTABLE} ${MACHINE} --cubin ${NVCUDA_COMPILE_CUBIN_NVCC_OPTIONS} ${input} -o ${CMAKE_CURRENT_SOURCE_DIR}/${output}")
-    message(STATUS "WORKING_DIRECTORY: ${CMAKE_CURRENT_SOURCE_DIR}")
+    #message(STATUS "${CUDAToolkit_NVCC_EXECUTABLE} ${MACHINE} --cubin ${NVCUDA_COMPILE_CUBIN_NVCC_OPTIONS} ${input} -o ${output}")
     
     add_custom_command(
-      OUTPUT  ${CMAKE_CURRENT_SOURCE_DIR}/${output}
+      OUTPUT  ${output}
       DEPENDS ${input}
-      COMMAND ${CUDA_NVCC_EXECUTABLE} ${MACHINE} --cubin ${NVCUDA_COMPILE_CUBIN_NVCC_OPTIONS} ${input} -o ${CMAKE_CURRENT_SOURCE_DIR}/${output} 
+      COMMAND ${CUDAToolkit_NVCC_EXECUTABLE} ${MACHINE} --cubin ${NVCUDA_COMPILE_CUBIN_NVCC_OPTIONS} ${input} -o ${output} 
       WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
     )
   ENDFOREACH( )

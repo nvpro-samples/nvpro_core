@@ -97,7 +97,7 @@ public:
 
   void onAttach(Application* app) override
   {
-    m_instance = app->getContext()->m_instance;
+    m_instance = app->getInstance();
     // Vulkan message callback - for receiving the printf in the shader
     // Note: there is already a callback in nvvk::Context, but by defaut it is not printing INFO severity
     //       this callback will catch the message and will make it clean for display.
@@ -106,11 +106,15 @@ public:
       // Get rid of all the extra message we don't need
       std::string clean_msg = callbackData->pMessage;
 
-      const std::string searchStr = "vkQueueSubmit(): ";
-      std::size_t       pos       = clean_msg.find(searchStr);
-      if(pos != std::string::npos)
+      const std::vector<std::string> searchStr = {"vkQueueSubmit(): ", "pSubmits[0]"};
+      for(auto& searchStr : searchStr)
       {
-        clean_msg = clean_msg.substr(pos + searchStr.size() + 1);  // Remove everything before the search string
+        std::size_t pos = clean_msg.find(searchStr);
+        if(pos != std::string::npos)
+        {
+          clean_msg = clean_msg.substr(pos + searchStr.size() + 1);  // Remove everything before the search string
+          break;
+        }
       }
       LOGI("%s", clean_msg.c_str());  // <- This will end up in the Logger
       return VK_FALSE;                // to continue

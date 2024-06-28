@@ -34,6 +34,20 @@
 #define MAT_EVAL_TEXTURE_ARRAY texturesMap
 #endif
 
+#ifndef NO_TEXTURES
+#define USE_TEXTURES
+#endif
+
+vec4 getTexture(in int textureIndex, in vec2 texCoord)
+{
+#ifdef USE_TEXTURES
+  return texture(MAT_EVAL_TEXTURE_ARRAY[nonuniformEXT(textureIndex)], texCoord);
+#else
+  return vec4(1.0F);
+#endif
+}
+
+
 //  https://github.com/KhronosGroup/glTF/tree/master/specification/2.0#acknowledgments AppendixB
 
 ////////////////////////////////////////////////////////////////////////////
@@ -74,7 +88,7 @@ PbrMaterial evaluateMaterial(in GltfShadeMaterial material, in vec3 normal, in v
   if(material.normalTexture > -1)
   {
     mat3 tbn           = mat3(tangent, bitangent, normal);
-    vec3 normal_vector = texture(MAT_EVAL_TEXTURE_ARRAY[nonuniformEXT(material.normalTexture)], texCoord).xyz;
+    vec3 normal_vector = getTexture(material.normalTexture, texCoord).xyz;
     normal_vector      = normal_vector * 2.0F - 1.0F;
     normal_vector *= vec3(material.normalTextureScale, material.normalTextureScale, 1.0F);
     normal = normalize(tbn * normal_vector);
@@ -87,7 +101,7 @@ PbrMaterial evaluateMaterial(in GltfShadeMaterial material, in vec3 normal, in v
     if(material.pbrMetallicRoughnessTexture > -1.0F)
     {
       // Roughness is stored in the 'g' channel, metallic is stored in the 'b' channel.
-      vec4 mr_sample = texture(MAT_EVAL_TEXTURE_ARRAY[nonuniformEXT(material.pbrMetallicRoughnessTexture)], texCoord);
+      vec4 mr_sample = getTexture(material.pbrMetallicRoughnessTexture, texCoord);
       perceptual_roughness *= mr_sample.g;
       metallic *= mr_sample.b;
     }
@@ -96,7 +110,7 @@ PbrMaterial evaluateMaterial(in GltfShadeMaterial material, in vec3 normal, in v
     baseColor = material.pbrBaseColorFactor;
     if(material.pbrBaseColorTexture > -1.0F)
     {
-      baseColor *= texture(MAT_EVAL_TEXTURE_ARRAY[nonuniformEXT(material.pbrBaseColorTexture)], texCoord);
+      baseColor *= getTexture(material.pbrBaseColorTexture, texCoord);
     }
     vec3 specular_color = mix(vec3(g_min_reflectance), vec3(baseColor), float(metallic));
     f0                  = specular_color;
@@ -110,7 +124,7 @@ PbrMaterial evaluateMaterial(in GltfShadeMaterial material, in vec3 normal, in v
   vec3 emissive = material.emissiveFactor;
   if(material.emissiveTexture > -1.0F)
   {
-    emissive *= vec3(texture(MAT_EVAL_TEXTURE_ARRAY[material.emissiveTexture], texCoord));
+    emissive *= vec3(getTexture(material.emissiveTexture, texCoord));
   }
 
   // KHR_materials_specular
@@ -118,12 +132,12 @@ PbrMaterial evaluateMaterial(in GltfShadeMaterial material, in vec3 normal, in v
   vec4 specularColorTexture = vec4(1.0F);
   if(material.specularColorTexture > -1)
   {
-    specularColorTexture = textureLod(texturesMap[nonuniformEXT(material.specularColorTexture)], texCoord, 0);
+    specularColorTexture = getTexture(material.specularColorTexture, texCoord);
   }
   float specularTexture = 1.0F;
   if(material.specularTexture > -1)
   {
-    specularTexture = textureLod(texturesMap[nonuniformEXT(material.specularTexture)], texCoord, 0).a;
+    specularTexture = getTexture(material.specularTexture, texCoord).a;
   }
 
 
@@ -160,7 +174,7 @@ PbrMaterial evaluateMaterial(in GltfShadeMaterial material, in vec3 normal, in v
   pbrMat.transmissionFactor = material.transmissionFactor;
   if(material.transmissionTexture > -1)
   {
-    pbrMat.transmissionFactor *= textureLod(texturesMap[nonuniformEXT(material.transmissionTexture)], texCoord, 0).r;
+    pbrMat.transmissionFactor *= getTexture(material.transmissionTexture, texCoord).r;
   }
 
   // KHR_materials_ior
@@ -176,11 +190,11 @@ PbrMaterial evaluateMaterial(in GltfShadeMaterial material, in vec3 normal, in v
   pbrMat.clearcoatRoughness = material.clearcoatRoughness;
   if(material.clearcoatTexture > -1)
   {
-    pbrMat.clearcoatFactor *= textureLod(texturesMap[nonuniformEXT(material.clearcoatTexture)], texCoord, 0).r;
+    pbrMat.clearcoatFactor *= getTexture(material.clearcoatTexture, texCoord).r;
   }
   if(material.clearcoatRoughnessTexture > -1)
   {
-    pbrMat.clearcoatRoughness *= textureLod(texturesMap[nonuniformEXT(material.clearcoatRoughnessTexture)], texCoord, 0).g;
+    pbrMat.clearcoatRoughness *= getTexture(material.clearcoatRoughnessTexture, texCoord).g;
   }
   pbrMat.clearcoatRoughness = max(pbrMat.clearcoatRoughness, 0.001F);
 

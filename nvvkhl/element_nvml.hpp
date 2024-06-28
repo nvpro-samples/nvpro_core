@@ -36,6 +36,7 @@ To use this class, you need to add it to the `nvvkhl::Application` using the `ad
 
 @DOC_END */
 
+namespace PE = ImGuiH::PropertyEditor;
 namespace nvvkhl {
 
 #define SAMPLING_NUM 100       // Show 100 measurements
@@ -410,8 +411,8 @@ struct ElementNvml : public nvvkhl::IAppElement
 
       // Load
       ImGui::Text("GPU: %s", gpuInfo.deviceName.get().c_str());
-      ImGuiH::PropertyEditor::begin();
-      ImGuiH::PropertyEditor::entry("Load", [&] {
+      PE::begin();
+      PE::entry("Load", [&] {
         ImGui::PushStyleColor(ImGuiCol_PlotHistogram, (ImVec4)ImColor::HSV(0.3F, 0.5F, 0.5F));
         ImGui::ProgressBar(deviceUtilization.gpuUtilization.get()[offset] / 100.F);
         ImGui::PopStyleColor();
@@ -419,7 +420,7 @@ struct ElementNvml : public nvvkhl::IAppElement
       });
 
       // Memory
-      ImGuiH::PropertyEditor::entry("Memory", [&] {
+      PE::entry("Memory", [&] {
         ImGui::PushStyleColor(ImGuiCol_PlotHistogram, (ImVec4)ImColor::HSV(0.6F, 0.5F, 0.5F));
         float memUsage =
             static_cast<float>((deviceMemoryInfo.memoryUsed.get()[offset] * 1000) / deviceMemoryInfo.memoryTotal.get()) / 1000.0F;
@@ -428,16 +429,16 @@ struct ElementNvml : public nvvkhl::IAppElement
         return false;
       });
 
-      ImGuiH::PropertyEditor::end();
+      PE::end();
     }
 
 
-    ImGuiH::PropertyEditor::begin();
-    ImGuiH::PropertyEditor::entry("CPU", [&] {
+    PE::begin();
+    PE::entry("CPU", [&] {
       ImGui::ProgressBar(m_avgCpu.average() / 100.F);
       return false;
     });
-    ImGuiH::PropertyEditor::end();
+    PE::end();
 #endif
   }
 

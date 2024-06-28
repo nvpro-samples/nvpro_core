@@ -18,8 +18,243 @@
  */
 
 
+#pragma once
+#include <glm/glm.hpp>
+#include "tiny_gltf.h"
+#include <algorithm>
+#include <cassert>
+#include <functional>
+#include <map>
+#include <set>
+#include <string>
+#include <string.h>
+#include <unordered_map>
+#include <vector>
+#include "fileformats/tinygltf_utils.hpp"
+#include "boundingbox.hpp"
+
+#define KHR_LIGHTS_PUNCTUAL_EXTENSION_NAME "KHR_lights_punctual"
+
+namespace nvh {
+namespace gltf {
+
+// The render node is the instance of a primitive in the scene that will be rendered
+struct RenderNode
+{
+  glm::mat4 worldMatrix  = glm::mat4(1.0f);
+  int       materialID   = 0;   // Reference to the material
+  int       renderPrimID = -1;  // Reference to the unique primitive
+  int       primID       = -1;  // Reference to the tinygltf::Primitive
+  int       refNodeID    = -1;  // Reference to the tinygltf::Node
+};
+
+// The RenderPrimitive is a unique primitive in the scene
+struct RenderPrimitive
+{
+  tinygltf::Primitive primitive;
+  int                 vertexCount = 0;
+  int                 indexCount  = 0;
+};
+
+struct RenderCamera
+{
+  enum CameraType
+  {
+    ePerspective,
+    eOrthographic
+  };
+
+  CameraType type   = ePerspective;
+  glm::vec3  eye    = {0.0f, 0.0f, 0.0f};
+  glm::vec3  center = {0.0f, 0.0f, 0.0f};
+  glm::vec3  up     = {0.0f, 1.0f, 0.0f};
+
+  // Perspective
+  double yfov = {0.0};  // in radians
+
+  // Orthographic
+  double xmag = {0.0};
+  double ymag = {0.0};
+
+  double znear = {0.0};
+  double zfar  = {0.0};
+};
+
+// See: https://github.com/KhronosGroup/glTF/blob/master/extensions/2.0/Khronos/KHR_lights_punctual/README.md
+struct RenderLight
+{
+  glm::mat4       worldMatrix = glm::mat4(1.0f);
+  tinygltf::Light light;
+};
+
+
 /** @DOC_START
-# `nvh::GltfScene`
+* 
+* # nvh::gltf::Scene 
+* 
+* The Scene class is responsible for loading and managing a glTF scene.
+* - It is used to load a glTF file and parse it into a scene representation.
+* - It can be used to save the scene back to a glTF file.
+* - It can be used to manage the animations of the scene.
+* - What it returns is a list of RenderNodes, RenderPrimitives, RenderCameras, and RenderLights.
+* -  RenderNodes are the instances of the primitives in the scene that will be rendered.
+* -  RenderPrimitives are the unique primitives in the scene.
+* 
+* Note: The Scene class is a more advanced and light weight version of the GltfScene class.
+*       But it is to the user to retrieve the primitive data from the RenderPrimitives.
+*       Check the tinygltf_utils.hpp for more information on how to extract the primitive data.
+* 
+** @DOC_END */
+
+
+class Scene
+{
+public:
+  // Used to specify the type of pipeline to be used
+  enum PipelineType
+  {
+    eRasterSolid,
+    eRasterSolidDoubleSided,
+    eRasterBlend,
+    eRasterAll
+  };
+
+  // File Management
+  bool               load(const std::string& filename);  // Load the glTF file, .gltf or .glb
+  bool               save(const std::string& filename);  // Save the glTF file, .gltf or .glb
+  const std::string& getFilename() const { return m_filename; }
+  void               takeModel(tinygltf::Model&& model);  // Use a model that has been loaded
+
+  // Getters
+  const tinygltf::Model& getModel() const { return m_model; }
+  tinygltf::Model&       getModel() { return m_model; }
+  bool                   valid() const { return !m_renderNodes.empty(); }
+
+  // Animation Management
+  void updateRenderNodes();  // Update the render nodes matrices and materials
+  bool updateAnimations(float deltaTime);
+  bool updateAnimation(uint32_t animationIndex, float deltaTime, bool reset = false);
+  bool resetAnimations();  // Reset the animations
+  int  getNumAnimations() const { return static_cast<int>(m_animations.size()); }
+  bool hasAnimation() const { return !m_animations.empty(); }
+
+  // Resource Management
+  void destroy();  // Destroy the loaded resources
+
+  // Light Management
+  const std::vector<gltf::RenderLight>& getRenderLights(bool force);
+
+  // Camera Management
+  const std::vector<gltf::RenderCamera>& getRenderCameras(bool force = false);
+  void                                   setSceneCamera(const gltf::RenderCamera& camera);
+
+  // Render Node Management
+  const std::vector<gltf::RenderNode>& getRenderNodes() const { return m_renderNodes; }
+
+  // Render Primitive Management
+  const std::vector<gltf::RenderPrimitive>& getRenderPrimitives() const { return m_renderPrimitives; }
+  const gltf::RenderPrimitive&              getRenderPrimitive(size_t ID) const { return m_renderPrimitives[ID]; }
+  size_t                                    getNumRenderPrimitives() const { return m_renderPrimitives.size(); }
+
+  // Scene Management
+  void           setCurrentScene(int sceneID);  // Parse the scene and create the render nodes, call when changing scene
+  int            getCurrentScene() const { return m_currentScene; }
+  tinygltf::Node getSceneRootNode() const;
+  void           setSceneRootNode(const tinygltf::Node& node);
+
+  // Variant Management
+  void                            setCurrentVariant(int variant);  // Set the variant to be used
+  const std::vector<std::string>& getVariants() const { return m_variants; }
+  int                             getCurrentVariant() const { return m_currentVariant; }
+
+  // Shading Management
+  std::vector<uint32_t> getShadedNodes(PipelineType type);  // Get the nodes that will be shaded by the pipeline type
+
+  // Statistics
+  int       getNumTriangles() const { return m_numTriangles; }
+  nvh::Bbox getSceneBounds();
+
+
+private:
+  struct AnimationChannel
+  {
+    enum PathType
+    {
+      eTranslation,
+      eRotation,
+      eScale,
+      eWeights
+    };
+    PathType path         = eTranslation;
+    int      node         = -1;
+    uint32_t samplerIndex = 0;
+  };
+
+  struct AnimationSampler
+  {
+    enum InterpolationType
+    {
+      eLinear,
+      eStep,
+      eCubicSpline
+    };
+    InterpolationType               interpolation = eLinear;
+    std::vector<float>              inputs;
+    std::vector<glm::vec4>          outputsVec4;
+    std::vector<std::vector<float>> outputsFloat;
+  };
+
+  struct Animation
+  {
+    float                         start       = std::numeric_limits<float>::max();
+    float                         end         = std::numeric_limits<float>::min();
+    float                         currentTime = 0.0f;
+    std::vector<AnimationSampler> samplers;
+    std::vector<AnimationChannel> channels;
+  };
+
+
+  void parseScene();                    // Parse the scene and create the render nodes
+  void clearParsedData();               // Clear the parsed data
+  void parseAnimations();               // Parse the animations
+  void parseVariants();                 // Parse the variants
+  void setSceneElementsDefaultNames();  // Set a default name for the scene elements
+  void createSceneCamera();             // Create a camera for the scene
+  void createRootIfMultipleNodes(tinygltf::Scene& scene);
+
+  int getUniqueRenderPrimitive(const tinygltf::Primitive& primitive);
+  int getMaterialVariantIndex(const tinygltf::Primitive& primitive, int currentVariant);
+
+  bool   handleRenderNode(int nodeID, glm::mat4 worldMatrix);
+  size_t handleGpuInstancing(const tinygltf::Value& attributes, gltf::RenderNode renderNode, glm::mat4 worldMatrix);
+  bool   handleCameraTraversal(int nodeID, const glm::mat4& worldMatrix);
+
+  tinygltf::Model                      m_model;                 // The glTF model
+  std::string                          m_filename;              // Filename of the glTF
+  std::vector<gltf::RenderNode>        m_renderNodes;           // Render nodes
+  std::vector<gltf::RenderPrimitive>   m_renderPrimitives;      // Unique primitives from key
+  std::vector<gltf::RenderCamera>      m_cameras;               // Cameras
+  std::vector<gltf::RenderLight>       m_lights;                // Lights
+  std::vector<Animation>               m_animations;            // Animations
+  std::vector<std::string>             m_variants;              // KHR_materials_variants
+  std::unordered_map<std::string, int> m_uniquePrimitiveIndex;  // Key: primitive, Value: renderPrimID
+  int                                  m_numTriangles    = 0;   // Stat - Number of triangles
+  int                                  m_currentScene    = 0;   // Scene index
+  int                                  m_currentVariant  = 0;   // Variant index
+  int                                  m_sceneRootNode   = -1;  // Node index of the root
+  int                                  m_sceneCameraNode = -1;  // Node index of the camera
+  nvh::Bbox                            m_sceneBounds;           // Scene bounds
+};
+
+}  // namespace gltf
+
+
+// ***********************************************************************************************************************
+// DEPRICATED SECTION
+// ***********************************************************************************************************************
+
+/** @DOC_START
+# `nvh::GltfScene` **DEPRECATED**
 
   These utilities are for loading glTF models in a
   canonical scene representation. From this representation
@@ -46,132 +281,6 @@
 
 @DOC_END */
 
-#pragma once
-#include <glm/glm.hpp>
-#include "tiny_gltf.h"
-#include <algorithm>
-#include <cassert>
-#include <functional>
-#include <map>
-#include <set>
-#include <string>
-#include <string.h>
-#include <unordered_map>
-#include <vector>
-
-#define KHR_LIGHTS_PUNCTUAL_EXTENSION_NAME "KHR_lights_punctual"
-
-namespace nvh {
-
-// https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_materials_specular/README.md
-#define KHR_MATERIALS_SPECULAR_EXTENSION_NAME "KHR_materials_specular"
-struct KHR_materials_specular
-{
-  float     specularFactor{1.f};
-  int       specularTexture{-1};
-  glm::vec3 specularColorFactor{1.f, 1.f, 1.f};
-  int       specularColorTexture{-1};
-};
-
-// https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_texture_transform
-#define KHR_TEXTURE_TRANSFORM_EXTENSION_NAME "KHR_texture_transform"
-struct KHR_texture_transform
-{
-  glm::vec2 offset{0.f, 0.f};
-  float     rotation{0.f};
-  glm::vec2 scale{1.f};
-  int       texCoord{0};
-  glm::mat3 uvTransform{1};  // Computed transform of offset, rotation, scale
-};
-
-
-// https://github.com/KhronosGroup/glTF/blob/master/extensions/2.0/Khronos/KHR_materials_clearcoat/README.md
-#define KHR_MATERIALS_CLEARCOAT_EXTENSION_NAME "KHR_materials_clearcoat"
-struct KHR_materials_clearcoat
-{
-  float factor{0.f};
-  int   texture{-1};
-  float roughnessFactor{0.f};
-  int   roughnessTexture{-1};
-  int   normalTexture{-1};
-};
-
-// https://github.com/KhronosGroup/glTF/blob/master/extensions/2.0/Khronos/KHR_materials_sheen/README.md
-#define KHR_MATERIALS_SHEEN_EXTENSION_NAME "KHR_materials_sheen"
-struct KHR_materials_sheen
-{
-  glm::vec3 colorFactor{0.f, 0.f, 0.f};
-  int       colorTexture{-1};
-  float     roughnessFactor{0.f};
-  int       roughnessTexture{-1};
-};
-
-// https://github.com/DassaultSystemes-Technology/glTF/tree/KHR_materials_volume/extensions/2.0/Khronos/KHR_materials_transmission
-#define KHR_MATERIALS_TRANSMISSION_EXTENSION_NAME "KHR_materials_transmission"
-struct KHR_materials_transmission
-{
-  float factor{0.f};
-  int   texture{-1};
-};
-
-// https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_materials_unlit
-#define KHR_MATERIALS_UNLIT_EXTENSION_NAME "KHR_materials_unlit"
-struct KHR_materials_unlit
-{
-  int active{0};
-};
-
-// PBR Next : KHR_materials_anisotropy
-#define KHR_MATERIALS_ANISOTROPY_EXTENSION_NAME "KHR_materials_anisotropy"
-struct KHR_materials_anisotropy
-{
-  float     factor{0.f};
-  glm::vec3 direction{1.f, 0.f, 0.f};
-  int       texture{-1};
-};
-
-
-// https://github.com/DassaultSystemes-Technology/glTF/tree/KHR_materials_ior/extensions/2.0/Khronos/KHR_materials_ior
-#define KHR_MATERIALS_IOR_EXTENSION_NAME "KHR_materials_ior"
-struct KHR_materials_ior
-{
-  float ior{1.5f};
-};
-
-// https://github.com/DassaultSystemes-Technology/glTF/tree/KHR_materials_volume/extensions/2.0/Khronos/KHR_materials_volume
-#define KHR_MATERIALS_VOLUME_EXTENSION_NAME "KHR_materials_volume"
-struct KHR_materials_volume
-{
-  float     thicknessFactor{0};
-  int       thicknessTexture{-1};
-  float     attenuationDistance{std::numeric_limits<float>::max()};
-  glm::vec3 attenuationColor{1.f, 1.f, 1.f};
-};
-
-
-// https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_texture_basisu/README.md
-#define KHR_TEXTURE_BASISU_NAME "KHR_texture_basisu"
-struct KHR_texture_basisu
-{
-  int source{-1};
-};
-
-// https://github.com/KhronosGroup/glTF/issues/948
-#define KHR_MATERIALS_DISPLACEMENT_NAME "KHR_materials_displacement"
-struct KHR_materials_displacement
-{
-  float displacementGeometryFactor{1.0f};
-  float displacementGeometryOffset{0.0f};
-  int   displacementGeometryTexture{-1};
-};
-
-
-// https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_materials_emissive_strength/README.md
-#define KHR_MATERIALS_EMISSIVE_STRENGTH_NAME "KHR_materials_emissive_strength"
-struct KHR_materials_emissive_strength
-{
-  float emissiveStrength{1.0};
-};
 
 // https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md#reference-material
 struct GltfMaterial
@@ -195,23 +304,23 @@ struct GltfMaterial
   float occlusionTextureStrength{1};
 
   // Extensions
-  KHR_materials_specular              specular;
-  KHR_texture_transform               textureTransform;
-  KHR_materials_clearcoat             clearcoat;
-  KHR_materials_sheen                 sheen;
-  KHR_materials_transmission          transmission;
-  KHR_materials_unlit                 unlit;
-  KHR_materials_anisotropy            anisotropy;
-  KHR_materials_ior                   ior;
-  KHR_materials_volume                volume;
-  KHR_materials_displacement          displacement;
-  KHR_materials_emissive_strength     emissiveStrength;
+  KHR_materials_specular          specular;
+  KHR_texture_transform           textureTransform;
+  KHR_materials_clearcoat         clearcoat;
+  KHR_materials_sheen             sheen;
+  KHR_materials_transmission      transmission;
+  KHR_materials_unlit             unlit;
+  KHR_materials_anisotropy        anisotropy;
+  KHR_materials_ior               ior;
+  KHR_materials_volume            volume;
+  KHR_materials_displacement      displacement;
+  KHR_materials_emissive_strength emissiveStrength;
 
   // Tiny Reference
   const tinygltf::Material* tmaterial{nullptr};
 };
 
-
+// Similar to nvh::gltf::RenderNode but will not support instancing
 struct GltfNode
 {
   glm::mat4             worldMatrix{1};
@@ -219,6 +328,8 @@ struct GltfNode
   const tinygltf::Node* tnode{nullptr};
 };
 
+// Similar to nvh::gltf::RenderPrimitive but refer duplicated geometry
+// and may appears multiple times in the scene, where as RenderPrimitive is unique
 struct GltfPrimMesh
 {
   uint32_t firstIndex{0};
@@ -236,6 +347,7 @@ struct GltfPrimMesh
   const tinygltf::Primitive* tprim{nullptr};
 };
 
+// This information could be extracted directly form the tinygltf::Model
 struct GltfStats
 {
   uint32_t nbCameras{0};
@@ -251,6 +363,7 @@ struct GltfStats
   uint32_t nbTriangles{0};
 };
 
+// Similar to nvh::gltf::RenderCamera but is missing type, fov, znear, zfar, and xmag, ymag
 struct GltfCamera
 {
   glm::mat4 worldMatrix{1};
@@ -261,6 +374,7 @@ struct GltfCamera
   tinygltf::Camera cam;
 };
 
+// Similar to nvh::gltf::RenderLight
 // See: https://github.com/KhronosGroup/glTF/blob/master/extensions/2.0/Khronos/KHR_lights_punctual/README.md
 struct GltfLight
 {
@@ -268,7 +382,7 @@ struct GltfLight
   tinygltf::Light light;
 };
 
-
+// Attributes that can be requested
 enum class GltfAttributes : uint8_t
 {
   NoAttribs  = 0,
@@ -295,7 +409,10 @@ inline GltfAttributes operator&(GltfAttributes lhs, GltfAttributes rhs)
 
 //--------------------------------------------------------------------------------------------------
 // Class to convert gltfScene in simple draw-able format
-//
+// - This is deprecated and should be replaced by nvh::gltf::Scene
+// - This version copies all the data in a flat structure
+// - Create the data when it does not exist, making it easy to use, but slow and memory consuming
+//--------------------------------------------------------------------------------------------------
 struct GltfScene
 {
   // Importing all materials in a vector of GltfMaterial structure
@@ -376,8 +493,6 @@ private:
   void findUsedMeshes(const tinygltf::Model& tmodel, std::set<uint32_t>& usedMeshes, int nodeIdx);
 };
 
-glm::mat4 getLocalMatrix(const tinygltf::Node& tnode);
-
 // Return a vector of data for a tinygltf::Value
 template <typename T>
 static inline std::vector<T> getVector(const tinygltf::Value& value)
@@ -392,320 +507,5 @@ static inline std::vector<T> getVector(const tinygltf::Value& value)
   }
   return result;
 }
-
-static inline void getFloat(const tinygltf::Value& value, const std::string& name, float& val)
-{
-  if(value.Has(name))
-  {
-    val = static_cast<float>(value.Get(name).Get<double>());
-  }
-}
-
-static inline void getInt(const tinygltf::Value& value, const std::string& name, int& val)
-{
-  if(value.Has(name))
-  {
-    val = value.Get(name).Get<int>();
-  }
-}
-
-static inline void getVec2(const tinygltf::Value& value, const std::string& name, glm::vec2& val)
-{
-  if(value.Has(name))
-  {
-    auto s = getVector<float>(value.Get(name));
-    val    = glm::vec2{s[0], s[1]};
-  }
-}
-
-static inline void getVec3(const tinygltf::Value& value, const std::string& name, glm::vec3& val)
-{
-  if(value.Has(name))
-  {
-    auto s = getVector<float>(value.Get(name));
-    val    = glm::vec3{s[0], s[1], s[2]};
-  }
-}
-
-static inline void getVec4(const tinygltf::Value& value, const std::string& name, glm::vec4& val)
-{
-  if(value.Has(name))
-  {
-    auto s = getVector<float>(value.Get(name));
-    val    = glm::vec4{s[0], s[1], s[2], s[3]};
-  }
-}
-
-static inline void getTexId(const tinygltf::Value& value, const std::string& name, int& val)
-{
-  if(value.Has(name))
-  {
-    val = value.Get(name).Get("index").Get<int>();
-  }
-}
-
-// Calls a function (such as a lambda function) for each (index, value) pair in
-// a sparse accessor. It's only potentially called for indices from
-// accessorFirstElement through accessorFirstElement + numElementsToProcess - 1.
-template <class T>
-void forEachSparseValue(const tinygltf::Model&                            tmodel,
-                        const tinygltf::Accessor&                         accessor,
-                        size_t                                            accessorFirstElement,
-                        size_t                                            numElementsToProcess,
-                        std::function<void(size_t index, const T* value)> fn)
-{
-  if(!accessor.sparse.isSparse)
-  {
-    return;  // Nothing to do
-  }
-
-  const auto& idxs = accessor.sparse.indices;
-  if(!(idxs.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE      //
-       || idxs.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT  //
-       || idxs.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT))
-  {
-    assert(!"Unsupported sparse accessor index type.");
-    return;
-  }
-
-  const tinygltf::BufferView& idxBufferView = tmodel.bufferViews[idxs.bufferView];
-  const unsigned char*        idxBuffer     = &tmodel.buffers[idxBufferView.buffer].data[idxBufferView.byteOffset];
-  const size_t                idxBufferByteStride =
-      idxBufferView.byteStride ? idxBufferView.byteStride : tinygltf::GetComponentSizeInBytes(idxs.componentType);
-  if(idxBufferByteStride == size_t(-1))
-    return;  // Invalid
-
-  const auto&                 vals          = accessor.sparse.values;
-  const tinygltf::BufferView& valBufferView = tmodel.bufferViews[vals.bufferView];
-  const unsigned char*        valBuffer     = &tmodel.buffers[valBufferView.buffer].data[valBufferView.byteOffset];
-  const size_t                valBufferByteStride = accessor.ByteStride(valBufferView);
-  if(valBufferByteStride == size_t(-1))
-    return;  // Invalid
-
-  // Note that this could be faster for lots of small copies, since we could
-  // binary search for the first sparse accessor index to use (since the
-  // glTF specification requires the indices be sorted)!
-  for(size_t pairIdx = 0; pairIdx < accessor.sparse.count; pairIdx++)
-  {
-    // Read the index from the index buffer, converting its type
-    size_t               index = 0;
-    const unsigned char* pIdx  = idxBuffer + idxBufferByteStride * pairIdx;
-    switch(idxs.componentType)
-    {
-      case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
-        index = *reinterpret_cast<const uint8_t*>(pIdx);
-        break;
-      case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
-        index = *reinterpret_cast<const uint16_t*>(pIdx);
-        break;
-      case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT:
-        index = *reinterpret_cast<const uint32_t*>(pIdx);
-        break;
-    }
-
-    // If it's not in range, skip it
-    if(index < accessorFirstElement || (index - accessorFirstElement) >= numElementsToProcess)
-    {
-      continue;
-    }
-
-    fn(index, reinterpret_cast<const T*>(valBuffer + valBufferByteStride * pairIdx));
-  }
-}
-
-// Copies accessor elements accessorFirstElement through
-// accessorFirstElement + numElementsToCopy - 1 to outData elements
-// outFirstElement through outFirstElement + numElementsToCopy - 1.
-// This handles sparse accessors correctly! It's intended as a replacement for
-// what would be memcpy(..., &buffer.data[...], ...) calls.
-//
-// However, it performs no conversion: it assumes (but does not check) that
-// accessor's elements are of type T. For instance, T should be a struct of two
-// floats for a VEC2 float accessor.
-//
-// This is range-checked, so elements that would be out-of-bounds are not
-// copied. We assume size_t overflow does not occur.
-// Note that outDataSizeInT is the number of elements in the outDataBuffer,
-// while numElementsToCopy is the number of elements to copy, not the number
-// of elements in accessor.
-template <class T>
-void copyAccessorData(T*                        outData,
-                      size_t                    outDataSizeInElements,
-                      size_t                    outFirstElement,
-                      const tinygltf::Model&    tmodel,
-                      const tinygltf::Accessor& accessor,
-                      size_t                    accessorFirstElement,
-                      size_t                    numElementsToCopy)
-{
-  if(outFirstElement >= outDataSizeInElements)
-  {
-    assert(!"Invalid outFirstElement!");
-    return;
-  }
-
-  if(accessorFirstElement >= accessor.count)
-  {
-    assert(!"Invalid accessorFirstElement!");
-    return;
-  }
-
-  const tinygltf::BufferView& bufferView = tmodel.bufferViews[accessor.bufferView];
-  const unsigned char* buffer = &tmodel.buffers[bufferView.buffer].data[accessor.byteOffset + bufferView.byteOffset];
-
-  const size_t maxSafeCopySize = std::min(accessor.count - accessorFirstElement, outDataSizeInElements - outFirstElement);
-  numElementsToCopy = std::min(numElementsToCopy, maxSafeCopySize);
-
-  if(bufferView.byteStride == 0)
-  {
-    memcpy(outData + outFirstElement, reinterpret_cast<const T*>(buffer) + accessorFirstElement, numElementsToCopy * sizeof(T));
-  }
-  else
-  {
-    // Must copy one-by-one
-    for(size_t i = 0; i < numElementsToCopy; i++)
-    {
-      outData[outFirstElement + i] = *reinterpret_cast<const T*>(buffer + bufferView.byteStride * i);
-    }
-  }
-
-  // Handle sparse accessors by overwriting already copied elements.
-  forEachSparseValue<T>(tmodel, accessor, accessorFirstElement, numElementsToCopy,
-                        [&outData](size_t index, const T* value) { outData[index] = *value; });
-}
-
-// Same as copyAccessorData(T*, ...), but taking a vector.
-template <class T>
-void copyAccessorData(std::vector<T>&           outData,
-                      size_t                    outFirstElement,
-                      const tinygltf::Model&    tmodel,
-                      const tinygltf::Accessor& accessor,
-                      size_t                    accessorFirstElement,
-                      size_t                    numElementsToCopy)
-{
-  copyAccessorData<T>(outData.data(), outData.size(), outFirstElement, tmodel, accessor, accessorFirstElement, numElementsToCopy);
-}
-
-// Appending to \p attribVec, all the values of \p accessor
-// Return false if the accessor is invalid.
-// T must be glm::vec2, glm::vec3, or glm::vec4.
-template <typename T>
-static bool getAccessorData(const tinygltf::Model& tmodel, const tinygltf::Accessor& accessor, std::vector<T>& attribVec)
-{
-  // Retrieving the data of the accessor
-  const auto nbElems = accessor.count;
-
-  const size_t oldNumElements = attribVec.size();
-  attribVec.resize(oldNumElements + nbElems);
-
-  // Copying the attributes
-  if(accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT)
-  {
-    copyAccessorData<T>(attribVec, oldNumElements, tmodel, accessor, 0, accessor.count);
-  }
-  else
-  {
-    // The component is smaller than float and need to be converted
-    const auto&          bufView    = tmodel.bufferViews[accessor.bufferView];
-    const auto&          buffer     = tmodel.buffers[bufView.buffer];
-    const unsigned char* bufferByte = &buffer.data[accessor.byteOffset + bufView.byteOffset];
-
-    // 2, 3, 4 for VEC2, VEC3, VEC4
-    const int nbComponents = tinygltf::GetNumComponentsInType(accessor.type);
-    if(nbComponents == -1)
-      return false;  // Invalid
-
-    // Stride per element
-    const size_t byteStride = accessor.ByteStride(bufView);
-    if(byteStride == size_t(-1))
-      return false;  // Invalid
-
-    if(!(accessor.componentType == TINYGLTF_COMPONENT_TYPE_BYTE || accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE
-         || accessor.componentType == TINYGLTF_COMPONENT_TYPE_SHORT || accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT))
-    {
-      assert(!"Unhandled tinygltf component type!");
-      return false;
-    }
-
-    const auto& copyElementFn = [&](size_t elementIdx, const unsigned char* pElement) {
-      T vecValue;
-
-      for(int c = 0; c < nbComponents; c++)
-      {
-        switch(accessor.componentType)
-        {
-          case TINYGLTF_COMPONENT_TYPE_BYTE:
-            vecValue[c] = float(*(reinterpret_cast<const char*>(pElement) + c));
-            if(accessor.normalized)
-            {
-              vecValue[c] = std::max(vecValue[c] / 127.f, -1.f);
-            }
-            break;
-          case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
-            vecValue[c] = float(*(reinterpret_cast<const unsigned char*>(pElement) + c));
-            if(accessor.normalized)
-            {
-              vecValue[c] = vecValue[c] / 255.f;
-            }
-            break;
-          case TINYGLTF_COMPONENT_TYPE_SHORT:
-            vecValue[c] = float(*(reinterpret_cast<const short*>(pElement) + c));
-            if(accessor.normalized)
-            {
-              vecValue[c] = std::max(vecValue[c] / 32767.f, -1.f);
-            }
-            break;
-          case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
-            vecValue[c] = float(*(reinterpret_cast<const unsigned short*>(pElement) + c));
-            if(accessor.normalized)
-            {
-              vecValue[c] = vecValue[c] / 65535.f;
-            }
-            break;
-        }
-      }
-
-      attribVec[oldNumElements + elementIdx] = vecValue;
-    };
-
-    for(size_t i = 0; i < nbElems; i++)
-    {
-      copyElementFn(i, bufferByte + byteStride * i);
-    }
-
-    forEachSparseValue<unsigned char>(tmodel, accessor, 0, nbElems, copyElementFn);
-  }
-
-  return true;
-}
-
-// Appending to \p attribVec, all the values of \p attribName
-// Return false if the attribute is missing or invalid.
-// T must be glm::vec2, glm::vec3, or glm::vec4.
-template <typename T>
-static bool getAttribute(const tinygltf::Model& tmodel, const tinygltf::Primitive& primitive, std::vector<T>& attribVec, const std::string& attribName)
-{
-  const auto& it = primitive.attributes.find(attribName);
-  if(it == primitive.attributes.end())
-    return false;
-  const auto& accessor = tmodel.accessors[it->second];
-  return getAccessorData(tmodel, accessor, attribVec);
-}
-
-inline bool hasExtension(const tinygltf::ExtensionMap& extensions, const std::string& name)
-{
-  return extensions.find(name) != extensions.end();
-}
-
-// This is appending the incoming data to the binary buffer (just one)
-// and return the amount in byte of data that was added.
-template <class T>
-uint32_t appendData(tinygltf::Buffer& buffer, const T& inData)
-{
-  auto*    pData = reinterpret_cast<const char*>(inData.data());
-  uint32_t len   = static_cast<uint32_t>(sizeof(inData[0]) * inData.size());
-  buffer.data.insert(buffer.data.end(), pData, pData + len);
-  return len;
-}
-
 
 }  // namespace nvh

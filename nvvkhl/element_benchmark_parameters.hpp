@@ -217,7 +217,10 @@ private:
   {
     if(!m_config.logFilename.empty() && m_app)
     {
-      std::string deviceName  = m_app->getContext()->m_physicalInfo.properties10.deviceName;
+      VkPhysicalDeviceProperties properties10;
+      vkGetPhysicalDeviceProperties(m_app->getPhysicalDevice(), &properties10);
+
+      std::string deviceName  = properties10.deviceName;
       std::string logfileName = m_config.logFilename;  // Replace "$DEVICE$" with the GPU device name
       replace(logfileName, "$DEVICE$", deviceName);
       std::replace_if(  // Replace characters not allowed in filenames with underscores
@@ -356,13 +359,13 @@ private:
       }
       return VK_FALSE;
     };
-    NVVK_CHECK(vkCreateDebugUtilsMessengerEXT(m_app->getContext()->m_instance, &dbg_messenger_create_info, nullptr, &m_dbgMessenger));
+    NVVK_CHECK(vkCreateDebugUtilsMessengerEXT(m_app->getInstance(), &dbg_messenger_create_info, nullptr, &m_dbgMessenger));
   }
 
   void deinitTesting()
   {
     if(m_dbgMessenger != nullptr)
-      vkDestroyDebugUtilsMessengerEXT(m_app->getContext()->m_instance, m_dbgMessenger, nullptr);
+      vkDestroyDebugUtilsMessengerEXT(m_app->getInstance(), m_dbgMessenger, nullptr);
   }
 
   void executeTest()

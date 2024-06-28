@@ -18,6 +18,7 @@
  */
 
 #include <glm/gtc/matrix_access.hpp>
+#pragma once
 
 namespace nvh {
 
@@ -80,11 +81,11 @@ struct Bbox
   inline bool      isLine() const { return rank() == 1u; }
   inline bool      isPlane() const { return rank() == 2u; }
   inline bool      isVolume() const { return rank() == 3u; }
-  inline glm::vec3 min() { return m_min; }
-  inline glm::vec3 max() { return m_max; }
+  inline glm::vec3 min() const { return m_min; }
+  inline glm::vec3 max() const { return m_max; }
   inline glm::vec3 extents() { return m_max - m_min; }
-  inline glm::vec3 center() { return (m_min + m_max) * 0.5f; }
-  inline float     radius() { return glm::length(m_max - m_min) * 0.5f; }
+  inline glm::vec3 center() const { return (m_min + m_max) * 0.5f; }
+  inline float     radius() const { return glm::length(m_max - m_min) * 0.5f; }
 
   Bbox transform(glm::mat4 mat)
   {

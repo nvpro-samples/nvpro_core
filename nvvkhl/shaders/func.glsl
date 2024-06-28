@@ -138,4 +138,15 @@ vec3 cosineSampleHemisphere(float r1, float r2)
   dir.z = sqrt(max(0.0, 1.0 - dir.x * dir.x - dir.y * dir.y));
   return dir;
 }
+
+//-----------------------------------------------------------------------
+// Make a tangent from a normal
+vec4 makeFastTangent(vec3 nrm)
+{
+  const float sgn = nrm.z > 0.0F ? 1.0F : -1.0F;
+  const float a   = -1.0F / (sgn + nrm.z);
+  const float b   = nrm.x * nrm.y * a;
+  return vec4(1.0f + sgn * nrm.x * nrm.x * a, sgn * b, -sgn * nrm.x, sgn);
+}
+
 #endif  // FUNC_GLSL

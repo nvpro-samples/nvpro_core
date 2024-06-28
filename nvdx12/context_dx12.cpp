@@ -74,6 +74,7 @@ bool Context::init(const ContextCreateInfo& info)
 
   D3D12_COMMAND_QUEUE_DESC queue_desc = {};
   queue_desc.Type                     = D3D12_COMMAND_LIST_TYPE_DIRECT;
+  queue_desc.NodeMask                 = m_device->GetNodeCount() == 1 ? 0 : 1;
 
   if(HR_CHECK(m_device->CreateCommandQueue(&queue_desc, IID_PPV_ARGS(&m_commandQueue))))
   {

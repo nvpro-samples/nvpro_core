@@ -37,9 +37,15 @@ using namespace glm;
 namespace nvvkhl {
 
 
-SkyDome::SkyDome(nvvk::Context* ctx, nvvk::ResourceAllocator* allocator)
+SkyDome::SkyDome(VkDevice device, nvvk::ResourceAllocator* allocator)
+    : m_device(device)
 {
-  setup(ctx->m_device, allocator);
+  setup(device, allocator);
+}
+
+SkyDome::~SkyDome()
+{
+  destroy();
 }
 
 void SkyDome::setup(const VkDevice& device, nvvk::ResourceAllocator* allocator)
@@ -112,7 +118,7 @@ void SkyDome::draw(const VkCommandBuffer& cmd, const glm::mat4& view, const glm:
 
   // Information to the compute shader
   nvvkhl_shaders::SkyPushConstant pc{};
-  pc.mvp = glm::inverse(view) * glm::inverse(proj); // This will be to have a world direction vector pointing to the pixel
+  pc.mvp = glm::inverse(view) * glm::inverse(proj);  // This will be to have a world direction vector pointing to the pixel
 
   // Execution
   std::vector<VkDescriptorSet> dst_sets = {m_skyDSet};
@@ -132,6 +138,10 @@ void SkyDome::destroy()
   vkDestroyPipelineLayout(m_device, m_skyPipelineLayout, nullptr);
   vkDestroyDescriptorSetLayout(m_device, m_skyDLayout, nullptr);
   vkDestroyDescriptorPool(m_device, m_skyDPool, nullptr);
+  m_skyPipeline       = VK_NULL_HANDLE;
+  m_skyPipelineLayout = VK_NULL_HANDLE;
+  m_skyDLayout        = VK_NULL_HANDLE;
+  m_skyDPool          = VK_NULL_HANDLE;
 }
 
 void SkyDome::updateParameterBuffer(VkCommandBuffer cmd) const
