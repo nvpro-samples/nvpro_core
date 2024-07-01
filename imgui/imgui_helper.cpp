@@ -550,7 +550,7 @@ void Panel::Begin(Side side /*= Side::Right*/, float alpha /*= 0.5f*/, char* nam
   ImGui::SetNextWindowViewport(viewport->ID);
 
   // All flags to dummy window
-  ImGuiWindowFlags host_window_flags;
+  ImGuiWindowFlags host_window_flags{};
   host_window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize;
   host_window_flags |= ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDocking;
   host_window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
