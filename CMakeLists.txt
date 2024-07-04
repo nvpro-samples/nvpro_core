@@ -86,8 +86,8 @@ if(USING_VULKANSDK)
   # Vulkan-high-level helpers
   file(GLOB NVVKHL_SOURCE nvvkhl/*.cpp nvvkhl/*.hpp nvvkl/*.inl nvvkh;/*.h)
   set(SHD_DIR nvvkhl/shaders)
-  file(GLOB SHD_HDR  ${SHD_DIR}/*.glsl ${SHD_DIR}/*.h)
-  file(GLOB SHD_SRC ${SHD_DIR}/*.vert ${SHD_DIR}/*.frag ${SHD_DIR}/*.comp ${SHD_DIR}/*.rgen ${SHD_DIR}/*.rchit ${SHD_DIR}/*.rmiss)
+  file(GLOB SHD_HDR  ${SHD_DIR}/*.h)
+  file(GLOB SHD_SRC ${SHD_DIR}/*.glsl)
   # Compiling shaders to SPIR-V header
   compile_glsl(
       SOURCE_FILES ${SHD_SRC}

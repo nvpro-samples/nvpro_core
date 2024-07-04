@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2022-2024, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2014-2022 NVIDIA CORPORATION
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -38,10 +38,10 @@
 #include "nvvkhl/shaders/dh_comp.h"
 #include "nvvkhl/shaders/dh_hdr.h"
 
-#include "_autogen/hdr_dome.comp.h"
-#include "_autogen/hdr_integrate_brdf.comp.h"
-#include "_autogen/hdr_prefilter_diffuse.comp.h"
-#include "_autogen/hdr_prefilter_glossy.comp.h"
+#include "_autogen/hdr_dome.comp.glsl.h"
+#include "_autogen/hdr_integrate_brdf.comp.glsl.h"
+#include "_autogen/hdr_prefilter_diffuse.comp.glsl.h"
+#include "_autogen/hdr_prefilter_glossy.comp.glsl.h"
 #include "nvh/timesampler.hpp"
 
 
@@ -76,8 +76,10 @@ void HdrEnvDome::create(VkDescriptorSet dstSet, VkDescriptorSetLayout dstSetLayo
   m_hdrEnvSet    = dstSet;
   m_hdrEnvLayout = dstSetLayout;
 
-  VkShaderModule diff_module = nvvk::createShaderModule(m_device, hdr_prefilter_diffuse_comp, sizeof(hdr_prefilter_diffuse_comp));
-  VkShaderModule gloss_module = nvvk::createShaderModule(m_device, hdr_prefilter_glossy_comp, sizeof(hdr_prefilter_glossy_comp));
+  VkShaderModule diff_module =
+      nvvk::createShaderModule(m_device, hdr_prefilter_diffuse_comp_glsl, sizeof(hdr_prefilter_diffuse_comp_glsl));
+  VkShaderModule gloss_module =
+      nvvk::createShaderModule(m_device, hdr_prefilter_glossy_comp_glsl, sizeof(hdr_prefilter_glossy_comp_glsl));
 
   createDrawPipeline();
   integrateBrdf(512, m_textures.lutBrdf);
@@ -133,7 +135,7 @@ void HdrEnvDome::createDrawPipeline()
   // HDR Dome compute shader
   VkPipelineShaderStageCreateInfo stage_info{VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
   stage_info.stage  = VK_SHADER_STAGE_COMPUTE_BIT;
-  stage_info.module = nvvk::createShaderModule(m_device, hdr_dome_comp, sizeof(hdr_dome_comp));
+  stage_info.module = nvvk::createShaderModule(m_device, hdr_dome_comp_glsl, sizeof(hdr_dome_comp_glsl));
   stage_info.pName  = "main";
 
   VkComputePipelineCreateInfo comp_info{VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO};
@@ -275,9 +277,9 @@ void HdrEnvDome::integrateBrdf(uint32_t dimension, nvvk::Texture& target)
     NAME_VK(pipeline_layout);
 
     VkPipelineShaderStageCreateInfo stage_info{VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
-    stage_info.stage  = VK_SHADER_STAGE_COMPUTE_BIT;
-    stage_info.module = nvvk::createShaderModule(m_device, hdr_integrate_brdf_comp, sizeof(hdr_integrate_brdf_comp));
-    stage_info.pName  = "main";
+    stage_info.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+    stage_info.module = nvvk::createShaderModule(m_device, hdr_integrate_brdf_comp_glsl, sizeof(hdr_integrate_brdf_comp_glsl));
+    stage_info.pName = "main";
 
     VkComputePipelineCreateInfo comp_info{VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO};
     comp_info.layout = pipeline_layout;

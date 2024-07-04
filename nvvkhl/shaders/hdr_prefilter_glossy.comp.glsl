@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2022-2024, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2014-2022 NVIDIA CORPORATION
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -48,10 +48,10 @@ layout(set = 1, binding = eHdr) uniform sampler2D hdrTexture;
 layout(push_constant) uniform HdrPushBlock_  { HdrPushBlock pc; };
 // clang-format on
 
-#include "constants.glsl"
-#include "func.glsl"
-#include "random.glsl"
-#include "hdr_env_sampling.glsl"
+#include "constants.h"
+#include "func.h"
+#include "random.h"
+#include "hdr_env_sampling.h"
 
 
 // Importance sample a GGX microfacet distribution.

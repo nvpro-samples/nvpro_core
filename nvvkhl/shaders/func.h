@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2022-2024, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,16 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2014-2022 NVIDIA CORPORATION
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #ifndef FUNC_GLSL
 #define FUNC_GLSL 1
 
-#include "constants.glsl"
+#include "constants.h"
 
+#ifdef __cplusplus
+#define OUT_TYPE(T) T&
+#else
+#define OUT_TYPE(T) out T
 precision highp float;
+#endif
+
 
 float square(float x)
 {
@@ -40,7 +46,7 @@ vec3 saturate(vec3 x)
 }
 
 // Return the luminance of a color
-float luminance(in vec3 color)
+float luminance(vec3 color)
 {
   return color.x * 0.2126F + color.y * 0.7152F + color.z * 0.0722F;
 }
@@ -60,29 +66,42 @@ float clampedDot(vec3 x, vec3 y)
   return clamp(dot(x, y), 0.0F, 1.0F);
 }
 
-// Return the tangent and binormal from the incoming normal
-void createCoordinateSystem(in vec3 normal, out vec3 tangent, out vec3 bitangent)
+//-----------------------------------------------------------------------------
+// Builds an orthonormal basis: given only a normal vector, returns a
+// tangent and bitangent.
+//
+// This uses the technique from "Improved accuracy when building an orthonormal
+// basis" by Nelson Max, https://jcgt.org/published/0006/01/02.
+// Any tangent-generating algorithm must produce at least one discontinuity
+// when operating on a sphere (due to the hairy ball theorem); this has a
+// small ring-shaped discontinuity at normal.z == -0.99998796.
+//-----------------------------------------------------------------------------
+void orthonormalBasis(vec3 normal, OUT_TYPE(vec3) tangent, OUT_TYPE(vec3) bitangent)
 {
-  if(abs(normal.x) > abs(normal.y))
-    tangent = vec3(normal.z, 0.0F, -normal.x) / sqrt(normal.x * normal.x + normal.z * normal.z);
-  else
-    tangent = vec3(0.0F, -normal.z, normal.y) / sqrt(normal.y * normal.y + normal.z * normal.z);
-  bitangent = cross(normal, tangent);
+  if(normal.z < -0.99998796F)  // Handle the singularity
+  {
+    tangent   = vec3(0.0F, -1.0F, 0.0F);
+    bitangent = vec3(-1.0F, 0.0F, 0.0F);
+    return;
+  }
+  float a   = 1.0F / (1.0F + normal.z);
+  float b   = -normal.x * normal.y * a;
+  tangent   = vec3(1.0F - normal.x * normal.x * a, b, -normal.x);
+  bitangent = vec3(b, 1.0f - normal.y * normal.y * a, -normal.y);
 }
 
-//-----------------------------------------------------------------------
-// Building an Orthonormal Basis, Revisited
-// by Tom Duff, James Burgess, Per Christensen, Christophe Hery, Andrew Kensler, Max Liani, Ryusuke Villemin
-// https://graphics.pixar.com/library/OrthonormalB/
-//-----------------------------------------------------------------------
-void orthonormalBasis(in vec3 normal, out vec3 tangent, out vec3 bitangent)
+//-----------------------------------------------------------------------------
+// Like orthonormalBasis(), but returns a tangent and tangent sign that matches
+// the glTF convention.
+vec4 makeFastTangent(vec3 normal)
 {
-  float sgn = normal.z > 0.0F ? 1.0F : -1.0F;
-  float a   = -1.0F / (sgn + normal.z);
-  float b   = normal.x * normal.y * a;
-
-  tangent   = vec3(1.0f + sgn * normal.x * normal.x * a, sgn * b, -sgn * normal.x);
-  bitangent = vec3(b, sgn + normal.y * normal.y * a, -normal.y);
+  vec3 tangent, unused;
+  orthonormalBasis(normal, tangent, unused);
+  // The glTF bitangent sign here is 1.f since for
+  // normal == vec3(0.0F, 0.0F, 1.0F), we get
+  // tangent == vec3(1.0F, 0.0F, 0.0F) and bitangent == vec3(0.0F, 1.0F, 0.0F),
+  // so bitangent = cross(normal, tangent).
+  return vec4(tangent, 1.f);
 }
 
 vec3 rotate(vec3 v, vec3 k, float theta)
@@ -135,18 +154,9 @@ vec3 cosineSampleHemisphere(float r1, float r2)
   vec3  dir;
   dir.x = r * cos(phi);
   dir.y = r * sin(phi);
-  dir.z = sqrt(max(0.0, 1.0 - dir.x * dir.x - dir.y * dir.y));
+  dir.z = sqrt(max(0.F, 1.F - dir.x * dir.x - dir.y * dir.y));
   return dir;
 }
 
-//-----------------------------------------------------------------------
-// Make a tangent from a normal
-vec4 makeFastTangent(vec3 nrm)
-{
-  const float sgn = nrm.z > 0.0F ? 1.0F : -1.0F;
-  const float a   = -1.0F / (sgn + nrm.z);
-  const float b   = nrm.x * nrm.y * a;
-  return vec4(1.0f + sgn * nrm.x * nrm.x * a, sgn * b, -sgn * nrm.x, sgn);
-}
-
+#undef OUT_TYPE
 #endif  // FUNC_GLSL

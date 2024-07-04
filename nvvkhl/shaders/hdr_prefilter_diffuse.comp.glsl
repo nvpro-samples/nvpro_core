@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2022-2024, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2014-2022 NVIDIA CORPORATION
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -30,9 +30,9 @@
 
 #include "dh_hdr.h"
 
-#include "constants.glsl"
-#include "func.glsl"
-#include "random.glsl"
+#include "constants.h"
+#include "func.h"
+#include "random.h"
 
 
 // clang-format off
@@ -46,7 +46,7 @@ layout(push_constant) uniform HdrPushBlock_  { HdrPushBlock pc; };
 // clang-format on
 
 
-#include "hdr_env_sampling.glsl"
+#include "hdr_env_sampling.h"
 
 
 void main()

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2022-2024, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,14 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2014-2022 NVIDIA CORPORATION
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #ifndef LIGHT_CONTRIB_H
 #define LIGHT_CONTRIB_H 1
 
-#include "func.glsl"
+#include "func.h"
 #include "dh_lighting.h"
 
 LightContrib singleLightContribution(in Light light, in vec3 surfacePos, in vec3 surfaceNormal, in vec3 viewIncident, in vec2 randVal)

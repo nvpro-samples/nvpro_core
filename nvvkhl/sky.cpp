@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2022-2024, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2014-2022 NVIDIA CORPORATION
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -31,7 +31,7 @@ using namespace glm;
 #include "sky.hpp"
 
 #include "nvvkhl/shaders/dh_comp.h"
-#include "_autogen/sky.comp.h"
+#include "_autogen/sky.comp.glsl.h"
 
 
 namespace nvvkhl {
@@ -87,7 +87,7 @@ void SkyDome::setup(const VkDevice& device, nvvk::ResourceAllocator* allocator)
   // HDR Dome compute shader
   VkPipelineShaderStageCreateInfo stage_info{VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
   stage_info.stage  = VK_SHADER_STAGE_COMPUTE_BIT;
-  stage_info.module = nvvk::createShaderModule(m_device, sky_comp, sizeof(sky_comp));
+  stage_info.module = nvvk::createShaderModule(m_device, sky_comp_glsl, sizeof(sky_comp_glsl));
   stage_info.pName  = "main";
 
   VkComputePipelineCreateInfo comp_info{VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO};

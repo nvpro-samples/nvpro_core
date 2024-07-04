@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2023-2024, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2014-2022 NVIDIA CORPORATION
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2024, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -44,6 +44,7 @@ struct BsdfEvaluateData
 {
   vec3  k1;            // [in] Toward the incoming ray
   vec3  k2;            // [in] Toward the sampled light
+  vec3  xi;            // [in] 3 random [0..1]
   vec3  bsdf_diffuse;  // [out] Diffuse contribution
   vec3  bsdf_glossy;   // [out] Specular contribution
   float pdf;           // [out] PDF
@@ -56,8 +57,8 @@ struct BsdfEvaluateData
 struct BsdfSampleData
 {
   vec3  k1;             // [in] Toward the incoming ray
-  vec3  k2;             // [in] Toward the sampled light
-  vec4  xi;             // [in] 4 random [0..1]
+  vec3  k2;             // [out] Toward the sampled light
+  vec3  xi;             // [in] 3 random [0..1]
   float pdf;            // [out] PDF
   vec3  bsdf_over_pdf;  // [out] contribution / PDF
   int   event_type;     // [out] one of the event above

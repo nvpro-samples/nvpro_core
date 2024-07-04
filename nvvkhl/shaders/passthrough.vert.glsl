@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2022-2024, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,24 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2014-2022 NVIDIA CORPORATION
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 
-#ifndef CONSTANTS_GLSL
-#define CONSTANTS_GLSL
+#version 450
+layout(location = 0) out vec2 outUv;
 
 
-precision highp float;
+out gl_PerVertex
+{
+  vec4 gl_Position;
+};
 
-const float M_PI        = 3.1415926535897F;  // PI
-const float M_TWO_PI    = 6.2831853071795F;  // 2*PI
-const float M_PI_2      = 1.5707963267948F;  // PI/2
-const float M_PI_4      = 0.7853981633974F;  // PI/4
-const float M_1_OVER_PI = 0.3183098861837F;  // 1/PI
-const float M_2_OVER_PI = 0.6366197723675F;  // 2/PI
 
-const float INFINITE = 1e32F;
-
-#endif  // CONSTANTS_GLSL
+void main()
+{
+  outUv       = vec2((gl_VertexIndex << 1) & 2, gl_VertexIndex & 2);
+  gl_Position = vec4(outUv * 2.0f - 1.0f, 1.0f, 1.0f);
+}

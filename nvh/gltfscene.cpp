@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2014-2024, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2014-2021 NVIDIA CORPORATION
+ * SPDX-FileCopyrightText: Copyright (c) 2014-2024, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -34,6 +34,23 @@
 #include <glm/gtc/type_ptr.hpp>
 #include "timesampler.hpp"
 
+// Given only a normal vector, finds a valid tangent.
+//
+// This uses the technique from "Improved accuracy when building an orthonormal
+// basis" by Nelson Max, https://jcgt.org/published/0006/01/02.
+// Any tangent-generating algorithm must produce at least one discontinuity
+// when operating on a sphere (due to the hairy ball theorem); this has a
+// small ring-shaped discontinuity at normal.z == -0.99998796.
+static glm::vec4 makeFastTangent(const glm::vec3& n)
+{
+  if(n.z < -0.99998796F)  // Handle the singularity
+  {
+    return glm::vec4(0.0F, -1.0F, 0.0F, 1.0F);
+  }
+  const float a = 1.0F / (1.0F + n.z);
+  const float b = -n.x * n.y * a;
+  return glm::vec4(1.0F - n.x * n.x * a, b, -n.x, 1.0F);
+}
 
 // Loading a GLTF file and extracting all information
 bool nvh::gltf::Scene::load(const std::string& filename)
@@ -1130,11 +1147,7 @@ void nvh::GltfScene::importDrawableNodes(const tinygltf::Model& tmodel,
         auto& t = m_tangents[i];
         if(glm::length2(glm::vec3(t)) < 0.01F || std::abs(t.w) < 0.5F)
         {
-          const auto& n   = m_normals[i];
-          const float sgn = n.z > 0.0F ? 1.0F : -1.0F;
-          const float a   = -1.0F / (sgn + n.z);
-          const float b   = n.x * n.y * a;
-          t               = glm::vec4(1.0f + sgn * n.x * n.x * a, sgn * b, -sgn * n.x, sgn);
+          t = makeFastTangent(m_normals[i]);
         }
       },
       num_threads);
@@ -1592,14 +1605,11 @@ void nvh::GltfScene::createTangents(GltfPrimMesh& resultMesh)
     // In case the tangent is invalid
     if(otangent == glm::vec3(0, 0, 0))
     {
-      if(fabsf(n.x) > fabsf(n.y))
-        otangent = glm::vec3(n.z, 0, -n.x) / sqrtf(n.x * n.x + n.z * n.z);
-      else
-        otangent = glm::vec3(0, -n.z, n.y) / sqrtf(n.y * n.y + n.z * n.z);
+      otangent = glm::vec3(makeFastTangent(n));
     }
 
     // Calculate handedness
-    float handedness = (glm::dot(glm::cross(n, t), b) < 0.0F) ? 1.0F : -1.0F;
+    float handedness = (glm::dot(glm::cross(n, t), b) <= 0.0F) ? 1.0F : -1.0F;
     m_tangents.emplace_back(otangent.x, otangent.y, otangent.z, handedness);
   }
 }
@@ -1763,15 +1773,11 @@ void nvh::GltfScene::computeCamera()
 void nvh::GltfScene::checkRequiredExtensions(const tinygltf::Model& tmodel)
 {
   std::set<std::string> supportedExtensions{
-      KHR_LIGHTS_PUNCTUAL_EXTENSION_NAME,
-      KHR_TEXTURE_TRANSFORM_EXTENSION_NAME,
-      KHR_MATERIALS_SPECULAR_EXTENSION_NAME,
-      KHR_MATERIALS_UNLIT_EXTENSION_NAME,
-      KHR_MATERIALS_ANISOTROPY_EXTENSION_NAME,
-      KHR_MATERIALS_IOR_EXTENSION_NAME,
-      KHR_MATERIALS_VOLUME_EXTENSION_NAME,
-      KHR_MATERIALS_TRANSMISSION_EXTENSION_NAME,
-      KHR_TEXTURE_BASISU_NAME,
+      KHR_LIGHTS_PUNCTUAL_EXTENSION_NAME,      KHR_TEXTURE_TRANSFORM_EXTENSION_NAME,
+      KHR_MATERIALS_SPECULAR_EXTENSION_NAME,   KHR_MATERIALS_UNLIT_EXTENSION_NAME,
+      KHR_MATERIALS_ANISOTROPY_EXTENSION_NAME, KHR_MATERIALS_IOR_EXTENSION_NAME,
+      KHR_MATERIALS_VOLUME_EXTENSION_NAME,     KHR_MATERIALS_TRANSMISSION_EXTENSION_NAME,
+      KHR_TEXTURE_BASISU_EXTENSION_NAME,
   };
 
   for(auto& e : tmodel.extensionsRequired)

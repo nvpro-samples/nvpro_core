@@ -84,10 +84,10 @@ struct KHR_materials_clearcoat
 #define KHR_MATERIALS_SHEEN_EXTENSION_NAME "KHR_materials_sheen"
 struct KHR_materials_sheen
 {
-  glm::vec3             colorFactor      = {0.0f, 0.0f, 0.0f};
-  tinygltf::TextureInfo colorTexture     = {};
-  float                 roughnessFactor  = 0.0f;
-  tinygltf::TextureInfo roughnessTexture = {};
+  glm::vec3             sheenColorFactor      = {0.0f, 0.0f, 0.0f};
+  tinygltf::TextureInfo sheenColorTexture     = {};
+  float                 sheenRoughnessFactor  = 0.0f;
+  tinygltf::TextureInfo sheenRoughnessTexture = {};
 };
 
 // https://github.com/DassaultSystemes-Technology/glTF/tree/KHR_materials_volume/extensions/2.0/Khronos/KHR_materials_transmission
@@ -105,13 +105,13 @@ struct KHR_materials_unlit
   int active = 0;
 };
 
-// PBR Next : KHR_materials_anisotropy
+// https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_materials_anisotropy/README.md
 #define KHR_MATERIALS_ANISOTROPY_EXTENSION_NAME "KHR_materials_anisotropy"
 struct KHR_materials_anisotropy
 {
-  float                 factor    = 0.0f;
-  glm::vec3             direction = {1.0f, 0.0f, 0.0f};
-  tinygltf::TextureInfo texture   = {};
+  float                 anisotropyStrength = 0.0f;
+  float                 anisotropyRotation = 0.0f;
+  tinygltf::TextureInfo anisotropyTexture  = {};
 };
 
 
@@ -134,14 +134,14 @@ struct KHR_materials_volume
 
 
 // https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_texture_basisu/README.md
-#define KHR_TEXTURE_BASISU_NAME "KHR_texture_basisu"
+#define KHR_TEXTURE_BASISU_EXTENSION_NAME "KHR_texture_basisu"
 struct KHR_texture_basisu
 {
   tinygltf::TextureInfo source;
 };
 
 // https://github.com/KhronosGroup/glTF/issues/948
-#define KHR_MATERIALS_DISPLACEMENT_NAME "KHR_materials_displacement"
+#define KHR_MATERIALS_DISPLACEMENT_EXTENSION_NAME "KHR_materials_displacement"
 struct KHR_materials_displacement
 {
   float                 displacementGeometryFactor  = 1.0f;
@@ -151,11 +151,24 @@ struct KHR_materials_displacement
 
 
 // https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_materials_emissive_strength/README.md
-#define KHR_MATERIALS_EMISSIVE_STRENGTH_NAME "KHR_materials_emissive_strength"
+#define KHR_MATERIALS_EMISSIVE_STRENGTH_EXTENSION_NAME "KHR_materials_emissive_strength"
 struct KHR_materials_emissive_strength
 {
   float emissiveStrength = 1.0;
 };
+
+// https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_materials_iridescence/README.md
+#define KHR_MATERIALS_IRIDESCENCE_EXTENSION_NAME "KHR_materials_iridescence"
+struct KHR_materials_iridescence
+{
+  float                 iridescenceFactor           = 0.0f;
+  tinygltf::TextureInfo iridescenceTexture          = {};
+  float                 iridescenceIor              = 1.3f;
+  float                 iridescenceThicknessMinimum = 100.f;
+  float                 iridescenceThicknessMaximum = 400.f;
+  tinygltf::TextureInfo iridescenceThicknessTexture = {};
+};
+
 
 namespace tinygltf {
 
@@ -727,7 +740,7 @@ KHR_materials_ior               getIor(const tinygltf::Material& tmat);
 KHR_materials_volume            getVolume(const tinygltf::Material& tmat);
 KHR_materials_displacement      getDisplacement(const tinygltf::Material& tmat);
 KHR_materials_emissive_strength getEmissiveStrength(const tinygltf::Material& tmat);
-
+KHR_materials_iridescence       getIridescence(const tinygltf::Material& tmat);
 
 }  // namespace utils
 

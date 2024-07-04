@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2022-2024, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2014-2022 NVIDIA CORPORATION
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -87,31 +87,60 @@ nvvkhl_shaders::GltfShadeMaterial getShaderMaterial(const tinygltf::Material& sr
   dstMat.pbrRoughnessFactor          = static_cast<float>(srcMat.pbrMetallicRoughness.roughnessFactor);
   dstMat.alphaMode   = srcMat.alphaMode == "OPAQUE" ? 0 : (srcMat.alphaMode == "MASK" ? 1 : 2 /*BLEND*/);
   dstMat.alphaCutoff = static_cast<float>(srcMat.alphaCutoff);
+
   KHR_materials_transmission transmission = tinygltf::utils::getTransmission(srcMat);
   dstMat.transmissionFactor               = transmission.factor;
   dstMat.transmissionTexture              = transmission.texture.index;
-  KHR_materials_ior ior                   = tinygltf::utils::getIor(srcMat);
-  dstMat.ior                              = ior.ior;
-  KHR_materials_volume volume             = tinygltf::utils::getVolume(srcMat);
-  dstMat.attenuationColor                 = volume.attenuationColor;
-  dstMat.thicknessFactor                  = volume.thicknessFactor;
-  dstMat.thicknessTexture                 = volume.thicknessTexture.index;
-  dstMat.attenuationDistance              = volume.attenuationDistance;
-  KHR_materials_clearcoat clearcoat       = tinygltf::utils::getClearcoat(srcMat);
-  dstMat.clearcoatFactor                  = clearcoat.factor;
-  dstMat.clearcoatRoughness               = clearcoat.roughnessFactor;
-  dstMat.clearcoatRoughnessTexture        = clearcoat.roughnessTexture.index;
-  dstMat.clearcoatTexture                 = clearcoat.texture.index;
-  dstMat.clearcoatNormalTexture           = clearcoat.normalTexture.index;
-  KHR_materials_specular specular         = tinygltf::utils::getSpecular(srcMat);
-  dstMat.specularFactor                   = specular.specularFactor;
-  dstMat.specularTexture                  = specular.specularTexture.index;
-  dstMat.specularColorFactor              = specular.specularColorFactor;
-  dstMat.specularColorTexture             = specular.specularColorTexture.index;
+
+  KHR_materials_ior ior = tinygltf::utils::getIor(srcMat);
+  dstMat.ior            = ior.ior;
+
+  KHR_materials_volume volume = tinygltf::utils::getVolume(srcMat);
+  dstMat.attenuationColor     = volume.attenuationColor;
+  dstMat.thicknessFactor      = volume.thicknessFactor;
+  dstMat.thicknessTexture     = volume.thicknessTexture.index;
+  dstMat.attenuationDistance  = volume.attenuationDistance;
+
+  KHR_materials_clearcoat clearcoat = tinygltf::utils::getClearcoat(srcMat);
+  dstMat.clearcoatFactor            = clearcoat.factor;
+  dstMat.clearcoatRoughness         = clearcoat.roughnessFactor;
+  dstMat.clearcoatRoughnessTexture  = clearcoat.roughnessTexture.index;
+  dstMat.clearcoatTexture           = clearcoat.texture.index;
+  dstMat.clearcoatNormalTexture     = clearcoat.normalTexture.index;
+
+  KHR_materials_specular specular = tinygltf::utils::getSpecular(srcMat);
+  dstMat.specularFactor           = specular.specularFactor;
+  dstMat.specularTexture          = specular.specularTexture.index;
+  dstMat.specularColorFactor      = specular.specularColorFactor;
+  dstMat.specularColorTexture     = specular.specularColorTexture.index;
+
   KHR_texture_transform textureTransform = tinygltf::utils::getTextureTransform(srcMat.pbrMetallicRoughness.baseColorTexture);
-  dstMat.uvTransform                               = textureTransform.uvTransform;
+  dstMat.uvTransform = textureTransform.uvTransform;
+
   KHR_materials_emissive_strength emissiveStrength = tinygltf::utils::getEmissiveStrength(srcMat);
   dstMat.emissiveFactor *= emissiveStrength.emissiveStrength;
+
+  KHR_materials_unlit unlit = tinygltf::utils::getUnlit(srcMat);
+  dstMat.unlit              = unlit.active ? 1 : 0;
+
+  KHR_materials_iridescence iridescence = tinygltf::utils::getIridescence(srcMat);
+  dstMat.iridescenceFactor              = iridescence.iridescenceFactor;
+  dstMat.iridescenceTexture             = iridescence.iridescenceTexture.index;
+  dstMat.iridescenceIor                 = iridescence.iridescenceIor;
+  dstMat.iridescenceThicknessMaximum    = iridescence.iridescenceThicknessMaximum;
+  dstMat.iridescenceThicknessMinimum    = iridescence.iridescenceThicknessMinimum;
+  dstMat.iridescenceThicknessTexture    = iridescence.iridescenceThicknessTexture.index;
+
+  KHR_materials_anisotropy anisotropy = tinygltf::utils::getAnisotropy(srcMat);
+  dstMat.anisotropyRotation           = anisotropy.anisotropyRotation;
+  dstMat.anisotropyStrength           = anisotropy.anisotropyStrength;
+  dstMat.anisotropyTexture            = anisotropy.anisotropyTexture.index;
+
+  KHR_materials_sheen sheen    = tinygltf::utils::getSheen(srcMat);
+  dstMat.sheenColorFactor      = sheen.sheenColorFactor;
+  dstMat.sheenColorTexture     = sheen.sheenColorTexture.index;
+  dstMat.sheenRoughnessFactor  = sheen.sheenRoughnessFactor;
+  dstMat.sheenRoughnessTexture = sheen.sheenRoughnessTexture.index;
 
   return dstMat;
 }

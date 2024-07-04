@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2022-2024, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2014-2021 NVIDIA CORPORATION
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -27,9 +27,9 @@
 #include "nvvk/debug_util_vk.hpp"
 
 #include "shaders/dh_comp.h"
-#include "_autogen/passthrough.vert.h"
-#include "_autogen/tonemapper.frag.h"
-#include "_autogen/tonemapper.comp.h"
+#include "_autogen/passthrough.vert.glsl.h"
+#include "_autogen/tonemapper.frag.glsl.h"
+#include "_autogen/tonemapper.comp.glsl.h"
 
 #include "tonemap_postprocess.hpp"
 
@@ -75,8 +75,8 @@ void TonemapperPostProcess::createGraphicPipeline(VkFormat colorFormat, VkFormat
   pstate.rasterizationState.cullMode = VK_CULL_MODE_NONE;
 
   nvvk::GraphicsPipelineGenerator pgen(m_device, d->getPipeLayout(), prend_info, pstate);
-  pgen.addShader(std::vector<uint32_t>{std::begin(passthrough_vert), std::end(passthrough_vert)}, VK_SHADER_STAGE_VERTEX_BIT);
-  pgen.addShader(std::vector<uint32_t>{std::begin(tonemapper_frag), std::end(tonemapper_frag)}, VK_SHADER_STAGE_FRAGMENT_BIT);
+  pgen.addShader(std::vector<uint32_t>{std::begin(passthrough_vert_glsl), std::end(passthrough_vert_glsl)}, VK_SHADER_STAGE_VERTEX_BIT);
+  pgen.addShader(std::vector<uint32_t>{std::begin(tonemapper_frag_glsl), std::end(tonemapper_frag_glsl)}, VK_SHADER_STAGE_FRAGMENT_BIT);
 
   m_graphicsPipeline = pgen.createPipeline();
   m_dutil->DBG_NAME(m_graphicsPipeline);
@@ -103,7 +103,7 @@ void TonemapperPostProcess::createComputePipeline()
 
   VkPipelineShaderStageCreateInfo stage_info{VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
   stage_info.stage  = VK_SHADER_STAGE_COMPUTE_BIT;
-  stage_info.module = nvvk::createShaderModule(m_device, tonemapper_comp, sizeof(tonemapper_comp));
+  stage_info.module = nvvk::createShaderModule(m_device, tonemapper_comp_glsl, sizeof(tonemapper_comp_glsl));
   stage_info.pName  = "main";
 
   VkComputePipelineCreateInfo comp_info{VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO};
