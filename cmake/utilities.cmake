@@ -1,5 +1,5 @@
 #*****************************************************************************
-# Copyright 2020-2023 NVIDIA Corporation. All rights reserved.
+# Copyright 2020-2024 NVIDIA Corporation. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -51,84 +51,6 @@ function(target_copy_to_output_dir)
             )
         endif()
     endforeach()
-endfunction()
-
-
-#------------------------------------------------------------------------------------
-# Downloading the URL to FILENAME and extract its content if EXTRACT option is present
-# ZIP files should have a folder of the name of the archive
-# - ex. foo.zip -> foo/<data>
-# Arguements
-#  FILENAMES   : all filenames to download
-#  EXTRACT     : if present, will extract the content of the file
-#  NOINSTALL   : if present, will not make files part of install
-#  INSTALL_DIR : folder for the 'install' build, default is 'media' next to the executable
-#  TARGET_DIR  : folder where to download to, default is {DOWNLOAD_TARGET_DIR}
-#  SOURCE_DIR  : folder on server, if not present 'scenes'
-#
-# Examples:
-# download_files(FILENAMES sample1.zip EXTRACT) 
-# download_files(FILENAMES env.hdr)
-# download_files(FILENAMES zlib.zip EXTRACT TARGET_DIR ${BASE_DIRECTORY}/blah SOURCE_DIR libraries NOINSTALL) 
-# 
-function(download_files)
-  set(options EXTRACT NOINSTALL)
-  set(oneValueArgs INSTALL_DIR SOURCE_DIR TARGET_DIR)
-  set(multiValueArgs FILENAMES)
-  cmake_parse_arguments(DOWNLOAD_FILES  "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN} )
-
-  if(NOT DEFINED DOWNLOAD_FILES_INSTALL_DIR)
-    set(DOWNLOAD_FILES_INSTALL_DIR "media")
-  endif()
-  if(NOT DEFINED DOWNLOAD_FILES_SOURCE_DIR)
-    set(DOWNLOAD_FILES_SOURCE_DIR "")
-  endif()
-  if(NOT DEFINED DOWNLOAD_FILES_TARGET_DIR)
-    set(DOWNLOAD_FILES_TARGET_DIR ${DOWNLOAD_TARGET_DIR})
-  endif()
-
-  # Check each file to download
-  foreach(FILENAME ${DOWNLOAD_FILES_FILENAMES})
-   
-    set(TARGET_FILENAME ${DOWNLOAD_FILES_TARGET_DIR}/${FILENAME})
-    if(NOT EXISTS ${TARGET_FILENAME})
-      message(STATUS "Downloading ${DOWNLOAD_SITE}/${FILENAME} to ${TARGET_FILENAME}")
-      file(DOWNLOAD ${DOWNLOAD_SITE}${DOWNLOAD_FILES_SOURCE_DIR}/${FILENAME} ${TARGET_FILENAME}
-        SHOW_PROGRESS
-        STATUS _DOWNLOAD_STATUS)
-
-      # Check whether the download succeeded. _DOWNLOAD_STATUS is a list of
-      # length 2; element 0 is the return value (0 == no error), element 1 is
-      # a string value for the error.
-      list(GET _DOWNLOAD_STATUS 0 _DOWNLOAD_STATUS_CODE)
-      if(NOT (${_DOWNLOAD_STATUS_CODE} EQUAL 0))
-        list(GET _DOWNLOAD_STATUS 1 _DOWNLOAD_STATUS_MESSAGE)
-        message(FATAL_ERROR "Download of ${DOWNLOAD_SITE}/${FILENAME} to ${TARGET_FILENAME} failed with code ${_DOWNLOAD_STATUS_CODE}: ${_DOWNLOAD_STATUS_MESSAGE}")
-      endif()
-  
-      # Extracting the ZIP file
-	    if(DOWNLOAD_FILES_EXTRACT)
-		    execute_process(COMMAND ${CMAKE_COMMAND} -E tar -xf ${TARGET_FILENAME}
-						          WORKING_DIRECTORY ${DOWNLOAD_FILES_TARGET_DIR})
-        # ARCHIVE_EXTRACT needs CMake 3.18+
-        # file(ARCHIVE_EXTRACT INPUT ${TARGET_FILENAME}
-        #      DESTINATION ${DOWNLOAD_FILES_TARGET_DIR})
-      endif()
-    endif()
-
-    # Installing the files or directory
-    if (NOT DOWNLOAD_FILES_NOINSTALL)
-      if(DOWNLOAD_FILES_EXTRACT)
-       get_filename_component(FILE_DIR ${FILENAME} NAME_WE)
-       install(DIRECTORY ${DOWNLOAD_FILES_TARGET_DIR}/${FILE_DIR} CONFIGURATIONS Release DESTINATION "bin_${ARCH}/${DOWNLOAD_FILES_INSTALL_DIR}")
-       install(DIRECTORY ${DOWNLOAD_FILES_TARGET_DIR}/${FILE_DIR} CONFIGURATIONS Debug DESTINATION "bin_${ARCH}_debug/${DOWNLOAD_FILES_INSTALL_DIR}")
-      else()
-       install(FILES ${TARGET_FILENAME} CONFIGURATIONS Release DESTINATION "bin_${ARCH}/${DOWNLOAD_FILES_INSTALL_DIR}")
-       install(FILES ${TARGET_FILENAME} CONFIGURATIONS Debug DESTINATION "bin_${ARCH}_debug/${DOWNLOAD_FILES_INSTALL_DIR}")
-      endif()
-    endif()
-
-  endforeach()
 endfunction()
 
 #------------------------------------------------------------------------------------
