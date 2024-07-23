@@ -32,31 +32,49 @@ using namespace glm;
 
 #include "nvvkhl/shaders/dh_comp.h"
 #include "_autogen/sky.comp.glsl.h"
+#include "_autogen/sky_physical.comp.glsl.h"
 
 
 namespace nvvkhl {
 
 
-SkyDome::SkyDome(VkDevice device, nvvk::ResourceAllocator* allocator)
-    : m_device(device)
-{
-  setup(device, allocator);
-}
-
-SkyDome::~SkyDome()
+SkyBase::~SkyBase()
 {
   destroy();
 }
 
-void SkyDome::setup(const VkDevice& device, nvvk::ResourceAllocator* allocator)
+void SimpleSkyDome::createBuffer()
+{
+  VkDeviceSize bufferSize = sizeof(nvvkhl_shaders::SimpleSkyParameters);
+  m_skyInfoBuf = m_alloc->createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+}
+
+void PhysicalSkyDome::createBuffer()
+{
+  VkDeviceSize bufferSize = sizeof(nvvkhl_shaders::PhysicalSkyParameters);
+  m_skyInfoBuf = m_alloc->createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+}
+
+VkShaderModule SimpleSkyDome::createShaderModule()
+{
+  return nvvk::createShaderModule(m_device, sky_comp_glsl, sizeof(sky_comp_glsl));
+}
+
+VkShaderModule PhysicalSkyDome::createShaderModule()
+{
+  return nvvk::createShaderModule(m_device, sky_physical_comp_glsl, sizeof(sky_physical_comp_glsl));
+}
+
+
+void SkyBase::setup(const VkDevice& device, nvvk::ResourceAllocator* allocator)
 {
   m_device = device;
   m_alloc  = allocator;
   m_debug.setup(device);
 
-  m_skyInfoBuf = m_alloc->createBuffer(sizeof(nvvkhl_shaders::ProceduralSkyShaderParameters),
-                                       VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+  createBuffer();  // Virtual
   NAME2_VK(m_skyInfoBuf.buffer, "SkyInfo");
 
   // Descriptor: the output image and parameters
@@ -87,7 +105,7 @@ void SkyDome::setup(const VkDevice& device, nvvk::ResourceAllocator* allocator)
   // HDR Dome compute shader
   VkPipelineShaderStageCreateInfo stage_info{VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
   stage_info.stage  = VK_SHADER_STAGE_COMPUTE_BIT;
-  stage_info.module = nvvk::createShaderModule(m_device, sky_comp_glsl, sizeof(sky_comp_glsl));
+  stage_info.module = createShaderModule();
   stage_info.pName  = "main";
 
   VkComputePipelineCreateInfo comp_info{VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO};
@@ -101,7 +119,7 @@ void SkyDome::setup(const VkDevice& device, nvvk::ResourceAllocator* allocator)
   vkDestroyShaderModule(m_device, comp_info.stage.module, nullptr);
 }
 
-void SkyDome::setOutImage(const VkDescriptorImageInfo& outimage)
+void SkyBase::setOutImage(const VkDescriptorImageInfo& outimage)
 {
   VkWriteDescriptorSet wds{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
   wds.dstSet          = m_skyDSet;
@@ -112,7 +130,7 @@ void SkyDome::setOutImage(const VkDescriptorImageInfo& outimage)
   vkUpdateDescriptorSets(m_device, 1, &wds, 0, nullptr);
 }
 
-void SkyDome::draw(const VkCommandBuffer& cmd, const glm::mat4& view, const glm::mat4& proj, const VkExtent2D& size)
+void SkyBase::draw(const VkCommandBuffer& cmd, const glm::mat4& view, const glm::mat4& proj, const VkExtent2D& size)
 {
   LABEL_SCOPE_VK(cmd);
 
@@ -130,7 +148,7 @@ void SkyDome::draw(const VkCommandBuffer& cmd, const glm::mat4& view, const glm:
   vkCmdDispatch(cmd, group_counts.width, group_counts.height, 1);
 }
 
-void SkyDome::destroy()
+void SkyBase::destroy()
 {
   m_alloc->destroy(m_skyInfoBuf);
 
@@ -144,11 +162,9 @@ void SkyDome::destroy()
   m_skyDPool          = VK_NULL_HANDLE;
 }
 
-void SkyDome::updateParameterBuffer(VkCommandBuffer cmd) const
-{
-  nvvkhl_shaders::ProceduralSkyShaderParameters output = fillSkyShaderParameters(m_skyParams);
-  vkCmdUpdateBuffer(cmd, m_skyInfoBuf.buffer, 0, sizeof(nvvkhl_shaders::ProceduralSkyShaderParameters), &output);
 
+void memoryBarrier(VkCommandBuffer cmd)
+{
   // Make sure the buffer is available when using it
   VkMemoryBarrier mb{VK_STRUCTURE_TYPE_MEMORY_BARRIER};
   mb.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT | VK_ACCESS_MEMORY_READ_BIT;
@@ -157,20 +173,117 @@ void SkyDome::updateParameterBuffer(VkCommandBuffer cmd) const
                        VK_PIPELINE_STAGE_TRANSFER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 1, &mb, 0, nullptr, 0, nullptr);
 }
 
-nvvkhl_shaders::Light SkyDome::getSun() const
+void SimpleSkyDome::updateParameterBuffer(VkCommandBuffer cmd) const
+{
+  vkCmdUpdateBuffer(cmd, m_skyInfoBuf.buffer, 0, sizeof(nvvkhl_shaders::SimpleSkyParameters), &m_skyParams);
+  memoryBarrier(cmd);  // Make sure the buffer is available when using it
+}
+
+void PhysicalSkyDome::updateParameterBuffer(VkCommandBuffer cmd) const
+{
+  vkCmdUpdateBuffer(cmd, m_skyInfoBuf.buffer, 0, sizeof(nvvkhl_shaders::PhysicalSkyParameters), &m_skyParams);
+  memoryBarrier(cmd);  // Make sure the buffer is available when using it
+}
+
+nvvkhl_shaders::Light SimpleSkyDome::getSun() const
 {
   nvvkhl_shaders::Light sun{};
   sun.type                  = nvvkhl_shaders::eLightTypeDirectional;
-  sun.angularSizeOrInvRange = m_skyParams.angularSize;
-  sun.direction             = m_skyParams.direction;
-  sun.color                 = m_skyParams.color;
-  sun.intensity             = m_skyParams.intensity;
+  sun.angularSizeOrInvRange = m_skyParams.angularSizeOfLight;
+  sun.direction             = -m_skyParams.directionToLight;
+  sun.color                 = m_skyParams.sunColor;
+  sun.intensity             = m_skyParams.sunIntensity;
+
   return sun;
 }
 
-bool SkyDome::onUI()
+nvvkhl_shaders::Light PhysicalSkyDome::getSun() const
+{
+  nvvkhl_shaders::Light sun{};
+  sun.type                  = nvvkhl_shaders::eLightTypeDirectional;
+  sun.angularSizeOrInvRange = 0.00465f * m_skyParams.sunDiskScale;
+  sun.direction             = -m_skyParams.sunDirection;
+  sun.color                 = glm::vec3(1, 1, 1);
+  sun.intensity             = m_skyParams.sunDiskIntensity;
+
+  return sun;
+}
+
+
+bool SimpleSkyDome::onUI()
 {
   return skyParametersUI(m_skyParams);
+}
+
+bool PhysicalSkyDome::onUI()
+{
+  return physicalSkyUI(m_skyParams);
+}
+
+bool skyParametersUI(nvvkhl_shaders::SimpleSkyParameters& params)
+{
+  namespace PE = ImGuiH::PropertyEditor;
+
+  bool changed{false};
+
+  changed |= ImGuiH::azimuthElevationSliders(params.directionToLight, false, params.directionUp.y >= params.directionUp.z);
+  changed |= PE::ColorEdit3("Color", &params.sunColor.x, ImGuiColorEditFlags_Float);
+  changed |= PE::SliderFloat("Irradiance", &params.sunIntensity, 0.F, 100.F, "%.2f", ImGuiSliderFlags_Logarithmic);
+  changed |= PE::SliderAngle("Angular Size", &params.angularSizeOfLight, 0.1F, 20.F);
+  params.angularSizeOfLight = glm::clamp(params.angularSizeOfLight, glm::radians(0.1F), glm::radians(90.F));
+
+  auto  square           = [](auto a) { return a * a; };
+  float lightAngularSize = glm::clamp(params.angularSizeOfLight, glm::radians(0.1F), glm::radians(90.F));
+  float lightSolidAngle  = 4.0F * glm::pi<float>() * square(sinf(lightAngularSize * 0.5F));
+  float lightRadiance    = params.sunIntensity / lightSolidAngle;
+  params.lightRadiance   = params.sunColor * lightRadiance;
+
+  if(PE::treeNode("Extra"))
+  {
+    changed |= PE::SliderFloat("Brightness", &params.brightness, 0.F, 1.F);
+    changed |= PE::SliderAngle("Glow Size", &params.glowSize, 0.F, 20.F);
+    changed |= PE::SliderFloat("Glow Sharpness", &params.glowSharpness, 1.F, 10.F);
+    changed |= PE::SliderFloat("Glow Intensity", &params.glowIntensity, 0.F, 1.F);
+    changed |= PE::SliderAngle("Horizon Size", &params.horizonSize, 0.F, 90.F);
+    changed |= PE::ColorEdit3("Sky Color", &params.skyColor.x, ImGuiColorEditFlags_Float);
+    changed |= PE::ColorEdit3("Horizon Color", &params.horizonColor.x, ImGuiColorEditFlags_Float);
+    changed |= PE::ColorEdit3("Ground Color", &params.groundColor.x, ImGuiColorEditFlags_Float);
+    PE::treePop();
+  }
+
+  return changed;
+}
+
+bool physicalSkyUI(nvvkhl_shaders::PhysicalSkyParameters& params)
+{
+  namespace PE = ImGuiH::PropertyEditor;
+
+
+  bool changed{false};
+  if(PE::entry(
+         "", [&] { return ImGui::SmallButton("reset"); }, "Default values"))
+  {
+    params  = nvvkhl_shaders::initPhysicalSkyParameters();
+    changed = true;
+  }
+  changed |= ImGuiH::azimuthElevationSliders(params.sunDirection, false, params.yIsUp == 1);
+  changed |= PE::SliderFloat("Sun Disk Scale", &params.sunDiskScale, 0.F, 10.F);
+  changed |= PE::SliderFloat("Sun Disk Intensity", &params.sunDiskIntensity, 0.F, 5.F);
+  changed |= PE::SliderFloat("Sun Glow Intensity", &params.sunGlowIntensity, 0.F, 5.F);
+
+  if(PE::treeNode("Extra"))
+  {
+    changed |= PE::SliderFloat("Haze", &params.haze, 0.F, 15.F);
+    changed |= PE::SliderFloat("Red Blue Shift", &params.redblueshift, -1.F, 1.F);
+    changed |= PE::SliderFloat("Saturation", &params.saturation, 0.F, 1.F);
+    changed |= PE::SliderFloat("Horizon Height", &params.horizonHeight, -1.F, 1.F);
+    changed |= PE::ColorEdit3("Ground Color", &params.groundColor.x, ImGuiColorEditFlags_Float);
+    changed |= PE::SliderFloat("Horizon Blur", &params.horizonBlur, 0.F, 5.F);
+    changed |= PE::ColorEdit3("Night Color", &params.nightColor.x, ImGuiColorEditFlags_Float);
+    PE::treePop();
+  }
+
+  return changed;
 }
 
 }  // namespace nvvkhl

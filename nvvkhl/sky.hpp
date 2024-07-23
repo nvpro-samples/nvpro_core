@@ -37,119 +37,30 @@ class Context;
 }
 
 namespace nvvkhl {
-struct SkyParameters
-{
-  glm::vec3 skyColor{0.17F, 0.37F, 0.65F};
-  glm::vec3 horizonColor{0.50F, 0.70F, 0.92F};
-  glm::vec3 groundColor{0.62F, 0.59F, 0.55F};
-  glm::vec3 directionUp{0.F, 1.F, 0.F};
-  float     brightness       = 0.3F;   // scaler for sky brightness
-  float     horizonSize      = 30.F;   // +/- degrees
-  float     glowSize         = 5.F;    // degrees, starting from the edge of the light disk
-  float     glowIntensity    = 0.1F;   // [0-1] relative to light intensity
-  float     glowSharpness    = 4.F;    // [1-10] is the glow power exponent
-  float     maxLightRadiance = 100.F;  // clamp for light radiance derived from its angular size, 0 = no clamp
-  // Sun
-  float     angularSize = glm::radians(0.53F);
-  float     intensity   = 1.0F;
-  glm::vec3 direction   = glm::normalize(glm::vec3{0.0F, -.7F, -.7F});
-  glm::vec3 color       = {1.0F, 1.0F, 1.0F};
-};
 
-inline nvvkhl_shaders::ProceduralSkyShaderParameters fillSkyShaderParameters(const SkyParameters& input)
-{
-  nvvkhl_shaders::ProceduralSkyShaderParameters output{};
+// Imgui UI for sky parameters
+bool skyParametersUI(nvvkhl_shaders::SimpleSkyParameters& params);
+bool physicalSkyUI(nvvkhl_shaders::PhysicalSkyParameters& params);
 
-  auto  square             = [](auto a) { return a * a; };
-  float light_angular_size = glm::clamp(input.angularSize, glm::radians(0.1F), glm::radians(90.F));
-  float light_solid_angle  = 4.0F * glm::pi<float>() * square(sinf(light_angular_size * 0.5F));
-  float light_radiance     = input.intensity / light_solid_angle;
-
-  if(input.maxLightRadiance > 0.F)
-  {
-    light_radiance = std::min(light_radiance, input.maxLightRadiance);
-  }
-
-  output.directionToLight   = glm::normalize(-input.direction);
-  output.angularSizeOfLight = light_angular_size;
-  output.lightColor         = light_radiance * input.color;
-  output.glowSize           = glm::radians(glm::clamp(input.glowSize, 0.F, 90.F));
-  output.skyColor           = input.skyColor * input.brightness;
-  output.glowIntensity      = glm::clamp(input.glowIntensity, 0.F, 1.F);
-  output.horizonColor       = input.horizonColor * input.brightness;
-  output.horizonSize        = glm::radians(glm::clamp(input.horizonSize, 0.F, 90.F));
-  output.groundColor        = input.groundColor * input.brightness;
-  output.glowSharpness      = glm::clamp(input.glowSharpness, 1.F, 10.F);
-  output.directionUp        = normalize(input.directionUp);
-
-  return output;
-}
-
-
-inline bool skyParametersUI(SkyParameters& skyParams)
-{
-  namespace PE = ImGuiH::PropertyEditor;
-
-  bool changed{false};
-
-  glm::vec3 dir = skyParams.direction;
-  changed |= ImGuiH::azimuthElevationSliders(dir, true, skyParams.directionUp.y == 1.0F);
-  skyParams.direction = dir;
-  // clang-format off
-    changed |= PE::ColorEdit3("Color", &skyParams.color.x, ImGuiColorEditFlags_Float);                                   
-    changed |= PE::SliderFloat("Irradiance", &skyParams.intensity, 0.F, 100.F, "%.2f", ImGuiSliderFlags_Logarithmic);    
-    changed |= PE::SliderAngle("Angular Size", &skyParams.angularSize, 0.1F, 20.F);
-  // clang-format on
-
-
-  if(PE::treeNode("Extra"))
-  {
-    // clang-format off
-      changed |= PE::entry("Brightness", [&]() { return ImGui::SliderFloat("Brightness", &skyParams.brightness, 0.F, 1.F);         });
-      changed |= PE::entry("Glow Size", [&]() { return ImGui::SliderFloat("Glow Size", &skyParams.glowSize, 0.F, 90.F);           });
-      changed |= PE::entry("Glow Sharpness", [&]() { return ImGui::SliderFloat("Glow Sharpness", &skyParams.glowSharpness, 1.F, 10.F); });
-      changed |= PE::entry("Glow Intensity", [&]() { return ImGui::SliderFloat("Glow Intensity", &skyParams.glowIntensity, 0.F, 1.F);  });
-      changed |= PE::entry("Horizon Size", [&]() { return ImGui::SliderFloat("Horizon Size", &skyParams.horizonSize, 0.F, 90.F);     });
-      changed |= PE::entry("Sky Color", [&]() { return ImGui::ColorEdit3("Sky Color", &skyParams.skyColor.x, ImGuiColorEditFlags_Float);         });
-      changed |= PE::entry("Horizon Color", [&]() { return ImGui::ColorEdit3("Horizon Color", &skyParams.horizonColor.x, ImGuiColorEditFlags_Float); });
-      changed |= PE::entry("Ground Color", [&]() { return ImGui::ColorEdit3("Ground Color", &skyParams.groundColor.x, ImGuiColorEditFlags_Float);   });
-    // clang-format on
-    PE::treePop();
-  }
-
-  return changed;
-}
-
-
-/** @DOC_START
-# class nvvkhl::SkyDome
-
->  This class is responsible for the sky dome. 
-
-This class can render a sky dome with a sun, for both the rasterizer and the ray tracer. 
-
-The `draw` method is responsible for rendering the sky dome for the rasterizer. For ray tracing, there is no need to call this method, as the sky dome is part of the ray tracing shaders (see shaders/dh_sky.h).
-
-@DOC_END  */
-class SkyDome
+class SkyBase
 {
 public:
-  SkyDome(VkDevice device, nvvk::ResourceAllocator* allocator);
-  ~SkyDome();
+  // Cannot call virtual function in constructor: setup() must be called in derived class
+  SkyBase() = default;
+  virtual ~SkyBase();
 
-  void setup(const VkDevice& device, nvvk::ResourceAllocator* allocator);
-  void setOutImage(const VkDescriptorImageInfo& outimage);
-  void draw(const VkCommandBuffer& cmd, const glm::mat4& view, const glm::mat4& proj, const VkExtent2D& size);
-  void destroy();
-  void updateParameterBuffer(VkCommandBuffer cmd) const;
-  bool onUI();
+  virtual void setup(const VkDevice& device, nvvk::ResourceAllocator* allocator);
+  virtual void setOutImage(const VkDescriptorImageInfo& outimage);
+  virtual void draw(const VkCommandBuffer& cmd, const glm::mat4& view, const glm::mat4& proj, const VkExtent2D& size);
+  virtual void destroy();
 
-  nvvkhl_shaders::Light getSun() const;
+  virtual void           createBuffer()       = 0;
+  virtual VkShaderModule createShaderModule() = 0;
+
   VkDescriptorSetLayout getDescriptorSetLayout() const { return m_skyDLayout; };
   VkDescriptorSet       getDescriptorSet() const { return m_skyDSet; };
-  SkyParameters&        skyParams() { return m_skyParams; }
 
-private:
+protected:
   // Resources
   VkDevice                 m_device{VK_NULL_HANDLE};
   nvvk::ResourceAllocator* m_alloc{nullptr};
@@ -163,8 +74,65 @@ private:
   VkPipelineLayout      m_skyPipelineLayout{VK_NULL_HANDLE};
 
   nvvk::Buffer m_skyInfoBuf;  // Device-Host of Sky Params
+};
 
-  SkyParameters m_skyParams{};
+
+/** @DOC_START
+# class nvvkhl::SimpleSkyDome
+
+>  This class is responsible for a basic sky dome. 
+
+This class can render a basic sky dome with a sun, for both the rasterizer and the ray tracer. 
+
+The `draw` method is responsible for rendering the sky dome for the rasterizer. For ray tracing, there is no need to call this method, as the sky dome is part of the ray tracing shaders (see shaders/dh_sky.h).
+
+@DOC_END  */
+class SimpleSkyDome : public SkyBase
+{
+public:
+  SimpleSkyDome() = default;
+
+  void createBuffer() override;
+
+  void           updateParameterBuffer(VkCommandBuffer cmd) const;
+  bool           onUI();
+  VkShaderModule createShaderModule() override;
+
+  nvvkhl_shaders::Light                getSun() const;
+  nvvkhl_shaders::SimpleSkyParameters& skyParams() { return m_skyParams; }
+
+protected:
+  nvvkhl_shaders::SimpleSkyParameters m_skyParams{};
+};
+
+
+/** @DOC_START
+# class nvvkhl::PhysicalSkyDome
+
+>  This class is responsible for rendering a physical sky 
+
+This class can render a physical sky dome with a sun, for both the rasterizer and the ray tracer. 
+
+The `draw` method is responsible for rendering the sky dome for the rasterizer. For ray tracing, there is no need to call this method, as the sky dome is part of the ray tracing shaders (see shaders/dh_sky.h).
+
+@DOC_END  */
+
+class PhysicalSkyDome : public SkyBase
+{
+public:
+  PhysicalSkyDome() { m_skyParams = nvvkhl_shaders::initPhysicalSkyParameters(); }
+
+  void           createBuffer() override;
+  VkShaderModule createShaderModule() override;
+
+  void                  updateParameterBuffer(VkCommandBuffer cmd) const;
+  bool                  onUI();
+  nvvkhl_shaders::Light getSun() const;
+
+  nvvkhl_shaders::PhysicalSkyParameters& skyParams() { return m_skyParams; }
+
+protected:
+  nvvkhl_shaders::PhysicalSkyParameters m_skyParams{};
 };
 
 }  // namespace nvvkhl

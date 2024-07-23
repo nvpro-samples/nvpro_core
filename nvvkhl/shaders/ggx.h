@@ -35,6 +35,10 @@
 #define GGX_MIN_ALPHA_ROUGHNESS 1e-03F
 #endif
 
+float schlickFresnel(float F0, float F90, float VdotH)
+{
+  return F0 + (F90 - F0) * pow(1.0F - VdotH, 5.0F);
+}
 
 vec3 schlickFresnel(vec3 F0, vec3 F90, float VdotH)
 {
@@ -51,7 +55,7 @@ float schlickFresnel(float ior, float VdotH)
 }
 
 //-----------------------------------------------------------------------
-// Visibility term for the GGX BRDF, using the height-correlated
+// Visibility term for the isotropic GGX BRDF, using the height-correlated
 // Smith shadowing-masking function.
 // Note: Vis = G / (4 * NdotL * NdotV), where G is the usual Smith term.
 // see Eric Heitz. 2014. Understanding the Masking-Shadowing Function in Microfacet-Based BRDFs. Journal of Computer Graphics Techniques, 3
@@ -70,8 +74,8 @@ float ggxSmithVisibility(float NdotL, float NdotV, float alphaRoughness)
 }
 
 //-----------------------------------------------------------------------
-// The D() term in the GGX BRDF. This models the distribution of microfacet
-// normals across the material.
+// The D() term in the isotropic GGX BRDF. This models the distribution of
+// microfacet normals across the material.
 // Implementation from "Average Irregularity Representation of a Roughened Surface for Ray Reflection" by T. S. Trowbridge, and K. P. Reitz
 // This is also equivalent to Equation 4 in https://google.github.io/filament/Filament.md.html#materialsystem/specularbrdf,
 // using alphaRoughness == roughness^2 (following the Burley parameterization
@@ -94,65 +98,15 @@ float ggxDistribution(float NdotH, float alphaRoughness)  // alphaRoughness    =
   return alphaSqr / (M_PI * denom * denom);
 }
 
-//-----------------------------------------------------------------------
-// The single-scattering GGX BRDF (reflection only).
-// See Section 4.4 of https://google.github.io/filament/Filament.md.html#materialsystem/specularbrdf
-// Also see https://www.pbr-book.org/4ed/Reflection_Models/Conductor_BRDF.
-// This assumes you've already flipped the normal so that NdotV >= 0.f.
-// alphaRoughness is roughness * roughness.
-//-----------------------------------------------------------------------
-vec3 ggxBRDF(vec3 f0, vec3 f90, float alphaRoughness, float VdotH, float NdotL, float NdotV, float NdotH)
-{
-  if(NdotV <= 0.0f || NdotL <= 0.0f)
-    return vec3(0.f);  // Opposite sides, or at the horizon
-
-  vec3  f   = schlickFresnel(f0, f90, VdotH);
-  float vis = ggxSmithVisibility(NdotL, NdotV, alphaRoughness);  // Vis = G / (4 * NdotL * NdotV)
-  float d   = ggxDistribution(NdotH, alphaRoughness);
-
-  return f * vis * d;
-}
 
 //-----------------------------------------------------------------------
-// Samples the GGX distribution, returning the half vector (i.e. the sampled
-// microfacet normal) of a surface with normal (0,0,1).
-// This samples from the set of visible normals (aka the VNDF), so it requires
-// the input direction.
-//-----------------------------------------------------------------------
-vec3 ggxSamplingHalfVector(vec3 wi, float alphaRoughness, vec2 rand)
-{
-  alphaRoughness = max(alphaRoughness, GGX_MIN_ALPHA_ROUGHNESS);
-  // We use the implementation from Dupuy and Benyoub,
-  // "Sampling Visible GGX Normals with Spherical Caps", 2023,
-  // https://arxiv.org/pdf/2306.05044, Listings 1 and 3.
-
-  // Warp the ellipsoid of normals to the unit hemisphere, and warp `wi` along
-  // with it:
-  vec3 wi_std = normalize(vec3(wi.xy * alphaRoughness, wi.z));
-  // If we were to reflect `wi_std` by the visible normals, we'd get points
-  // distributed in a spherical cap. Find a lower bound for this spherical cap:
-  float lower_bound = -wi_std.z;
-  // Sample the spherical cap:
-  float z         = mix(lower_bound, 1.0f, rand.y);
-  float sin_theta = sqrt(max(0.f, 1.0f - z * z));
-  float phi       = M_TWO_PI * rand.x;
-  vec3  wo_std    = vec3(sin_theta * cos(phi), sin_theta * sin(phi), z);
-  // Compute the microfacet normal:
-  vec3 m_std = wi_std + wo_std;
-  // Warp the unit hemisphere to the ellipsoid of normals. Since we now have
-  // a microfacet normal instead of a direction, the math is the same, since
-  // we use the inverse transpose here:
-  return normalize(vec3(m_std.xy * alphaRoughness, m_std.z));
-}
-
-
-//-----------------------------------------------------------------------
-// Sample the GGX distribution
+// Sample an isotropic GGX distribution
 // - Return the half vector
+// - PDF for half vectors is ggxDistribution(dot(N, H), alphaRoughness) * dot(N, H)
 //-----------------------------------------------------------------------
 vec3 ggxSampling(float alphaRoughness, vec2 rand)
 {
-  float alphaSqr = max(alphaRoughness * alphaRoughness, 1e-07F);
+  float alphaSqr = max(alphaRoughness * alphaRoughness, GGX_MIN_ALPHA_ROUGHNESS * GGX_MIN_ALPHA_ROUGHNESS);
 
   float phi      = M_TWO_PI * rand.x;
   float cosTheta = sqrt((1.0F - rand.y) / (1.0F + (alphaSqr - 1.0F) * rand.y));
@@ -161,30 +115,9 @@ vec3 ggxSampling(float alphaRoughness, vec2 rand)
   return vec3(sinTheta * cos(phi), sinTheta * sin(phi), cosTheta);
 }
 
-//-----------------------------------------------------------------------
-// Returns the PDF for ggxSampling, when used for reflection.
-// Counterintuitively, this mostly depends on dot(N, V). The reason is that
-// the size of the spherical cap that microsurface normals are sampled from
-// depends on the view vector
-//-----------------------------------------------------------------------
-float ggxSamplingReflectionPDF(float NdotV, float NdotH, float alphaRoughness)
-{
-  if(NdotH <= 0.0f)
-    return 0.0f;
-  alphaRoughness = max(alphaRoughness, GGX_MIN_ALPHA_ROUGHNESS);
-  // @nbickford simplified this to work with only NdotV -- but this only
-  // works if roughness is isotropic!
-  // t is sqrt((l.x * alphaRoughness)^2 + (l.y * alphaRoughness)^2 + l.z^2)
-  //   == sqrt(alphaRoughness^2 + l.z^2 - (alphaRoughness*l.z)^2)
-  float a2     = alphaRoughness * alphaRoughness;
-  float NdotV2 = NdotV * NdotV;
-  float t      = sqrt(a2 + (1.0f - a2) * NdotV2);
-  return 0.5f * ggxDistribution(NdotH, alphaRoughness) / (abs(NdotV) + t);
-}
-
 
 //-----------------------------------------------------------------------
-// MDL Bases functions
+// MDL-based functions
 //-----------------------------------------------------------------------
 
 vec3 mix_rgb(const vec3 base, const vec3 layer, const vec3 factor)
@@ -199,7 +132,7 @@ void sincos(float angle, OUT_TYPE(float) si, OUT_TYPE(float) co)
   co = cos(angle);
 }
 
-// Squere the input
+// Square the input
 float sqr(float x)
 {
   return x * x;

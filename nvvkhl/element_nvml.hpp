@@ -256,12 +256,12 @@ struct ElementNvml : public nvvkhl::IAppElement
           std::string message =
               fmt::format("Throttle detected for GPU {}: {} - Performance numbers will be unreliable", deviceIndex,
                           NvmlMonitor::DevicePerformanceState::getThrottleReasonStrings(currentThrottleReason)[0]);
-          ImGui::TextColored(ImVec4(1.f, 0.f, 0.f, 1.f), message.c_str());
+          ImGui::TextColored(ImVec4(1.f, 0.f, 0.f, 1.f), "%s", message.c_str());
           m_throttleDetected = true;
 
           if(m_lastThrottleReason != currentThrottleReason)
           {
-            LOGW((message + "\n").c_str(), deviceIndex);
+            LOGW("%s\n", message.c_str());
           }
           m_lastThrottleReason = currentThrottleReason;
           m_throttleCooldownTimer.reset();
@@ -584,7 +584,7 @@ struct ElementNvml : public nvvkhl::IAppElement
         ImPlotPoint mouse       = ImPlot::GetPlotMousePos();
         int         mouseOffset = (int(mouse.x) + offset) % (int)memory.memoryUsed.get().size();
         ImGui::BeginTooltip();
-        ImGui::Text(fmt::format("Used Memory: {}MiB", memory.memoryUsed.get()[mouseOffset] / MIB_SIZE).c_str());
+        ImGui::Text("%s", fmt::format("Used Memory: {}MiB", memory.memoryUsed.get()[mouseOffset] / MIB_SIZE).c_str());
         ImGui::EndTooltip();
       }
 
@@ -612,7 +612,7 @@ struct ElementNvml : public nvvkhl::IAppElement
         int         mouseOffset = (int(mouse.x) + offset) % (int)memory.bar1Used.get().size();
 
         ImGui::BeginTooltip();
-        ImGui::Text(fmt::format("Used BAR1 Memory: {}MiB", memory.bar1Used.get()[mouseOffset] / MIB_SIZE).c_str());
+        ImGui::Text("%s", fmt::format("Used BAR1 Memory: {}MiB", memory.bar1Used.get()[mouseOffset] / MIB_SIZE).c_str());
         ImGui::EndTooltip();
       }
 

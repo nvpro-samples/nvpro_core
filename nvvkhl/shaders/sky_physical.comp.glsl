@@ -27,18 +27,17 @@
 // clang-format off
 layout(local_size_x = WORKGROUP_SIZE, local_size_y = WORKGROUP_SIZE, local_size_z = 1) in;
 layout(set = 0, binding = eSkyOutImage) writeonly uniform image2D g_out_hdr;
-layout(set = 0, binding = eSkyParam) uniform SkyInfo_ {  SimpleSkyParameters skyInfo; };
+layout(set = 0, binding = eSkyParam) uniform SkyInfo_ {  PhysicalSkyParameters skyInfo; };
 layout(push_constant) uniform SkyDomePushConstant_ { SkyPushConstant pc; };
 // clang-format on
 
 void main()
 {
-  const vec2 pixel_center = vec2(gl_GlobalInvocationID.xy) + vec2(0.5F);
-  const vec2 in_uv        = pixel_center / vec2(imageSize(g_out_hdr));
-  const vec2 d            = in_uv * 2.0 - 1.0;
-  vec3       direction    = normalize(vec3(pc.mvp * vec4(d.x, d.y, 1.0F, 1.0F)));
+  const vec2 pixelCenter = vec2(gl_GlobalInvocationID.xy) + vec2(0.5F);
+  const vec2 texCoord    = pixelCenter / vec2(imageSize(g_out_hdr));
+  const vec2 d           = texCoord * 2.0 - 1.0;
+  vec3       direction   = normalize(vec3(pc.mvp * vec4(d.x, d.y, 1.0F, 1.0F)));
 
-  vec3 color = evalSimpleSky(skyInfo, direction);
-
+  vec3 color = evalPhysicalSky(skyInfo, direction);
   imageStore(g_out_hdr, ivec2(gl_GlobalInvocationID.xy), vec4(color, 1.0F));
 }

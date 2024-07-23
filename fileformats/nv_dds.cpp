@@ -994,7 +994,7 @@ ErrorWithText Image::readHeaderFromStream(std::istream& input, const ReadSetting
       switch(i.ddsh.ddspf.dwRGBBitCount)
       {
         case MakeFourCC('A', '2', 'X', 'Y'):
-          colorTransform = ColorTransform::eA2XY;
+          colorTransform = ColorTransform::eSwapRG;
           break;
         case MakeFourCC('A', '2', 'D', '5'):
           colorTransform = ColorTransform::eAGBR;
@@ -1024,7 +1024,26 @@ ErrorWithText Image::readHeaderFromStream(std::istream& input, const ReadSetting
           dxgiFormat = DXGI_FORMAT_BC4_SNORM;
           break;
         case FOURCC_BC5U:
+          dxgiFormat = DXGI_FORMAT_BC5_UNORM;
+          break;
         case FOURCC_ATI2:
+          // ATI2 is BC5 but with the red and green channels swapped.
+          // So we remove ColorTransform::eSwapRG if we have it, or add it if
+          // it's missing.
+          // Throw an error if the color transform is something else.
+          if(colorTransform == ColorTransform::eNone)
+          {
+            colorTransform = ColorTransform::eSwapRG;
+          }
+          else if(colorTransform == ColorTransform::eSwapRG)
+          {
+            colorTransform = ColorTransform::eNone;
+          }
+          else
+          {
+            return "This file specified both ColorTransform " + std::to_string(static_cast<uint32_t>(colorTransform))
+                   + " and a format of ATI2 (which swaps the red and green channels). nv_dds doesn't know how to combine the RG swap with the ColorTransform to get a single color transform.";
+          }
           dxgiFormat = DXGI_FORMAT_BC5_UNORM;
           break;
         case FOURCC_BC5S:
@@ -1894,7 +1913,7 @@ std::string Image::formatInfo() const
 
   std::stringstream s;
   s << std::setfill('0') << std::uppercase;
-  s << "Flags: " << std::hex << std::setw(8) << header.dwFlags << std::dec << "\n";
+  s << "Flags: 0x" << std::hex << std::setw(8) << header.dwFlags << std::dec << "\n";
   if((header.dwFlags & DDSD_CAPS) != 0)
     s << "\tDDSD_CAPS\n";
   if((header.dwFlags & DDSD_PIXELFORMAT) != 0)
@@ -1922,7 +1941,7 @@ std::string Image::formatInfo() const
   s << "Mipmap count: " << header.dwMipMapCount << "\n";
 
   s << "Pixel format:\n";
-  s << "\tFlags: " << std::hex << std::setw(8) << header.ddspf.dwFlags << std::dec << "\n";
+  s << "\tFlags: 0x" << std::hex << std::setw(8) << header.ddspf.dwFlags << std::dec << "\n";
   if((header.ddspf.dwFlags & DDPF_ALPHAPIXELS) != 0)
     s << "\t\tDDPF_ALPHAPIXELS\n";
   if((header.ddspf.dwFlags & DDPF_ALPHA) != 0)
@@ -1969,7 +1988,8 @@ std::string Image::formatInfo() const
   // Display fourcc code even when DDPF_FOURCC flag not set.
   if(header.ddspf.dwFourCC != 0)
   {
-    s << "\tFourCC: " << makeFourCCPrintable(header.ddspf.dwFourCC) << "\n";
+    s << "\tFourCC: " << makeFourCCPrintable(header.ddspf.dwFourCC);
+    s << " (0x" << std::hex << std::setw(8) << header.ddspf.dwFourCC << std::dec << ")\n";
   }
 
   // If the pixel format uses a FourCC code, normally bitmasks aren't used. So
@@ -1978,7 +1998,8 @@ std::string Image::formatInfo() const
   // any other libraries that do.
   if(((header.ddspf.dwFlags & DDPF_FOURCC) != 0) && (header.ddspf.dwRGBBitCount != 0))
   {
-    s << "\tSwizzle: " << makeFourCCPrintable(header.ddspf.dwRGBBitCount) << "\n";
+    s << "\tSwizzle: " << makeFourCCPrintable(header.ddspf.dwRGBBitCount);
+    s << " (0x" << std::hex << std::setw(8) << header.ddspf.dwRGBBitCount << std::dec << ")\n";
   }
   else
   {
@@ -1987,13 +2008,13 @@ std::string Image::formatInfo() const
 
   s << std::hex;
 
-  s << "\tRed mask: " << std::setw(8) << header.ddspf.dwRBitMask << "\n";
-  s << "\tGreen mask: " << std::setw(8) << header.ddspf.dwGBitMask << "\n";
-  s << "\tBlue mask: " << std::setw(8) << header.ddspf.dwBBitMask << "\n";
-  s << "\tAlpha mask: " << std::setw(8) << header.ddspf.dwABitMask << "\n";
+  s << "\tRed mask:   0x" << std::setw(8) << header.ddspf.dwRBitMask << "\n";
+  s << "\tGreen mask: 0x" << std::setw(8) << header.ddspf.dwGBitMask << "\n";
+  s << "\tBlue mask:  0x" << std::setw(8) << header.ddspf.dwBBitMask << "\n";
+  s << "\tAlpha mask: 0x" << std::setw(8) << header.ddspf.dwABitMask << "\n";
 
   s << "Caps:\n";
-  s << "\tCaps 1: " << std::setw(8) << header.dwCaps1 << "\n";
+  s << "\tCaps 1: 0x" << std::setw(8) << header.dwCaps1 << "\n";
   if((header.dwCaps1 & DDSCAPS_COMPLEX) != 0)
     s << "\t\tDDSCAPS_COMPLEX\n";
   if((header.dwCaps1 & DDSCAPS_TEXTURE) != 0)
@@ -2001,7 +2022,7 @@ std::string Image::formatInfo() const
   if((header.dwCaps1 & DDSCAPS_MIPMAP) != 0)
     s << "\t\tDDSCAPS_MIPMAP\n";
 
-  s << "\tCaps 2: " << std::setw(8) << header.dwCaps2 << "\n";
+  s << "\tCaps 2: 0x" << std::setw(8) << header.dwCaps2 << "\n";
   if((header.dwCaps2 & DDSCAPS2_CUBEMAP) != 0)
     s << "\t\tDDSCAPS2_CUBEMAP\n";
   if((header.dwCaps2 & DDSCAPS2_CUBEMAP_ALL_FACES) == DDSCAPS2_CUBEMAP_ALL_FACES)
@@ -2092,7 +2113,14 @@ std::string Image::formatInfo() const
     // No DDS10 header, but still show the format if we determined what it was
     if(0 != dxgiFormat)
     {
-      s << "Inferred DXGI format: ";
+      if(m_fileInfo.wasBitmasked)
+      {
+        s << "Bitmask would be decompressed to DXGI format: ";
+      }
+      else
+      {
+        s << "Inferred DXGI format: ";
+      }
       const char* dxgiFormatName = texture_formats::getDXGIFormatName(dxgiFormat);
       s << dxgiFormat << " (" << (dxgiFormatName ? dxgiFormatName : "?") << ")\n";
     }
@@ -2138,7 +2166,8 @@ std::string Image::formatInfo() const
       s << "Library: GNU Image Manipulation Program's DDS plugin\n";
       s << "\tVersion: " << static_cast<uint32_t>(v0) << "." << static_cast<uint32_t>(v1) << "."
         << static_cast<uint32_t>(v2) << "\n";
-      s << "\tGIMP Format FourCC: " << makeFourCCPrintable(header.dwReserved1[3]) << "\n";
+      s << "\tGIMP Format FourCC: " << makeFourCCPrintable(header.dwReserved1[3]);
+      s << " (0x" << std::hex << std::setw(8) << header.dwReserved1[3] << std::dec << ")\n";
       break;
     default:
       s << "Library: " << static_cast<uint32_t>(m_fileInfo.writerLibrary) << "\n";

@@ -110,16 +110,6 @@ set(DOWNLOAD_TARGET_DIR "${BASE_DIRECTORY}/downloaded_resources")
 set(DOWNLOAD_SITE http://developer.download.nvidia.com/ProGraphics/nvpro-samples)
 
 #####################################################################################
-function(_make_relative FROM TO OUT)
-  #message(STATUS "FROM = ${FROM}")
-  #message(STATUS "TO = ${TO}")
-  
-  file(RELATIVE_PATH _TMP_STR "${FROM}" "${TO}")
-  
-  #message(STATUS "_TMP_STR = ${_TMP_STR}")
-  
-  set (${OUT} "${_TMP_STR}" PARENT_SCOPE)
-endfunction()
 
 macro(_add_project_definitions name)
   if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
@@ -134,8 +124,8 @@ macro(_add_project_definitions name)
   
   # the "config" directory doesn't really exist but serves as place holder
   # for the actual CONFIG based directories (Release, RelWithDebInfo etc.)
-  _make_relative("${OUTPUT_PATH}/config" "${CMAKE_CURRENT_SOURCE_DIR}" TO_CURRENT_SOURCE_DIR)
-  _make_relative("${OUTPUT_PATH}/config" "${DOWNLOAD_TARGET_DIR}" TO_DOWNLOAD_TARGET_DIR)
+  file(RELATIVE_PATH TO_CURRENT_SOURCE_DIR "${OUTPUT_PATH}/config" "${CMAKE_CURRENT_SOURCE_DIR}")
+  file(RELATIVE_PATH TO_DOWNLOAD_TARGET_DIR "${OUTPUT_PATH}/config" "${DOWNLOAD_TARGET_DIR}")
   
   add_definitions(-DPROJECT_NAME="${name}")
   add_definitions(-DPROJECT_RELDIRECTORY="${TO_CURRENT_SOURCE_DIR}/")
@@ -258,18 +248,6 @@ macro(_add_package_ZLIB)
 endmacro()
 
 #####################################################################################
-# Optional VMA
-#
-macro(_add_package_VMA)
-  get_directory_property(hasParent PARENT_DIRECTORY)
-  if(hasParent)
-    set(USING_VMA ON PARENT_SCOPE)
-  else()
-    set(USING_VMA ON)
-  endif()
-endmacro()
-
-#####################################################################################
 # ImGUI
 #
 macro(_add_package_ImGUI)
@@ -282,33 +260,6 @@ macro(_add_package_ImGUI)
   endif()
 
 endmacro()
-
-#####################################################################################
-# Optional OptiX package
-#
-macro(_add_package_Optix)
-  find_package(Optix)  
-  if(OPTIX_FOUND)
-      Message(STATUS "--> using package OptiX")
-      add_definitions(-DNVP_SUPPORTS_OPTIX)
-      include_directories(${OPTIX_INCLUDE_DIR})
-      LIST(APPEND LIBRARIES_OPTIMIZED ${OPTIX_LIB} )
-      LIST(APPEND LIBRARIES_DEBUG ${OPTIX_LIB} )
-      LIST(APPEND PACKAGE_SOURCE_FILES ${OPTIX_HEADERS} )
-      source_group(OPTIX FILES  ${OPTIX_HEADERS} )
-      set( USING_OPTIX "YES")
- else()
-     Message(STATUS "--> NOT using package OptiX")
- endif()
-endmacro()
-# this macro is needed for the samples to add this package, although not needed
-# this happens when the nvpro_core library was built with these stuff in it
-# so many samples can share the same library for many purposes
-macro(_optional_package_Optix)
-  if(OPTIX_FOUND)
-    _add_package_Optix()
-  endif(OPTIX_FOUND)
-endmacro(_optional_package_Optix)
 
 #####################################################################################
 # Optional OptiX7 package
@@ -402,19 +353,6 @@ macro(_optional_package_VulkanSDK)
 endmacro(_optional_package_VulkanSDK)
 
 #####################################################################################
-# Optional Glm package (Part of Vulkan SDK)
-#
-macro(_add_package_GLM)
-  find_package(GLM)  
-  if(GLM_FOUND)
-    add_definitions(-DNVMATH_SUPPORTS_GLM)
-    include_directories(${GLM_INCLUDE_DIRS})
-  else()
-    message("GLM not found. Check `GLM` with the installation of Vulkan SDK") 
-  endif()
-endmacro()
-
-#####################################################################################
 # Optional ShaderC package
 #
 macro(_add_package_ShaderC)
@@ -488,36 +426,6 @@ macro(_optional_package_ShaderC)
 endmacro(_optional_package_ShaderC)
 
 #####################################################################################
-# Optional DirectX11 package
-#
-macro(_add_package_DirectX11)
-  find_package(DirectX11)  
-  if(DX11SDK_FOUND)
-      Message(STATUS "--> using package DirectX 11")
-      get_directory_property(hasParent PARENT_DIRECTORY)
-      if(hasParent)
-        set( USING_DIRECTX11 "YES" PARENT_SCOPE) # PARENT_SCOPE important to have this variable passed to parent. Here we want to notify that something used the DX11 package
-      else()
-        set( USING_DIRECTX11 "YES")
-      endif()
-      add_definitions(-DNVP_SUPPORTS_DIRECTX11)
-      include_directories(${DX11SDK_INCLUDE_DIR})
-      LIST(APPEND LIBRARIES_OPTIMIZED ${DX11SDK_D3D_LIBRARIES})
-      LIST(APPEND LIBRARIES_DEBUG ${DX11SDK_D3D_LIBRARIES})
- else()
-     Message(STATUS "--> NOT using package DirectX11")
- endif()
-endmacro()
-# this macro is needed for the samples to add this package, although not needed
-# this happens when the nvpro_core library was built with these stuff in it
-# so many samples can share the same library for many purposes
-macro(_optional_package_DirectX11)
-  if(USING_DIRECTX11)
-    _add_package_DirectX11()
-  endif(USING_DIRECTX11)
-endmacro(_optional_package_DirectX11)
-
-#####################################################################################
 # Optional DirectX12 package
 #
 macro(_add_package_DirectX12)
@@ -554,26 +462,26 @@ macro(_add_package_Cuda)
   if(CUDA_TOOLKIT_ROOT_DIR)
     string(REPLACE "\\" "/" CUDA_TOOLKIT_ROOT_DIR ${CUDA_TOOLKIT_ROOT_DIR})
   endif()
-  find_package(CUDAToolkit)
+  # Avoid calling CUDAToolkit if we already have its results cached
+  if(CUDAToolkit_LIBRARY_DIR AND CUDAToolkit_VERSION AND CUDAToolkit_INCLUDE_DIRS AND CUDAToolkit_NVCC_EXECUTABLE)
+    message(STATUS "Using cached CUDAToolkit values")
+    set(CUDAToolkit_FOUND ON)
+  else()
+    message(STATUS "Finding CUDAToolkit")
+    find_package(CUDAToolkit)
+  endif()
   if(CUDAToolkit_FOUND)
       add_definitions("-DCUDA_PATH=R\"(${CUDA_TOOLKIT_ROOT_DIR})\"")
-      Message(STATUS "--> using package CUDA (${CUDA_VERSION})")
+      Message(STATUS "--> using package CUDA (${CUDAToolkit_VERSION})")
       add_definitions(-DNVP_SUPPORTS_CUDA)
       include_directories(${CUDAToolkit_INCLUDE_DIRS})
       if(WIN32)
-        if((ARCH STREQUAL "x86"))
-          LIST(APPEND LIBRARIES_DEBUG "${CUDAToolkit_LIBRARY_DIR}/cuda.lib" )
-          LIST(APPEND LIBRARIES_DEBUG "${CUDAToolkit_LIBRARY_DIR}/cudart.lib" )
-          LIST(APPEND LIBRARIES_OPTIMIZED "${CUDAToolkit_LIBRARY_DIR}/cuda.lib" )
-          LIST(APPEND LIBRARIES_OPTIMIZED "${CUDAToolkit_LIBRARY_DIR}/cudart.lib" )
-        else()
-          LIST(APPEND LIBRARIES_DEBUG "${CUDAToolkit_LIBRARY_DIR}/cuda.lib" )
-          LIST(APPEND LIBRARIES_DEBUG "${CUDAToolkit_LIBRARY_DIR}/cudart.lib" )
-          LIST(APPEND LIBRARIES_DEBUG "${CUDAToolkit_LIBRARY_DIR}/nvrtc.lib" )
-          LIST(APPEND LIBRARIES_OPTIMIZED "${CUDAToolkit_LIBRARY_DIR}/cuda.lib" )
-          LIST(APPEND LIBRARIES_OPTIMIZED "${CUDAToolkit_LIBRARY_DIR}/cudart.lib" )
-          LIST(APPEND LIBRARIES_OPTIMIZED "${CUDAToolkit_LIBRARY_DIR}/nvrtc.lib" )
-        endif()
+        LIST(APPEND LIBRARIES_DEBUG "${CUDAToolkit_LIBRARY_DIR}/cuda.lib" )
+        LIST(APPEND LIBRARIES_DEBUG "${CUDAToolkit_LIBRARY_DIR}/cudart.lib" )
+        LIST(APPEND LIBRARIES_DEBUG "${CUDAToolkit_LIBRARY_DIR}/nvrtc.lib" )
+        LIST(APPEND LIBRARIES_OPTIMIZED "${CUDAToolkit_LIBRARY_DIR}/cuda.lib" )
+        LIST(APPEND LIBRARIES_OPTIMIZED "${CUDAToolkit_LIBRARY_DIR}/cudart.lib" )
+        LIST(APPEND LIBRARIES_OPTIMIZED "${CUDAToolkit_LIBRARY_DIR}/nvrtc.lib" )
       else()
         LIST(APPEND LIBRARIES_DEBUG "libcuda.so" )
         LIST(APPEND LIBRARIES_DEBUG "${CUDAToolkit_LIBRARY_DIR}/libcudart.so" )
@@ -585,7 +493,7 @@ macro(_add_package_Cuda)
       #LIST(APPEND PACKAGE_SOURCE_FILES ${CUDA_HEADERS} ) Not available anymore with cmake 3.3... we might have to list them by hand
       # source_group(CUDA FILES ${CUDA_HEADERS} )  Not available anymore with cmake 3.3
  else()
-     Message(STATUS "--> NOT using package CUDA") 
+     Message(STATUS "--> NOT using package CUDA")
  endif()
 endmacro()
 # this macro is needed for the samples to add this package, although not needed
@@ -841,8 +749,6 @@ function(nvcuda_compile_ptx)
     set( output "${NVCUDA_COMPILE_PTX_TARGET_PATH}/${input_we}.ptx" )
     LIST( APPEND PTX_FILES  ${output} )
     
-    #message(WARNING "${CUDAToolkit_NVCC_EXECUTABLE} ${MACHINE} --ptx ${NVCUDA_COMPILE_PTX_NVCC_OPTIONS} ${input} -o ${output}")
-    
     add_custom_command(
       OUTPUT  ${output}
       DEPENDS ${input}
@@ -881,11 +787,10 @@ function(nvcuda_compile_cubin)
     set( output "${NVCUDA_COMPILE_CUBIN_TARGET_PATH}/${input_we}.cubin" )
     LIST( APPEND CUBIN_FILES  ${output} )
     
-    #message(STATUS "${CUDAToolkit_NVCC_EXECUTABLE} ${MACHINE} --cubin ${NVCUDA_COMPILE_CUBIN_NVCC_OPTIONS} ${input} -o ${output}")
-    
     add_custom_command(
       OUTPUT  ${output}
       DEPENDS ${input}
+      COMMAND ${CMAKE_COMMAND} -E echo ${CUDAToolkit_NVCC_EXECUTABLE} ${MACHINE} --cubin ${NVCUDA_COMPILE_CUBIN_NVCC_OPTIONS} ${input} -o ${output} 
       COMMAND ${CUDAToolkit_NVCC_EXECUTABLE} ${MACHINE} --cubin ${NVCUDA_COMPILE_CUBIN_NVCC_OPTIONS} ${input} -o ${output} 
       WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
     )

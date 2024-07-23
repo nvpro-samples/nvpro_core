@@ -641,6 +641,13 @@ public:
   static std::vector<ValueFormat> formatUint32(const std::string& name = "value");
   static std::vector<ValueFormat> formatFloat32(const std::string& name = "value");
 
+  // Simplistic structure parsing, supports only GLSL types (no glm namespace, no nested structures), no comments
+  static std::vector<ElementInspector::ValueFormat> formatStruct(const std::string& structure);
+
+  // Return the type enum for a GLSL type (no glm namespace)
+  static ValueType glslStringToType(const std::string& typeString);
+
+
 private:
   ElementInspectorInternal* m_internals{nullptr};
 };

@@ -98,8 +98,6 @@ struct PushComputeDispatcher
   std::unordered_map<TBindingEnum, std::unique_ptr<VkAccelerationStructureKHR>>                   accel;
   std::unordered_map<TBindingEnum, std::unique_ptr<VkDescriptorImageInfo>>                        imageInfos;
 
-  TPushConstants pushConstants{};
-
   struct ShaderModule
   {
     VkShaderModule module{VK_NULL_HANDLE};
@@ -108,6 +106,21 @@ struct PushComputeDispatcher
 
   std::vector<VkWriteDescriptorSet>       writes;
   std::array<ShaderModule, pipelineCount> shaderModules;
+
+
+  struct InternalLaunchParams
+  {
+    bool isIndirect;
+    union
+    {
+      glm::uvec3 directBlockCount;
+      struct
+      {
+        VkBuffer     indirectBlockCount;
+        VkDeviceSize indirectOffset;
+      };
+    };
+  };
 
   bool addBufferBinding(TBindingEnum index)
   {
@@ -225,11 +238,11 @@ struct PushComputeDispatcher
   }
 
 
-  bool setCode(VkDevice device, void* shaderCode, size_t codeSize, uint32_t pipelineIndex = 0u)
+  bool setCode(VkDevice device, const void* shaderCode, size_t codeSize, uint32_t pipelineIndex = 0u)
   {
     VkShaderModuleCreateInfo moduleCreateInfo{VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
     moduleCreateInfo.codeSize = codeSize;
-    moduleCreateInfo.pCode    = reinterpret_cast<uint32_t*>(shaderCode);
+    moduleCreateInfo.pCode    = reinterpret_cast<const uint32_t*>(shaderCode);
 
     VkResult r = vkCreateShaderModule(device, &moduleCreateInfo, nullptr, &(shaderModules[pipelineIndex].module));
     if(r != VK_SUCCESS || shaderModules[pipelineIndex].module == VK_NULL_HANDLE)
@@ -275,6 +288,10 @@ struct PushComputeDispatcher
     {
       stageCreateInfo.module = shaderModules[i].module;
 
+      if(stageCreateInfo.module == VK_NULL_HANDLE)
+      {
+        return false;
+      }
       VkComputePipelineCreateInfo createInfo{VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO};
       createInfo.stage  = stageCreateInfo;
       createInfo.layout = layout;
@@ -340,12 +357,43 @@ struct PushComputeDispatcher
   }
 
   void dispatchBlocks(VkCommandBuffer       cmd,
-                      glm::uvec3            blockCount,
+                      const glm::uvec3&     blockCount,
                       const TPushConstants* constants   = nullptr,
                       uint32_t              postBarrier = DispatcherBarrier::eCompute,
                       uint32_t              preBarrier  = DispatcherBarrier::eNone,
                       // If pipelineIndex == ~0u, all pipelines will be executed sequentially. Otherwise, only dispatch the requested pipeline
                       uint32_t pipelineIndex = ~0u)
+  {
+    InternalLaunchParams launchParams;
+    launchParams.isIndirect       = false;
+    launchParams.directBlockCount = blockCount;
+    dispatchBlocksInternal(cmd, launchParams, constants, postBarrier, preBarrier, pipelineIndex);
+  }
+
+  void dispatchBlocksIndirect(VkCommandBuffer       cmd,
+                              VkBuffer              indirectBlockCount,
+                              VkDeviceSize          indirectOffset,
+                              const TPushConstants* constants   = nullptr,
+                              uint32_t              postBarrier = DispatcherBarrier::eCompute,
+                              uint32_t              preBarrier  = DispatcherBarrier::eNone,
+                              // If pipelineIndex == ~0u, all pipelines will be executed sequentially. Otherwise, only dispatch the requested pipeline
+                              uint32_t pipelineIndex = ~0u)
+  {
+    InternalLaunchParams launchParams;
+    launchParams.isIndirect         = true;
+    launchParams.indirectBlockCount = indirectBlockCount;
+    launchParams.indirectOffset     = indirectOffset;
+    dispatchBlocksInternal(cmd, launchParams, constants, postBarrier, preBarrier, pipelineIndex);
+  }
+
+
+  void dispatchBlocksInternal(VkCommandBuffer             cmd,
+                              const InternalLaunchParams& launchParams,
+                              const TPushConstants*       constants   = nullptr,
+                              uint32_t                    postBarrier = DispatcherBarrier::eCompute,
+                              uint32_t                    preBarrier  = DispatcherBarrier::eNone,
+                              // If pipelineIndex == ~0u, all pipelines will be executed sequentially. Otherwise, only dispatch the requested pipeline
+                              uint32_t pipelineIndex = ~0u)
   {
 
     if(preBarrier != eNone)
@@ -378,8 +426,15 @@ struct PushComputeDispatcher
     for(uint32_t i = 0; i < count; i++)
     {
       bind(cmd, constants, currentPipeline + i);
-      vkCmdDispatch(cmd, blockCount.x, blockCount.y, blockCount.z);
-
+      if(launchParams.isIndirect)
+      {
+        vkCmdDispatchIndirect(cmd, launchParams.indirectBlockCount, launchParams.indirectOffset);
+      }
+      else
+      {
+        vkCmdDispatch(cmd, launchParams.directBlockCount.x, launchParams.directBlockCount.y,
+                      launchParams.directBlockCount.z);
+      }
       if(postBarrier != eNone)
       {
         VkMemoryBarrier mb{VK_STRUCTURE_TYPE_MEMORY_BARRIER};

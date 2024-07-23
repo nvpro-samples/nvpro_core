@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2023, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2018-2024, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2018-2023, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2018-2024, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 //--------------------------------------------------------------------
@@ -40,7 +40,7 @@ void CameraManipulator::setCamera(Camera camera, bool instantSet /*=true*/)
 {
   m_anim_done = true;
 
-  if(instantSet)
+  if(instantSet || m_duration == 0.0)
   {
     m_current = camera;
     update();
@@ -235,6 +235,7 @@ void CameraManipulator::updateAnim()
   {
     m_current   = m_goal;
     m_anim_done = true;
+    update();
     return;
   }
 

@@ -33,6 +33,8 @@ const float M_1_OVER_PI = 0.3183098861837F;  // 1/PI
 const float M_2_OVER_PI = 0.6366197723675F;  // 2/PI
 const float M_1_PI      = 0.3183098861837F;  // 1/PI
 
+#ifndef INFINITE
 const float INFINITE = 1e32F;
+#endif
 
 #endif  // CONSTANTS_GLSL

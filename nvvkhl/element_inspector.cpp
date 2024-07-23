@@ -1616,7 +1616,6 @@ void ElementInspectorInternal::imGuiComputeVariable(uint32_t i, bool isCopy)
   }
   if(ImGui::CollapsingHeader(computeVar.name.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
   {
-
     if(!computeVar.comment.empty())
     {
       ImGui::TextDisabled("%s", computeVar.comment.c_str());
@@ -1830,7 +1829,7 @@ uint32_t ElementInspectorInternal::imGuiBufferContents(InspectedBuffer& buf,
       for(size_t i = 0; i < columnCount /* buf.format.size()*/; i++)
       {
         ImGui::TableNextColumn();
-        ImGui::TextDisabled("");
+        ImGui::TextDisabled("%s", "");
       }
       break;
     }
@@ -1874,7 +1873,7 @@ uint32_t ElementInspectorInternal::imGuiBufferContents(InspectedBuffer& buf,
       {
         // If a specific scrolling is requested, display placeholder for performance. Actual display of values will be done
         // in the next frame, where the high performance clipper will be used to quickly show the relevant entries
-        ImGui::Text("");
+        ImGui::Text("%s", "");
       }
       if(buf.selectedRow == sourceBufferEntryIndex)
       {
@@ -2163,7 +2162,7 @@ void ElementInspectorInternal::imGuiBuffer(InspectedBuffer& buf,
         if(buf.showSnapshot)
         {
           ImGui::TableNextColumn();
-          ImGui::Text("%s", (std::string("SNAPSHOT\n") + valueFormatToString(buf.format[i])).c_str());
+          ImGui::Text("SNAPSHOT\n%s", valueFormatToString(buf.format[i]).c_str());
           tooltip(valueFormatTypeToString(buf.format[i]));
           imguiPushActiveButtonStyle(buf.format[i].hexDisplay);
           if(ImGui::Button(fmt::format("Hex##Buffer{}{}", buf.name, i).c_str()))
@@ -2470,6 +2469,11 @@ void ElementInspectorInternal::createInspectedBuffer(InspectedBuffer&   inspecte
                                                      uint32_t           viewMin /*= 0u*/,
                                                      uint32_t           viewMax /*= ~0u*/)
 {
+  if(sourceBuffer == VK_NULL_HANDLE)
+  {
+    LOGE("createInspectedBuffer: source buffer cannot be VK_NULL_HANDLE");
+    return;
+  }
   inspectedBuffer.formatSizeInBytes = computeFormatSizeInBytes(format);
   uint32_t sizeInBytes              = inspectedBuffer.formatSizeInBytes * entryCount;
 
@@ -2730,7 +2734,7 @@ void ElementInspectorInternal::imGuiGrid(uint32_t index, InspectedComputeVariabl
 void ElementInspectorInternal::imGuiBlock(uint32_t absoluteBlockIndex, InspectedComputeVariables& computeVar, uint32_t offsetInBytes)
 {
   ImGui::Text("%s", fmt::format("Block {} {}", absoluteBlockIndex, multiDimUvec3ToString(getBlockIndex(absoluteBlockIndex, computeVar)))
-                  .c_str());
+                        .c_str());
 
   uint32_t warpsPerBlock = (computeVar.blockSize.x * computeVar.blockSize.y * computeVar.blockSize.z) / WARP_SIZE;
 
@@ -2979,7 +2983,7 @@ void ElementInspectorInternal::imGuiWarp(uint32_t                   absoluteBloc
     if(var.showSnapshot)
     {
       ImGui::TableNextColumn();
-      ImGui::Text("%s", (std::string("SNAPSHOT\n") + valueFormatToString(format[i])).c_str());
+      ImGui::Text("SNAPSHOT\n%s", valueFormatToString(format[i]).c_str());
       imguiPushActiveButtonStyle(format[i].hexDisplay);
       if(ImGui::Button(fmt::format("Hex##{}", i).c_str()))
       {
@@ -3053,6 +3057,328 @@ void ElementInspector::onUIMenu()
   {
     ImGui::MenuItem("Inspector", nullptr, &m_internals->m_showWindow);
     ImGui::EndMenu();
+  }
+}
+
+
+ElementInspector::ValueType ElementInspector::glslStringToType(const std::string& typeString)
+{
+  if(typeString == "uint8_t")
+    return ElementInspector::eUint8;
+  if(typeString == "uint16_t")
+    return ElementInspector::eUint16;
+  if(typeString == "uint32_t")
+    return ElementInspector::eUint32;
+  if(typeString == "uint64_t")
+    return ElementInspector::eUint64;
+  if(typeString == "int8_t")
+    return ElementInspector::eInt8;
+  if(typeString == "int16_t")
+    return ElementInspector::eInt16;
+  if(typeString == "int32_t")
+    return ElementInspector::eInt32;
+  if(typeString == "int64_t")
+    return ElementInspector::eInt64;
+  //if (typeString == "half") return ElementInspector::eFloat16;
+  if(typeString == "float")
+    return ElementInspector::eFloat32;
+  if(typeString == "u8vec2")
+    return ElementInspector::eU8Vec2;
+  if(typeString == "u8vec3")
+    return ElementInspector::eU8Vec3;
+  if(typeString == "u8vec4")
+    return ElementInspector::eU8Vec4;
+  if(typeString == "u16vec2")
+    return ElementInspector::eU16Vec2;
+  if(typeString == "u16vec3")
+    return ElementInspector::eU16Vec3;
+  if(typeString == "u16vec4")
+    return ElementInspector::eU16Vec4;
+  if(typeString == "uvec2")
+    return ElementInspector::eU32Vec2;
+  if(typeString == "uvec3")
+    return ElementInspector::eU32Vec3;
+  if(typeString == "uvec4")
+    return ElementInspector::eU32Vec4;
+  if(typeString == "u64vec2")
+    return ElementInspector::eU64Vec2;
+  if(typeString == "u64vec3")
+    return ElementInspector::eU64Vec3;
+  if(typeString == "u64vec4")
+    return ElementInspector::eU64Vec4;
+  if(typeString == "i8vec2")
+    return ElementInspector::eS8Vec2;
+  if(typeString == "i8vec3")
+    return ElementInspector::eS8Vec3;
+  if(typeString == "i8vec4")
+    return ElementInspector::eS8Vec4;
+  if(typeString == "i16vec2")
+    return ElementInspector::eS16Vec2;
+  if(typeString == "i16vec3")
+    return ElementInspector::eS16Vec3;
+  if(typeString == "i16vec4")
+    return ElementInspector::eS16Vec4;
+  if(typeString == "ivec2")
+    return ElementInspector::eS32Vec2;
+  if(typeString == "ivec3")
+    return ElementInspector::eS32Vec3;
+  if(typeString == "ivec4")
+    return ElementInspector::eS32Vec4;
+  if(typeString == "i64vec2")
+    return ElementInspector::eS64Vec2;
+  if(typeString == "i64vec3")
+    return ElementInspector::eS64Vec3;
+  if(typeString == "i64vec4")
+    return ElementInspector::eS64Vec4;
+  //if (typeString == "") return ElementInspector::eF16Vec2;
+  //if (typeString == "") return ElementInspector::eF16Vec3;
+  //if (typeString == "") return ElementInspector::eF16Vec4;
+  if(typeString == "vec2")
+    return ElementInspector::eF32Vec2;
+  if(typeString == "vec3")
+    return ElementInspector::eF32Vec3;
+  if(typeString == "vec4")
+    return ElementInspector::eF32Vec4;
+  if(typeString == "u8mat2")
+    return ElementInspector::eU8Mat2x2;
+  if(typeString == "u8mat2x3")
+    return ElementInspector::eU8Mat2x3;
+  if(typeString == "u8mat2x4")
+    return ElementInspector::eU8Mat2x4;
+  if(typeString == "u16mat2")
+    return ElementInspector::eU16Mat2x2;
+  if(typeString == "u16mat2x3")
+    return ElementInspector::eU16Mat2x3;
+  if(typeString == "u16mat2x4")
+    return ElementInspector::eU16Mat2x4;
+  if(typeString == "umat2")
+    return ElementInspector::eU32Mat2x2;
+  if(typeString == "umat2x3")
+    return ElementInspector::eU32Mat2x3;
+  if(typeString == "umat2x4")
+    return ElementInspector::eU32Mat2x4;
+  if(typeString == "u64mat2")
+    return ElementInspector::eU64Mat2x2;
+  if(typeString == "u64mat2x3")
+    return ElementInspector::eU64Mat2x3;
+  if(typeString == "u64mat2x4")
+    return ElementInspector::eU64Mat2x4;
+  if(typeString == "u8mat3x2")
+    return ElementInspector::eU8Mat3x2;
+  if(typeString == "u8mat3")
+    return ElementInspector::eU8Mat3x3;
+  if(typeString == "u8mat3x4")
+    return ElementInspector::eU8Mat3x4;
+  if(typeString == "u16mat3x2")
+    return ElementInspector::eU16Mat3x2;
+  if(typeString == "u16mat3")
+    return ElementInspector::eU16Mat3x3;
+  if(typeString == "u16mat3x4")
+    return ElementInspector::eU16Mat3x4;
+  if(typeString == "u32mat3x2")
+    return ElementInspector::eU32Mat3x2;
+  if(typeString == "u32mat3")
+    return ElementInspector::eU32Mat3x3;
+  if(typeString == "u32mat3x4")
+    return ElementInspector::eU32Mat3x4;
+  if(typeString == "u64mat3x2")
+    return ElementInspector::eU64Mat3x2;
+  if(typeString == "u64mat3")
+    return ElementInspector::eU64Mat3x3;
+  if(typeString == "u64mat3x4")
+    return ElementInspector::eU64Mat3x4;
+  if(typeString == "u8mat4x2")
+    return ElementInspector::eU8Mat4x2;
+  if(typeString == "u8mat4x3")
+    return ElementInspector::eU8Mat4x3;
+  if(typeString == "u8mat4")
+    return ElementInspector::eU8Mat4x4;
+  if(typeString == "u16mat4x2")
+    return ElementInspector::eU16Mat4x2;
+  if(typeString == "u16mat4x3")
+    return ElementInspector::eU16Mat4x3;
+  if(typeString == "u16mat4")
+    return ElementInspector::eU16Mat4x4;
+  if(typeString == "u32mat4x2")
+    return ElementInspector::eU32Mat4x2;
+  if(typeString == "u32mat4x3")
+    return ElementInspector::eU32Mat4x3;
+  if(typeString == "u32mat4")
+    return ElementInspector::eU32Mat4x4;
+  if(typeString == "u64mat4x2")
+    return ElementInspector::eU64Mat4x2;
+  if(typeString == "u64mat4x3")
+    return ElementInspector::eU64Mat4x3;
+  if(typeString == "u64mat4")
+    return ElementInspector::eU64Mat4x4;
+  if(typeString == "i8mat2")
+    return ElementInspector::eS8Mat2x2;
+  if(typeString == "i8mat2x3")
+    return ElementInspector::eS8Mat2x3;
+  if(typeString == "i8mat2x4")
+    return ElementInspector::eS8Mat2x4;
+  if(typeString == "i16mat2")
+    return ElementInspector::eS16Mat2x2;
+  if(typeString == "i16mat2x3")
+    return ElementInspector::eS16Mat2x3;
+  if(typeString == "i16mat2x4")
+    return ElementInspector::eS16Mat2x4;
+  if(typeString == "i32mat2")
+    return ElementInspector::eS32Mat2x2;
+  if(typeString == "i32mat2x3")
+    return ElementInspector::eS32Mat2x3;
+  if(typeString == "i32mat2x4")
+    return ElementInspector::eS32Mat2x4;
+  if(typeString == "i64mat2")
+    return ElementInspector::eS64Mat2x2;
+  if(typeString == "i64mat2x3")
+    return ElementInspector::eS64Mat2x3;
+  if(typeString == "i64mat2x4")
+    return ElementInspector::eS64Mat2x4;
+  if(typeString == "i8mat3x2")
+    return ElementInspector::eS8Mat3x2;
+  if(typeString == "i8mat3")
+    return ElementInspector::eS8Mat3x3;
+  if(typeString == "i8mat3x4")
+    return ElementInspector::eS8Mat3x4;
+  if(typeString == "i16mat3x2")
+    return ElementInspector::eS16Mat3x2;
+  if(typeString == "i16mat3")
+    return ElementInspector::eS16Mat3x3;
+  if(typeString == "i16mat3x4")
+    return ElementInspector::eS16Mat3x4;
+  if(typeString == "i32mat3x2")
+    return ElementInspector::eS32Mat3x2;
+  if(typeString == "i32mat3")
+    return ElementInspector::eS32Mat3x3;
+  if(typeString == "i32mat3x4")
+    return ElementInspector::eS32Mat3x4;
+  if(typeString == "i64mat3x2")
+    return ElementInspector::eS64Mat3x2;
+  if(typeString == "i64mat3")
+    return ElementInspector::eS64Mat3x3;
+  if(typeString == "i64mat3x4")
+    return ElementInspector::eS64Mat3x4;
+  if(typeString == "i8mat4x2")
+    return ElementInspector::eS8Mat4x2;
+  if(typeString == "i8mat4x3")
+    return ElementInspector::eS8Mat4x3;
+  if(typeString == "i8mat4")
+    return ElementInspector::eS8Mat4x4;
+  if(typeString == "i16mat4x2")
+    return ElementInspector::eS16Mat4x2;
+  if(typeString == "i16mat4x3")
+    return ElementInspector::eS16Mat4x3;
+  if(typeString == "i16mat4")
+    return ElementInspector::eS16Mat4x4;
+  if(typeString == "i32mat4x2")
+    return ElementInspector::eS32Mat4x2;
+  if(typeString == "i32mat4x3")
+    return ElementInspector::eS32Mat4x3;
+  if(typeString == "i32mat4")
+    return ElementInspector::eS32Mat4x4;
+  if(typeString == "i64mat4x2")
+    return ElementInspector::eS64Mat4x2;
+  if(typeString == "i64mat4x3")
+    return ElementInspector::eS64Mat4x3;
+  if(typeString == "i64mat4")
+    return ElementInspector::eS64Mat4x4;
+  //if (typeString == "") return ElementInspector::eF16Mat2x2;
+  //if (typeString == "") return ElementInspector::eF16Mat2x3;
+  //if (typeString == "") return ElementInspector::eF16Mat2x4;
+  if(typeString == "mat2")
+    return ElementInspector::eF32Mat2x2;
+  if(typeString == "mat2x3")
+    return ElementInspector::eF32Mat2x3;
+  if(typeString == "mat2x4")
+    return ElementInspector::eF32Mat2x4;
+  //if (typeString == "") return ElementInspector::eF16Mat3x2;
+  //if (typeString == "") return ElementInspector::eF16Mat3x3;
+  //if (typeString == "") return ElementInspector::eF16Mat3x4;
+  if(typeString == "mat3x2")
+    return ElementInspector::eF32Mat3x2;
+  if(typeString == "mat3")
+    return ElementInspector::eF32Mat3x3;
+  if(typeString == "mat3x4")
+    return ElementInspector::eF32Mat3x4;
+  //if (typeString == "") return ElementInspector::eF16Mat4x2;
+  //if (typeString == "") return ElementInspector::eF16Mat4x3;
+  //if (typeString == "") return ElementInspector::eF16Mat4x4;
+  if(typeString == "mat4x2")
+    return ElementInspector::eF32Mat4x2;
+  if(typeString == "mat4x3")
+    return ElementInspector::eF32Mat4x3;
+  if(typeString == "mat4")
+    return ElementInspector::eF32Mat4x4;
+  LOGE("glslStringToType: unknown type string \"%s\"", typeString);
+  return ElementInspector::eUint32;
+}
+
+
+std::vector<ElementInspector::ValueFormat> ElementInspector::formatStruct(const std::string& structure)
+{
+  std::vector<ElementInspector::ValueFormat> res;
+  size_t                                     pos{};
+  for(; pos < structure.size(); pos++)
+  {
+    if(structure[pos] == '{')
+    {
+      pos++;
+      break;
+    }
+  }
+  while(true)
+  {
+    for(; pos < structure.size(); pos++)
+    {
+      if(structure[pos] != ' ' && structure[pos] != '\n' && structure[pos] != '\t' && structure[pos] != ';')
+      {
+        break;
+      }
+    }
+
+    size_t typeStart = pos;
+    for(; pos < structure.size(); pos++)
+    {
+      if(structure[pos] == ' ')
+      {
+        pos++;
+        break;
+      }
+    }
+    size_t typeEnd = pos - 1;
+
+    ElementInspector::ValueFormat value{};
+    if(typeEnd != typeStart)
+    {
+      value.type = glslStringToType(structure.substr(typeStart, typeEnd - typeStart));
+    }
+
+
+    while(pos < structure.size() && (structure[pos] == ' ' || structure[pos] == '\t' || structure[pos] == '\n'))
+    {
+      pos++;
+    }
+
+    size_t nameStart = pos;
+    for(; pos < structure.size(); pos++)
+    {
+      if(structure[pos] == ' ')
+        break;
+    }
+    size_t nameEnd = pos - 1;
+
+    value.name = structure.substr(nameStart, nameEnd - nameStart);
+
+    if(nameStart != nameEnd && typeStart != typeEnd)
+    {
+      res.push_back(value);
+    }
+
+    if(pos >= structure.size())
+    {
+      return res;
+    }
   }
 }
 
@@ -3528,7 +3854,14 @@ void ElementInspectorInternal::inspectBuffer(VkCommandBuffer cmd, uint32_t index
   {
     return;
   }
+
   InspectedBuffer& internalBuffer = m_inspectedBuffers[index];
+
+  if(internalBuffer.sourceBuffer == VK_NULL_HANDLE)
+  {
+    LOGE("inspectBuffer error: buffer inspection index %d is not initialized\n", index);
+    return;
+  }
 
   internalBuffer.filteredEntries = ~0u;
 

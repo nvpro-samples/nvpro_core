@@ -23,35 +23,51 @@
 #include "constants.h"
 
 #ifdef __cplusplus
+#ifndef OUT_TYPE
 #define OUT_TYPE(T) T&
+#endif
+using glm::atan;
+using glm::clamp;
+using glm::cross;
+using glm::dot;
+using glm::mat4;
+using glm::max;
+using glm::mix;
+using glm::normalize;
+using glm::sqrt;
+using glm::vec2;
+using glm::vec3;
+using glm::vec4;
 #else
 #define OUT_TYPE(T) out T
 precision highp float;
+#define static
+#define inline
 #endif
 
 
-float square(float x)
+inline float square(float x)
 {
   return x * x;
 }
 
-float saturate(float x)
+inline float saturate(float x)
 {
   return clamp(x, 0.0F, 1.0F);
 }
 
-vec3 saturate(vec3 x)
+inline vec3 saturate(vec3 x)
 {
   return clamp(x, vec3(0.0F), vec3(1.0F));
 }
 
 // Return the luminance of a color
-float luminance(vec3 color)
+inline float luminance(vec3 color)
 {
   return color.x * 0.2126F + color.y * 0.7152F + color.z * 0.0722F;
 }
 
-vec3 slerp(vec3 a, vec3 b, float angle, float t)
+inline vec3 slerp(vec3 a, vec3 b, float angle, float t)
 {
   t            = saturate(t);
   float sin1   = sin(angle * t);
@@ -61,7 +77,7 @@ vec3 slerp(vec3 a, vec3 b, float angle, float t)
   return normalize(result);
 }
 
-float clampedDot(vec3 x, vec3 y)
+inline float clampedDot(vec3 x, vec3 y)
 {
   return clamp(dot(x, y), 0.0F, 1.0F);
 }
@@ -76,7 +92,7 @@ float clampedDot(vec3 x, vec3 y)
 // when operating on a sphere (due to the hairy ball theorem); this has a
 // small ring-shaped discontinuity at normal.z == -0.99998796.
 //-----------------------------------------------------------------------------
-void orthonormalBasis(vec3 normal, OUT_TYPE(vec3) tangent, OUT_TYPE(vec3) bitangent)
+inline void orthonormalBasis(vec3 normal, OUT_TYPE(vec3) tangent, OUT_TYPE(vec3) bitangent)
 {
   if(normal.z < -0.99998796F)  // Handle the singularity
   {
@@ -93,7 +109,7 @@ void orthonormalBasis(vec3 normal, OUT_TYPE(vec3) tangent, OUT_TYPE(vec3) bitang
 //-----------------------------------------------------------------------------
 // Like orthonormalBasis(), but returns a tangent and tangent sign that matches
 // the glTF convention.
-vec4 makeFastTangent(vec3 normal)
+inline vec4 makeFastTangent(vec3 normal)
 {
   vec3 tangent, unused;
   orthonormalBasis(normal, tangent, unused);
@@ -104,7 +120,7 @@ vec4 makeFastTangent(vec3 normal)
   return vec4(tangent, 1.f);
 }
 
-vec3 rotate(vec3 v, vec3 k, float theta)
+inline vec3 rotate(vec3 v, vec3 k, float theta)
 {
   float cos_theta = cos(theta);
   float sin_theta = sin(theta);
@@ -116,7 +132,7 @@ vec3 rotate(vec3 v, vec3 k, float theta)
 //-----------------------------------------------------------------------
 // Return the UV in a lat-long HDR map
 //-----------------------------------------------------------------------
-vec2 getSphericalUv(vec3 v)
+inline vec2 getSphericalUv(vec3 v)
 {
   float gamma = asin(-v.y);
   float theta = atan(v.z, v.x);
@@ -128,17 +144,17 @@ vec2 getSphericalUv(vec3 v)
 //-----------------------------------------------------------------------
 // Return the interpolated value between 3 values and the barycentrics
 //-----------------------------------------------------------------------
-vec2 mixBary(vec2 a, vec2 b, vec2 c, vec3 bary)
+inline vec2 mixBary(vec2 a, vec2 b, vec2 c, vec3 bary)
 {
   return a * bary.x + b * bary.y + c * bary.z;
 }
 
-vec3 mixBary(vec3 a, vec3 b, vec3 c, vec3 bary)
+inline vec3 mixBary(vec3 a, vec3 b, vec3 c, vec3 bary)
 {
   return a * bary.x + b * bary.y + c * bary.z;
 }
 
-vec4 mixBary(vec4 a, vec4 b, vec4 c, vec3 bary)
+inline vec4 mixBary(vec4 a, vec4 b, vec4 c, vec3 bary)
 {
   return a * bary.x + b * bary.y + c * bary.z;
 }
@@ -147,7 +163,7 @@ vec4 mixBary(vec4 a, vec4 b, vec4 c, vec3 bary)
 // https://www.realtimerendering.com/raytracinggems/unofficial_RayTracingGems_v1.4.pdf
 // 16.6.1 COSINE-WEIGHTED HEMISPHERE ORIENTED TO THE Z-AXIS
 //-----------------------------------------------------------------------
-vec3 cosineSampleHemisphere(float r1, float r2)
+inline vec3 cosineSampleHemisphere(float r1, float r2)
 {
   float r   = sqrt(r1);
   float phi = M_TWO_PI * r2;

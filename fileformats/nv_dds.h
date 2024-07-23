@@ -19,7 +19,7 @@
 
 //////////////////////////////////////////////////////////////////////////
 /** @DOC_START
-# nv_dds 2.0.0
+# nv_dds 2.0.1
      
 nv_dds is a small library for reading and writing DDS files. Other than the
 C++ standard library, it only requires five files: dxgiformat.h, nv_dds.h,
@@ -209,7 +209,12 @@ enum class ColorTransform
   // channel is only a scaling factor.
   eAEXP,
   // Swap the red and green channels.
-  eA2XY,
+  eSwapRG,
+  // For backwards compatibility with nv_dds 2.0.0; typically, if a file
+  // contains 'ATI2' and 'A2XY', we want to treat it as BC5 without a swap.
+  // The new eSwapRG flag makes the distinction between "swap the red and green
+  // channels" and "this file had the A2XY swizzle" clearer.
+  eA2XY = eSwapRG,
   // Reconstruct the blue channel from the red and green channels using
   // sqrt(1-r^2-g^2).
   // This usually appears with an SNORM format; e.g. D3DFMT_CxV8U8 is
