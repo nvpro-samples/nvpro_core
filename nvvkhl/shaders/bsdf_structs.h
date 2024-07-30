@@ -17,8 +17,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef BSDF_STRUCTS_H
-#define BSDF_STRUCTS_H 1
+#ifndef NVVKHL_BSDF_STRUCTS_H
+#define NVVKHL_BSDF_STRUCTS_H 1
 
 #define BSDF_EVENT_ABSORB 0               // 0
 #define BSDF_EVENT_DIFFUSE 1              // 1
@@ -64,5 +64,4 @@ struct BsdfSampleData
   int   event_type;     // [out] one of the event above
 };
 
-
-#endif
+#endif  // NVVKHL_BSDF_STRUCTS_H

@@ -2469,11 +2469,6 @@ void ElementInspectorInternal::createInspectedBuffer(InspectedBuffer&   inspecte
                                                      uint32_t           viewMin /*= 0u*/,
                                                      uint32_t           viewMax /*= ~0u*/)
 {
-  if(sourceBuffer == VK_NULL_HANDLE)
-  {
-    LOGE("createInspectedBuffer: source buffer cannot be VK_NULL_HANDLE");
-    return;
-  }
   inspectedBuffer.formatSizeInBytes = computeFormatSizeInBytes(format);
   uint32_t sizeInBytes              = inspectedBuffer.formatSizeInBytes * entryCount;
 
@@ -3310,7 +3305,7 @@ ElementInspector::ValueType ElementInspector::glslStringToType(const std::string
     return ElementInspector::eF32Mat4x3;
   if(typeString == "mat4")
     return ElementInspector::eF32Mat4x4;
-  LOGE("glslStringToType: unknown type string \"%s\"", typeString);
+  LOGE("glslStringToType: unknown type string \"%s\"\n", typeString);
   return ElementInspector::eUint32;
 }
 
@@ -3486,15 +3481,18 @@ void ElementInspectorInternal::initImageInspection(uint32_t index, const Element
 
   if(info.format.empty())
   {
-    LOGE("initImageInspection error: info.format must not be empty");
+    LOGE("initImageInspection error: info.format must not be empty\n");
     return;
   }
   if(info.createInfo.extent.width * info.createInfo.extent.height == 0)
   {
-    LOGE("initImageInspection error: the extent in info.createInfo must not be 0");
+    LOGE("initImageInspection error: the extent in info.createInfo must not be 0\n");
     return;
   }
-
+  if(info.sourceImage == VK_NULL_HANDLE)
+  {
+    LOGE("initImageInspection error: source image cannot be VK_NULL_HANDLE\n");
+  }
 
   checkFormatFlag(info.format);
   ElementInspectorInternal::InspectedImage& inspectedImage = m_inspectedImages[index];
@@ -3573,6 +3571,10 @@ void ElementInspectorInternal::deinitImageInspection(uint32_t index, bool isCopy
 
 void ElementInspector::initBufferInspection(uint32_t index, const BufferInspectionInfo& info)
 {
+  if(info.sourceBuffer == VK_NULL_HANDLE)
+  {
+    LOGE("initBufferInspection error: info.sourceBuffer cannot be VK_NULL_HANDLE\n");
+  }
   m_internals->initBufferInspection(index, info);
 }
 

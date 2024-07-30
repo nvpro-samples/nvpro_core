@@ -17,6 +17,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#ifndef NVVKHL_BSDF_FUNCTIONS_H
+#define NVVKHL_BSDF_FUNCTIONS_H 1
+
 #include "func.h"            // cosineSampleHemisphere
 #include "ggx.h"             // brdfLambertian, ..
 #include "bsdf_structs.h"    // Bsdf*,
@@ -178,6 +181,11 @@ void brdf_diffuse_eval(INOUT_TYPE(BsdfEvaluateData) data, PbrMaterial mat, vec3 
   data.bsdf_diffuse = tint * data.pdf;
 }
 
+void brdf_diffuse_eval(INOUT_TYPE(BsdfEvaluateData) data, PbrMaterial mat)
+{
+  brdf_diffuse_eval(data, mat, mat.baseColor);
+}
+
 void brdf_diffuse_sample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat, vec3 tint)
 {
   data.k2  = cosineSampleHemisphere(data.xi.x, data.xi.y);
@@ -189,7 +197,11 @@ void brdf_diffuse_sample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat, vec3 
   data.event_type    = (0.0f < dot(data.k2, mat.Ng)) ? BSDF_EVENT_DIFFUSE_REFLECTION : BSDF_EVENT_ABSORB;
 }
 
-
+void brdf_diffuse_sample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat)
+{
+  brdf_diffuse_sample(data, mat, mat.baseColor);
+}
+    
 void brdf_ggx_smith_eval(INOUT_TYPE(BsdfEvaluateData) data, PbrMaterial mat, const int lobe, vec3 tint)
 {
   // BRDF or BTDF eval?
@@ -266,15 +278,18 @@ void brdf_ggx_smith_sample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat, con
   data.bsdf_over_pdf = vec3(0.0f);
   data.pdf           = 0.0f;
 
-  const float nk1 = abs(dot(data.k1, mat.N));
-
+  // Transform to local coordinate system
+  const float nk1 = dot(data.k1, mat.N);
+  if(nk1 <= 0.0f)
+  {
+    data.event_type = BSDF_EVENT_ABSORB;
+    return;
+  }
   const vec3 k10 = vec3(dot(data.k1, mat.T), dot(data.k1, mat.B), nk1);
 
   // Sample half-vector, microfacet normal.
   const vec3 h0 = hvd_ggx_sample_vndf(k10, mat.roughness, data.xi.xy);
-
-
-  if(abs(h0.z) == 0.0f)
+  if(h0.z == 0.0f)
   {
     data.event_type = BSDF_EVENT_ABSORB;
     return;
@@ -291,9 +306,7 @@ void brdf_ggx_smith_sample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat, con
   }
 
   // BRDF: reflect
-  data.k2            = (2.0f * kh) * h - data.k1;
-  data.bsdf_over_pdf = vec3(1.0f, 1.0f, 1.0f);  // PERF Always white with the original setup.
-  data.event_type    = BSDF_EVENT_GLOSSY_REFLECTION;
+  data.k2 = (2.0f * kh) * h - data.k1;
 
   // Check if the resulting direction is on the correct side of the actual geometry
   const float gnk2 = dot(data.k2, mat.Ng);  // * ((data.typeEvent == BSDF_EVENT_GLOSSY_REFLECTION) ? 1.0f : -1.0f);
@@ -310,8 +323,7 @@ void brdf_ggx_smith_sample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat, con
   float G1;
   float G2;
 
-  float G12;
-  G12 = ggx_smith_shadow_mask(G1, G2, k10, vec3(dot(data.k2, mat.T), dot(data.k2, mat.B), nk2), mat.roughness);
+  float G12 = ggx_smith_shadow_mask(G1, G2, k10, vec3(dot(data.k2, mat.T), dot(data.k2, mat.B), nk2), mat.roughness);
 
   if(G12 <= 0.0f)
   {
@@ -319,7 +331,8 @@ void brdf_ggx_smith_sample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat, con
     return;
   }
 
-  data.bsdf_over_pdf *= G12 / G1;
+  data.bsdf_over_pdf = vec3(G2);
+  data.event_type    = BSDF_EVENT_GLOSSY_REFLECTION;
 
   // Compute pdf
   data.pdf = hvd_ggx_eval(1.0f / mat.roughness, h0) * G1;
@@ -396,14 +409,12 @@ void btdf_ggx_smith_eval(INOUT_TYPE(BsdfEvaluateData) data, PbrMaterial mat, con
 
   // Compute BSDF and pdf
   const vec3 h0 = vec3(dot(mat.T, h), dot(mat.B, h), nh);
-
-  data.pdf = hvd_ggx_eval(1.0f / mat.roughness, h0);
+  data.pdf      = hvd_ggx_eval(1.0f / mat.roughness, h0);
 
   float G1;
   float G2;
-  float G12;
-  G12 = ggx_smith_shadow_mask(G1, G2, vec3(dot(mat.T, data.k1), dot(mat.B, data.k1), nk1),
-                              vec3(dot(mat.T, data.k2), dot(mat.B, data.k2), nk2), mat.roughness);
+  float G12 = ggx_smith_shadow_mask(G1, G2, vec3(dot(mat.T, data.k1), dot(mat.B, data.k1), nk1),
+                                    vec3(dot(mat.T, data.k2), dot(mat.B, data.k2), nk2), mat.roughness);
 
   if(!isThinWalled && backside)  // Refraction?
   {
@@ -495,8 +506,7 @@ void btdf_ggx_smith_sample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat, con
 
   float G1;
   float G2;
-  float G12;
-  G12 = ggx_smith_shadow_mask(G1, G2, k10, vec3(dot(data.k2, mat.T), dot(data.k1, mat.B), nk2), mat.roughness);
+  float G12 = ggx_smith_shadow_mask(G1, G2, k10, vec3(dot(data.k2, mat.T), dot(data.k1, mat.B), nk2), mat.roughness);
 
   if(G12 <= 0.0f)
   {
@@ -504,7 +514,7 @@ void btdf_ggx_smith_sample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat, con
     return;
   }
 
-  data.bsdf_over_pdf *= G12 / G1;
+  data.bsdf_over_pdf *= G2;
 
   // Compute pdf
   data.pdf = hvd_ggx_eval(1.0f / mat.roughness, h0) * G1;  // * prob;
@@ -753,32 +763,44 @@ float bsdfSimpleGlossyProbability(float NdotV, float metallic)
 void bsdfEvaluateSimple(INOUT_TYPE(BsdfEvaluateData) data, PbrMaterial mat)
 {
   // Specular reflection
-  vec3  H              = normalize(data.k1 + data.k2);
-  float alphaRoughness = mat.roughness.x;
-  float NdotV          = clampedDot(mat.N, data.k1);
-  float NdotL          = clampedDot(mat.N, data.k2);
-  float VdotH          = clampedDot(data.k1, H);
-  float NdotH          = clampedDot(mat.N, H);
+  vec3  H     = normalize(data.k1 + data.k2);
+  float NdotV = clampedDot(mat.N, data.k1);
+  float NdotL = clampedDot(mat.N, data.k2);
+  float VdotH = clampedDot(data.k1, H);
+  float NdotH = clampedDot(mat.N, H);
+
+  if(NdotV == 0.0f || NdotL == 0.0f || VdotH == 0.0f || NdotH == 0.0f)
+  {
+    data.bsdf_diffuse = data.bsdf_glossy = vec3(0.0f);
+    data.pdf                             = 0.0f;
+    return;
+  }
 
   // We combine the metallic and specular lobes into a single glossy lobe.
   // The metallic weight is     metallic *    fresnel(f0 = baseColor)
   // The specular weight is (1-metallic) *    fresnel(f0 = c_min_reflectance)
   // The diffuse weight is  (1-metallic) * (1-fresnel(f0 = c_min_reflectance)) * baseColor
 
+  // Fresnel terms
   float c_min_reflectance = 0.04F;
   vec3  f0                = mix(vec3(c_min_reflectance), mat.baseColor, mat.metallic);
-  vec3  f90               = vec3(1.0F);
-  vec3  f                 = schlickFresnel(f0, f90, VdotH);
-  float vis               = ggxSmithVisibility(NdotL, NdotV, alphaRoughness);  // Vis = G / (4 * NdotL * NdotV)
-  float d                 = ggxDistribution(NdotH, alphaRoughness);
+  vec3  fGlossy           = schlickFresnel(f0, vec3(1.0F), VdotH);  // Metallic + specular
+  float fDiffuse          = schlickFresnel(1.0F - c_min_reflectance, 0.0F, VdotH) * (1.0F - mat.metallic);
 
-  data.bsdf_glossy  = f * (vis * d) * NdotL;  // GGX-Smith
-  data.bsdf_diffuse = mat.baseColor * schlickFresnel(1.0F - c_min_reflectance, 0.0F, VdotH) * (1.0F - mat.metallic)
-                      * (M_1_PI * NdotL);  // Lambertian
+  // Specular GGX
+  vec3  localH  = vec3(dot(mat.T, H), dot(mat.B, H), NdotH);
+  float d       = hvd_ggx_eval(1.0f / mat.roughness, localH);
+  vec3  localK1 = vec3(dot(mat.T, data.k1), dot(mat.B, data.k1), NdotV);
+  vec3  localK2 = vec3(dot(mat.T, data.k2), dot(mat.B, data.k2), NdotL);
+  float G1 = 0.0f, G2 = 0.0f;
+  ggx_smith_shadow_mask(G1, G2, localK1, localK2, mat.roughness);
 
   float diffusePdf  = M_1_PI * NdotL;
-  float specularPdf = d * NdotH / (4.0F * VdotH);
+  float specularPdf = G1 * d * 0.25f / (NdotV * NdotH);
   data.pdf          = mix(diffusePdf, specularPdf, bsdfSimpleGlossyProbability(NdotV, mat.metallic));
+
+  data.bsdf_diffuse = mat.baseColor * fDiffuse * diffusePdf;  // Lambertian
+  data.bsdf_glossy  = fGlossy * G2 * specularPdf;             // GGX-Smith
 }
 
 void bsdfSampleSimple(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat)
@@ -786,13 +808,17 @@ void bsdfSampleSimple(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat)
   vec3 tint          = mat.baseColor;
   data.bsdf_over_pdf = vec3(0.0F);
 
-  if(data.xi.z <= bsdfSimpleGlossyProbability(clampedDot(mat.N, data.k1), mat.metallic))
+  float nk1 = clampedDot(mat.N, data.k1);
+  if(data.xi.z <= bsdfSimpleGlossyProbability(nk1, mat.metallic))
   {
     // Glossy GGX
     data.event_type = BSDF_EVENT_GLOSSY_REFLECTION;
-    vec3 halfVector = ggxSampling(mat.roughness.x, data.xi.xy);
-    halfVector      = mat.T * halfVector.x + mat.B * halfVector.y + mat.N * halfVector.z;
-    data.k2         = reflect(-data.k1, halfVector);
+    // Transform to local space
+    vec3 localK1    = vec3(dot(mat.T, data.k1), dot(mat.B, data.k1), nk1);
+    vec3 halfVector = hvd_ggx_sample_vndf(localK1, mat.roughness, data.xi.xy);
+    // Transform from local space
+    halfVector = mat.T * halfVector.x + mat.B * halfVector.y + mat.N * halfVector.z;
+    data.k2    = reflect(-data.k1, halfVector);
   }
   else
   {
@@ -806,11 +832,17 @@ void bsdfSampleSimple(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat)
   evalData.k1 = data.k1;
   evalData.k2 = data.k2;
   bsdfEvaluateSimple(evalData, mat);
-  data.pdf           = evalData.pdf;
-  data.bsdf_over_pdf = (evalData.bsdf_diffuse + evalData.bsdf_glossy) / data.pdf;
-
-  if(data.pdf <= 0.00001F || any(isnan(data.bsdf_over_pdf)))
-    data.event_type = BSDF_EVENT_ABSORB;
+  data.pdf        = evalData.pdf;
+  vec3 bsdf_total = evalData.bsdf_diffuse + evalData.bsdf_glossy;
+  if(data.pdf <= 0.00001F || any(isnan(bsdf_total)))
+  {
+    data.bsdf_over_pdf = vec3(0.0f);
+    data.event_type    = BSDF_EVENT_ABSORB;
+  }
+  else
+  {
+    data.bsdf_over_pdf = bsdf_total / data.pdf;
+  }
 }
 
 // Returns the approximate average reflectance of the Simple BSDF -- that is,
@@ -821,12 +853,11 @@ void bsdfSampleSimple(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat)
 // with Radiance Caching*.
 vec3 bsdfSimpleAverageReflectance(vec3 k1, PbrMaterial mat)
 {
-  float NdotV = clampedDot(mat.N, k1);
+  float NdotV             = clampedDot(mat.N, k1);
   float c_min_reflectance = 0.04F;
-  vec3  f0 = mix(vec3(c_min_reflectance), mat.baseColor, mat.metallic);
-  vec3  f90 = vec3(1.0f);
+  vec3  f0                = mix(vec3(c_min_reflectance), mat.baseColor, mat.metallic);
   // This is approximate because
-  // average_over_k2(fresnel(f0, f90, VdotH)) != fresnel(f0, f90, NdotV).
+  // average_over_k2(fresnel(f0, 1.0f, VdotH)) != fresnel(f0, 1.0f, NdotV).
   vec3 bsdf_glossy_average = schlickFresnel(f0, vec3(1.0F), NdotV);
   vec3 bsdf_diffuse_average = mat.baseColor * schlickFresnel(1.0F - c_min_reflectance, 0.0F, NdotV) * (1.0F - mat.metallic);
   return bsdf_glossy_average + bsdf_diffuse_average;
@@ -835,3 +866,5 @@ vec3 bsdfSimpleAverageReflectance(vec3 k1, PbrMaterial mat)
 #undef OUT_TYPE
 #undef INOUT_TYPE
 #undef ARRAY_TYPE
+
+#endif  // NVVKHL_BSDF_FUNCTIONS_H

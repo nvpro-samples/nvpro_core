@@ -24,6 +24,8 @@
 #include <sstream>
 #include "stb_image.h"
 
+#include "fileformats/texture_formats.h"
+#include "fileformats/nv_dds.h"
 #include "fileformats/tinygltf_utils.hpp"
 #include "nvh/gltfscene.hpp"
 #include "nvh/parallel_work.hpp"
@@ -588,10 +590,55 @@ void nvvkhl::SceneVk::loadImage(const std::filesystem::path& basedir, const tiny
   tinygltf::URIDecode(gltfImage.uri, &uri_decoded, nullptr);  // ex. whitespace may be represented as %20
   fs::path    uri       = fs::path(uri_decoded);
   std::string extension = uri.extension().string();
-  std::string imgName   = uri.filename().string();
-  std::string img_uri   = fs::path(basedir / uri).string();
+  for(char& c : extension)
+  {
+    c = tolower(c);
+  }
+  std::string imgName = uri.filename().string();
+  std::string img_uri = fs::path(basedir / uri).string();
 
-  if(!extension.empty())
+  if(extension == ".dds")
+  {
+    nv_dds::Image         ddsImage;
+    nv_dds::ReadSettings  settings{.mips = false};
+    nv_dds::ErrorWithText readResult = ddsImage.readFromFile(img_uri.c_str(), settings);
+    if(readResult.has_value())
+    {
+      LOGE("Failed to read %s: %s\n", img_uri.c_str(), readResult.value().c_str());
+      return;
+    }
+
+    image.srgb        = is_srgb;
+    image.size.width  = ddsImage.getWidth(0);
+    image.size.height = ddsImage.getHeight(0);
+    if(ddsImage.getDepth(0) > 1)
+    {
+      LOGE("This DDS image had a depth of %u, but loadImage() cannot handle volume textures.\n", ddsImage.getDepth(0));
+      return;
+    }
+    if(ddsImage.getNumFaces() > 1)
+    {
+      LOGE("This DDS image had %u faces, but loadImage() cannot handle cubemaps.\n", ddsImage.getNumFaces());
+      return;
+    }
+    if(ddsImage.getNumLayers() > 1)
+    {
+      LOGE("This DDS image had %u array elements, but loadImage() cannot handle array textures.\n", ddsImage.getNumLayers());
+      return;
+    }
+    image.format = texture_formats::dxgiToVulkan(ddsImage.dxgiFormat);
+    image.format = texture_formats::tryForceVkFormatTransferFunction(image.format, image.srgb);
+    if(VK_FORMAT_UNDEFINED == image.format)
+    {
+      LOGE("Could not determine a VkFormat for DXGI format %u (%s).\n", ddsImage.dxgiFormat,
+           texture_formats::getDXGIFormatName(ddsImage.dxgiFormat));
+    }
+
+    const nv_dds::Subresource& mip0      = ddsImage.subresource(0, 0, 0);
+    const uint8_t*             mip0Bytes = reinterpret_cast<const uint8_t*>(mip0.data.data());
+    image.mipData                        = {{mip0Bytes, mip0Bytes + mip0.data.size()}};
+  }
+  else if(!extension.empty())
   {
     stbi_uc* data;
     int      w = 0, h = 0, comp = 0;

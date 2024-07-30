@@ -195,39 +195,12 @@ void nvvkhl::Application::init(ApplicationCreateInfo& info)
     return;
   }
 
-  // Adding required extensions
-  if(info.instance == VK_NULL_HANDLE)
-  {
-    nvvk::ContextCreateInfo& vk_setup         = info.vkSetup;
-    uint32_t                 extensions_count = 0;
-    const char**             extensions       = glfwGetRequiredInstanceExtensions(&extensions_count);
-    for(uint32_t i = 0; i < extensions_count; i++)
-    {
-      vk_setup.instanceExtensions.emplace_back(extensions[i]);
-    }
-    vk_setup.deviceExtensions.emplace_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
-    vk_setup.instanceExtensions.emplace_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-
-    // Vulkan context creation
-    m_context = std::make_shared<nvvk::Context>();
-    for(auto& dbg_msg : info.ignoreDbgMessages)
-    {
-      m_context->ignoreDebugMessage(dbg_msg);  // Turn-off messages
-    }
-    m_context->init(vk_setup);
-    m_instance       = m_context->m_instance;
-    m_device         = m_context->m_device;
-    m_physicalDevice = m_context->m_physicalDevice;
-    m_queues         = {m_context->m_queueGCT, m_context->m_queueC, m_context->m_queueT};
-  }
-  else
-  {
-    m_instance       = info.instance;
-    m_device         = info.device;
-    m_physicalDevice = info.physicalDevice;
-    m_queues         = info.queues;
-    assert(m_instance != VK_NULL_HANDLE && m_device != VK_NULL_HANDLE && m_physicalDevice != VK_NULL_HANDLE);
-  }
+  // Setting Vulkan context
+  m_instance       = info.instance;
+  m_device         = info.device;
+  m_physicalDevice = info.physicalDevice;
+  m_queues         = info.queues;
+  assert(m_instance != VK_NULL_HANDLE && m_device != VK_NULL_HANDLE && m_physicalDevice != VK_NULL_HANDLE);
 
   // In case the Debug extension wasn't set, those functions will be null.
   app_vkCmdBeginDebugUtilsLabelEXT =
@@ -344,9 +317,6 @@ void nvvkhl::Application::shutdown()
   vkDestroyPipelineCache(m_device, m_pipelineCache, m_allocator);
   vkDestroyCommandPool(m_device, m_cmdPool, m_allocator);
   vkDestroyDescriptorPool(m_device, m_descriptorPool, m_allocator);
-
-  if(m_context)
-    m_context->deinit();
 
   // Glfw cleanup
   glfwDestroyWindow(m_windowHandle);

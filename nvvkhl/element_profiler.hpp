@@ -65,6 +65,7 @@ This is it and the execution time on the GPU for each part will be showing in th
 #include "nvpsystem.hpp"
 #include "nvvk/error_vk.hpp"
 #include "nvvk/profiler_vk.hpp"
+#include "nvvk/debug_util_vk.hpp"
 
 #define PROFILER_GRAPH_TEMPORAL_SMOOTHING 20.f
 #define PROFILER_GRAPH_MINIMAL_LUMINANCE 0.1f

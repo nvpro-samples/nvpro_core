@@ -19,8 +19,8 @@
 
 /// @DOC_SKIP
 
-#ifndef PBR_MAT_STRUCT_H
-#define PBR_MAT_STRUCT_H 1
+#ifndef NVVKHL_PBR_MAT_STRUCT_H
+#define NVVKHL_PBR_MAT_STRUCT_H 1
 
 #include "func.h"
 
@@ -112,4 +112,4 @@ PbrMaterial defaultPbrMaterial(vec3 baseColor, float metallic, float roughness, 
 
   return mat;
 }
-#endif
+#endif  // NVVKHL_PBR_MAT_STRUCT_H

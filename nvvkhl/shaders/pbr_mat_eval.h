@@ -58,7 +58,10 @@ vec4 getTexture(in int textureIndex, in vec2 texCoord)
 #endif
 }
 
-// If both anisotropic roughness values fall below this threshold, the BSDF switches to specular.
+// Minimum roughness for microfacet models.
+// This protects microfacet code from dividing by 0, as well as from numerical
+// instability around roughness == 0. However, it also means even roughness-0
+// surfaces will be rendered with a tiny amount of roughness.
 #define MICROFACET_MIN_ROUGHNESS 0.0014142f
 
 //-----------------------------------------------------------------------
@@ -92,6 +95,7 @@ PbrMaterial evaluateMaterial(in GltfShadeMaterial material, MeshState mesh)
     roughness *= mr_sample.g;
     metallic *= mr_sample.b;
   }
+  roughness        = max(roughness, MICROFACET_MIN_ROUGHNESS);
   pbrMat.roughness = vec2(roughness * roughness);  // Square roughness for the microfacet model
   pbrMat.metallic  = clamp(metallic, 0.0F, 1.0F);
 

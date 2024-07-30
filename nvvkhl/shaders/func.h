@@ -17,8 +17,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef FUNC_GLSL
-#define FUNC_GLSL 1
+#ifndef NVVKHL_FUNC_H
+#define NVVKHL_FUNC_H 1
 
 #include "constants.h"
 
@@ -175,4 +175,4 @@ inline vec3 cosineSampleHemisphere(float r1, float r2)
 }
 
 #undef OUT_TYPE
-#endif  // FUNC_GLSL
+#endif  // NVVKHL_FUNC_H

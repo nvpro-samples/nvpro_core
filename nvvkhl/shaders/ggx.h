@@ -18,8 +18,8 @@
  */
 
 
-#ifndef GGX_GLSL
-#define GGX_GLSL 1
+#ifndef NVVKHL_GGX_H
+#define NVVKHL_GGX_H 1
 
 #include "constants.h"
 
@@ -29,10 +29,6 @@
 #else
 #define OUT_TYPE(T) out T
 #define INOUT_TYPE(T) inout T
-#endif
-
-#ifndef GGX_MIN_ALPHA_ROUGHNESS
-#define GGX_MIN_ALPHA_ROUGHNESS 1e-03F
 #endif
 
 float schlickFresnel(float F0, float F90, float VdotH)
@@ -54,67 +50,6 @@ float schlickFresnel(float ior, float VdotH)
   return R0 + (1.0F - R0) * pow(1.0F - VdotH, 5.0F);
 }
 
-//-----------------------------------------------------------------------
-// Visibility term for the isotropic GGX BRDF, using the height-correlated
-// Smith shadowing-masking function.
-// Note: Vis = G / (4 * NdotL * NdotV), where G is the usual Smith term.
-// see Eric Heitz. 2014. Understanding the Masking-Shadowing Function in Microfacet-Based BRDFs. Journal of Computer Graphics Techniques, 3
-// see Real-Time Rendering, 4th edition, page 341, equation (9.43).
-// see V_SmithGGXCorrelated in https://google.github.io/filament/Filament.md.html#materialsystem/specularbrdf/geometricshadowing(specularg)
-//-----------------------------------------------------------------------
-float ggxSmithVisibility(float NdotL, float NdotV, float alphaRoughness)
-{
-  alphaRoughness         = max(alphaRoughness, GGX_MIN_ALPHA_ROUGHNESS);
-  float alphaRoughnessSq = alphaRoughness * alphaRoughness;
-
-  float ggxV = NdotL * sqrt(NdotV * NdotV * (1.0F - alphaRoughnessSq) + alphaRoughnessSq);
-  float ggxL = NdotV * sqrt(NdotL * NdotL * (1.0F - alphaRoughnessSq) + alphaRoughnessSq);
-
-  return 0.5F / (ggxV + ggxL);
-}
-
-//-----------------------------------------------------------------------
-// The D() term in the isotropic GGX BRDF. This models the distribution of
-// microfacet normals across the material.
-// Implementation from "Average Irregularity Representation of a Roughened Surface for Ray Reflection" by T. S. Trowbridge, and K. P. Reitz
-// This is also equivalent to Equation 4 in https://google.github.io/filament/Filament.md.html#materialsystem/specularbrdf,
-// using alphaRoughness == roughness^2 (following the Burley parameterization
-// used in glTF.)
-// It's the distribution of normals of an ellipsoid scaled by
-// (alphaRoughness, alphaRoughness, 1.f).
-//-----------------------------------------------------------------------
-float ggxDistribution(float NdotH, float alphaRoughness)  // alphaRoughness    = roughness * roughness;
-{
-  if(NdotH < 0.0f)
-  {
-    return 0.0f;
-  }
-  alphaRoughness = max(alphaRoughness, GGX_MIN_ALPHA_ROUGHNESS);
-  float alphaSqr = alphaRoughness * alphaRoughness;
-
-  float NdotHSqr = NdotH * NdotH;
-  float denom    = NdotHSqr * (alphaSqr - 1.0F) + 1.0F;
-
-  return alphaSqr / (M_PI * denom * denom);
-}
-
-
-//-----------------------------------------------------------------------
-// Sample an isotropic GGX distribution
-// - Return the half vector
-// - PDF for half vectors is ggxDistribution(dot(N, H), alphaRoughness) * dot(N, H)
-//-----------------------------------------------------------------------
-vec3 ggxSampling(float alphaRoughness, vec2 rand)
-{
-  float alphaSqr = max(alphaRoughness * alphaRoughness, GGX_MIN_ALPHA_ROUGHNESS * GGX_MIN_ALPHA_ROUGHNESS);
-
-  float phi      = M_TWO_PI * rand.x;
-  float cosTheta = sqrt((1.0F - rand.y) / (1.0F + (alphaSqr - 1.0F) * rand.y));
-  float sinTheta = sqrt(1.0F - cosTheta * cosTheta);
-
-  return vec3(sinTheta * cos(phi), sinTheta * sin(phi), cosTheta);
-}
-
 
 //-----------------------------------------------------------------------
 // MDL-based functions
@@ -123,13 +58,6 @@ vec3 ggxSampling(float alphaRoughness, vec2 rand)
 vec3 mix_rgb(const vec3 base, const vec3 layer, const vec3 factor)
 {
   return (1.0f - max(factor.x, max(factor.y, factor.z))) * base + factor * layer;
-}
-
-// Return the sin and cos of the input angle
-void sincos(float angle, OUT_TYPE(float) si, OUT_TYPE(float) co)
-{
-  si = sin(angle);
-  co = cos(angle);
 }
 
 // Square the input
@@ -147,20 +75,22 @@ bool isTIR(const vec2 ior, const float kh)
 
 
 // Evaluate anisotropic GGX distribution on the non-projected hemisphere.
-float hvd_ggx_eval(const vec2 invAlpha,
+float hvd_ggx_eval(const vec2 invRoughness,
                    const vec3 h)  // == vec3(dot(tangent, h), dot(bitangent, h), dot(normal, h))
 {
-  const float x     = h.x * invAlpha.x;
-  const float y     = h.y * invAlpha.y;
+  const float x     = h.x * invRoughness.x;
+  const float y     = h.y * invRoughness.y;
   const float aniso = x * x + y * y;
   const float f     = aniso + h.z * h.z;
 
-  return M_1_PI * invAlpha.x * invAlpha.y * h.z / (f * f);
+  return M_1_PI * invRoughness.x * invRoughness.y * h.z / (f * f);
 }
 
-// sample visible (Smith-masked) half vector according to the anisotropic GGX distribution
+// Samples a visible (Smith-masked) half vector according to the anisotropic GGX distribution
 // (see Eric Heitz - A Simpler and Exact Sampling Routine for the GGX Distribution of Visible
 // normals)
+// The input and output will be in local space:
+// vec3(dot(T, k1), dot(B, k1), dot(N, k1)).
 vec3 hvd_ggx_sample_vndf(vec3 k, vec2 roughness, vec2 xi)
 {
   const vec3 v = normalize(vec3(k.x * roughness.x, k.y * roughness.y, k.z));
@@ -172,10 +102,10 @@ vec3 hvd_ggx_sample_vndf(vec3 k, vec2 roughness, vec2 xi)
   const float r = sqrt(xi.x);
 
   const float phi = (xi.y < a) ? xi.y / a * M_PI : M_PI + (xi.y - a) / (1.0f - a) * M_PI;
-  float       sp, cp;
-  sincos(phi, sp, cp);
-  const float p1 = r * cp;
-  const float p2 = r * sp * ((xi.y < a) ? 1.0f : v.z);
+  float       sp  = sin(phi);
+  float       cp  = cos(phi);
+  const float p1  = r * cp;
+  const float p2  = r * sp * ((xi.y < a) ? 1.0f : v.z);
 
   vec3 h = p1 * t1 + p2 * t2 + sqrt(max(0.0f, 1.0f - p1 * p1 - p2 * p2)) * v;
 
@@ -185,12 +115,17 @@ vec3 hvd_ggx_sample_vndf(vec3 k, vec2 roughness, vec2 xi)
   return normalize(h);
 }
 
-// Smith-masking for anisotropic GGX
+// Smith-masking for anisotropic GGX.
 float smith_shadow_mask(const vec3 k, const vec2 roughness)
 {
+  float kz2 = k.z * k.z;
+  if(kz2 == 0.0f)
+  {
+    return 0.0f;  // Totally shadowed
+  }
   const float ax     = k.x * roughness.x;
   const float ay     = k.y * roughness.y;
-  const float inv_a2 = (ax * ax + ay * ay) / (k.z * k.z);
+  const float inv_a2 = (ax * ax + ay * ay) / kz2;
 
   return 2.0f / (1.0f + sqrt(1.0f + inv_a2));
 }
@@ -483,4 +418,4 @@ vec3 flip(const vec3 h, const vec3 k, float xi)
 
 
 #undef OUT_TYPE
-#endif  // GGX_H
+#endif  // NVVKHL_GGX_H
