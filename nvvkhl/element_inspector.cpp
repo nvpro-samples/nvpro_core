@@ -3305,7 +3305,7 @@ ElementInspector::ValueType ElementInspector::glslStringToType(const std::string
     return ElementInspector::eF32Mat4x3;
   if(typeString == "mat4")
     return ElementInspector::eF32Mat4x4;
-  LOGE("glslStringToType: unknown type string \"%s\"\n", typeString);
+  LOGE("glslStringToType: unknown type string \"%s\"\n", typeString.c_str());
   return ElementInspector::eUint32;
 }
 

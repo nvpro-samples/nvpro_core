@@ -2407,6 +2407,7 @@ inline ErrorWithText KTXImage::writeKTX2Stream(std::ostream& output, const Write
   // to do something special for the BGRX case.
   switch(format)
   {
+    case VK_FORMAT_BC7_UNORM_BLOCK:
     case VK_FORMAT_BC7_SRGB_BLOCK:
       // BC7
       dfdBlock.colorModel           = KHR_DF_MODEL_BC7;
@@ -2549,6 +2550,7 @@ inline ErrorWithText KTXImage::writeKTX2Stream(std::ostream& output, const Write
       dfSamples[1].channelType = KHR_DF_CHANNEL_BC3_COLOR;
       dfSamples[1].upper       = UINT32_MAX;
       break;
+    case VK_FORMAT_BC2_UNORM_BLOCK:
     case VK_FORMAT_BC2_SRGB_BLOCK:
       // Same premultiplication situation here as BC3
       if(is_premultiplied)
@@ -2573,6 +2575,7 @@ inline ErrorWithText KTXImage::writeKTX2Stream(std::ostream& output, const Write
       dfSamples[1].channelType = KHR_DF_CHANNEL_BC2_COLOR;
       dfSamples[1].upper       = UINT32_MAX;
       break;
+    case VK_FORMAT_BC1_RGBA_UNORM_BLOCK:
     case VK_FORMAT_BC1_RGBA_SRGB_BLOCK:
       // BC1a
       dfdBlock.colorModel           = KHR_DF_MODEL_DXT1A;
@@ -2584,6 +2587,7 @@ inline ErrorWithText KTXImage::writeKTX2Stream(std::ostream& output, const Write
       dfSamples[0].channelType      = KHR_DF_CHANNEL_BC1A_ALPHAPRESENT;
       dfSamples[0].upper            = UINT32_MAX;
       break;
+    case VK_FORMAT_BC1_RGB_UNORM_BLOCK:
     case VK_FORMAT_BC1_RGB_SRGB_BLOCK:
       // BC1
       dfdBlock.colorModel           = KHR_DF_MODEL_DXT1A;
@@ -2596,20 +2600,8 @@ inline ErrorWithText KTXImage::writeKTX2Stream(std::ostream& output, const Write
       dfSamples[0].upper            = UINT32_MAX;
       break;
     case VK_FORMAT_R8_UNORM:
-      // R8 UNORM
-      dfdBlock.colorModel           = KHR_DF_MODEL_RGBSDA;
-      dfdBlock.colorPrimaries       = KHR_DF_PRIMARIES_BT709;
-      dfdBlock.texelBlockDimension0 = 0;
-      dfdBlock.texelBlockDimension1 = 0;
-      dfdBlock.bytesPlane0          = 1;
-
-      dfSamples[0].bitOffset   = 0;
-      dfSamples[0].bitLength   = 7;  // "8"
-      dfSamples[0].channelType = KHR_DF_CHANNEL_RGBSDA_RED;
-      dfSamples[0].upper       = 255;
-      break;
     case VK_FORMAT_R8_SRGB:
-      // R8 SRGB
+      // R8
       dfdBlock.colorModel           = KHR_DF_MODEL_RGBSDA;
       dfdBlock.colorPrimaries       = KHR_DF_PRIMARIES_BT709;
       dfdBlock.texelBlockDimension0 = 0;
@@ -2621,6 +2613,7 @@ inline ErrorWithText KTXImage::writeKTX2Stream(std::ostream& output, const Write
       dfSamples[0].channelType = KHR_DF_CHANNEL_RGBSDA_RED;
       dfSamples[0].upper       = 255;
       break;
+    case VK_FORMAT_B8G8R8_UNORM:
     case VK_FORMAT_B8G8R8_SRGB:
       // B in byte 0, G in byte 1, R in byte 2
       dfdBlock.colorModel           = KHR_DF_MODEL_RGBSDA;
@@ -2646,6 +2639,7 @@ inline ErrorWithText KTXImage::writeKTX2Stream(std::ostream& output, const Write
       dfSamples[2].channelType = KHR_DF_CHANNEL_RGBSDA_RED;
       dfSamples[2].upper       = 255;
       break;
+    case VK_FORMAT_B8G8R8A8_UNORM:
     case VK_FORMAT_B8G8R8A8_SRGB:
       dfdBlock.colorModel           = KHR_DF_MODEL_RGBSDA;
       dfdBlock.colorPrimaries       = KHR_DF_PRIMARIES_BT709;
@@ -2669,6 +2663,63 @@ inline ErrorWithText KTXImage::writeKTX2Stream(std::ostream& output, const Write
       dfSamples[2].bitOffset   = 16;
       dfSamples[2].bitLength   = 7;  // "8"
       dfSamples[2].channelType = KHR_DF_CHANNEL_RGBSDA_RED;
+      dfSamples[2].upper       = 255;
+
+      dfSamples[3].bitOffset   = 24;
+      dfSamples[3].bitLength   = 7;  // "8"
+      dfSamples[3].channelType = uint8_t(KHR_DF_CHANNEL_RGBSDA_ALPHA) | uint8_t(KHR_DF_SAMPLE_DATATYPE_LINEAR);
+      dfSamples[3].upper       = 255;
+      break;
+    case VK_FORMAT_R8G8B8_UNORM:
+    case VK_FORMAT_R8G8B8_SRGB:
+      // R in byte 0, G in byte 1, B in byte 2
+      dfdBlock.colorModel           = KHR_DF_MODEL_RGBSDA;
+      dfdBlock.colorPrimaries       = KHR_DF_PRIMARIES_BT709;
+      dfdBlock.texelBlockDimension0 = 0;
+      dfdBlock.texelBlockDimension1 = 0;
+      dfdBlock.bytesPlane0          = 3;
+
+      dfSamples.resize(3);
+
+      dfSamples[0].bitOffset   = 0;
+      dfSamples[0].bitLength   = 7;  // "8"
+      dfSamples[0].channelType = KHR_DF_CHANNEL_RGBSDA_RED;
+      dfSamples[0].upper       = 255;
+
+      dfSamples[1].bitOffset   = 8;
+      dfSamples[1].bitLength   = 7;  // "8"
+      dfSamples[1].channelType = KHR_DF_CHANNEL_RGBSDA_GREEN;
+      dfSamples[1].upper       = 255;
+
+      dfSamples[2].bitOffset   = 16;
+      dfSamples[2].bitLength   = 7;  // "8"
+      dfSamples[2].channelType = KHR_DF_CHANNEL_RGBSDA_BLUE;
+      dfSamples[2].upper       = 255;
+      break;
+    case VK_FORMAT_R8G8B8A8_UNORM:
+    case VK_FORMAT_R8G8B8A8_SRGB:
+      dfdBlock.colorModel           = KHR_DF_MODEL_RGBSDA;
+      dfdBlock.colorPrimaries       = KHR_DF_PRIMARIES_BT709;
+      dfdBlock.texelBlockDimension0 = 0;
+      dfdBlock.texelBlockDimension1 = 0;
+      dfdBlock.bytesPlane0          = 4;
+
+      // B in byte 0, G in byte 1, R in byte 2, A in byte 3
+      dfSamples.resize(4);
+
+      dfSamples[0].bitOffset   = 0;
+      dfSamples[0].bitLength   = 7;  // "8"
+      dfSamples[0].channelType = KHR_DF_CHANNEL_RGBSDA_RED;
+      dfSamples[0].upper       = 255;
+
+      dfSamples[1].bitOffset   = 8;
+      dfSamples[1].bitLength   = 7;  // "8"
+      dfSamples[1].channelType = KHR_DF_CHANNEL_RGBSDA_GREEN;
+      dfSamples[1].upper       = 255;
+
+      dfSamples[2].bitOffset   = 16;
+      dfSamples[2].bitLength   = 7;  // "8"
+      dfSamples[2].channelType = KHR_DF_CHANNEL_RGBSDA_BLUE;
       dfSamples[2].upper       = 255;
 
       dfSamples[3].bitOffset   = 24;
