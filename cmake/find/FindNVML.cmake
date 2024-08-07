@@ -84,9 +84,9 @@ if((NOT NVML_LIBRARIES) OR (NOT NVML_INCLUDE_DIRS))
   # one can turn that off during installation. Search for NVML in a number of
   # locations:
 
-  find_library(NVML_LIBRARIES NAMES nvml nvidia-ml PATHS ${_TRY_LIB_DIRS})
+  find_library(NVML_LIBRARIES NAMES nvml nvidia-ml HINTS ${_TRY_LIB_DIRS})
 
-  find_path(NVML_INCLUDE_DIRS nvml.h
+  find_path(NVML_INCLUDE_DIRS nvml.h HINTS
     ${NVML_LOCATION}
     $ENV{NVML_LOCATION}
     ${_TRY_INCLUDE_DIRS}

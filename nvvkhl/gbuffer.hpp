@@ -42,19 +42,23 @@ public:
   GBuffer(VkDevice device, nvvk::ResourceAllocator* alloc, const VkExtent2D& size, std::vector<VkFormat> color, VkFormat depth = VK_FORMAT_UNDEFINED);
   ~GBuffer();
 
-  void create(const VkExtent2D& size, std::vector<VkFormat> color, VkFormat depth);
+  void create(const VkExtent2D& size, std::vector<VkFormat> color, VkFormat depth, VkSampleCountFlagBits sampleCount = VK_SAMPLE_COUNT_1_BIT);
   void destroy();
 
-  VkDescriptorSet       getDescriptorSet(uint32_t i = 0) const { return m_descriptorSet[i]; }
-  VkExtent2D            getSize() const { return m_imageSize; }
-  VkImage               getColorImage(uint32_t i = 0) const { return m_res.gBufferColor[i].image; }
-  VkImage               getDepthImage() const { return m_res.gBufferDepth.image; }
-  VkImageView           getColorImageView(uint32_t i = 0) const { return m_res.descriptor[i].imageView; }
+  VkDescriptorSet              getDescriptorSet(uint32_t i = 0) const { return m_descriptorSet[i]; }
+  VkExtent2D                   getSize() const { return m_imageSize; }
+  VkImage                      getColorImage(uint32_t i = 0) const { return m_res.gBufferColor[i].image; }
+  VkImage                      getDepthImage() const { return m_res.gBufferDepth.image; }
+  VkImageView                  getColorImageView(uint32_t i = 0) const { return m_res.descriptor[i].imageView; }
   const VkDescriptorImageInfo& getDescriptorImageInfo(uint32_t i = 0) const { return m_res.descriptor[i]; }
-  VkImageView           getDepthImageView() const { return m_res.depthView; }
-  VkFormat              getColorFormat(uint32_t i = 0) const { return m_colorFormat[i]; }
-  VkFormat              getDepthFormat() const { return m_depthFormat; }
-  float getAspectRatio() { return static_cast<float>(m_imageSize.width) / static_cast<float>(m_imageSize.height); }
+  VkImageView                  getDepthImageView() const { return m_res.depthView; }
+  VkFormat                     getColorFormat(uint32_t i = 0) const { return m_colorFormat[i]; }
+  VkFormat                     getDepthFormat() const { return m_depthFormat; }
+  VkSampleCountFlagBits        getSampleCount() const { return m_sampleCount; }
+  float                        getAspectRatio() const
+  {
+    return static_cast<float>(m_imageSize.width) / static_cast<float>(m_imageSize.height);
+  }
 
   // Create a buffer from the VkImage, useful for saving to disk
   nvvk::Buffer createImageToBuffer(VkCommandBuffer cmd, uint32_t i = 0) const;
@@ -75,6 +79,7 @@ private:
   std::vector<VkFormat>        m_colorFormat;                                 // Color format of the image
   VkFormat                     m_depthFormat{VK_FORMAT_X8_D24_UNORM_PACK32};  // Depth format of the depth buffer
   std::vector<VkDescriptorSet> m_descriptorSet;                               // For displaying the image with ImGui
+  VkSampleCountFlagBits        m_sampleCount = VK_SAMPLE_COUNT_1_BIT;
 
   VkDevice                 m_device{VK_NULL_HANDLE};
   nvvk::ResourceAllocator* m_alloc;

@@ -51,10 +51,11 @@ nvvkhl::GBuffer::~GBuffer()
   destroy();
 }
 
-void nvvkhl::GBuffer::create(const VkExtent2D& size, std::vector<VkFormat> color, VkFormat depth)
+void nvvkhl::GBuffer::create(const VkExtent2D& size, std::vector<VkFormat> color, VkFormat depth, VkSampleCountFlagBits sampleCount)
 {
   assert(m_colorFormat.empty());  // The buffer must be cleared before creating a new one
 
+  m_sampleCount = sampleCount;
   m_imageSize   = size;
   m_colorFormat = std::move(color);
   m_depthFormat = depth;
@@ -75,6 +76,7 @@ void nvvkhl::GBuffer::create(const VkExtent2D& size, std::vector<VkFormat> color
     {  // Color image
       VkImageUsageFlags usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
       VkImageCreateInfo info = nvvk::makeImage2DCreateInfo(m_imageSize, m_colorFormat[c], usage);
+      info.samples           = m_sampleCount;
       m_res.gBufferColor[c]  = m_alloc->createImage(info);
       dutil.setObjectName(m_res.gBufferColor[c].image, "G-Color" + std::to_string(c));
     }
@@ -102,6 +104,7 @@ void nvvkhl::GBuffer::create(const VkExtent2D& size, std::vector<VkFormat> color
   {  // Depth buffer
     VkImageCreateInfo info = nvvk::makeImage2DCreateInfo(m_imageSize, m_depthFormat,
                                                          VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+    info.samples           = m_sampleCount;
     m_res.gBufferDepth     = m_alloc->createImage(info);
     dutil.setObjectName(m_res.gBufferDepth.image, "G-Depth");
   }
