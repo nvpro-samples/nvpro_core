@@ -184,10 +184,10 @@ void nvh::gltf::Scene::parseScene()
   // Also it will be used  to compute the scene bounds for the camera
   for(auto& sceneNode : m_model.scenes[m_currentScene].nodes)
   {
-    tinygltf::utils::traverseSceneGraph(m_model, sceneNode, glm::mat4(1), nullptr, nullptr,
-                                        [this](int nodeID, const glm::mat4& worldMat) {
-                                          return handleRenderNode(nodeID, worldMat);
-                                        });
+    tinygltf::utils::traverseSceneGraph(
+        m_model, sceneNode, glm::mat4(1), nullptr,
+        [this](int nodeID, const glm::mat4& worldMat) { return handleLightTraversal(nodeID, worldMat); },
+        [this](int nodeID, const glm::mat4& worldMat) { return handleRenderNode(nodeID, worldMat); });
   }
 
   // Search for the first camera in the scene and exit traversal upon finding it
@@ -207,6 +207,7 @@ void nvh::gltf::Scene::parseScene()
   {
     createSceneCamera();
   }
+
 
   // Parse various scene components
   parseVariants();
@@ -299,19 +300,28 @@ void nvh::gltf::Scene::updateRenderNodes()
   uint32_t renderNodeID = 0;  // Index of the render node
   for(auto& sceneNode : scene.nodes)
   {
-    tinygltf::utils::traverseSceneGraph(m_model, sceneNode, glm::mat4(1), nullptr, nullptr, [&](int nodeID, const glm::mat4& mat) {
-      tinygltf::Node&       tnode = m_model.nodes[nodeID];
-      const tinygltf::Mesh& mesh  = m_model.meshes[tnode.mesh];
-      for(size_t j = 0; j < mesh.primitives.size(); j++)
-      {
-        const tinygltf::Primitive& primitive  = mesh.primitives[j];
-        gltf::RenderNode&          renderNode = m_renderNodes[renderNodeID];
-        renderNode.worldMatrix                = mat;
-        renderNode.materialID                 = getMaterialVariantIndex(primitive, m_currentVariant);
-        renderNodeID++;
-      }
-      return false;  // Continue traversal
-    });
+    tinygltf::utils::traverseSceneGraph(
+        m_model, sceneNode, glm::mat4(1), nullptr,
+        [&](int nodeID, const glm::mat4& mat) {
+          // Dealing with lights
+          tinygltf::Node& tnode             = m_model.nodes[nodeID];
+          m_lights[tnode.light].worldMatrix = mat;
+          return false;  // Continue traversal
+        },
+        [&](int nodeID, const glm::mat4& mat) {
+          // Dealing with Nodes and Variant Materials
+          tinygltf::Node&       tnode = m_model.nodes[nodeID];
+          const tinygltf::Mesh& mesh  = m_model.meshes[tnode.mesh];
+          for(size_t j = 0; j < mesh.primitives.size(); j++)
+          {
+            const tinygltf::Primitive& primitive  = mesh.primitives[j];
+            gltf::RenderNode&          renderNode = m_renderNodes[renderNodeID];
+            renderNode.worldMatrix                = mat;
+            renderNode.materialID                 = getMaterialVariantIndex(primitive, m_currentVariant);
+            renderNodeID++;
+          }
+          return false;  // Continue traversal
+        });
   }
 }
 
@@ -451,36 +461,32 @@ bool nvh::gltf::Scene::handleCameraTraversal(int nodeID, const glm::mat4& worldM
   return false;
 }
 
-// Retrieve the list of render lights in the scene.
-// This function returns a vector of render lights present in the scene. If the `force`
-// parameter is set to true, it clears and regenerates the list of lights.
-//
-// Parameters:
-// - force: If true, forces the regeneration of the light list.
-//
-// Returns:
-// - A const reference to the vector of render lights.
-const std::vector<nvh::gltf::RenderLight>& nvh::gltf::Scene::getRenderLights(bool force)
+bool nvh::gltf::Scene::handleLightTraversal(int nodeID, const glm::mat4& worldMatrix)
 {
-  if(force)
+  tinygltf::Node&   node = m_model.nodes[nodeID];
+  gltf::RenderLight renderLight;
+  renderLight.light      = node.light;
+  tinygltf::Light& light = m_model.lights[node.light];
+  // Add a default color if the light has no color
+  if(light.color.empty())
   {
-    m_lights.clear();
+    light.color = {1.0f, 1.0f, 1.0f};
   }
-
-  if(m_lights.empty())
+  // Add a default radius if the light has no radius
+  if(!light.extras.Has("radius"))
   {
-    assert(m_sceneRootNode > -1 && "No root node in the scene");
-    tinygltf::utils::traverseSceneGraph(m_model, m_sceneRootNode, glm::mat4(1), nullptr, [&](int nodeID, const glm::mat4& worldMatrix) {
-      tinygltf::Node&   node = m_model.nodes[nodeID];
-      gltf::RenderLight renderLight;
-      renderLight.light       = m_model.lights[node.light];
-      renderLight.worldMatrix = worldMatrix;
-      m_lights.push_back(renderLight);
-      return false;  // Continue traversal
-    });
+    if(!light.extras.IsObject())
+    {  // Avoid overwriting other extras
+      light.extras = tinygltf::Value(tinygltf::Value::Object());
+    }
+    tinygltf::Value::Object extras = light.extras.Get<tinygltf::Value::Object>();
+    extras["radius"]               = tinygltf::Value(0.);
+    light.extras                   = tinygltf::Value(extras);
   }
+  renderLight.worldMatrix = worldMatrix;
 
-  return m_lights;
+  m_lights.push_back(renderLight);
+  return false;  // Continue traversal
 }
 
 

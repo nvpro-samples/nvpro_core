@@ -47,6 +47,7 @@ struct LightContrib
   vec3  incidentVector;
   float halfAngularSize;
   vec3  intensity;
+  float distance;
 };
 
 struct Light
@@ -63,7 +64,7 @@ struct Light
   float angularSizeOrInvRange;  // angular size for directional lights, 1/range for spot and point lights
   float innerAngle;
   float outerAngle;
-  float outOfBoundsShadow;
+  int   _pad;
 };
 
 #ifdef __cplusplus

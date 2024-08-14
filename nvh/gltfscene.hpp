@@ -83,8 +83,8 @@ struct RenderCamera
 // See: https://github.com/KhronosGroup/glTF/blob/master/extensions/2.0/Khronos/KHR_lights_punctual/README.md
 struct RenderLight
 {
-  glm::mat4       worldMatrix = glm::mat4(1.0f);
-  tinygltf::Light light;
+  glm::mat4 worldMatrix = glm::mat4(1.0f);
+  int       light       = 0;
 };
 
 
@@ -142,7 +142,7 @@ public:
   void destroy();  // Destroy the loaded resources
 
   // Light Management
-  const std::vector<gltf::RenderLight>& getRenderLights(bool force);
+  const std::vector<gltf::RenderLight>& getRenderLights() const { return m_lights; }
 
   // Camera Management
   const std::vector<gltf::RenderCamera>& getRenderCameras(bool force = false);
@@ -228,6 +228,8 @@ private:
   bool   handleRenderNode(int nodeID, glm::mat4 worldMatrix);
   size_t handleGpuInstancing(const tinygltf::Value& attributes, gltf::RenderNode renderNode, glm::mat4 worldMatrix);
   bool   handleCameraTraversal(int nodeID, const glm::mat4& worldMatrix);
+  bool   handleLightTraversal(int nodeID, const glm::mat4& worldMatrix);
+
 
   tinygltf::Model                      m_model;                 // The glTF model
   std::string                          m_filename;              // Filename of the glTF

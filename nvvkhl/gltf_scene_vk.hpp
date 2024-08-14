@@ -91,6 +91,7 @@ protected:
   virtual void createRenderNodeBuffer(VkCommandBuffer cmd, const nvh::gltf::Scene& scn);
   virtual void createVertexBuffers(VkCommandBuffer cmd, const nvh::gltf::Scene& scn);
   virtual void createTextureImages(VkCommandBuffer cmd, const tinygltf::Model& model, const std::filesystem::path& basedir);
+  virtual void createLightBuffer(VkCommandBuffer cmd, const nvh::gltf::Scene& scn);
 
   void findSrgbImages(const tinygltf::Model& model);
 
@@ -104,14 +105,13 @@ protected:
   nvvk::ResourceAllocator*         m_alloc;
   std::unique_ptr<nvvk::DebugUtil> m_dutil;
 
-  nvvk::Buffer              m_bMaterial;
-  nvvk::Buffer              m_bRenderPrim;
-  nvvk::Buffer              m_bRenderNode;
-  nvvk::Buffer              m_bSceneDesc;
-  std::vector<nvvk::Buffer> m_bIndices;
-
+  nvvk::Buffer               m_bMaterial;
+  nvvk::Buffer               m_bLights;
+  nvvk::Buffer               m_bRenderPrim;
+  nvvk::Buffer               m_bRenderNode;
+  nvvk::Buffer               m_bSceneDesc;
+  std::vector<nvvk::Buffer>  m_bIndices;
   std::vector<VertexBuffers> m_vertexBuffers;
-
   std::vector<SceneImage>    m_images;
   std::vector<nvvk::Texture> m_textures;  // Vector of all textures of the scene
 

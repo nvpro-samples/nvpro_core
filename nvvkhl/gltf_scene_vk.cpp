@@ -33,7 +33,16 @@
 #include "nvvk/buffers_vk.hpp"
 #include "nvvk/images_vk.hpp"
 #include "shaders/dh_scn_desc.h"
+#include "shaders/dh_lighting.h"
 
+//--------------------------------------------------------------------------------------------------
+// Forward declaration
+std::vector<nvvkhl_shaders::Light> getShaderLights(const std::vector<nvh::gltf::RenderLight>& rlights,
+                                                   const std::vector<tinygltf::Light>&        gltfLights);
+
+//-------------------------------------------------------------------------------------------------
+//
+//
 nvvkhl::SceneVk::SceneVk(VkDevice device, VkPhysicalDevice physicalDevice, nvvk::ResourceAllocator* alloc)
     : m_device(device)
     , m_physicalDevice(physicalDevice)
@@ -56,12 +65,15 @@ void nvvkhl::SceneVk::create(VkCommandBuffer cmd, const nvh::gltf::Scene& scn)
   createRenderNodeBuffer(cmd, scn);
   createVertexBuffers(cmd, scn);
   createTextureImages(cmd, scn.getModel(), basedir);
+  createLightBuffer(cmd, scn);
 
   // Buffer references
   nvvkhl_shaders::SceneDescription scene_desc{};
   scene_desc.materialAddress        = m_bMaterial.address;
   scene_desc.renderPrimitiveAddress = m_bRenderPrim.address;
   scene_desc.renderNodeAddress      = m_bRenderNode.address;
+  scene_desc.lightAddress           = m_bLights.address;
+  scene_desc.numLights              = static_cast<uint32_t>(scn.getRenderLights().size());
   m_bSceneDesc                      = m_alloc->createBuffer(cmd, sizeof(nvvkhl_shaders::SceneDescription), &scene_desc,
                                                             VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);
   m_dutil->DBG_NAME(m_bSceneDesc.buffer);
@@ -74,7 +86,7 @@ void nvvkhl::SceneVk::update(VkCommandBuffer cmd, const nvh::gltf::Scene& scn)
   updateRenderNodeBuffer(cmd, scn);
 }
 
-nvvkhl_shaders::GltfShadeMaterial getShaderMaterial(const tinygltf::Material& srcMat)
+static nvvkhl_shaders::GltfShadeMaterial getShaderMaterial(const tinygltf::Material& srcMat)
 {
   nvvkhl_shaders::GltfShadeMaterial dstMat = nvvkhl_shaders::defaultGltfMaterial();
   if(!srcMat.emissiveFactor.empty())
@@ -221,6 +233,13 @@ void nvvkhl::SceneVk::updateRenderNodeBuffer(VkCommandBuffer cmd, const nvh::glt
   }
   m_alloc->getStaging()->cmdToBuffer(cmd, m_bRenderNode.buffer, 0,
                                      inst_info.size() * sizeof(nvvkhl_shaders::RenderNode), inst_info.data());
+
+  std::vector<nvvkhl_shaders::Light> shaderLights = getShaderLights(scn.getRenderLights(), scn.getModel().lights);
+  if(shaderLights.size() > 0)
+  {
+    m_alloc->getStaging()->cmdToBuffer(cmd, m_bLights.buffer, 0, shaderLights.size() * sizeof(nvvkhl_shaders::Light),
+                                       shaderLights.data());
+  }
 }
 
 
@@ -299,13 +318,30 @@ void nvvkhl::SceneVk::createVertexBuffers(VkCommandBuffer cmd, const nvh::gltf::
     {
       // For color, we need to pack it into a single int
       const tinygltf::Accessor& accessor = model.accessors[primitive.attributes.at("COLOR_0")];
-      std::vector<glm::vec4>    tempVec4Data(accessor.count);
       std::vector<uint32_t>     tempIntData(accessor.count);
-      tinygltf::utils::copyAccessorData(tempVec4Data, 0, model, accessor, 0, accessor.count);
-      for(size_t i = 0; i < accessor.count; i++)
+      if(accessor.type == TINYGLTF_TYPE_VEC3)
       {
-        tempIntData[i] = glm::packUnorm4x8(tempVec4Data[i]);
+        std::vector<glm::vec3> tempData;
+        tinygltf::utils::getAccessorData(model, accessor, tempData);
+        for(size_t i = 0; i < accessor.count; i++)
+        {
+          tempIntData[i] = glm::packUnorm4x8(glm::vec4(tempData[i], 1));
+        }
       }
+      else if(accessor.type == TINYGLTF_TYPE_VEC4)
+      {
+        std::vector<glm::vec4> tempData;
+        tinygltf::utils::getAccessorData(model, accessor, tempData);
+        for(size_t i = 0; i < accessor.count; i++)
+        {
+          tempIntData[i] = glm::packUnorm4x8(tempData[i]);
+        }
+      }
+      else
+      {
+        assert(!"Unknown color type");
+      }
+
       vertexBuffers.color = m_alloc->createBuffer(cmd, tempIntData, usageFlag);
     }
 
@@ -397,7 +433,7 @@ void nvvkhl::SceneVk::createVertexBuffers(VkCommandBuffer cmd, const nvh::gltf::
 //--------------------------------------------------------------------------------------------------------------
 // Returning the Vulkan sampler information from the information in the tinygltf
 //
-VkSamplerCreateInfo getSampler(const tinygltf::Model& model, int index)
+static VkSamplerCreateInfo getSampler(const tinygltf::Model& model, int index)
 {
   VkSamplerCreateInfo samplerInfo{VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
   samplerInfo.minFilter  = VK_FILTER_LINEAR;
@@ -774,6 +810,59 @@ bool nvvkhl::SceneVk::createImage(const VkCommandBuffer& cmd, SceneImage& image)
   return true;
 }
 
+void nvvkhl::SceneVk::createLightBuffer(VkCommandBuffer cmd, const nvh::gltf::Scene& scn)
+{
+  const std::vector<nvh::gltf::RenderLight>& rlights = scn.getRenderLights();
+  if(rlights.empty())
+    return;
+
+  std::vector<nvvkhl_shaders::Light> shaderLights = getShaderLights(rlights, scn.getModel().lights);
+
+  m_bLights = m_alloc->createBuffer(cmd, shaderLights, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);
+  m_dutil->setObjectName(m_bLights.buffer, "Lights");
+}
+
+std::vector<nvvkhl_shaders::Light> getShaderLights(const std::vector<nvh::gltf::RenderLight>& renderlights,
+                                                   const std::vector<tinygltf::Light>&        gltfLights)
+{
+  std::vector<nvvkhl_shaders::Light> lightsInfo;
+  lightsInfo.reserve(renderlights.size());
+  for(auto& l : renderlights)
+  {
+    const auto& gltfLight = gltfLights[l.light];
+
+    nvvkhl_shaders::Light info{};
+    info.position   = l.worldMatrix[3];
+    info.direction  = -l.worldMatrix[2];  // glm::vec3(l.worldMatrix * glm::vec4(0, 0, -1, 0));
+    info.innerAngle = gltfLight.spot.innerConeAngle;
+    info.outerAngle = gltfLight.spot.outerConeAngle;
+    if(gltfLight.color.size() == 3)
+      info.color = glm::vec3(gltfLight.color[0], gltfLight.color[1], gltfLight.color[2]);
+    else
+      info.color = glm::vec3(1, 1, 1);  // default color (white)
+    info.intensity = gltfLight.intensity;
+    info.type      = gltfLight.type == "point" ? nvvkhl_shaders::eLightTypePoint :
+                     gltfLight.type == "spot"  ? nvvkhl_shaders::eLightTypeSpot :
+                                                 nvvkhl_shaders::eLightTypeDirectional;
+
+    info.radius = gltfLight.extras.Has("radius") ? float(gltfLight.extras.Get("radius").GetNumberAsDouble()) : 0.0f;
+
+    if(info.type == nvvkhl_shaders::eLightTypeDirectional)
+    {
+      const double sun_distance     = 149597870.0;  // km
+      double       angular_size_rad = 2.0 * std::atan(info.radius / sun_distance);
+      info.angularSizeOrInvRange    = static_cast<float>(angular_size_rad);
+    }
+    else
+    {
+      info.angularSizeOrInvRange = (gltfLight.range > 0.0f) ? 1.0f / static_cast<float>(gltfLight.range) : 0.0;
+    }
+
+    lightsInfo.emplace_back(info);
+  }
+  return lightsInfo;
+}
+
 void nvvkhl::SceneVk::destroy()
 {
   for(auto& vb : m_vertexBuffers)
@@ -793,6 +882,7 @@ void nvvkhl::SceneVk::destroy()
   m_bIndices.clear();
 
   m_alloc->destroy(m_bMaterial);
+  m_alloc->destroy(m_bLights);
   m_alloc->destroy(m_bRenderPrim);
   m_alloc->destroy(m_bRenderNode);
   m_alloc->destroy(m_bSceneDesc);

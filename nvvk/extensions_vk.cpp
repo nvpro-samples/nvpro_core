@@ -22,7 +22,7 @@
 #include "nvh/nvprint.hpp"
 
 /* NVVK_GENERATE_VERSION_INFO */
-// Generated using Vulkan 283
+// Generated using Vulkan 290
 /* NVVK_GENERATE_VERSION_INFO */
 
 /* clang-format off */
@@ -2463,9 +2463,9 @@ VKAPI_ATTR void VKAPI_CALL vkCmdSetRenderingAttachmentLocationsKHR(
 }
 VKAPI_ATTR void VKAPI_CALL vkCmdSetRenderingInputAttachmentIndicesKHR(
 	VkCommandBuffer commandBuffer, 
-	const VkRenderingInputAttachmentIndexInfoKHR* pLocationInfo) 
+	const VkRenderingInputAttachmentIndexInfoKHR* pInputAttachmentIndexInfo) 
 { 
-  pfn_vkCmdSetRenderingInputAttachmentIndicesKHR(commandBuffer, pLocationInfo); 
+  pfn_vkCmdSetRenderingInputAttachmentIndicesKHR(commandBuffer, pInputAttachmentIndexInfo); 
 }
 #endif /* VK_KHR_dynamic_rendering_local_read */
 #if defined(VK_KHR_external_fence_capabilities)

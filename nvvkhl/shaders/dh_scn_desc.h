@@ -59,6 +59,7 @@ struct RenderPrimitive
   VertexBuffers vertexBuffer;
 };
 
+
 // The scene description is a pointer to the material, render node and render primitive
 // The buffers are all arrays of the above structures
 struct SceneDescription
@@ -66,6 +67,8 @@ struct SceneDescription
   uint64_t materialAddress;
   uint64_t renderNodeAddress;
   uint64_t renderPrimitiveAddress;
+  uint64_t lightAddress;
+  int      numLights;  // number of punctual lights
 };
 
 // alphaMode

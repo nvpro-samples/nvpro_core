@@ -35,6 +35,9 @@
 #define ARRAY_TYPE(T, N, name) T name[N]
 #endif
 
+// Define a value to represent an infinite impulse or singularity
+#define DIRAC -1.0
+
 
 /** @DOC_START
 # Function absorptionCoefficient
@@ -201,7 +204,7 @@ void brdf_diffuse_sample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat)
 {
   brdf_diffuse_sample(data, mat, mat.baseColor);
 }
-    
+
 void brdf_ggx_smith_eval(INOUT_TYPE(BsdfEvaluateData) data, PbrMaterial mat, const int lobe, vec3 tint)
 {
   // BRDF or BTDF eval?
@@ -227,7 +230,8 @@ void brdf_ggx_smith_eval(INOUT_TYPE(BsdfEvaluateData) data, PbrMaterial mat, con
   const float k1h = dot(data.k1, h);
   const float k2h = dot(data.k2, h);
 
-  if(nh < 0.0f || k1h < 0.0f || k2h < 0.0f)
+  // nk1 and nh must not be 0.0f or state.pdf == NaN.
+  if(nk1 <= 0.0f || nh <= 0.0f || k1h < 0.0f || k2h < 0.0f)
   {
     data.pdf         = 0.0f;
     data.bsdf_glossy = vec3(0.0f);
@@ -379,7 +383,8 @@ void btdf_ggx_smith_eval(INOUT_TYPE(BsdfEvaluateData) data, PbrMaterial mat, con
   const float k1h = dot(data.k1, h);
   const float k2h = dot(data.k2, h) * (backside ? -1.0f : 1.0f);
 
-  if(nh < 0.0f || k1h < 0.0f || k2h < 0.0f)
+  // nk1 and nh must not be 0.0f or state.pdf == NaN.
+  if(nk1 <= 0.0f || nh <= 0.0f || k1h < 0.0f || k2h < 0.0f)
   {
     data.pdf         = 0.0f;  // absorb
     data.bsdf_glossy = vec3(0.0f);
@@ -519,11 +524,14 @@ void btdf_ggx_smith_sample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat, con
   // Compute pdf
   data.pdf = hvd_ggx_eval(1.0f / mat.roughness, h0) * G1;  // * prob;
 
+
   if(!isThinWalled && (data.event_type == BSDF_EVENT_GLOSSY_TRANSMISSION))  // if (refraction)
   {
     const float tmp = kh * ior.x - k2h * ior.y;
-
-    data.pdf *= kh * k2h / (nk1 * h0.z * tmp * tmp);
+    if(tmp > 0)
+    {
+      data.pdf *= kh * k2h / (nk1 * h0.z * tmp * tmp);
+    }
   }
   else
   {
@@ -556,7 +564,8 @@ void brdf_sheen_eval(INOUT_TYPE(BsdfEvaluateData) data, PbrMaterial mat)
   const float k1h = dot(data.k1, h);
   const float k2h = dot(data.k2, h);
 
-  if(nh < 0.0f || k1h < 0.0f || k2h < 0.0f)
+  // nk1 and nh must not be 0.0f or state.pdf == NaN.
+  if(nk1 <= 0.0f || nh <= 0.0f || k1h < 0.0f || k2h < 0.0f)
   {
     return;  // absorb
   }
@@ -744,7 +753,13 @@ void bsdfSample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat)
 
   // Avoid internal reflection
   if(data.pdf <= 0.00001F || any(isnan(data.bsdf_over_pdf)))
+  {
     data.event_type = BSDF_EVENT_ABSORB;
+  }
+  if(isnan(data.pdf) || isinf(data.pdf))
+  {
+    data.pdf = DIRAC;
+  }
 }
 
 //--------------------------------------------------------------------------------------------------

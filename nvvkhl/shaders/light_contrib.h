@@ -29,10 +29,14 @@ LightContrib singleLightContribution(in Light light, in vec3 surfacePos, in vec3
   contrib.incidentVector  = vec3(0.0F);
   contrib.halfAngularSize = 0.0F;
   contrib.intensity       = vec3(0.0F);
+  contrib.distance        = INFINITE;
   float irradiance        = 0.0F;
 
   if(light.type == eLightTypeDirectional)
   {
+    if(dot(surfaceNormal, -light.direction) <= 0.0)
+      return contrib;
+
     contrib.incidentVector  = light.direction;
     contrib.halfAngularSize = light.angularSizeOrInvRange * 0.5F;
     irradiance              = light.intensity;
@@ -42,6 +46,8 @@ LightContrib singleLightContribution(in Light light, in vec3 surfacePos, in vec3
     vec3  light_to_surface = surfacePos - light.position;
     float distance         = sqrt(dot(light_to_surface, light_to_surface));
     float r_distance       = 1.0F / distance;
+
+    contrib.distance       = distance;
     contrib.incidentVector = light_to_surface * r_distance;
 
     float attenuation = 1.F;
