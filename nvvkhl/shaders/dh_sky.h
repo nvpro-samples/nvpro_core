@@ -682,13 +682,16 @@ inline SkySamplingResult samplePhysicalSky(PhysicalSkyParameters ss, vec2 random
   SkySamplingResult result;
 
   // Constants
-  const float sunAngularRadius = 0.00465f * ss.sunDiskScale;
-  const float sunSolidAngle    = 2.0f * M_PIf * (1.0f - cos(sunAngularRadius));
-  const float skySolidAngle    = 2.0f * M_PIf;
+  const float epsilon          = 1e-5f;
+  const float sunAngularRadius = max(0.00465f * ss.sunDiskScale, epsilon);
+  // Use first-degree Taylor series expansion around 0 for better precision
+  const float sunSolidAngle = (sunAngularRadius < 0.001f) ? M_PIf * sunAngularRadius * sunAngularRadius :
+                                                            2.0f * M_PIf * (1.0f - cos(sunAngularRadius));
+  const float skySolidAngle = 2.0f * M_PIf;
 
   // Approximation for sun probability
   float sunElevation = ss.sunDirection.z;
-  float sunProb      = clamp(ss.sunDiskIntensity * sunElevation * 0.5f + 0.5f, 0.1f, 0.9f);
+  float sunProb = (ss.sunDiskScale > epsilon) ? clamp(ss.sunDiskIntensity * sunElevation * 0.5f + 0.5f, 0.1f, 0.9f) : 0.0f;
 
   // Improved MIS weighting
   float misWeight;
