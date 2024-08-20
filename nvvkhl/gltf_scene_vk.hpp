@@ -61,6 +61,7 @@ public:
   void         update(VkCommandBuffer cmd, const nvh::gltf::Scene& scn);
   void         updateRenderNodeBuffer(VkCommandBuffer cmd, const nvh::gltf::Scene& scn);
   void         updateMaterialBuffer(VkCommandBuffer cmd, const nvh::gltf::Scene& scn);
+  void         updateVertexBuffers(VkCommandBuffer cmd, const nvh::gltf::Scene& scene);
   virtual void destroy();
 
   // Getters

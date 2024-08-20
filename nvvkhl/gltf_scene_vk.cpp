@@ -267,11 +267,42 @@ void createAttributeBuffer(const std::string&         attributeName,  // Name of
     }
     else
     {
-      // If the stride is different, we need to copy the data
-      std::vector<T> tempData;  //(accessor.count);
-      //nvh::copyAccessorData(tempData, 0, model, accessor, 0, accessor.count);
+      // Get accessor data will make a copy of the data, the way we need it
+      std::vector<T> tempData;
       tinygltf::utils::getAccessorData(model, accessor, tempData);
       attributeBuffer = alloc->createBuffer(cmd, tempData, usageFlag);
+    }
+  }
+}
+
+
+// Function to update attribute buffers in Vulkan only if the attribute is present
+template <typename T>
+void updateAttributeBuffer(const std::string&         attributeName,  // Name of the attribute: POSITION, NORMAL, ...
+                           const tinygltf::Model&     model,          // GLTF model
+                           const tinygltf::Primitive& primitive,      // GLTF primitive
+                           VkCommandBuffer            cmd,            // Command buffer to record the copy
+                           nvvk::ResourceAllocator*   alloc,          // Allocator to create the buffer
+                           nvvk::Buffer&              attributeBuffer)             // Buffer to be created
+{
+  if(primitive.attributes.find(attributeName) != primitive.attributes.end())
+  {
+    const tinygltf::Accessor&   accessor = model.accessors[primitive.attributes.at(attributeName)];
+    const tinygltf::BufferView& view     = model.bufferViews[accessor.bufferView];
+
+    // The most common case is that the buffer is directly readable as T
+    if((view.byteStride == 0 || view.byteStride == sizeof(T)) && !accessor.sparse.isSparse)
+    {
+      const float* bufferData =
+          reinterpret_cast<const float*>(&(model.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
+      alloc->getStaging()->cmdToBuffer(cmd, attributeBuffer.buffer, 0, sizeof(T) * accessor.count, bufferData);
+    }
+    else
+    {
+      // Get accessor data will make a copy of the data, the way we need it
+      std::vector<T> tempData;
+      tinygltf::utils::getAccessorData(model, accessor, tempData);
+      alloc->getStaging()->cmdToBuffer(cmd, attributeBuffer.buffer, 0, sizeof(T) * accessor.count, tempData.data());
     }
   }
 }
@@ -429,6 +460,23 @@ void nvvkhl::SceneVk::createVertexBuffers(VkCommandBuffer cmd, const nvh::gltf::
   vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
                        VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, 0, 1, &barrier, 0, nullptr, 0, nullptr);
 }
+
+// This version updates all the vertex buffers
+void nvvkhl::SceneVk::updateVertexBuffers(VkCommandBuffer cmd, const nvh::gltf::Scene& scene)
+{
+  const auto& model = scene.getModel();
+
+  for(size_t primID = 0; primID < scene.getNumRenderPrimitives(); primID++)
+  {
+    const tinygltf::Primitive& primitive     = scene.getRenderPrimitive(primID).primitive;
+    VertexBuffers&             vertexBuffers = m_vertexBuffers[primID];
+    updateAttributeBuffer<glm::vec3>("POSITION", model, primitive, cmd, m_alloc, vertexBuffers.position);
+    updateAttributeBuffer<glm::vec3>("NORMAL", model, primitive, cmd, m_alloc, vertexBuffers.normal);
+    updateAttributeBuffer<glm::vec2>("TEXCOORD_0", model, primitive, cmd, m_alloc, vertexBuffers.texCoord0);
+    updateAttributeBuffer<glm::vec4>("TANGENT", model, primitive, cmd, m_alloc, vertexBuffers.tangent);
+  }
+}
+
 
 //--------------------------------------------------------------------------------------------------------------
 // Returning the Vulkan sampler information from the information in the tinygltf

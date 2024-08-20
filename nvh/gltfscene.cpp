@@ -55,6 +55,7 @@ static glm::vec4 makeFastTangent(const glm::vec3& n)
 // Loading a GLTF file and extracting all information
 bool nvh::gltf::Scene::load(const std::string& filename)
 {
+  namespace fs = std::filesystem;
   nvh::ScopedTimer st(std::string(__FUNCTION__) + "\n");
   LOGI("%s%s\n", nvh::ScopedTimer::indent().c_str(), filename.c_str());
 
@@ -64,7 +65,7 @@ bool nvh::gltf::Scene::load(const std::string& filename)
   std::string        warn;
   std::string        error;
   tcontext.SetMaxExternalFileSize(1ULL << 33);  // 8GB
-  auto ext = std::filesystem::path(filename).extension().string();
+  auto ext = fs::path(filename).extension().string();
   bool result{false};
   if(ext == ".gltf")
   {
@@ -99,34 +100,39 @@ bool nvh::gltf::Scene::load(const std::string& filename)
 
 bool nvh::gltf::Scene::save(const std::string& filename)
 {
+  namespace fs = std::filesystem;
+
   nvh::ScopedTimer st(std::string(__FUNCTION__) + "\n");
 
   std::string saveFilename = filename;
 
   // Make sure the extension is correct
-  std::string ext = std::filesystem::path(filename).extension().string();
+  std::string ext = fs::path(filename).extension().string();
   if(ext != ".gltf")
   {
     // replace the extension
-    saveFilename = std::filesystem::path(filename).replace_extension(".gltf").string();
+    saveFilename = fs::path(filename).replace_extension(".gltf").string();
   }
 
   // Copy the images to the destination folder
   if(!m_model.images.empty())
   {
-    std::string srcPath   = std::filesystem::path(m_filename).parent_path().string();
-    std::string dstPath   = std::filesystem::path(filename).parent_path().string();
-    int         numCopied = 0;
+    fs::path srcPath   = fs::path(m_filename).parent_path();
+    fs::path dstPath   = fs::path(filename).parent_path();
+    int      numCopied = 0;
     for(auto& image : m_model.images)
     {
       std::string uri_decoded;
       tinygltf::URIDecode(image.uri, &uri_decoded, nullptr);  // ex. whitespace may be represented as %20
 
-      std::string srcFile = srcPath + "/" + uri_decoded;
-      std::string dstFile = dstPath + "/" + uri_decoded;
+      fs::path srcFile = srcPath / uri_decoded;
+      fs::path dstFile = dstPath / uri_decoded;
       if(srcFile != dstFile)
       {
-        if(std::filesystem::copy_file(srcFile, dstFile, std::filesystem::copy_options::update_existing))
+        // Create the parent directory of the destination file if it doesn't exist
+        fs::create_directories(dstFile.parent_path());
+
+        if(fs::copy_file(srcFile, dstFile, fs::copy_options::update_existing))
           numCopied++;
       }
     }
