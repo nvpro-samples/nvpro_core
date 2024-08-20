@@ -511,7 +511,7 @@ void btdf_ggx_smith_sample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat, con
 
   float G1;
   float G2;
-  float G12 = ggx_smith_shadow_mask(G1, G2, k10, vec3(dot(data.k2, mat.T), dot(data.k1, mat.B), nk2), mat.roughness);
+  float G12 = ggx_smith_shadow_mask(G1, G2, k10, vec3(dot(data.k2, mat.T), dot(data.k2, mat.B), nk2), mat.roughness);
 
   if(G12 <= 0.0f)
   {
@@ -645,7 +645,7 @@ void brdf_sheen_sample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat)
   float G1;
   float G2;
 
-  const float G12 = vcavities_shadow_mask(G1, G2, h0.z, k10, k1h, vec3(dot(data.k2, mat.T), dot(data.k1, mat.B), nk2), k2h);
+  const float G12 = vcavities_shadow_mask(G1, G2, h0.z, k10, k1h, vec3(dot(data.k2, mat.T), dot(data.k2, mat.B), nk2), k2h);
   if(G12 <= 0.0f)
   {
     data.event_type = BSDF_EVENT_ABSORB;
