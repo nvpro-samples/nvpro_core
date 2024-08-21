@@ -216,9 +216,15 @@ private:
   }
 
 
-  void displayTableNode(const MyEntryNode& node)
+  void displayTableNode(const MyEntryNode& node, uint32_t depth = 0)
   {
     ImGuiTableFlags flags = ImGuiTreeNodeFlags_SpanFullWidth | ImGuiTreeNodeFlags_SpanAllColumns;
+
+    // Systematically open the first level
+    if(depth < 1)
+    {
+      flags |= ImGuiTreeNodeFlags_DefaultOpen;
+    }
     ImGui::TableNextRow();
     ImGui::TableNextColumn();
     const bool is_folder = (node.child.empty() == false);
@@ -234,10 +240,12 @@ private:
       ImGui::TextDisabled("--");
     else
       ImGui::Text("%3.3f", node.cpuTime);
-    if(open && is_folder)
+    if((open) && is_folder)
     {
       for(int child_n = 0; child_n < static_cast<int>(node.child.size()); child_n++)
-        displayTableNode(node.child[child_n]);
+      {
+        displayTableNode(node.child[child_n], depth + 1);
+      }
       ImGui::TreePop();
     }
   }
