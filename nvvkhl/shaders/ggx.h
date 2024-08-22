@@ -367,8 +367,8 @@ float vcavities_mask(const float nh,  // abs(dot(normal, half))
 
 float vcavities_shadow_mask(OUT_TYPE(float) G1, OUT_TYPE(float) G2, const float nh, const vec3 k1, const float k1h, const vec3 k2, const float k2h)
 {
-  G1 = vcavities_mask(nh, k1h, k1.z);  // In my renderer the z-coordinate is the normal!
-  G2 = vcavities_mask(nh, k2h, k2.z);
+  G1 = vcavities_mask(nh, k1h, abs(k1.z));  // In my renderer the z-coordinate is the normal!
+  G2 = vcavities_mask(nh, k2h, abs(k2.z));
 
   //return (refraction) ? fmaxf(0.0f, G1 + G2 - 1.0f) : fminf(G1, G2);
   return min(G1, G2);  // PERF Need reflection only.

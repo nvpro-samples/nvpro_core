@@ -59,6 +59,8 @@ struct PbrMaterial
 
   vec3  sheenColor;
   float sheenRoughness;
+
+  mat3 TBN;
 };
 
 PbrMaterial defaultPbrMaterial()

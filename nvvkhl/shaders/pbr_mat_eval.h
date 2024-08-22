@@ -237,6 +237,7 @@ PbrMaterial evaluateMaterial(in GltfShadeMaterial material, MeshState mesh)
     pbrMat.T = cross(pbrMat.B, pbrMat.N);
   }
 
+  pbrMat.TBN = mat3(pbrMat.T, pbrMat.B, pbrMat.N);
 
   // KHR_materials_sheen
   vec3 sheenColor = material.sheenColorFactor;

@@ -130,33 +130,6 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #if defined(VK_EXT_extended_dynamic_state3)
 #define NVVK_HAS_VK_EXT_extended_dynamic_state3
 #endif /* VK_EXT_extended_dynamic_state3 */
-#if defined(VK_EXT_extended_dynamic_state3) && (defined(VK_KHR_maintenance2) || defined(VK_VERSION_1_1))
-#define NVVK_HAS_VK_EXT_extended_dynamic_state3
-#endif /* VK_EXT_extended_dynamic_state3 && (VK_KHR_maintenance2 || VK_VERSION_1_1) */
-#if defined(VK_EXT_extended_dynamic_state3) && defined(VK_EXT_transform_feedback)
-#define NVVK_HAS_VK_EXT_extended_dynamic_state3
-#endif /* VK_EXT_extended_dynamic_state3 && VK_EXT_transform_feedback */
-#if defined(VK_EXT_extended_dynamic_state3) && defined(VK_EXT_conservative_rasterization)
-#define NVVK_HAS_VK_EXT_extended_dynamic_state3
-#endif /* VK_EXT_extended_dynamic_state3 && VK_EXT_conservative_rasterization */
-#if defined(VK_EXT_extended_dynamic_state3) && defined(VK_EXT_depth_clip_enable)
-#define NVVK_HAS_VK_EXT_extended_dynamic_state3
-#endif /* VK_EXT_extended_dynamic_state3 && VK_EXT_depth_clip_enable */
-#if defined(VK_EXT_extended_dynamic_state3) && defined(VK_EXT_sample_locations)
-#define NVVK_HAS_VK_EXT_extended_dynamic_state3
-#endif /* VK_EXT_extended_dynamic_state3 && VK_EXT_sample_locations */
-#if defined(VK_EXT_extended_dynamic_state3) && defined(VK_EXT_blend_operation_advanced)
-#define NVVK_HAS_VK_EXT_extended_dynamic_state3
-#endif /* VK_EXT_extended_dynamic_state3 && VK_EXT_blend_operation_advanced */
-#if defined(VK_EXT_extended_dynamic_state3) && defined(VK_EXT_provoking_vertex)
-#define NVVK_HAS_VK_EXT_extended_dynamic_state3
-#endif /* VK_EXT_extended_dynamic_state3 && VK_EXT_provoking_vertex */
-#if defined(VK_EXT_extended_dynamic_state3) && defined(VK_EXT_line_rasterization)
-#define NVVK_HAS_VK_EXT_extended_dynamic_state3
-#endif /* VK_EXT_extended_dynamic_state3 && VK_EXT_line_rasterization */
-#if defined(VK_EXT_extended_dynamic_state3) && defined(VK_EXT_depth_clip_control)
-#define NVVK_HAS_VK_EXT_extended_dynamic_state3
-#endif /* VK_EXT_extended_dynamic_state3 && VK_EXT_depth_clip_control */
 #if defined(VK_EXT_extended_dynamic_state3) && defined(VK_NV_clip_space_w_scaling)
 #define NVVK_HAS_VK_EXT_extended_dynamic_state3
 #endif /* VK_EXT_extended_dynamic_state3 && VK_NV_clip_space_w_scaling */
@@ -244,30 +217,6 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #if defined(VK_EXT_shader_object)
 #define NVVK_HAS_VK_EXT_shader_object
 #endif /* VK_EXT_shader_object */
-#if defined(VK_EXT_shader_object) && defined(VK_EXT_transform_feedback)
-#define NVVK_HAS_VK_EXT_shader_object
-#endif /* VK_EXT_shader_object && VK_EXT_transform_feedback */
-#if defined(VK_EXT_shader_object) && defined(VK_EXT_conservative_rasterization)
-#define NVVK_HAS_VK_EXT_shader_object
-#endif /* VK_EXT_shader_object && VK_EXT_conservative_rasterization */
-#if defined(VK_EXT_shader_object) && defined(VK_EXT_depth_clip_enable)
-#define NVVK_HAS_VK_EXT_shader_object
-#endif /* VK_EXT_shader_object && VK_EXT_depth_clip_enable */
-#if defined(VK_EXT_shader_object) && defined(VK_EXT_sample_locations)
-#define NVVK_HAS_VK_EXT_shader_object
-#endif /* VK_EXT_shader_object && VK_EXT_sample_locations */
-#if defined(VK_EXT_shader_object) && defined(VK_EXT_blend_operation_advanced)
-#define NVVK_HAS_VK_EXT_shader_object
-#endif /* VK_EXT_shader_object && VK_EXT_blend_operation_advanced */
-#if defined(VK_EXT_shader_object) && defined(VK_EXT_provoking_vertex)
-#define NVVK_HAS_VK_EXT_shader_object
-#endif /* VK_EXT_shader_object && VK_EXT_provoking_vertex */
-#if defined(VK_EXT_shader_object) && defined(VK_EXT_line_rasterization)
-#define NVVK_HAS_VK_EXT_shader_object
-#endif /* VK_EXT_shader_object && VK_EXT_line_rasterization */
-#if defined(VK_EXT_shader_object) && defined(VK_EXT_depth_clip_control)
-#define NVVK_HAS_VK_EXT_shader_object
-#endif /* VK_EXT_shader_object && VK_EXT_depth_clip_control */
 #if defined(VK_EXT_shader_object) && defined(VK_NV_clip_space_w_scaling)
 #define NVVK_HAS_VK_EXT_shader_object
 #endif /* VK_EXT_shader_object && VK_NV_clip_space_w_scaling */
@@ -385,9 +334,6 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #if defined(VK_KHR_dynamic_rendering)
 #define NVVK_HAS_VK_KHR_dynamic_rendering
 #endif /* VK_KHR_dynamic_rendering */
-#if defined(VK_KHR_dynamic_rendering_local_read)
-#define NVVK_HAS_VK_KHR_dynamic_rendering_local_read
-#endif /* VK_KHR_dynamic_rendering_local_read */
 #if defined(VK_KHR_external_fence_capabilities)
 #define NVVK_HAS_VK_KHR_external_fence_capabilities
 #endif /* VK_KHR_external_fence_capabilities */
@@ -424,9 +370,6 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #if defined(VK_KHR_get_physical_device_properties2)
 #define NVVK_HAS_VK_KHR_get_physical_device_properties2
 #endif /* VK_KHR_get_physical_device_properties2 */
-#if defined(VK_KHR_line_rasterization)
-#define NVVK_HAS_VK_KHR_line_rasterization
-#endif /* VK_KHR_line_rasterization */
 #if defined(VK_KHR_maintenance1)
 #define NVVK_HAS_VK_KHR_maintenance1
 #endif /* VK_KHR_maintenance1 */
@@ -604,33 +547,6 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #if defined(VK_EXT_extended_dynamic_state3) || defined(VK_EXT_shader_object)
 #define NVVK_HAS_VK_EXT_extended_dynamic_state3
 #endif /* VK_EXT_extended_dynamic_state3 || VK_EXT_shader_object */
-#if defined(VK_EXT_extended_dynamic_state3) && (defined(VK_KHR_maintenance2) || defined(VK_VERSION_1_1)) || defined(VK_EXT_shader_object)
-#define NVVK_HAS_VK_EXT_extended_dynamic_state3
-#endif /* VK_EXT_extended_dynamic_state3 && (VK_KHR_maintenance2 || VK_VERSION_1_1) || VK_EXT_shader_object */
-#if defined(VK_EXT_extended_dynamic_state3) && defined(VK_EXT_transform_feedback) || defined(VK_EXT_shader_object) && defined(VK_EXT_transform_feedback)
-#define NVVK_HAS_VK_EXT_extended_dynamic_state3
-#endif /* VK_EXT_extended_dynamic_state3 && VK_EXT_transform_feedback || VK_EXT_shader_object && VK_EXT_transform_feedback */
-#if defined(VK_EXT_extended_dynamic_state3) && defined(VK_EXT_conservative_rasterization) || defined(VK_EXT_shader_object) && defined(VK_EXT_conservative_rasterization)
-#define NVVK_HAS_VK_EXT_extended_dynamic_state3
-#endif /* VK_EXT_extended_dynamic_state3 && VK_EXT_conservative_rasterization || VK_EXT_shader_object && VK_EXT_conservative_rasterization */
-#if defined(VK_EXT_extended_dynamic_state3) && defined(VK_EXT_depth_clip_enable) || defined(VK_EXT_shader_object) && defined(VK_EXT_depth_clip_enable)
-#define NVVK_HAS_VK_EXT_extended_dynamic_state3
-#endif /* VK_EXT_extended_dynamic_state3 && VK_EXT_depth_clip_enable || VK_EXT_shader_object && VK_EXT_depth_clip_enable */
-#if defined(VK_EXT_extended_dynamic_state3) && defined(VK_EXT_sample_locations) || defined(VK_EXT_shader_object) && defined(VK_EXT_sample_locations)
-#define NVVK_HAS_VK_EXT_extended_dynamic_state3
-#endif /* VK_EXT_extended_dynamic_state3 && VK_EXT_sample_locations || VK_EXT_shader_object && VK_EXT_sample_locations */
-#if defined(VK_EXT_extended_dynamic_state3) && defined(VK_EXT_blend_operation_advanced) || defined(VK_EXT_shader_object) && defined(VK_EXT_blend_operation_advanced)
-#define NVVK_HAS_VK_EXT_extended_dynamic_state3
-#endif /* VK_EXT_extended_dynamic_state3 && VK_EXT_blend_operation_advanced || VK_EXT_shader_object && VK_EXT_blend_operation_advanced */
-#if defined(VK_EXT_extended_dynamic_state3) && defined(VK_EXT_provoking_vertex) || defined(VK_EXT_shader_object) && defined(VK_EXT_provoking_vertex)
-#define NVVK_HAS_VK_EXT_extended_dynamic_state3
-#endif /* VK_EXT_extended_dynamic_state3 && VK_EXT_provoking_vertex || VK_EXT_shader_object && VK_EXT_provoking_vertex */
-#if defined(VK_EXT_extended_dynamic_state3) && defined(VK_EXT_line_rasterization) || defined(VK_EXT_shader_object) && defined(VK_EXT_line_rasterization)
-#define NVVK_HAS_VK_EXT_extended_dynamic_state3
-#endif /* VK_EXT_extended_dynamic_state3 && VK_EXT_line_rasterization || VK_EXT_shader_object && VK_EXT_line_rasterization */
-#if defined(VK_EXT_extended_dynamic_state3) && defined(VK_EXT_depth_clip_control) || defined(VK_EXT_shader_object) && defined(VK_EXT_depth_clip_control)
-#define NVVK_HAS_VK_EXT_extended_dynamic_state3
-#endif /* VK_EXT_extended_dynamic_state3 && VK_EXT_depth_clip_control || VK_EXT_shader_object && VK_EXT_depth_clip_control */
 #if defined(VK_EXT_extended_dynamic_state3) && defined(VK_NV_clip_space_w_scaling) || defined(VK_EXT_shader_object) && defined(VK_NV_clip_space_w_scaling)
 #define NVVK_HAS_VK_EXT_extended_dynamic_state3
 #endif /* VK_EXT_extended_dynamic_state3 && VK_NV_clip_space_w_scaling || VK_EXT_shader_object && VK_NV_clip_space_w_scaling */

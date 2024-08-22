@@ -45,6 +45,8 @@ precision highp float;
 #define inline
 #endif
 
+#define to_local(v, tbn) ( (v) * (tbn) )	// do same as vec3(dot(tbn.T, v), dot(tbn.B, v), dot(tbn.N, v))
+#define to_world(v, tbn) ((tbn) * (v))		// do same as tbn.T * v.x + tbn.B * v.y + tbn.N * v.z
 
 inline float square(float x)
 {
