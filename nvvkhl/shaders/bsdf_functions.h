@@ -173,12 +173,13 @@ void brdf_diffuse_eval(INOUT_TYPE(BsdfEvaluateData) data, PbrMaterial mat, vec3 
   // If the incoming light direction is on the backside, there is nothing to evaluate for a BRDF.
   // Note that the state normals have been flipped to the ray side by the caller.
   // Include edge-on (== 0.0f) as "no light" case.
-  if(dot(data.k2, mat.Ng) <= 0.0f)  // if (backside)
+  vec3 k2NgN = to_local(data.k2, mat3(mat.Ng, mat.N, vec3(0)));
+  if(k2NgN.x <= 0.0f)  // if (backside)
   {
     return;  // absorb
   }
 
-  data.pdf = max(0.0f, dot(data.k2, mat.N) * M_1_PI);
+  data.pdf = max(0.0f, k2NgN.y * M_1_PI);
 
   // For a white Lambert material, the bxdf components match the evaluation pdf. (See MDL_renderer.)
   data.bsdf_diffuse = tint * data.pdf;
@@ -192,10 +193,11 @@ void brdf_diffuse_eval(INOUT_TYPE(BsdfEvaluateData) data, PbrMaterial mat)
 void brdf_diffuse_sample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat, vec3 tint)
 {
   data.k2  = normalize(to_world(cosineSampleHemisphere(data.xi.x, data.xi.y), mat.TBN));
-  data.pdf = dot(data.k2, mat.N) * M_1_PI;
+  vec3 k2NgN = to_local(data.k2, mat3(mat.Ng, mat.N, vec3(0)));
+  data.pdf = k2NgN.y * M_1_PI;
 
   data.bsdf_over_pdf = tint;  // bsdf * dot(wi, normal) / pdf;
-  data.event_type    = (0.0f < dot(data.k2, mat.Ng)) ? BSDF_EVENT_DIFFUSE_REFLECTION : BSDF_EVENT_ABSORB;
+  data.event_type    = (0.0f < k2NgN.x) ? BSDF_EVENT_DIFFUSE_REFLECTION : BSDF_EVENT_ABSORB;
 }
 
 void brdf_diffuse_sample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat)
@@ -217,8 +219,10 @@ void brdf_ggx_smith_eval(INOUT_TYPE(BsdfEvaluateData) data, PbrMaterial mat, con
     return;
   }
 
-  const float nk1 = abs(dot(data.k1, mat.N));
-  const float nk2 = abs(dot(data.k2, mat.N));
+  const vec3 localK1 = to_local(data.k1, mat.TBN);
+  const vec3 localK2 = to_local(data.k2, mat.TBN);
+  const float nk1 = abs(localK1.z);
+  const float nk2 = abs(localK2.z);
 
   // compute_half_vector() for scatter_reflect.
   const vec3 h = normalize(data.k1 + data.k2);
@@ -226,8 +230,9 @@ void brdf_ggx_smith_eval(INOUT_TYPE(BsdfEvaluateData) data, PbrMaterial mat, con
   // Invalid for reflection / refraction?
   const vec3 h0 = to_local(h, mat.TBN);
   const float nh  = h0.z;
-  const float k1h = dot(data.k1, h);
-  const float k2h = dot(data.k2, h);
+  const vec3 K1K2h = to_local(h, mat3(data.k1, data.k2, vec3(0)));
+  const float k1h = K1K2h.x;
+  const float k2h = K1K2h.y;
 
   // nk1 and nh must not be 0.0f or state.pdf == NaN.
   if(nk1 <= 0.0f || nh <= 0.0f || k1h < 0.0f || k2h < 0.0f)
@@ -243,7 +248,7 @@ void brdf_ggx_smith_eval(INOUT_TYPE(BsdfEvaluateData) data, PbrMaterial mat, con
   float G2;
 
   float G12;
-  G12 = ggx_smith_shadow_mask(G1, G2, to_local(data.k1, mat.TBN), to_local(data.k2, mat.TBN), mat.roughness); // used localK2.z and localK1.z as localK1.z * localK1.z and abs donnt needed here
+  G12 = ggx_smith_shadow_mask(G1, G2, localK1, localK2, mat.roughness); // used localK2.z and localK1.z as localK1.z * localK1.z and abs donnt needed here
 
   data.pdf *= 0.25f / (nk1 * nh);
 
@@ -279,13 +284,13 @@ void brdf_ggx_smith_sample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat, con
   data.pdf           = 0.0f;
 
   // Transform to local coordinate system
-  const float nk1 = dot(data.k1, mat.N);
+  const vec3 k10 = to_local(data.k1, mat.TBN);
+  const float nk1 = k10.z;
   if(nk1 <= 0.0f)
   {
     data.event_type = BSDF_EVENT_ABSORB;
     return;
   }
-  const vec3 k10 = to_local(data.k1, mat.TBN);
 
   // Sample half-vector, microfacet normal.
   const vec3 h0 = hvd_ggx_sample_vndf(k10, mat.roughness, data.xi.xy);
@@ -297,7 +302,8 @@ void brdf_ggx_smith_sample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat, con
 
   // Transform to world
   const vec3  h  = to_world(h0, mat.TBN);
-  const float kh = dot(data.k1, h);
+  const vec3 k1k2h = to_local(h, mat3(data.k1, data.k2, vec3(0)));
+  const float kh = k1k2h.x;
 
   if(kh <= 0.0f)
   {
@@ -309,21 +315,20 @@ void brdf_ggx_smith_sample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat, con
   data.k2 = (2.0f * kh) * h - data.k1;
 
   // Check if the resulting direction is on the correct side of the actual geometry
-  const float gnk2 = dot(data.k2, mat.Ng);  // * ((data.typeEvent == BSDF_EVENT_GLOSSY_REFLECTION) ? 1.0f : -1.0f);
-
-  if(gnk2 <= 0.0f)
+  if(dot(data.k2, mat.Ng) <= 0.0f)
   {
     data.event_type = BSDF_EVENT_ABSORB;
     return;
   }
 
-  const float nk2 = abs(dot(data.k2, mat.N));
-  const float k2h = abs(dot(data.k2, h));
+  const vec3 localK2 = to_local(data.k2, mat.TBN);
+  const float nk2 = abs(localK2.z);
+  const float k2h = abs(k1k2h.y);
 
   float G1;
   float G2;
 
-  float G12 = ggx_smith_shadow_mask(G1, G2, k10, to_local(data.k2, mat.TBN), mat.roughness);
+  float G12 = ggx_smith_shadow_mask(G1, G2, k10, localK2, mat.roughness);
 
   if(G12 <= 0.0f)
   {
@@ -364,8 +369,10 @@ void btdf_ggx_smith_eval(INOUT_TYPE(BsdfEvaluateData) data, PbrMaterial mat, con
 
   const vec2 ior = vec2(mat.ior1, mat.ior2);
 
-  const float nk1 = abs(dot(data.k1, mat.N));
-  const float nk2 = abs(dot(data.k2, mat.N));
+  const vec3 localK1 = to_local(data.k1, mat.TBN);
+  const vec3 localK2 = to_local(data.k2, mat.TBN);
+  const float nk1 = abs(localK1.z);
+  const float nk2 = abs(localK2.z);
 
   // BRDF or BTDF eval?
   // If the incoming light direction is on the backface.
@@ -376,9 +383,10 @@ void btdf_ggx_smith_eval(INOUT_TYPE(BsdfEvaluateData) data, PbrMaterial mat, con
 
   // Invalid for reflection / refraction?
   const vec3 h0 = to_local(h, mat.TBN);
+  const vec3 k1k2h = to_local(h, mat3(data.k1, data.k2, vec3(0)));
   const float nh  = h0.z;
-  const float k1h = dot(data.k1, h);
-  const float k2h = dot(data.k2, h) * (backside ? -1.0f : 1.0f);
+  const float k1h = k1k2h.x;
+  const float k2h = k1k2h.y * (backside ? -1.0f : 1.0f);
 
   // nk1 and nh must not be 0.0f or state.pdf == NaN.
   if(nk1 <= 0.0f || nh <= 0.0f || k1h < 0.0f || k2h < 0.0f)
@@ -414,7 +422,7 @@ void btdf_ggx_smith_eval(INOUT_TYPE(BsdfEvaluateData) data, PbrMaterial mat, con
 
   float G1;
   float G2;
-  float G12 = ggx_smith_shadow_mask(G1, G2, to_local(data.k1, mat.TBN), to_local(data.k2, mat.TBN), mat.roughness);
+  float G12 = ggx_smith_shadow_mask(G1, G2, localK1, localK2, mat.roughness);
 
   if(!isThinWalled && backside)  // Refraction?
   {
@@ -547,8 +555,10 @@ void brdf_sheen_eval(INOUT_TYPE(BsdfEvaluateData) data, PbrMaterial mat)
     return;  // absorb
   }
 
-  const float nk1 = abs(dot(data.k1, mat.N));
-  const float nk2 = abs(dot(data.k2, mat.N));
+  const vec3 localK1 = to_local(data.k1, mat.TBN);
+  const vec3 localK2 = to_local(data.k2, mat.TBN);
+  const float nk1 = abs(localK1.z);
+  const float nk2 = abs(localK2.z);
 
   // compute_half_vector() for scatter_reflect.
   const vec3 h = normalize(data.k1 + data.k2);
@@ -556,8 +566,9 @@ void brdf_sheen_eval(INOUT_TYPE(BsdfEvaluateData) data, PbrMaterial mat)
   const vec3 h0 = to_local(h, mat.TBN);
   // Invalid for reflection / refraction?
   const float nh  = h0.z;
-  const float k1h = dot(data.k1, h);
-  const float k2h = dot(data.k2, h);
+  const vec3 k1k2h = to_local(h, mat3(data.k1, data.k2, vec3(0)));
+  const float k1h = k1k2h.x;
+  const float k2h = k1k2h.y;
 
   // nk1 and nh must not be 0.0f or state.pdf == NaN.
   if(nk1 <= 0.0f || nh <= 0.0f || k1h < 0.0f || k2h < 0.0f)
@@ -573,8 +584,7 @@ void brdf_sheen_eval(INOUT_TYPE(BsdfEvaluateData) data, PbrMaterial mat)
   float G1;
   float G2;
 
-  const float G12 = vcavities_shadow_mask(G1, G2, h0.z, to_local(data.k1, mat.TBN), k1h,
-                                          to_local(data.k2, mat.TBN), k2h);
+  const float G12 = vcavities_shadow_mask(G1, G2, h0.z, localK1, k1h, localK2, k2h);
   data.pdf *= 0.25f / (nk1 * nh);
 
   const vec3 bsdf = vec3(G12 * data.pdf);
@@ -625,9 +635,7 @@ void brdf_sheen_sample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat)
   data.event_type    = BSDF_EVENT_GLOSSY_REFLECTION;
 
   // Check if the resulting reflection direction is on the correct side of the actual geometry.
-  const float gnk2 = dot(data.k2, mat.Ng);
-
-  if(gnk2 <= 0.0f)
+  if(dot(data.k2, mat.Ng) <= 0.0f)
   {
     data.event_type = BSDF_EVENT_ABSORB;
     return;
