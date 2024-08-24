@@ -210,6 +210,7 @@ void brdf_ggx_smith_eval(INOUT_TYPE(BsdfEvaluateData) data, PbrMaterial mat, con
   // BRDF or BTDF eval?
   // If the incoming light direction is on the backface.
   // Include edge-on (== 0.0f) as "no light" case.
+  /*
   const bool backside = (dot(data.k2, mat.Ng) <= 0.0f);
   // Nothing to evaluate for given directions?
   if(backside && false)  // && scatter_reflect
@@ -218,11 +219,10 @@ void brdf_ggx_smith_eval(INOUT_TYPE(BsdfEvaluateData) data, PbrMaterial mat, con
     data.bsdf_glossy = vec3(0.0f);
     return;
   }
+  */
 
   const vec3 localK1 = to_local(data.k1, mat.TBN);
-  const vec3 localK2 = to_local(data.k2, mat.TBN);
   const float nk1 = abs(localK1.z);
-  const float nk2 = abs(localK2.z);
 
   // compute_half_vector() for scatter_reflect.
   const vec3 h = normalize(data.k1 + data.k2);
@@ -248,13 +248,9 @@ void brdf_ggx_smith_eval(INOUT_TYPE(BsdfEvaluateData) data, PbrMaterial mat, con
   float G2;
 
   float G12;
-  G12 = ggx_smith_shadow_mask(G1, G2, localK1, localK2, mat.roughness); // used localK2.z and localK1.z as localK1.z * localK1.z and abs donnt needed here
+  G12 = ggx_smith_shadow_mask(G1, G2, localK1, to_local(data.k2, mat.TBN), mat.roughness); // used localK2.z and localK1.z as localK1.z * localK1.z and abs donnt needed here
 
-  data.pdf *= 0.25f / (nk1 * nh);
-
-  vec3 bsdf = vec3(G12 * data.pdf);
-
-  data.pdf *= G1;
+  data.pdf *= G1 * 0.25f / (nk1 * nh);
 
   if(mat.iridescence > 0.0f)
   {
@@ -273,7 +269,7 @@ void brdf_ggx_smith_eval(INOUT_TYPE(BsdfEvaluateData) data, PbrMaterial mat, con
   }
 
   // eval output: (glossy part of the) bsdf * dot(k2, normal)
-  data.bsdf_glossy = bsdf * tint;
+  data.bsdf_glossy = (G12 * data.pdf) * tint;
 }
 
 void brdf_ggx_smith_sample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat, const int lobe, vec3 tint)
@@ -336,12 +332,10 @@ void brdf_ggx_smith_sample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat, con
     return;
   }
 
-  data.bsdf_over_pdf = vec3(G2);
   data.event_type    = BSDF_EVENT_GLOSSY_REFLECTION;
 
   // Compute pdf
-  data.pdf = hvd_ggx_eval(1.0f / mat.roughness, h0) * G1;
-  data.pdf *= 0.25f / (nk1 * h0.z);
+  data.pdf = hvd_ggx_eval(1.0f / mat.roughness, h0) * G1 * 0.25f / (nk1 * h0.z);
 
   if(mat.iridescence > 0.0f)
   {
@@ -359,7 +353,7 @@ void brdf_ggx_smith_sample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat, con
     }
   }
 
-  data.bsdf_over_pdf *= tint;
+  data.bsdf_over_pdf = G2 * tint;
 }
 
 
@@ -509,8 +503,6 @@ void btdf_ggx_smith_sample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat, con
     return;
   }
 
-  const float k2h = abs(dot(data.k2, h));
-
   float G1;
   float G2;
   float G12 = ggx_smith_shadow_mask(G1, G2, k10, to_local(data.k2, mat.TBN), mat.roughness);
@@ -526,9 +518,9 @@ void btdf_ggx_smith_sample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat, con
   // Compute pdf
   data.pdf = hvd_ggx_eval(1.0f / mat.roughness, h0) * G1;  // * prob;
 
-
   if(!isThinWalled && (data.event_type == BSDF_EVENT_GLOSSY_TRANSMISSION))  // if (refraction)
   {
+    const float k2h = abs(dot(data.k2, h));
     const float tmp = kh * ior.x - k2h * ior.y;
     if(tmp > 0)
     {
@@ -548,9 +540,8 @@ void brdf_sheen_eval(INOUT_TYPE(BsdfEvaluateData) data, PbrMaterial mat)
   // BRDF or BTDF eval?
   // If the incoming light direction is on the backface.
   // Include edge-on (== 0.0f) as "no light" case.
-  const bool backside = (dot(data.k2, mat.Ng) <= 0.0f);
   // Nothing to evaluate for given directions?
-  if(backside)  // && scatter_reflect
+  if(dot(data.k2, mat.Ng) <= 0.0f)  // && scatter_reflect
   {
     return;  // absorb
   }
@@ -606,8 +597,7 @@ void brdf_sheen_sample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat)
 
   vec3 k10 = to_local(data.k1, mat.TBN);
 
-  const float nk1 = abs(k10.z);
-  k10.z = nk1;
+  k10.z = abs(k10.z);
 
   float      xiFlip = data.xi.z;
   const vec3 h0     = flip(hvd_sheen_sample(data.xi.xy, invRoughness), k10, xiFlip);
@@ -658,7 +648,7 @@ void brdf_sheen_sample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat)
   // Compute pdf.
   data.pdf = hvd_sheen_eval(invRoughness, h0.z) * G1;
 
-  data.pdf *= 0.25f / (nk1 * h0.z);
+  data.pdf *= 0.25f / (k10.z * h0.z);
 
   data.bsdf_over_pdf *= mat.sheenColor;
 }
