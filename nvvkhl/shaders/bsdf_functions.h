@@ -317,14 +317,10 @@ void brdf_ggx_smith_sample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat, con
     return;
   }
 
-  const vec3 localK2 = to_local(data.k2, mat.TBN);
-  const float nk2 = abs(localK2.z);
-  const float k2h = abs(k1k2h.y);
-
   float G1;
   float G2;
 
-  float G12 = ggx_smith_shadow_mask(G1, G2, k10, localK2, mat.roughness);
+  float G12 = ggx_smith_shadow_mask(G1, G2, k10, to_local(data.k2, mat.TBN), mat.roughness);
 
   if(G12 <= 0.0f)
   {
@@ -366,14 +362,13 @@ void btdf_ggx_smith_eval(INOUT_TYPE(BsdfEvaluateData) data, PbrMaterial mat, con
   const vec3 localK1 = to_local(data.k1, mat.TBN);
   const vec3 localK2 = to_local(data.k2, mat.TBN);
   const float nk1 = abs(localK1.z);
-  const float nk2 = abs(localK2.z);
 
   // BRDF or BTDF eval?
   // If the incoming light direction is on the backface.
   // Do NOT include edge-on (== 0.0f) as backside here to take the reflection path.
   const bool backside = (dot(data.k2, mat.Ng) < 0.0f);
 
-  const vec3 h = compute_half_vector(data.k1, data.k2, mat.N, ior, nk2, backside, isThinWalled);
+  const vec3 h = compute_half_vector(data.k1, data.k2, mat.N, ior, abs(localK2.z), backside, isThinWalled);
 
   // Invalid for reflection / refraction?
   const vec3 h0 = to_local(h, mat.TBN);
@@ -453,9 +448,7 @@ void btdf_ggx_smith_sample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat, con
   const vec2 ior = vec2(mat.ior1, mat.ior2);
 
   vec3 k10 = to_local(data.k1, mat.TBN);
-
-  const float nk1 = abs(k10.z);
-  k10.z = nk1;
+  k10.z = abs(k10.z);
 
   // Sample half-vector, microfacet normal.
   const vec3 h0 = hvd_ggx_sample_vndf(k10, mat.roughness, data.xi.xy);
@@ -524,12 +517,12 @@ void btdf_ggx_smith_sample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat, con
     const float tmp = kh * ior.x - k2h * ior.y;
     if(tmp > 0)
     {
-      data.pdf *= kh * k2h / (nk1 * h0.z * tmp * tmp);
+      data.pdf *= kh * k2h / (k10.z * h0.z * tmp * tmp);
     }
   }
   else
   {
-    data.pdf *= 0.25f / (nk1 * h0.z);
+    data.pdf *= 0.25f / (k10.z * h0.z);
   }
 
   data.bsdf_over_pdf *= tint;
@@ -549,7 +542,6 @@ void brdf_sheen_eval(INOUT_TYPE(BsdfEvaluateData) data, PbrMaterial mat)
   const vec3 localK1 = to_local(data.k1, mat.TBN);
   const vec3 localK2 = to_local(data.k2, mat.TBN);
   const float nk1 = abs(localK1.z);
-  const float nk2 = abs(localK2.z);
 
   // compute_half_vector() for scatter_reflect.
   const vec3 h = normalize(data.k1 + data.k2);
@@ -596,7 +588,6 @@ void brdf_sheen_sample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat)
   const float invRoughness = 1.0f / (mat.sheenRoughness * mat.sheenRoughness);  // Perceptual roughness to alpha G.
 
   vec3 k10 = to_local(data.k1, mat.TBN);
-
   k10.z = abs(k10.z);
 
   float      xiFlip = data.xi.z;

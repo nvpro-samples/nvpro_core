@@ -294,7 +294,7 @@ vec3 compute_half_vector(const vec3 k1, const vec3 k2, const vec3 normal, const 
 
       if(ior.y > ior.x)
       {
-        h *= -1.0f;  // Make pointing to outgoing direction's medium.
+        h = -h;  // Make pointing to outgoing direction's medium.
       }
     }
   }
