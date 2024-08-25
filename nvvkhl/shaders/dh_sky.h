@@ -687,7 +687,6 @@ inline SkySamplingResult samplePhysicalSky(PhysicalSkyParameters ss, vec2 random
   // Use first-degree Taylor series expansion around 0 for better precision
   const float sunSolidAngle = (sunAngularRadius < 0.001f) ? M_PIf * sunAngularRadius * sunAngularRadius :
                                                             2.0f * M_PIf * (1.0f - cos(sunAngularRadius));
-  const float skySolidAngle = 2.0f * M_PIf;
 
   // Approximation for sun probability
   float sunElevation = ss.sunDirection.z;

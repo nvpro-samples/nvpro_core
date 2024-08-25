@@ -122,6 +122,8 @@ bool nvh::gltf::Scene::save(const std::string& filename)
     int      numCopied = 0;
     for(auto& image : m_model.images)
     {
+      if(image.uri.empty())
+        continue;
       std::string uri_decoded;
       tinygltf::URIDecode(image.uri, &uri_decoded, nullptr);  // ex. whitespace may be represented as %20
 
