@@ -108,14 +108,17 @@ bool nvh::gltf::Scene::save(const std::string& filename)
 
   // Make sure the extension is correct
   std::string ext = fs::path(filename).extension().string();
-  if(ext != ".gltf")
+  if(ext != ".gltf" && ext != ".glb")
   {
     // replace the extension
     saveFilename = fs::path(filename).replace_extension(".gltf").string();
+    ext          = ".gltf";
   }
 
+  bool saveBinary = ext == ".glb" ? true : false;
+
   // Copy the images to the destination folder
-  if(!m_model.images.empty())
+  if(!m_model.images.empty() && !saveBinary)
   {
     fs::path srcPath   = fs::path(m_filename).parent_path();
     fs::path dstPath   = fs::path(filename).parent_path();
@@ -144,7 +147,7 @@ bool nvh::gltf::Scene::save(const std::string& filename)
 
   // Save the glTF file
   tinygltf::TinyGLTF tcontext;
-  bool               result = tcontext.WriteGltfSceneToFile(&m_model, saveFilename, false, false, true, false);
+  bool result = tcontext.WriteGltfSceneToFile(&m_model, saveFilename, saveBinary, saveBinary, true, saveBinary);
   LOGI("%sSaved: %s\n", st.indent().c_str(), saveFilename.c_str());
   return result;
 }
