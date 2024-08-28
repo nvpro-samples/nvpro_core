@@ -21,11 +21,9 @@
 #include <algorithm>
 #include <nvh/nvprint.hpp>
 #include <regex>
-
-#include "context_vk.hpp"
-#include "error_vk.hpp"
-#include "extensions_vk.hpp"
-
+#include <nvvk/context_vk.hpp>
+#include <nvvk/error_vk.hpp>
+#include <nvvk/extensions_vk.hpp>
 #include <nvvk/debug_util_vk.hpp>
 #include <nvp/perproject_globals.hpp>
 

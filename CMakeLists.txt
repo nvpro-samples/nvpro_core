@@ -72,6 +72,12 @@ endif()
 if(USING_VULKANSDK)
   file(GLOB NVHELPERSVK_SOURCE nvvk/*.cpp nvvk/*.hpp nvvk/*.inl nvvk/*.h)
 
+  set(GENERATED_EXTENSION_DIR "${CMAKE_CURRENT_BINARY_DIR}/extensions_vk_gen")
+  list(APPEND NVHELPERSVK_SOURCE
+    "${GENERATED_EXTENSION_DIR}/nvvk/extensions_vk.cpp"
+    "${GENERATED_EXTENSION_DIR}/nvvk/extensions_vk.hpp"
+    )
+
   # the implementation depends on SUPPORTS_AFTERMATH and thus can only be provided
   # as part of the individual sample projects. Check setup.cmake where we insert
   # nsight_aftermath_vk.cpp into the projects automatically
@@ -122,28 +128,35 @@ if(USING_VULKANSDK)
   # The following checks if Python is available and run the script to generate the Vulkan extensions
   # using the version of Vulkan SDK installed on the system
   option(VULKAN_generate_extensions "Regenerate nvvk/extensions_vk.cpp from the currently installed Vulkan SDK version at configuration time." ON)
+  set(VULKAN_EXTENSIONS_GENERATED FALSE)
   if(VULKAN_generate_extensions)
     find_package (Python COMPONENTS Interpreter)
     if(Python_FOUND)
-      execute_process(
-        COMMAND ${Python_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/nvvk/extensions_vk.py --beta
-        RESULT_VARIABLE PYTHON_SCRIPT_RESULT
-        OUTPUT_VARIABLE PYTHON_SCRIPT_OUTPUT
-        ERROR_VARIABLE PYTHON_SCRIPT_ERROR
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-        ERROR_STRIP_TRAILING_WHITESPACE
+      add_custom_command(
+        OUTPUT "${GENERATED_EXTENSION_DIR}/nvvk/extensions_vk.cpp" "${GENERATED_EXTENSION_DIR}/nvvk/extensions_vk.hpp"
+        DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/nvvk/extensions_vk.py"
+        COMMAND ${Python_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/nvvk/extensions_vk.py" --output-dir "${GENERATED_EXTENSION_DIR}/nvvk" --beta
+        COMMENT "Vulkan extension code generation with nvvk/extensions_vk.py (cmake option: VULKAN_generate_extensions)"
       )
-      # Check if the Python script ran successfully
-      if(PYTHON_SCRIPT_RESULT EQUAL 0)
-          message(STATUS "Vulkan extensions generated:")
-          message(STATUS "${PYTHON_SCRIPT_OUTPUT}")
-      else()
-          message(ERROR "Error running Python script:")
-          message(ERROR "${PYTHON_SCRIPT_ERROR}")
-      endif()
+      set(VULKAN_EXTENSIONS_GENERATED TRUE)
+    else()
+      message(WARNING "Python not found. Cannot generate code with local Vulkan SDK. Falling back to packaged code.")
     endif(Python_FOUND)
   endif(VULKAN_generate_extensions)
 
+  # Use fallback source files
+  if(NOT VULKAN_EXTENSIONS_GENERATED)
+    add_custom_command(
+      OUTPUT "${GENERATED_EXTENSION_DIR}/nvvk/extensions_vk.cpp"
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/nvvk/extensions_vk.cpp.in" "${GENERATED_EXTENSION_DIR}/nvvk/extensions_vk.cpp"
+      COMMENT "Copying fallback vulkan extension code (disabled or python not found)"
+    )
+    add_custom_command(
+      OUTPUT "${GENERATED_EXTENSION_DIR}/nvvk/extensions_vk.hpp"
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/nvvk/extensions_vk.hpp.in" "${GENERATED_EXTENSION_DIR}/nvvk/extensions_vk.hpp"
+      COMMENT "Copying fallback vulkan extension code (disabled or python not found)"
+    )
+  endif()
 endif(USING_VULKANSDK)
 
 if(USING_IMGUI)
@@ -268,6 +281,20 @@ endif()
 if(USING_IMGUI)
   # Enable ImVec* operators for all nvpro_core. See imgui.h.
   target_compile_definitions(nvpro_core PRIVATE IMGUI_DEFINE_MATH_OPERATORS)
+endif()
+
+if(USING_VULKANSDK)
+  target_include_directories(nvpro_core PUBLIC "${GENERATED_EXTENSION_DIR}")
+  option(VULKAN_update_codegen_fallback "Update the nvvk/extensions_vk.cpp fallback code in the source directory." OFF)
+  if(VULKAN_EXTENSIONS_GENERATED AND VULKAN_update_codegen_fallback)
+    add_custom_command(
+      TARGET nvpro_core POST_BUILD
+      DEPENDS "${GENERATED_EXTENSION_DIR}/nvvk/extensions_vk.cpp" "${GENERATED_EXTENSION_DIR}/nvvk/extensions_vk.hpp"
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different "${GENERATED_EXTENSION_DIR}/nvvk/extensions_vk.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/nvvk/extensions_vk.cpp.in"
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different "${GENERATED_EXTENSION_DIR}/nvvk/extensions_vk.hpp" "${CMAKE_CURRENT_SOURCE_DIR}/nvvk/extensions_vk.hpp.in"
+      COMMENT "Updating vulkan extension code generation fallback"
+    )
+  endif()
 endif()
 
 target_link_libraries(nvpro_core

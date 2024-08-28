@@ -86,15 +86,16 @@ def parse_xml(path):
         return tree
 
 
-def patch_file(fileName, blocks):
+def patch_file(inName, outName, outputDir, blocks):
     # Find each section of NVVK_GENERATE_ and replace with block of text
     result = []
     block = None
 
     scriptDir = os.path.dirname(os.path.realpath(__file__))
-    path = os.path.join(scriptDir, fileName)
+    inputFile = os.path.join(scriptDir, inName)
+    outputFile = os.path.join(outputDir, outName)
 
-    with open(path, "r") as file:
+    with open(inputFile, "r") as file:
         for line in file.readlines():
             if block:
                 if line == block:
@@ -107,7 +108,8 @@ def patch_file(fileName, blocks):
                     block = line
                     result.append(blocks[line.strip()[17:-3]])
 
-    with open(path, "w", newline="\n") as file:
+    os.makedirs(outputDir, exist_ok=True)
+    with open(outputFile, "w", newline="\n") as file:
         for line in result:
             file.write(line)
 
@@ -238,6 +240,11 @@ if __name__ == "__main__":
         help="Includes provisional Vulkan extensions; these extensions are not guaranteed to be consistent across Vulkan SDK versions.",
     )
     parser.add_argument(
+        "--output-dir",
+        default=os.path.dirname(os.path.realpath(__file__)),
+        help="Includes provisional Vulkan extensions; these extensions are not guaranteed to be consistent across Vulkan SDK versions.",
+    )
+    parser.add_argument(
         "spec",
         type=str,
         nargs="?",
@@ -268,7 +275,7 @@ if __name__ == "__main__":
     )
 
     # Patching the files
-    patch_file("extensions_vk.cpp", blocks)
+    patch_file("extensions_vk.cpp.in", "extensions_vk.cpp", args.output_dir, blocks)
 
     # Ordered list of commands per extension group
     command_groups = OrderedDict()
@@ -441,5 +448,5 @@ if __name__ == "__main__":
                 blocks[key] += "#endif /* " + remove_defined(group) + " */\n"
 
     # Patching the files
-    patch_file("extensions_vk.hpp", blocks)
-    patch_file("extensions_vk.cpp", blocks)
+    patch_file("extensions_vk.hpp.in", "extensions_vk.hpp", args.output_dir, blocks)
+    patch_file("extensions_vk.cpp.in", "extensions_vk.cpp", args.output_dir, blocks)
