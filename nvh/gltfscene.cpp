@@ -36,13 +36,21 @@
 
 // List of supported extensions
 static const std::set<std::string> supportedExtensions = {
-    "KHR_materials_anisotropy",   "KHR_materials_clearcoat",
-    "KHR_materials_displacement", "KHR_materials_emissive_strength",
-    "KHR_materials_ior",          "KHR_materials_iridescence",
-    "KHR_materials_sheen",        "KHR_materials_specular",
-    "KHR_materials_transmission", "KHR_materials_unlit",
-    "KHR_materials_variants",     "KHR_materials_volume",
-    "KHR_texture_transform",      "EXT_mesh_gpu_instancing",
+    "KHR_lights_punctual",
+    "KHR_materials_anisotropy",
+    "KHR_materials_clearcoat",
+    "KHR_materials_displacement",
+    "KHR_materials_emissive_strength",
+    "KHR_materials_ior",
+    "KHR_materials_iridescence",
+    "KHR_materials_sheen",
+    "KHR_materials_specular",
+    "KHR_materials_transmission",
+    "KHR_materials_unlit",
+    "KHR_materials_variants",
+    "KHR_materials_volume",
+    "KHR_texture_transform",
+    "EXT_mesh_gpu_instancing",
     "NV_attributes_iray",
 #ifdef USE_DRACO
     "KHR_draco_mesh_compression",
