@@ -22,7 +22,6 @@
 #define __NVPRINT_H__
 
 #include <cstdarg>
-#include <fmt/format.h>
 #include <functional>
 #include <stdint.h>
 #include <string>
@@ -198,6 +197,10 @@ void nvprintfLevel(int level,
 ;
 
 // std::print-style macros and functions.
+// These are not allowed in CUDA source files, because cudafe++ transforms
+// Unicode code points to octal code units. (nvbug 4839128)
+#ifndef __CUDACC__
+#include <fmt/format.h>
 // Use fmt::format's built-in checking if the compiler supports consteval,
 // which cleans up how the macros appear in Intellisense. Otherwise, use
 // FMT_STRING; this will be messier. In either case, the last line of the
@@ -233,6 +236,8 @@ void nvprintfLevel(int level,
 #endif
 #define PRINTOK(fmtstr, ...) PRINT_CATCH(LOGLEVEL_OK, fmtstr, __VA_ARGS__)
 #define PRINTSTATS(fmtstr, ...) PRINT_CATCH(LOGLEVEL_STATS, fmtstr, __VA_ARGS__)
+
+#endif // __CUDACC__
 
 // Directly prints a message at the given level, without formatting.
 void nvprintLevel(int level, const std::string& msg) noexcept;

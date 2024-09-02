@@ -63,6 +63,12 @@ if (NOT TARGET fmt)
   add_library(fmt STATIC fmt/src/format.cc)
   target_include_directories(fmt PUBLIC fmt/include)
   set_property(TARGET fmt PROPERTY FOLDER "ThirdParty")
+  # On MSVC, fmt requires either FMT_UNICODE to be defined as 0 or to enable
+  # UTF-8 for source and execution character sets; see
+  # https://github.com/fmtlib/fmt/commit/077e4ae746cde56559d72babe278e3d189bb2b3a.
+  if(MSVC)
+    target_compile_options(fmt PUBLIC $<$<COMPILE_LANGUAGE:CXX>:/utf-8>)
+  endif()
 endif()
 
 

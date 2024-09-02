@@ -179,7 +179,7 @@ if __name__ == "__main__":
         "repositories",
         nargs="+",
         default=[],
-        help="Names of repositories from repro_rules.json to update. You can specify multiple repositories like this: `dev-rebuild-filtered-repos.py imgui format stb`. By default, updates every repository.",
+        help="Names of repositories from repro_rules.json to update. You can specify multiple repositories like this: `dev-rebuild-filtered-repos.py imgui fmt stb`. By default, updates every repository.",
     )
     args = parser.parse_args()
 
