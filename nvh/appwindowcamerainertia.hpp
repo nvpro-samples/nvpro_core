@@ -17,6 +17,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 //--------------------------------------------------------------------
+
+#pragma once
+
 #include <nvpwindow.hpp>
 #ifdef WIN32
 #include <windows.h>

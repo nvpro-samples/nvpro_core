@@ -34,6 +34,7 @@ layout(buffer_reference, scalar) readonly buffer TriangleIndices    { uvec3 _[];
 layout(buffer_reference, scalar) readonly buffer VertexPosition     { vec3 _[]; };
 layout(buffer_reference, scalar) readonly buffer VertexNormal       { vec3 _[]; };
 layout(buffer_reference, scalar) readonly buffer VertexTexCoord0    { vec2 _[]; };
+layout(buffer_reference, scalar) readonly buffer VertexTexCoord1    { vec2 _[]; };
 layout(buffer_reference, scalar) readonly buffer VertexTangent      { vec4 _[]; };
 layout(buffer_reference, scalar) readonly buffer VertexColor        { uint _[]; };
 // clang-format on
@@ -106,6 +107,31 @@ vec2 getInterpolatedVertexTexCoord0(RenderPrimitive renderPrim, uvec3 idx, vec3 
   uv[2] = texcoords._[idx.z];
   return uv[0] * barycentrics.x + uv[1] * barycentrics.y + uv[2] * barycentrics.z;
 }
+
+bool hasVertexTexCoord1(RenderPrimitive renderPrim)
+{
+  return renderPrim.vertexBuffer.texCoord1Address != 0;
+}
+
+vec2 getVertexTexCoord1(RenderPrimitive renderPrim, uint idx)
+{
+  if(!hasVertexTexCoord1(renderPrim))
+    return vec2(0, 0);
+  return VertexTexCoord1(renderPrim.vertexBuffer.texCoord1Address)._[idx];
+}
+
+vec2 getInterpolatedVertexTexCoord1(RenderPrimitive renderPrim, uvec3 idx, vec3 barycentrics)
+{
+  if(!hasVertexTexCoord1(renderPrim))
+    return vec2(0, 0);
+  VertexTexCoord1 texcoords = VertexTexCoord1(renderPrim.vertexBuffer.texCoord1Address);
+  vec2            uv[3];
+  uv[0] = texcoords._[idx.x];
+  uv[1] = texcoords._[idx.y];
+  uv[2] = texcoords._[idx.z];
+  return uv[0] * barycentrics.x + uv[1] * barycentrics.y + uv[2] * barycentrics.z;
+}
+
 
 bool hasVertexTangent(RenderPrimitive renderPrim)
 {

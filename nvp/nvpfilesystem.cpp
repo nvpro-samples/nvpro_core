@@ -197,7 +197,7 @@ struct WindowsPathMonitor : PathKey
 
   HANDLE                                                     m_dirHandle;
   DWORD                                                      m_winEventFilter;
-  std::array<uint8_t, 63 * 1024>                             m_eventBuffer;
+  std::array<uint8_t, 63 * 1024>                             m_eventBuffer{};
   OVERLAPPED                                                 m_overlapped;
   bool                                                       m_eventsRequested;
   std::unordered_map<std::string, std::vector<PathInstance>> m_fileInstances;

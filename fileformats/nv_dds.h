@@ -19,7 +19,7 @@
 
 //////////////////////////////////////////////////////////////////////////
 /** @DOC_START
-# nv_dds 2.0.1
+# nv_dds 2.1.0
      
 nv_dds is a small library for reading and writing DDS files. Other than the
 C++ standard library, it only requires five files: dxgiformat.h, nv_dds.h,
@@ -210,17 +210,15 @@ enum class ColorTransform
   eAEXP,
   // Swap the red and green channels.
   eSwapRG,
-  // For backwards compatibility with nv_dds 2.0.0; typically, if a file
-  // contains 'ATI2' and 'A2XY', we want to treat it as BC5 without a swap.
-  // The new eSwapRG flag makes the distinction between "swap the red and green
-  // channels" and "this file had the A2XY swizzle" clearer.
-  eA2XY = eSwapRG,
   // Reconstruct the blue channel from the red and green channels using
   // sqrt(1-r^2-g^2).
   // This usually appears with an SNORM format; e.g. D3DFMT_CxV8U8 is
   // R8G8_SNORM + this reconstruction.
+  // Writing is only supported when using R8G8_SNORM without the DX10 extension.
   eOrthographicNormal
 };
+// Returns the ColorTransform in string form. Returns "?" if out-of-bounds.
+const char* getColorTransformString(ColorTransform transform);
 
 // miscFlags2 enumeration: Alpha modes
 const uint32_t DDS_ALPHA_MODE_UNKNOWN       = 0x0;
@@ -228,6 +226,8 @@ const uint32_t DDS_ALPHA_MODE_STRAIGHT      = 0x1;
 const uint32_t DDS_ALPHA_MODE_PREMULTIPLIED = 0x2;
 const uint32_t DDS_ALPHA_MODE_OPAQUE        = 0x3;
 const uint32_t DDS_ALPHA_MODE_CUSTOM        = 0x4;
+// Returns the alpha mode in string form. Returns "?" if out-of-bounds.
+const char* getAlphaModeString(uint32_t alphaMode);
 
 // These functions return an empty std::optional if they succeeded, and a
 // value with text describing the error if they failed.
@@ -526,6 +526,7 @@ private:
 // These values are included for convenience, if you need to visualize the
 // contents of the DDS header.
 
+#ifdef NV_DDS_UTILITY_VALUES
 // surface description flags
 // https://docs.microsoft.com/en-us/windows/win32/direct3ddds/dds-header
 const uint32_t DDSD_CAPS        = 0x00000001U;
@@ -610,21 +611,15 @@ const uint32_t FOURCC_CTX1         = MakeFourCC('C', 'T', 'X', '1');  // Written
 const uint32_t FOURCC_RGBG         = MakeFourCC('R', 'G', 'B', 'G');
 const uint32_t FOURCC_GRGB         = MakeFourCC('G', 'R', 'G', 'B');
 const uint32_t FOURCC_ATI1         = MakeFourCC('A', 'T', 'I', '1');  // aka BC4
-const uint32_t FOURCC_ATI2         = MakeFourCC('A', 'T', 'I', '2');  // aka BC5
+const uint32_t FOURCC_ATI2         = MakeFourCC('A', 'T', 'I', '2');  // BC5 with red and green swapped
 const uint32_t FOURCC_UYVY         = MakeFourCC('U', 'Y', 'V', 'Y');
 const uint32_t FOURCC_YUY2         = MakeFourCC('Y', 'U', 'Y', '2');
 const uint32_t FOURCC_AEXP         = MakeFourCC('A', 'E', 'X', 'P');  // Written by GIMP
 const uint32_t FOURCC_RXGB         = MakeFourCC('R', 'X', 'G', 'B');  // Written by GIMP
 const uint32_t FOURCC_YCOCG        = MakeFourCC('Y', 'C', 'G', '1');  // Written by GIMP
 const uint32_t FOURCC_YCOCG_SCALED = MakeFourCC('Y', 'C', 'G', '2');  // Written by GIMP
-
-// See WriteSettings::legacyNvtteStyleFloatCodes.
-const uint32_t FOURCC_R16F    = 0x6F;
-const uint32_t FOURCC_RG16F   = 0x70;
-const uint32_t FOURCC_RGBA16F = 0x71;
-const uint32_t FOURCC_R32F    = 0x72;
-const uint32_t FOURCC_RG32F   = 0x73;
-const uint32_t FOURCC_RGBA32F = 0x74;
+const uint32_t FOURCC_A2XY         = MakeFourCC('A', '2', 'X', 'Y');  // Written by NVTT
+const uint32_t FOURCC_A2D5         = MakeFourCC('A', '2', 'D', '5');  // Written by NVTT
 
 const uint32_t FOURCC_DX10 = MakeFourCC('D', 'X', '1', '0');
 
@@ -654,8 +649,9 @@ const uint32_t FOURCC_UVER = MakeFourCC('U', 'V', 'E', 'R');
 // DDS10 header miscFlag flags
 const uint32_t DDS_RESOURCE_MISC_TEXTURECUBE = 0x4l;
 
-// Some DDS writers (notably GLI and some modes of DirectXTex) write out formats
-// by storing their D3D9 D3DFMT in the FourCC field.
+// Some DDS writers (e.g. GLI, some modes of DirectXTex, and floating-point
+// formats in old versions of NVTT) write out formats by storing their D3D9
+// D3DFMT in the FourCC field.
 // See https://docs.microsoft.com/en-us/windows/win32/direct3d9/d3dformat
 // and https://github.com/g-truc/gli/blob/master/gli/dx.hpp
 const uint32_t D3DFMT_UNKNOWN             = 0;
@@ -713,5 +709,6 @@ const uint32_t D3DFMT_CxV8U8              = 117;
 const uint32_t D3DFMT_A1                  = 118;
 const uint32_t D3DFMT_A2B10G10R10_XR_BIAS = 119;
 const uint32_t D3DFMT_BINARYBUFFER        = 199;
+#endif  // NV_DDS_UTILITY_VALUES
 
 }  // namespace nv_dds

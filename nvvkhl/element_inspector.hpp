@@ -17,6 +17,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#pragma once
+
 #include "nvvkhl/application.hpp"
 #include "backends/imgui_impl_vulkan.h"
 #include "nvvk/images_vk.hpp"

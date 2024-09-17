@@ -49,8 +49,8 @@ public:
   template <typename T>
   struct NVMLField
   {
-    T    data;
-    bool isSupported;
+    T    data{};
+    bool isSupported = false;
 
     operator T&() { return data; }
     T&       get() { return data; }

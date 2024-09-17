@@ -17,6 +17,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#pragma once
+
 #include "imgui.h"
 #include <glm/glm.hpp>
 

@@ -52,6 +52,7 @@ static const std::set<std::string> supportedExtensions = {
     "KHR_texture_transform",
     "EXT_mesh_gpu_instancing",
     "NV_attributes_iray",
+    "MSFT_texture_dds",
 #ifdef USE_DRACO
     "KHR_draco_mesh_compression",
 #endif

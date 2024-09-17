@@ -387,7 +387,16 @@ namespace texture_formats {
   DO(DXGI_FORMAT_R8_UNORM, VK_FORMAT_R8_UNORM, NV_GL_ALPHA8, NV_GL_ALPHA, NV_GL_UNSIGNED_BYTE)                                                 \
   REPBOTH(DXGI_FORMAT_R8_UNORM, VK_FORMAT_R8_UNORM, NV_GL_LUMINANCE8, NV_GL_LUMINANCE, NV_GL_UNSIGNED_BYTE)                                    \
   REPBOTH(DXGI_FORMAT_R8_UNORM, VK_FORMAT_R8_UNORM, NV_GL_R8, NV_GL_RED, NV_GL_UNSIGNED_BYTE)                                                  \
-  DO(DXGI_FORMAT_R9G9B9E5_SHAREDEXP, VK_FORMAT_E5B9G9R9_UFLOAT_PACK32, NV_GL_RGB9_E5, NV_GL_RGB, NV_GL_UNSIGNED_INT_5_9_9_9_REV)
+  DO(DXGI_FORMAT_R9G9B9E5_SHAREDEXP, VK_FORMAT_E5B9G9R9_UFLOAT_PACK32, NV_GL_RGB9_E5, NV_GL_RGB, NV_GL_UNSIGNED_INT_5_9_9_9_REV)               \
+  DO(DXGI_FORMAT_R8G8_B8G8_UNORM, VK_FORMAT_G8B8G8R8_422_UNORM, 0, 0, 0)                                                                       \
+  DO(DXGI_FORMAT_G8R8_G8B8_UNORM, VK_FORMAT_B8G8R8G8_422_UNORM, 0, 0, 0)                                                                       \
+  REPVK(DXGI_FORMAT_YUY2, VK_FORMAT_G8B8G8R8_422_UNORM, 0, 0, 0)                                                                               \
+  DO(DXGI_FORMAT_NV12, VK_FORMAT_G8_B8R8_2PLANE_420_UNORM, 0, 0, 0)                                                                            \
+  DO(DXGI_FORMAT_P010, VK_FORMAT_G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16, 0, 0, 0)                                                           \
+  DO(DXGI_FORMAT_P016, VK_FORMAT_G16_B16R16_2PLANE_420_UNORM, 0, 0, 0)                                                                         \
+  DO(DXGI_FORMAT_Y210, VK_FORMAT_G10X6B10X6G10X6R10X6_422_UNORM_4PACK16, 0, 0, 0)                                                              \
+  DO(DXGI_FORMAT_Y216, VK_FORMAT_G16B16G16R16_422_UNORM, 0, 0, 0)                                                                              \
+  DO(DXGI_FORMAT_P208, VK_FORMAT_G8_B8R8_2PLANE_422_UNORM, 0, 0, 0)
 
 #define DO_NOTHING_ON_REPEAT(...)
 
@@ -398,6 +407,11 @@ std::unordered_map<OpenGLFormat, uint32_t> s_tableOpenGLToDXGI;
 void addGLToDXGICombination(uint32_t dxgiFormat, uint32_t glInternalFormat, uint32_t glFormat, uint32_t glType)
 {
   const OpenGLFormat glStruct = {glInternalFormat, glFormat, glType};
+  if(glStruct == OpenGLFormat{})
+  {
+    return;  // Avoid adding unknown GL formats
+  }
+
   if(0 == s_tableOpenGLToDXGI.count(glStruct))
   {
     s_tableOpenGLToDXGI[glStruct] = dxgiFormat;
@@ -409,6 +423,11 @@ std::unordered_map<OpenGLFormat, VkFormat> s_tableOpenGLToVulkan;
 void addGLToVulkanCombination(VkFormat vkFormat, uint32_t glInternalFormat, uint32_t glFormat, uint32_t glType)
 {
   const OpenGLFormat glStruct = {glInternalFormat, glFormat, glType};
+  if(glStruct == OpenGLFormat{})
+  {
+    return;  // Avoid adding unknown GL formats
+  }
+
   if(0 == s_tableOpenGLToVulkan.count(glStruct))
   {
     s_tableOpenGLToVulkan[glStruct] = vkFormat;

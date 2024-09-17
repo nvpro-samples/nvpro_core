@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include <nvh/nvprint.hpp>
 #include <unordered_map>
 #include <memory>
 #include <glm/glm.hpp>

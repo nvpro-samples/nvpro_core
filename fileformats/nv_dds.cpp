@@ -17,6 +17,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#define NV_DDS_UTILITY_VALUES
 #include "nv_dds.h"
 
 #include "dxgiformat.h"  // Included in third_party's dxh subproject
@@ -31,6 +32,7 @@
 #include <exception>
 #include <fstream>
 #include <iomanip>
+#include <ios>
 #include <iostream>
 #include <limits>
 #include <sstream>
@@ -119,7 +121,7 @@ uint32_t popcnt(uint32_t mask)
 struct BitmaskMultiplier
 {
   uint32_t mask       = 0;
-  float    multiplier = 0.0f;
+  float    multiplier = 0.0F;
   uint32_t leftshift  = 0;
 };
 
@@ -184,9 +186,9 @@ float bitsToSnorm(uint32_t value, const BitmaskMultiplier& mult)
   // Strictly speaking, static_cast<int32_t>(shifted) is implementation-defined.
   // So until we have bit_cast<int32_t>, use a memcpy and hope the compiler
   // determines that this is a reinterpretation of the underlying data (i.e. free):
-  int32_t asint;
+  int32_t asint{};
   memcpy(&asint, &shifted, sizeof(uint32_t));
-  float v = float(asint) * mult.multiplier;
+  const float v = static_cast<float>(asint) * mult.multiplier;
   return std::max(-1.0F, v);
 }
 
@@ -268,13 +270,13 @@ class MemoryStreamBuffer : public std::basic_streambuf<char>
 
 public:
   MemoryStreamBuffer(char* data, std::streamsize sizeInBytes)
+      : m_data(data)
+      , m_sizeInBytes(sizeInBytes)
   {
-    m_data        = data;
-    m_sizeInBytes = sizeInBytes;
   }
   pos_type seekoff(off_type off, std::ios_base::seekdir dir, std::ios_base::openmode which = std::ios_base::in | std::ios_base::out) override
   {
-    const pos_type indicatesError = pos_type(off_type(-1));
+    const pos_type indicatesError = pos_type(static_cast<off_type>(-1));
     switch(dir)
     {
       case std::ios_base::beg:
@@ -299,7 +301,7 @@ public:
   }
   pos_type seekpos(pos_type pos, std::ios_base::openmode which = std::ios_base::in | std::ios_base::out) override
   {
-    return seekoff(off_type(pos), std::ios_base::beg, which);
+    return seekoff(static_cast<off_type>(pos), std::ios_base::beg, which);
   }
   // Gets the number of characters certainly available.
   std::streamsize showmanyc() override { return m_sizeInBytes - m_nextIndex; }
@@ -340,7 +342,7 @@ public:
 class MemoryStream : public std::istream
 {
 public:
-  MemoryStream(const char* data, size_t sizeInBytes)
+  MemoryStream(const char* data, std::streamsize sizeInBytes)
       : m_buffer(const_cast<char*>(data), sizeInBytes)
       , std::istream(&m_buffer)
   {
@@ -593,6 +595,7 @@ bool dx9HeaderSupported(const uint32_t dxgiFormat)
     case DXGI_FORMAT_BC1_UNORM:
     case DXGI_FORMAT_A8_UNORM:
     case DXGI_FORMAT_R8_UNORM:
+    case DXGI_FORMAT_R8G8_UNORM:
     case DXGI_FORMAT_B8G8R8A8_TYPELESS:
     case DXGI_FORMAT_B8G8R8A8_UNORM:
     case DXGI_FORMAT_B8G8R8X8_TYPELESS:
@@ -613,7 +616,8 @@ bool dx9HeaderSupported(const uint32_t dxgiFormat)
 // settings into pf. Will assert failure in debug mode if the format is not
 // supported, and write nothing except for pf.dwSize if so.
 // isLuminance should be set in dwFlags separately.
-void setDX9PixelFormat(const uint32_t format, bool isAgbr, const WriteSettings& writeSettings, DDSPixelFormat& pf)
+// Writes color transform only for BC3n and OrthographicNormal.
+void setDX9PixelFormat(const uint32_t format, ColorTransform colorTransform, const WriteSettings& writeSettings, DDSPixelFormat& pf)
 {
   pf.dwSize = sizeof(DDSPixelFormat);
   static_assert((sizeof(DDSPixelFormat)) == 32, "DDS spec states that DDS_PIXELFORMAT size must be 32!");
@@ -645,7 +649,7 @@ void setDX9PixelFormat(const uint32_t format, bool isAgbr, const WriteSettings& 
     {
       case DXGI_FORMAT_BC3_TYPELESS:
       case DXGI_FORMAT_BC3_UNORM:
-        if(isAgbr)
+        if(colorTransform == ColorTransform::eAGBR)
         {
           pf.dwFlags  = DDPF_FOURCC;
           pf.dwFourCC = FOURCC_RXGB;
@@ -682,6 +686,22 @@ void setDX9PixelFormat(const uint32_t format, bool isAgbr, const WriteSettings& 
         pf.dwBBitMask    = 0;
         pf.dwABitMask    = 0;
         break;
+      case DXGI_FORMAT_R8G8_UNORM:
+        if(colorTransform == ColorTransform::eOrthographicNormal)
+        {
+          pf.dwFlags = DDPF_FOURCC;
+          pf.dwFlags = D3DFMT_CxV8U8;
+        }
+        else
+        {
+          pf.dwFlags       = DDPF_RGB;
+          pf.dwRGBBitCount = 16;
+          pf.dwRBitMask    = 0x00FF;
+          pf.dwGBitMask    = 0xFF00;
+          pf.dwBBitMask    = 0;
+          pf.dwABitMask    = 0;
+        }
+        break;
       case DXGI_FORMAT_B8G8R8A8_TYPELESS:
       case DXGI_FORMAT_B8G8R8A8_UNORM:
         pf.dwFlags       = DDPF_RGBA;
@@ -702,27 +722,27 @@ void setDX9PixelFormat(const uint32_t format, bool isAgbr, const WriteSettings& 
         break;
       case DXGI_FORMAT_R16_FLOAT:
         pf.dwFlags  = DDPF_FOURCC;
-        pf.dwFourCC = FOURCC_R16F;
+        pf.dwFourCC = D3DFMT_R16F;
         break;
       case DXGI_FORMAT_R16G16_FLOAT:
         pf.dwFlags  = DDPF_FOURCC;
-        pf.dwFourCC = FOURCC_RG16F;
+        pf.dwFourCC = D3DFMT_G16R16F;
         break;
       case DXGI_FORMAT_R16G16B16A16_FLOAT:
         pf.dwFlags  = DDPF_FOURCC;
-        pf.dwFourCC = FOURCC_RGBA16F;
+        pf.dwFourCC = D3DFMT_A16B16G16R16F;
         break;
       case DXGI_FORMAT_R32_FLOAT:
         pf.dwFlags  = DDPF_FOURCC;
-        pf.dwFourCC = FOURCC_R32F;
+        pf.dwFourCC = D3DFMT_R32F;
         break;
       case DXGI_FORMAT_R32G32_FLOAT:
         pf.dwFlags  = DDPF_FOURCC;
-        pf.dwFourCC = FOURCC_RG32F;
+        pf.dwFourCC = D3DFMT_G32R32F;
         break;
       case DXGI_FORMAT_R32G32B32A32_FLOAT:
         pf.dwFlags  = DDPF_FOURCC;
-        pf.dwFourCC = FOURCC_RGBA32F;
+        pf.dwFourCC = D3DFMT_A32B32G32R32F;
         break;
       default:
         assert(!"SetDX9PixelFormat was called for an unsupported format! "
@@ -744,6 +764,52 @@ void parse3ByteLibraryVersion(const uint32_t version, uint16_t& v0, uint8_t& v1,
 ///////////////////////////////////////////////////////////////////////////////
 // Public functions
 ///////////////////////////////////////////////////////////////////////////////
+
+const char* getColorTransformString(ColorTransform colorTransform)
+{
+  switch(colorTransform)
+  {
+    case ColorTransform::eNone:
+      return "None";
+    case ColorTransform::eLuminance:
+      return "Luminance";
+    case ColorTransform::eAGBR:
+      return "AGBR (aka RXGB)";
+    case ColorTransform::eYUV:
+      return "YUV";
+    case ColorTransform::eYCoCg:
+      return "YCoCg";
+    case ColorTransform::eYCoCgScaled:
+      return "YCoCg Scaled";
+    case ColorTransform::eAEXP:
+      return "AEXP";
+    case ColorTransform::eSwapRG:
+      return "SwapRG";
+    case ColorTransform::eOrthographicNormal:
+      return "OrthographicNormal";
+    default:
+      return "?";
+  }
+}
+
+const char* getAlphaModeString(uint32_t alphaMode)
+{
+  switch(alphaMode)
+  {
+    case DDS_ALPHA_MODE_UNKNOWN:
+      return "DDS_ALPHA_MODE_UNKNOWN";
+    case DDS_ALPHA_MODE_STRAIGHT:
+      return "DDS_ALPHA_MODE_STRAIGHT";
+    case DDS_ALPHA_MODE_PREMULTIPLIED:
+      return "DDS_ALPHA_MODE_PREMULTIPLIED";
+    case DDS_ALPHA_MODE_OPAQUE:
+      return "DDS_ALPHA_MODE_OPAQUE";
+    case DDS_ALPHA_MODE_CUSTOM:
+      return "DDS_ALPHA_MODE_CUSTOM";
+    default:
+      return "?";
+  }
+}
 
 const char* getWriterLibraryString(WriterLibrary writerLibrary)
 {
@@ -931,20 +997,22 @@ ErrorWithText Image::readHeaderFromStream(std::istream& input, const ReadSetting
   {
     i.writerLibrary        = WriterLibrary::eGIMP;
     i.writerLibraryVersion = i.ddsh.dwReserved1[2];
-    // GIMP will also sometimes store custom format flags in dwReserved1[3].
-    // Detect these:
-    switch(i.ddsh.dwReserved1[3])
-    {
-      case FOURCC_AEXP:
-        colorTransform = ColorTransform::eAEXP;
-        break;
-      case FOURCC_YCOCG:
-        colorTransform = ColorTransform::eYCoCg;
-        break;
-      case FOURCC_YCOCG_SCALED:
-        colorTransform = ColorTransform::eYCoCgScaled;
-        break;
-    }
+  }
+
+  // GIMP will also sometimes store custom format flags in dwReserved1[3].
+  // Detect these, assuming that no other writers use dwReserved1[3] for a
+  // different purpose and can write these values exactly:
+  switch(i.ddsh.dwReserved1[3])
+  {
+    case FOURCC_AEXP:
+      colorTransform = ColorTransform::eAEXP;
+      break;
+    case FOURCC_YCOCG:
+      colorTransform = ColorTransform::eYCoCg;
+      break;
+    case FOURCC_YCOCG_SCALED:
+      colorTransform = ColorTransform::eYCoCgScaled;
+      break;
   }
 
   if(i.ddsh.dwReserved1[7] == FOURCC_UVER)
@@ -993,10 +1061,10 @@ ErrorWithText Image::readHeaderFromStream(std::istream& input, const ReadSetting
       // of NVTT could output.
       switch(i.ddsh.ddspf.dwRGBBitCount)
       {
-        case MakeFourCC('A', '2', 'X', 'Y'):
+        case FOURCC_A2XY:
           colorTransform = ColorTransform::eSwapRG;
           break;
-        case MakeFourCC('A', '2', 'D', '5'):
+        case FOURCC_A2D5:
           colorTransform = ColorTransform::eAGBR;
           break;
       }
@@ -1073,8 +1141,10 @@ ErrorWithText Image::readHeaderFromStream(std::istream& input, const ReadSetting
           dxgiFormat = DXGI_FORMAT_G8R8_G8B8_UNORM;
           break;
         case FOURCC_YUY2:
-        case FOURCC_UYVY:  // Note(nbickford): Not sure this is correct
           dxgiFormat = DXGI_FORMAT_YUY2;
+          break;
+        case FOURCC_UYVY:
+          dxgiFormat = DXGI_FORMAT_R8G8_B8G8_UNORM;
           break;
         case FOURCC_RXGB:
           dxgiFormat     = DXGI_FORMAT_BC3_UNORM;
@@ -1278,24 +1348,25 @@ ErrorWithText Image::readHeaderFromStream(std::istream& input, const ReadSetting
       // DDPF_YUV: Interpret RGB as YUV data
       // DDPF_LUMINANCE: Grayscale; dwRGBBitCount contains bitcount and dwRBitMask contains luminance channel mask.
       // DDPF_BUMPDUDV: All channels contain SNORM instead of UNORM data.
-      if((i.ddsh.ddspf.dwFlags & DDPF_YUV) != 0)
-      {
-        colorTransform  = ColorTransform::eYUV;
-        i.bitmaskHasRgb = true;
-      }
-      if((i.ddsh.ddspf.dwFlags & DDPF_LUMINANCE) != 0)
-      {
-        colorTransform  = ColorTransform::eLuminance;
-        i.bitmaskHasRgb = true;
-      }
       if((i.ddsh.ddspf.dwFlags & DDPF_BUMPDUDV) != 0)
       {
         i.bitmaskWasBumpDuDv = true;
         i.bitmaskHasRgb      = true;
       }
-      i.bitmaskHasAlpha = ((i.ddsh.ddspf.dwFlags & DDPF_ALPHA) != 0 || (i.ddsh.ddspf.dwFlags & DDPF_ALPHAPIXELS) != 0);
-      i.bitmaskHasRgb |= ((i.ddsh.ddspf.dwFlags & DDPF_RGB) != 0);
+      i.bitmaskHasAlpha = ((i.ddsh.ddspf.dwFlags & (DDPF_ALPHA | DDPF_ALPHAPIXELS)) != 0);
+      i.bitmaskHasRgb |= ((i.ddsh.ddspf.dwFlags & (DDPF_YUV | DDPF_LUMINANCE | DDPF_RGB)) != 0);
       i.wasBitmasked = true;
+    }
+
+    // Read additional color transform info from dwFlags whether we're in DX9
+    // or DX10 mode.
+    if((i.ddsh.ddspf.dwFlags & DDPF_YUV) != 0)
+    {
+      colorTransform = ColorTransform::eYUV;
+    }
+    if((i.ddsh.ddspf.dwFlags & DDPF_LUMINANCE) != 0)
+    {
+      colorTransform = ColorTransform::eLuminance;
     }
   }
 
@@ -1369,7 +1440,11 @@ ErrorWithText Image::readHeaderFromFile(const char* filename, const ReadSettings
 
 ErrorWithText Image::readHeaderFromMemory(const char* buffer, size_t bufferSize, const ReadSettings& readSettings)
 {
-  MemoryStream stream(buffer, bufferSize);
+  if(bufferSize > static_cast<size_t>(std::numeric_limits<std::streamsize>::max()))
+  {
+    return "The `bufferSize` parameter was too large to be stored in an std::streamsize.";
+  }
+  MemoryStream stream(buffer, static_cast<std::streamsize>(bufferSize));
   return readHeaderFromStream(stream, readSettings);
 }
 
@@ -1594,7 +1669,7 @@ ErrorWithText Image::readFromStream(std::istream& input, const ReadSettings& rea
                 // Decompress the pixel:
                 if(colorTransform == ColorTransform::eLuminance)
                 {
-                  float v =
+                  const float v =
                       (i.bitmaskWasBumpDuDv ? bitsToSnorm(dataBuf, bitmaskMults[0]) : bitsToUnorm(dataBuf, bitmaskMults[0]));
                   pixel[0] = pixel[1] = pixel[2] = v;
                 }
@@ -1671,6 +1746,10 @@ ErrorWithText Image::readFromFile(const char* filename, const ReadSettings& read
 
 ErrorWithText Image::readFromMemory(const char* buffer, size_t bufferSize, const ReadSettings& readSettings)
 {
+  if(bufferSize > static_cast<size_t>(std::numeric_limits<std::streamsize>::max()))
+  {
+    return "The `bufferSize` parameter was too large to be stored in an std::streamsize.";
+  }
   MemoryStream stream(buffer, bufferSize);
   return readFromStream(stream, readSettings);
 }
@@ -1764,7 +1843,7 @@ ErrorWithText Image::writeToStream(std::ostream& output, const WriteSettings& wr
   // can tell that they're reading files written with the newest version of
   // NVDDS.
   header.dwReserved1[9]  = FOURCC_LIBRARY_NVPS;
-  header.dwReserved1[10] = (2 << 16) | (0 << 8) | 0;
+  header.dwReserved1[10] = (2 << 16) | (1 << 8) | 0;
 
   //---------------------------------------------------------------------------
   // DDS Pixel Format
@@ -1785,12 +1864,14 @@ ErrorWithText Image::writeToStream(std::ostream& output, const WriteSettings& wr
   // Specifically, we use the following set of rules, in order of precedence:
   // 1. Some formats are only specified in terms of bitmasks, so must use the
   // old spec.
-  // 2. AGBR a.k.a. RXGB can only be specified using the DX9 header.
+  // 2. BC3n can only be specified using the DX9 header.
   // 3. Array textures must use the DX10 header.
   // 4. If useDX10HeaderIfPossible, use the DX10 header.
   // 5. Otherwise, use the DX10 hader only if DX9HeaderSupported(formatOpts) is false.
-  bool usesDXT10Header = false;
-  if(writeSettings.useCustomBitmask || colorTransform == ColorTransform::eAGBR)
+  bool       usesDXT10Header = false;
+  const bool isBC3N          = (dxgiFormat == DXGI_FORMAT_BC3_UNORM || dxgiFormat == DXGI_FORMAT_BC3_TYPELESS)
+                      && (colorTransform == ColorTransform::eAGBR);
+  if(writeSettings.useCustomBitmask || isBC3N)
   {
     usesDXT10Header = false;
   }
@@ -1810,12 +1891,11 @@ ErrorWithText Image::writeToStream(std::ostream& output, const WriteSettings& wr
   }
   else
   {
-    setDX9PixelFormat(dxgiFormat, (colorTransform == ColorTransform::eAGBR), writeSettings, pixelformat);
+    setDX9PixelFormat(dxgiFormat, colorTransform, writeSettings, pixelformat);
   }
 
-  // We always write DDPF_NORMAL when the data is in AGBR, so that
-  // GIMP knows it needs to swap channels.
-  if(isNormal || (colorTransform == ColorTransform::eAGBR))
+
+  if(isNormal)
   {
     pixelformat.dwFlags |= DDPF_NORMAL;
   }
@@ -1824,6 +1904,48 @@ ErrorWithText Image::writeToStream(std::ostream& output, const WriteSettings& wr
   if(alphaMode == DDS_ALPHA_MODE_PREMULTIPLIED)
   {
     pixelformat.dwFlags |= DDPF_ALPHAPREMULT;
+  }
+
+  // Encode the color transform.
+  switch(colorTransform)
+  {
+    case ColorTransform::eNone:
+      break;
+    case ColorTransform::eLuminance:
+      pixelformat.dwFlags |= DDPF_LUMINANCE;
+      break;
+    case ColorTransform::eAGBR:
+      // We can set this in dwRGBBitCount, but only if FourCC is nonzero (so
+      // that there's no ambiguity).
+      if(pixelformat.dwFourCC != 0)
+      {
+        pixelformat.dwRGBBitCount = FOURCC_A2D5;
+      }
+      // We always write DDPF_NORMAL when the data is in AGBR, so that
+      // GIMP knows it needs to swap channels.
+      pixelformat.dwFlags |= DDPF_NORMAL;
+      break;
+    case ColorTransform::eYUV:
+      pixelformat.dwFlags |= DDPF_YUV;
+      break;
+    case ColorTransform::eYCoCg:
+      header.dwReserved1[3] = FOURCC_YCOCG;
+      break;
+    case ColorTransform::eYCoCgScaled:
+      header.dwReserved1[3] = FOURCC_YCOCG_SCALED;
+      break;
+    case ColorTransform::eAEXP:
+      header.dwReserved1[3] = FOURCC_AEXP;
+      break;
+    case ColorTransform::eSwapRG:
+      if(pixelformat.dwFourCC != 0)
+      {
+        pixelformat.dwRGBBitCount = FOURCC_A2XY;
+      }
+      break;
+    case ColorTransform::eOrthographicNormal:
+      // This can only be handled by SetDX9PixelFormat().
+      break;
   }
 
   //---------------------------------------------------------------------------

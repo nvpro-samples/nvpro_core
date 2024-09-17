@@ -17,6 +17,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#pragma once
+
 #include "imgui.h"
 #include "imgui_internal.h"
 
@@ -58,6 +60,7 @@ public:
     m_buf.clear();
     m_lineOffsets.clear();
     m_lineOffsets.push_back(0);
+    m_lineLevels.clear();
   }
 
   void addLog(uint32_t level, const char* fmt, ...)
@@ -75,12 +78,28 @@ public:
       if(m_buf[old_size] == '\n')
       {
         m_lineOffsets.push_back(old_size + 1);
+        m_lineLevels.push_back(level);
       }
     }
   }
 
+  void initColors()
+  {
+    ImGuiContext& g = *GImGui;
+    m_colors.resize(8);
+    m_colors[LOGLEVEL_INFO]    = g.Style.Colors[ImGuiCol_Text];  // Default text color
+    m_colors[LOGLEVEL_WARNING] = ImVec4(1.0, 0.5, 0.0, 1.0);     // Orange
+    m_colors[LOGLEVEL_ERROR]   = ImVec4(1.0, 0.0, 0.0, 1.0);     // Bright Red
+    m_colors[LOGLEVEL_DEBUG]   = ImVec4(0.5, 0.5, 1.0, 1.0);     // Light Blue
+    m_colors[LOGLEVEL_STATS]   = ImVec4(0.0, 0.75, 0.0, 1.0);    // Light Green
+    m_colors[LOGLEVEL_OK]      = ImVec4(0.0, 1.0, 0.0, 1.0);     // Green
+  }
+
   void draw(const char* title, bool* p_open = nullptr)
   {
+    if(m_colors.empty())  // Initialize colors late, as we need the ImGui context
+      initColors();
+
     if(!ImGui::Begin(title, p_open))
     {
       ImGui::End();
@@ -150,11 +169,19 @@ public:
       // search/filter.. especially if the filtering function is not trivial (e.g. reg-exp).
       for(int line_no = 0; line_no < m_lineOffsets.Size; line_no++)
       {
-        const char* line_start = buf + m_lineOffsets[line_no];
-        const char* line_end   = (line_no + 1 < m_lineOffsets.Size) ? (buf + m_lineOffsets[line_no + 1] - 1) : buf_end;
+        const char*   line_start = buf + m_lineOffsets[line_no];
+        const char*   line_end = (line_no + 1 < m_lineOffsets.Size) ? (buf + m_lineOffsets[line_no + 1] - 1) : buf_end;
+        const int32_t level    = line_no < m_lineLevels.Size ? m_lineLevels[line_no] : 0;
         if(m_filter.PassFilter(line_start, line_end))
         {
+          // Setting the color of the line
+          ImGuiContext& g               = *GImGui;
+          ImVec4        backupTextColor = g.Style.Colors[ImGuiCol_Text];
+          g.Style.Colors[ImGuiCol_Text] = m_colors[level];
+
           ImGui::TextUnformatted(line_start, line_end);
+
+          g.Style.Colors[ImGuiCol_Text] = backupTextColor;  // restore color
         }
       }
     }
@@ -181,7 +208,16 @@ public:
         {
           const char* line_start = buf + m_lineOffsets[line_no];
           const char* line_end = (line_no + 1 < m_lineOffsets.Size) ? (buf + m_lineOffsets[line_no + 1] - 1) : buf_end;
+          const int32_t level  = line_no < m_lineLevels.Size ? m_lineLevels[line_no] : 0;
+
+          // Setting the color of the line
+          ImGuiContext& g               = *GImGui;
+          ImVec4        backupTextColor = g.Style.Colors[ImGuiCol_Text];
+          g.Style.Colors[ImGuiCol_Text] = m_colors[level];
+
           ImGui::TextUnformatted(line_start, line_end);
+
+          g.Style.Colors[ImGuiCol_Text] = backupTextColor;  // restore color
         }
       }
       clipper.End();
@@ -201,8 +237,11 @@ private:
   ImGuiTextBuffer m_buf{};
   ImGuiTextFilter m_filter{};
   ImVector<int>   m_lineOffsets;       // Index to lines offset. We maintain this with AddLog() calls.
+  ImVector<int>   m_lineLevels;        // Log level per line.
   bool            m_autoScroll{true};  // Keep scrolling if already at the bottom.
   uint32_t        m_levelFilter = LOGBITS_WARNINGS;
+
+  ImVector<ImVec4> m_colors;  // Line color based on log level
 };
 
 

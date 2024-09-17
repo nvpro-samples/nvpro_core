@@ -318,7 +318,7 @@ endfunction()
 #  NAME     : The name of the package to find. E.g. NVAPI looks for
 #             a folder named NVAPI or downloads NVAPI.zip.
 #  URL      : Optional path to an archive to download. By default, this
-#             downloads from ${DOWNLOAD_SITE}/libraries/${NAME}.zip.
+#             downloads from ${DOWNLOAD_SITE}/libraries/${NAME}-${VERSION}.zip.
 #  VERSION  : The package's version number, like "555.0.0" or "1.1.0".
 #  LOCATION : Will be set to the package's directory.
 #
@@ -328,15 +328,21 @@ function(download_package)
   
   set(_TARGET_DIR ${CMAKE_BINARY_DIR}/_deps/${DOWNLOAD_PACKAGE_NAME}-${DOWNLOAD_PACKAGE_VERSION})
   if(EXISTS ${_TARGET_DIR})
-    set(${DOWNLOAD_PACKAGE_LOCATION} ${_TARGET_DIR} PARENT_SCOPE)
-    return()
+    # An empty directory is not a valid cache entry; that usually indicates
+    # a failed download.
+    file(GLOB _TARGET_DIR_FILES "${_TARGET_DIR}/*")
+    list(LENGTH _TARGET_DIR_FILES _TARGET_DIR_NUM_FILES)
+    if(_TARGET_DIR_NUM_FILES GREATER 0)
+      set(${DOWNLOAD_PACKAGE_LOCATION} ${_TARGET_DIR} PARENT_SCOPE)
+      return()
+    endif()
   endif()
   
   # Cache couldn't be used. Download the package:
   if(DOWNLOAD_PACKAGE_URL)
     set(_URL ${DOWNLOAD_PACKAGE_URL})
   else()
-    set(_URL ${DOWNLOAD_SITE}/libraries/${DOWNLOAD_PACKAGE_NAME}.zip)
+    set(_URL ${DOWNLOAD_SITE}/libraries/${DOWNLOAD_PACKAGE_NAME}-${DOWNLOAD_PACKAGE_VERSION}.zip)
   endif()
   download_files(FILENAMES "${DOWNLOAD_PACKAGE_NAME}.zip"
                  URLS ${_URL}
@@ -450,14 +456,14 @@ macro(_add_package_VulkanSDK)
       endif()
       add_definitions(-DVULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1)
 
-      if(NOT VULKAN_BUILD_DEPENDENCIES)
-        set(VULKAN_BUILD_DEPENDENCIES ON CACHE BOOL "Create dependencies on GLSL files")
+      if(NOT Vulkan_BUILD_DEPENDENCIES)
+        set(Vulkan_BUILD_DEPENDENCIES ON CACHE BOOL "Create dependencies on GLSL files")
       endif()
 
-      set(VULKAN_HEADERS_OVERRIDE_INCLUDE_DIR CACHE PATH "Override for Vulkan headers, leave empty to use SDK")
+      set(Vulkan_HEADERS_OVERRIDE_INCLUDE_DIR CACHE PATH "Override for Vulkan headers, leave empty to use SDK")
 
-      if (VULKAN_HEADERS_OVERRIDE_INCLUDE_DIR)
-        set(vulkanHeaderDir ${VULKAN_HEADERS_OVERRIDE_INCLUDE_DIR})
+      if (Vulkan_HEADERS_OVERRIDE_INCLUDE_DIR)
+        set(vulkanHeaderDir ${Vulkan_HEADERS_OVERRIDE_INCLUDE_DIR})
       else()
         set(vulkanHeaderDir ${Vulkan_INCLUDE_DIR})
       endif()
@@ -475,13 +481,13 @@ macro(_add_package_VulkanSDK)
       # CMake 3.21+ finds glslangValidator and glslc for us.
       # On < 3.21, find it manually:
       if((NOT Vulkan_GLSLANG_VALIDATOR_EXECUTABLE) OR (NOT Vulkan_GLSLC_EXECUTABLE))
-        get_filename_component(_VULKAN_LIB_DIR ${Vulkan_LIBRARY} DIRECTORY)
+        get_filename_component(_Vulkan_LIB_DIR ${Vulkan_LIBRARY} DIRECTORY)
         find_program(Vulkan_GLSLANG_VALIDATOR_EXECUTABLE
           NAMES glslangValidator
-          HINTS ${_VULKAN_LIB_DIR}/../Bin)
+          HINTS ${_Vulkan_LIB_DIR}/../Bin)
         find_program(Vulkan_GLSLC_EXECUTABLE
           NAMES glslc
-          HINTS ${_VULKAN_LIB_DIR}/../Bin)
+          HINTS ${_Vulkan_LIB_DIR}/../Bin)
       endif()
  else()
      Message(STATUS "--> NOT using package VulkanSDK")
@@ -491,7 +497,7 @@ endmacro()
 # this happens when the nvpro_core library was built with these stuff in it
 # so many samples can share the same library for many purposes
 macro(_optional_package_VulkanSDK)
-  if(USING_VULKANSDK AND NOT VULKAN_FOUND)
+  if(USING_VULKANSDK AND NOT Vulkan_FOUND)
     _add_package_VulkanSDK()
   endif()
 endmacro(_optional_package_VulkanSDK)
@@ -510,15 +516,15 @@ macro(_add_package_ShaderC)
   # So we use release shaderc_shared on Windows and release shaderc_combined
   # on Linux.
   if(NOT NVSHADERC_LIB)
-    get_filename_component(_VULKAN_LIB_DIR ${Vulkan_LIBRARY} DIRECTORY)
+    get_filename_component(_Vulkan_LIB_DIR ${Vulkan_LIBRARY} DIRECTORY)
     if(WIN32)
       find_file(Vulkan_shaderc_shared_LIBRARY
         NAMES shaderc_shared.lib
-        HINTS ${_VULKAN_LIB_DIR})
+        HINTS ${_Vulkan_LIB_DIR})
       mark_as_advanced(Vulkan_shaderc_shared_LIBRARY)
       find_file(Vulkan_shaderc_shared_DLL
         NAMES shaderc_shared.dll
-        HINTS ${_VULKAN_LIB_DIR}/../Bin)
+        HINTS ${_Vulkan_LIB_DIR}/../Bin)
       mark_as_advanced(Vulkan_shaderc_shared_DLL)
       add_definitions(-DSHADERC_SHAREDLIB)
       if(NOT Vulkan_shaderc_shared_DLL)
@@ -528,7 +534,7 @@ macro(_add_package_ShaderC)
       if(NOT Vulkan_shaderc_combined_LIBRARY)
         find_file(Vulkan_shaderc_combined_LIBRARY
           NAMES libshaderc_combined.a
-          HINTS ${_VULKAN_LIB_DIR})
+          HINTS ${_Vulkan_LIB_DIR})
       endif()
       set(Vulkan_shaderc_shared_LIBRARY ${Vulkan_shaderc_combined_LIBRARY})
       mark_as_advanced(Vulkan_shaderc_shared_LIBRARY)
@@ -679,7 +685,7 @@ endmacro(_optional_package_NVToolsExt)
 macro(_add_package_NVAPI)
   if(WIN32)
     if(NOT NVAPI_LOCATION) # Allow using NVAPI_LOCATION to override the NVAPI path
-      download_package(NAME NVAPI VERSION 550 LOCATION NVAPI_LOCATION)
+      download_package(NAME NVAPI VERSION R560 LOCATION NVAPI_LOCATION)
     endif()
     message(STATUS "--> using package NVAPI from ${NVAPI_LOCATION}")
     include_directories(${NVAPI_LOCATION})

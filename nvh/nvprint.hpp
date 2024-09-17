@@ -87,8 +87,8 @@
 
   Text encoding:
   Printing to the Windows debug console is the only operation that assumes a
-  text encoding, which is ANSI. In all other cases, strings are copied into
-  the output.
+  text encoding; the input is assumed to be UTF-8. In all other cases, strings
+  are copied into the output.
 @DOC_END */
 
 

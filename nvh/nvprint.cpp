@@ -39,8 +39,11 @@ enum class TriState
   eTrue
 };
 
-static std::string         s_logFileName = "log_nvprosample.txt";
-static std::vector<char>   s_strBuffer;  // Persistent allocation for formatted text.
+static std::string       s_logFileName = "log_nvprosample.txt";
+static std::vector<char> s_strBuffer;  // Persistent allocation for formatted text.
+#ifdef _WIN32
+static std::vector<wchar_t> s_wideStrBuffer;  // Persistent allocation for UTF-16 text.
+#endif
 static FILE*               s_fd                   = nullptr;
 static bool                s_bLogReady            = false;
 static bool                s_bPrintLogging        = true;
@@ -192,15 +195,60 @@ void nvprintLevel(int level, const std::string& msg) noexcept
   nvprintLevel(level, msg.c_str());
 }
 
+#ifdef _WIN32
+static void printDebugString(const char* utf8_str) noexcept
+{
+  // Convert our text from UTF-8 to UTF-16, so we can pass it to
+  // OutputDebugStringW.
+  // We call Windows' functions here directly instead of using <codecvt>,
+  // because <codecvt> is deprecated and scheduled to be removed from C++.
+  const size_t utf8_bytes = strlen(utf8_str);
+  if(utf8_bytes == 0)
+  {
+    return;
+  }
+  if(utf8_bytes > INT_MAX)
+  {
+    OutputDebugStringW(L"Could not format text as UTF-16: input was longer than INT_MAX bytes.\n");
+    return;
+  }
+  const int utf8_bytes_int   = static_cast<int>(utf8_bytes);
+  const int utf16_characters = MultiByteToWideChar(CP_UTF8, 0, utf8_str, utf8_bytes_int, nullptr, 0);
+  if(utf16_characters <= 0)
+  {
+    OutputDebugStringW(L"Could not format text as UTF-16: MultiByteToWideChar() returned an error code or a negative number of bytes.\n");
+    return;
+  }
+  const size_t utf16_characters_sizet = static_cast<size_t>(utf16_characters);
+
+  // Make sure s_wideStrBuffer contains space for utf16_characters_sizet plus
+  // a terminating null character.
+  std::lock_guard<std::recursive_mutex> lockGuard(s_mutex);
+  if(utf16_characters_sizet >= s_wideStrBuffer.size())
+  {
+    try
+    {
+      s_wideStrBuffer.resize(utf16_characters_sizet + 1, L'\0');
+    }
+    catch(const std::exception& /* unused */)
+    {
+      OutputDebugStringW(L"Could not format text as UTF-16: Out of memory exception when allocating UTF-16 buffer.\n");
+      return;
+    }
+  }
+  std::ignore = MultiByteToWideChar(CP_UTF8, 0, utf8_str, utf8_bytes_int, s_wideStrBuffer.data(), utf16_characters);
+  // Write the terminating null character:
+  s_wideStrBuffer[utf16_characters] = L'\0';
+  OutputDebugStringW(s_wideStrBuffer.data());
+}
+#endif
+
 void nvprintLevel(int level, const char* msg) noexcept
 {
   std::lock_guard<std::recursive_mutex> lockGuard(s_mutex);
 
 #ifdef WIN32
-  // Note: Maybe we could consider changing to a text encoding of UTF-8 in
-  // the future, bring in calls to Windows' MultiByteToWideChar, and call
-  // OutputDebugStringW.
-  OutputDebugStringA(msg);
+  printDebugString(msg);
 #endif
 
   if(s_bPrintFileLogging & (1 << level))

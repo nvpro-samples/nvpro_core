@@ -56,22 +56,16 @@ public:
   class WindowState
   {
   public:
-    WindowState()
-        : m_mouseButtonFlags(0)
-        , m_mouseWheel(0)
-    {
-      memset(m_keyPressed, 0, sizeof(m_keyPressed));
-      memset(m_keyToggled, 0, sizeof(m_keyToggled));
-    }
+    WindowState() {}
 
-    int m_winSize[2];
-    int m_swapSize[2];
-    int m_mouseCurrent[2];
-    int m_mouseButtonFlags;
-    int m_mouseWheel;
+    int m_winSize[2]{};
+    int m_swapSize[2]{};
+    int m_mouseCurrent[2]{};
+    int m_mouseButtonFlags = 0;
+    int m_mouseWheel       = 0;
 
-    bool m_keyPressed[KEY_LAST + 1];
-    bool m_keyToggled[KEY_LAST + 1];
+    bool m_keyPressed[KEY_LAST + 1]{};
+    bool m_keyToggled[KEY_LAST + 1]{};
 
     bool onPress(int key) { return m_keyPressed[key] && m_keyToggled[key]; }
   };

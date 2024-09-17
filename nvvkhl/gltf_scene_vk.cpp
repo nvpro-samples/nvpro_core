@@ -86,25 +86,38 @@ void nvvkhl::SceneVk::update(VkCommandBuffer cmd, const nvh::gltf::Scene& scn)
   updateRenderNodeBuffer(cmd, scn);
 }
 
+template <typename T>
+inline nvvkhl_shaders::GltfTextureInfo getTextureInfo(const T& tinfo)
+{
+  const auto& transform = tinygltf::utils::getTextureTransform(tinfo);
+  const int   texCoord  = std::min(tinfo.texCoord, 1);  // Only 2 texture coordinates
+
+  return nvvkhl_shaders::GltfTextureInfo{
+      .uvTransform = transform.uvTransform,
+      .index       = tinfo.index,
+      .texCoord    = texCoord,
+  };
+}
+
 static nvvkhl_shaders::GltfShadeMaterial getShaderMaterial(const tinygltf::Material& srcMat)
 {
   nvvkhl_shaders::GltfShadeMaterial dstMat = nvvkhl_shaders::defaultGltfMaterial();
   if(!srcMat.emissiveFactor.empty())
     dstMat.emissiveFactor = glm::make_vec3<double>(srcMat.emissiveFactor.data());
-  dstMat.emissiveTexture             = srcMat.emissiveTexture.index;
-  dstMat.normalTexture               = srcMat.normalTexture.index;
+  dstMat.emissiveTexture             = getTextureInfo(srcMat.emissiveTexture);
+  dstMat.normalTexture               = getTextureInfo(srcMat.normalTexture);
   dstMat.normalTextureScale          = static_cast<float>(srcMat.normalTexture.scale);
   dstMat.pbrBaseColorFactor          = glm::make_vec4<double>(srcMat.pbrMetallicRoughness.baseColorFactor.data());
-  dstMat.pbrBaseColorTexture         = srcMat.pbrMetallicRoughness.baseColorTexture.index;
+  dstMat.pbrBaseColorTexture         = getTextureInfo(srcMat.pbrMetallicRoughness.baseColorTexture);
   dstMat.pbrMetallicFactor           = static_cast<float>(srcMat.pbrMetallicRoughness.metallicFactor);
-  dstMat.pbrMetallicRoughnessTexture = srcMat.pbrMetallicRoughness.metallicRoughnessTexture.index;
+  dstMat.pbrMetallicRoughnessTexture = getTextureInfo(srcMat.pbrMetallicRoughness.metallicRoughnessTexture);
   dstMat.pbrRoughnessFactor          = static_cast<float>(srcMat.pbrMetallicRoughness.roughnessFactor);
   dstMat.alphaMode   = srcMat.alphaMode == "OPAQUE" ? 0 : (srcMat.alphaMode == "MASK" ? 1 : 2 /*BLEND*/);
   dstMat.alphaCutoff = static_cast<float>(srcMat.alphaCutoff);
 
   KHR_materials_transmission transmission = tinygltf::utils::getTransmission(srcMat);
   dstMat.transmissionFactor               = transmission.factor;
-  dstMat.transmissionTexture              = transmission.texture.index;
+  dstMat.transmissionTexture              = getTextureInfo(transmission.texture);
 
   KHR_materials_ior ior = tinygltf::utils::getIor(srcMat);
   dstMat.ior            = ior.ior;
@@ -112,24 +125,21 @@ static nvvkhl_shaders::GltfShadeMaterial getShaderMaterial(const tinygltf::Mater
   KHR_materials_volume volume = tinygltf::utils::getVolume(srcMat);
   dstMat.attenuationColor     = volume.attenuationColor;
   dstMat.thicknessFactor      = volume.thicknessFactor;
-  dstMat.thicknessTexture     = volume.thicknessTexture.index;
+  dstMat.thicknessTexture     = getTextureInfo(volume.thicknessTexture);
   dstMat.attenuationDistance  = volume.attenuationDistance;
 
   KHR_materials_clearcoat clearcoat = tinygltf::utils::getClearcoat(srcMat);
   dstMat.clearcoatFactor            = clearcoat.factor;
   dstMat.clearcoatRoughness         = clearcoat.roughnessFactor;
-  dstMat.clearcoatRoughnessTexture  = clearcoat.roughnessTexture.index;
-  dstMat.clearcoatTexture           = clearcoat.texture.index;
-  dstMat.clearcoatNormalTexture     = clearcoat.normalTexture.index;
+  dstMat.clearcoatRoughnessTexture  = getTextureInfo(clearcoat.roughnessTexture);
+  dstMat.clearcoatTexture           = getTextureInfo(clearcoat.texture);
+  dstMat.clearcoatNormalTexture     = getTextureInfo(clearcoat.normalTexture);
 
   KHR_materials_specular specular = tinygltf::utils::getSpecular(srcMat);
   dstMat.specularFactor           = specular.specularFactor;
-  dstMat.specularTexture          = specular.specularTexture.index;
+  dstMat.specularTexture          = getTextureInfo(specular.specularTexture);
   dstMat.specularColorFactor      = specular.specularColorFactor;
-  dstMat.specularColorTexture     = specular.specularColorTexture.index;
-
-  KHR_texture_transform textureTransform = tinygltf::utils::getTextureTransform(srcMat.pbrMetallicRoughness.baseColorTexture);
-  dstMat.uvTransform = textureTransform.uvTransform;
+  dstMat.specularColorTexture     = getTextureInfo(specular.specularColorTexture);
 
   KHR_materials_emissive_strength emissiveStrength = tinygltf::utils::getEmissiveStrength(srcMat);
   dstMat.emissiveFactor *= emissiveStrength.emissiveStrength;
@@ -139,22 +149,22 @@ static nvvkhl_shaders::GltfShadeMaterial getShaderMaterial(const tinygltf::Mater
 
   KHR_materials_iridescence iridescence = tinygltf::utils::getIridescence(srcMat);
   dstMat.iridescenceFactor              = iridescence.iridescenceFactor;
-  dstMat.iridescenceTexture             = iridescence.iridescenceTexture.index;
+  dstMat.iridescenceTexture             = getTextureInfo(iridescence.iridescenceTexture);
   dstMat.iridescenceIor                 = iridescence.iridescenceIor;
   dstMat.iridescenceThicknessMaximum    = iridescence.iridescenceThicknessMaximum;
   dstMat.iridescenceThicknessMinimum    = iridescence.iridescenceThicknessMinimum;
-  dstMat.iridescenceThicknessTexture    = iridescence.iridescenceThicknessTexture.index;
+  dstMat.iridescenceThicknessTexture    = getTextureInfo(iridescence.iridescenceThicknessTexture);
 
   KHR_materials_anisotropy anisotropy = tinygltf::utils::getAnisotropy(srcMat);
-  dstMat.anisotropyRotation           = anisotropy.anisotropyRotation;
-  dstMat.anisotropyStrength           = anisotropy.anisotropyStrength;
-  dstMat.anisotropyTexture            = anisotropy.anisotropyTexture.index;
+  dstMat.anisotropyRotation = glm::vec2(glm::sin(anisotropy.anisotropyRotation), glm::cos(anisotropy.anisotropyRotation));
+  dstMat.anisotropyStrength = anisotropy.anisotropyStrength;
+  dstMat.anisotropyTexture  = getTextureInfo(anisotropy.anisotropyTexture);
 
   KHR_materials_sheen sheen    = tinygltf::utils::getSheen(srcMat);
   dstMat.sheenColorFactor      = sheen.sheenColorFactor;
-  dstMat.sheenColorTexture     = sheen.sheenColorTexture.index;
+  dstMat.sheenColorTexture     = getTextureInfo(sheen.sheenColorTexture);
   dstMat.sheenRoughnessFactor  = sheen.sheenRoughnessFactor;
-  dstMat.sheenRoughnessTexture = sheen.sheenRoughnessTexture.index;
+  dstMat.sheenRoughnessTexture = getTextureInfo(sheen.sheenRoughnessTexture);
 
   return dstMat;
 }
@@ -343,6 +353,7 @@ void nvvkhl::SceneVk::createVertexBuffers(VkCommandBuffer cmd, const nvh::gltf::
                                      usageFlag | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, vertexBuffers.position);
     createAttributeBuffer<glm::vec3>("NORMAL", model, primitive, cmd, m_alloc, usageFlag, vertexBuffers.normal);
     createAttributeBuffer<glm::vec2>("TEXCOORD_0", model, primitive, cmd, m_alloc, usageFlag, vertexBuffers.texCoord0);
+    createAttributeBuffer<glm::vec2>("TEXCOORD_1", model, primitive, cmd, m_alloc, usageFlag, vertexBuffers.texCoord1);
     createAttributeBuffer<glm::vec4>("TANGENT", model, primitive, cmd, m_alloc, usageFlag, vertexBuffers.tangent);
 
     if(tinygltf::utils::hasElementName(primitive.attributes, "COLOR_0"))
@@ -383,6 +394,8 @@ void nvvkhl::SceneVk::createVertexBuffers(VkCommandBuffer cmd, const nvh::gltf::
       m_dutil->DBG_NAME_IDX(vertexBuffers.normal.buffer, primID);
     if(vertexBuffers.texCoord0.buffer != VK_NULL_HANDLE)
       m_dutil->DBG_NAME_IDX(vertexBuffers.texCoord0.buffer, primID);
+    if(vertexBuffers.texCoord1.buffer != VK_NULL_HANDLE)
+      m_dutil->DBG_NAME_IDX(vertexBuffers.texCoord1.buffer, primID);
     if(vertexBuffers.tangent.buffer != VK_NULL_HANDLE)
       m_dutil->DBG_NAME_IDX(vertexBuffers.tangent.buffer, primID);
     if(vertexBuffers.color.buffer != VK_NULL_HANDLE)
@@ -445,6 +458,7 @@ void nvvkhl::SceneVk::createVertexBuffers(VkCommandBuffer cmd, const nvh::gltf::
     vBuf.normalAddress                 = vertexBuffers.normal.address;
     vBuf.tangentAddress                = vertexBuffers.tangent.address;
     vBuf.texCoord0Address              = vertexBuffers.texCoord0.address;
+    vBuf.texCoord1Address              = vertexBuffers.texCoord1.address;
     vBuf.colorAddress                  = vertexBuffers.color.address;
     renderPrim[primID].vertexBuffer    = vBuf;
   }
@@ -473,6 +487,7 @@ void nvvkhl::SceneVk::updateVertexBuffers(VkCommandBuffer cmd, const nvh::gltf::
     updateAttributeBuffer<glm::vec3>("POSITION", model, primitive, cmd, m_alloc, vertexBuffers.position);
     updateAttributeBuffer<glm::vec3>("NORMAL", model, primitive, cmd, m_alloc, vertexBuffers.normal);
     updateAttributeBuffer<glm::vec2>("TEXCOORD_0", model, primitive, cmd, m_alloc, vertexBuffers.texCoord0);
+    updateAttributeBuffer<glm::vec2>("TEXCOORD_1", model, primitive, cmd, m_alloc, vertexBuffers.texCoord1);
     updateAttributeBuffer<glm::vec4>("TANGENT", model, primitive, cmd, m_alloc, vertexBuffers.tangent);
   }
 }
@@ -587,14 +602,23 @@ void nvvkhl::SceneVk::createTextureImages(VkCommandBuffer cmd, const tinygltf::M
   m_textures.reserve(model.textures.size());
   for(size_t i = 0; i < model.textures.size(); i++)
   {
-    int source_image = model.textures[i].source;
+    const auto& texture      = model.textures[i];
+    int         source_image = texture.source;
+
+    // MSFT_texture_dds: if the texture is a DDS file, we need to get the source image from the extension
+    if(tinygltf::utils::hasElementName(texture.extensions, MSFT_TEXTURE_DDS_NAME))
+    {
+      const tinygltf::Value& ext = tinygltf::utils::getElementValue(texture.extensions, MSFT_TEXTURE_DDS_NAME);
+      tinygltf::utils::getValue(ext, "source", source_image);
+    }
+
     if(source_image >= model.images.size() || source_image < 0)
     {
       addDefaultTexture();  // Incorrect source image
       continue;
     }
 
-    VkSamplerCreateInfo sampler = getSampler(model, model.textures[i].sampler);
+    VkSamplerCreateInfo sampler = getSampler(model, texture.sampler);
 
     SceneImage&           scn_image = m_images[source_image];
     VkImageViewCreateInfo iv_info   = nvvk::makeImageViewCreateInfo(scn_image.nvvkImage.image, scn_image.createInfo);
@@ -679,6 +703,7 @@ void nvvkhl::SceneVk::loadImage(const std::filesystem::path& basedir, const tiny
     c = tolower(c);
   }
   std::string imgName = uri.filename().string();
+  image.imgName       = imgName;
   std::string img_uri = fs::path(basedir / uri).string();
 
   if(extension == ".dds")
@@ -803,7 +828,7 @@ bool nvvkhl::SceneVk::createImage(const VkCommandBuffer& cmd, SceneImage& image)
     can_generate_mipmaps = true;
   if(image.mipData.size() > 1)  // Use only the number of levels defined
     image_create_info.mipLevels = (uint32_t)image.mipData.size();
-  if(image.mipData.size() == 1 && can_generate_mipmaps == false)
+  if(image.mipData.size() == 1 || can_generate_mipmaps == false)
     image_create_info.mipLevels = 1;  // Cannot use cmdGenerateMipmaps
 
   // Keep info for the creation of the texture
@@ -882,13 +907,13 @@ std::vector<nvvkhl_shaders::Light> getShaderLights(const std::vector<nvh::gltf::
     nvvkhl_shaders::Light info{};
     info.position   = l.worldMatrix[3];
     info.direction  = -l.worldMatrix[2];  // glm::vec3(l.worldMatrix * glm::vec4(0, 0, -1, 0));
-    info.innerAngle = gltfLight.spot.innerConeAngle;
-    info.outerAngle = gltfLight.spot.outerConeAngle;
+    info.innerAngle = static_cast<float>(gltfLight.spot.innerConeAngle);
+    info.outerAngle = static_cast<float>(gltfLight.spot.outerConeAngle);
     if(gltfLight.color.size() == 3)
       info.color = glm::vec3(gltfLight.color[0], gltfLight.color[1], gltfLight.color[2]);
     else
       info.color = glm::vec3(1, 1, 1);  // default color (white)
-    info.intensity = gltfLight.intensity;
+    info.intensity = static_cast<float>(gltfLight.intensity);
     info.type      = gltfLight.type == "point" ? nvvkhl_shaders::eLightTypePoint :
                      gltfLight.type == "spot"  ? nvvkhl_shaders::eLightTypeSpot :
                                                  nvvkhl_shaders::eLightTypeDirectional;
@@ -903,7 +928,7 @@ std::vector<nvvkhl_shaders::Light> getShaderLights(const std::vector<nvh::gltf::
     }
     else
     {
-      info.angularSizeOrInvRange = (gltfLight.range > 0.0f) ? 1.0f / static_cast<float>(gltfLight.range) : 0.0;
+      info.angularSizeOrInvRange = (gltfLight.range > 0.0) ? 1.0f / static_cast<float>(gltfLight.range) : 0.0f;
     }
 
     lightsInfo.emplace_back(info);
@@ -919,6 +944,7 @@ void nvvkhl::SceneVk::destroy()
     m_alloc->destroy(vb.normal);
     m_alloc->destroy(vb.tangent);
     m_alloc->destroy(vb.texCoord0);
+    m_alloc->destroy(vb.texCoord1);
     m_alloc->destroy(vb.color);
   }
   m_vertexBuffers.clear();

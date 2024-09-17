@@ -21,6 +21,8 @@
 // - Display a menu with File/Quit
 // - Display basic information in the window title
 
+#pragma once
+
 #include "imgui.h"
 #include "implot.h"
 

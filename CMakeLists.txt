@@ -100,7 +100,7 @@ if(USING_VULKANSDK)
       DST "${CMAKE_CURRENT_SOURCE_DIR}/_autogen" 
       VULKAN_TARGET "vulkan1.3"
       HEADER ON
-      DEPENDENCY ${VULKAN_BUILD_DEPENDENCIES}
+      DEPENDENCY ${Vulkan_BUILD_DEPENDENCIES}
       FLAGS "-I${SHD_DIR}" "-I${CMAKE_CURRENT_SOURCE_DIR}" -g
       )
 
@@ -127,25 +127,25 @@ if(USING_VULKANSDK)
 
   # The following checks if Python is available and run the script to generate the Vulkan extensions
   # using the version of Vulkan SDK installed on the system
-  option(VULKAN_generate_extensions "Regenerate nvvk/extensions_vk.cpp from the currently installed Vulkan SDK version at configuration time." ON)
-  set(VULKAN_EXTENSIONS_GENERATED FALSE)
-  if(VULKAN_generate_extensions)
+  option(Vulkan_generate_extensions "Regenerate nvvk/extensions_vk.cpp from the currently installed Vulkan SDK version at configuration time." ON)
+  set(Vulkan_EXTENSIONS_GENERATED FALSE)
+  if(Vulkan_generate_extensions)
     find_package (Python COMPONENTS Interpreter)
     if(Python_FOUND)
       add_custom_command(
         OUTPUT "${GENERATED_EXTENSION_DIR}/nvvk/extensions_vk.cpp" "${GENERATED_EXTENSION_DIR}/nvvk/extensions_vk.hpp"
         DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/nvvk/extensions_vk.py"
         COMMAND ${Python_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/nvvk/extensions_vk.py" --output-dir "${GENERATED_EXTENSION_DIR}/nvvk" --beta
-        COMMENT "Vulkan extension code generation with nvvk/extensions_vk.py (cmake option: VULKAN_generate_extensions)"
+        COMMENT "Vulkan extension code generation with nvvk/extensions_vk.py (cmake option: Vulkan_generate_extensions)"
       )
-      set(VULKAN_EXTENSIONS_GENERATED TRUE)
+      set(Vulkan_EXTENSIONS_GENERATED TRUE)
     else()
       message(WARNING "Python not found. Cannot generate code with local Vulkan SDK. Falling back to packaged code.")
     endif(Python_FOUND)
-  endif(VULKAN_generate_extensions)
+  endif(Vulkan_generate_extensions)
 
   # Use fallback source files
-  if(NOT VULKAN_EXTENSIONS_GENERATED)
+  if(NOT Vulkan_EXTENSIONS_GENERATED)
     add_custom_command(
       OUTPUT "${GENERATED_EXTENSION_DIR}/nvvk/extensions_vk.cpp"
       COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/nvvk/extensions_vk.cpp.in" "${GENERATED_EXTENSION_DIR}/nvvk/extensions_vk.cpp"
@@ -285,8 +285,8 @@ endif()
 
 if(USING_VULKANSDK)
   target_include_directories(nvpro_core PUBLIC "${GENERATED_EXTENSION_DIR}")
-  option(VULKAN_update_codegen_fallback "Update the nvvk/extensions_vk.cpp fallback code in the source directory." OFF)
-  if(VULKAN_EXTENSIONS_GENERATED AND VULKAN_update_codegen_fallback)
+  option(Vulkan_update_codegen_fallback "Update the nvvk/extensions_vk.cpp fallback code in the source directory." OFF)
+  if(Vulkan_EXTENSIONS_GENERATED AND Vulkan_update_codegen_fallback)
     add_custom_command(
       TARGET nvpro_core POST_BUILD
       DEPENDS "${GENERATED_EXTENSION_DIR}/nvvk/extensions_vk.cpp" "${GENERATED_EXTENSION_DIR}/nvvk/extensions_vk.hpp"

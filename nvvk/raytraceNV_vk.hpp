@@ -143,7 +143,7 @@ private:
     nvvk::AccelNV                 as;
     VkAccelerationStructureInfoNV asInfo{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_INFO_NV, nullptr,
                                          VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_NV};
-    VkGeometryNV                  geometry;
+    VkGeometryNV                  geometry{VK_STRUCTURE_TYPE_GEOMETRY_NV};
   };
 
   // Top-level acceleration structure

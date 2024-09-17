@@ -36,6 +36,7 @@
 #define KHR_MATERIALS_VARIANTS_EXTENSION_NAME "KHR_materials_variants"
 #define EXT_MESH_GPU_INSTANCING_EXTENSION_NAME "EXT_mesh_gpu_instancing"
 #define EXTENSION_ATTRIB_IRAY "NV_attributes_iray"
+#define MSFT_TEXTURE_DDS_NAME "MSFT_texture_dds"
 
 // https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_materials_specular/README.md
 #define KHR_MATERIALS_SPECULAR_EXTENSION_NAME "KHR_materials_specular"
@@ -649,7 +650,7 @@ inline bool getAccessorData(const tinygltf::Model& tmodel, const tinygltf::Acces
     }
 
     const auto& copyElementFn = [&](size_t elementIdx, const unsigned char* pElement) {
-      T vecValue;
+      T vecValue{};
 
       for(int c = 0; c < nbComponents; c++)
       {
@@ -731,7 +732,6 @@ uint32_t appendData(tinygltf::Buffer& buffer, const T& inData)
 //--------------------------------------------------------------------------------------------------
 KHR_materials_unlit             getUnlit(const tinygltf::Material& tmat);
 KHR_materials_specular          getSpecular(const tinygltf::Material& tmat);
-KHR_texture_transform           getTextureTransform(const tinygltf::TextureInfo& tinfo);
 KHR_materials_clearcoat         getClearcoat(const tinygltf::Material& tmat);
 KHR_materials_sheen             getSheen(const tinygltf::Material& tmat);
 KHR_materials_transmission      getTransmission(const tinygltf::Material& tmat);
@@ -741,6 +741,23 @@ KHR_materials_volume            getVolume(const tinygltf::Material& tmat);
 KHR_materials_displacement      getDisplacement(const tinygltf::Material& tmat);
 KHR_materials_emissive_strength getEmissiveStrength(const tinygltf::Material& tmat);
 KHR_materials_iridescence       getIridescence(const tinygltf::Material& tmat);
+
+template <typename T>
+inline KHR_texture_transform getTextureTransform(const T& tinfo)
+{
+  KHR_texture_transform gmat;
+  if(tinygltf::utils::hasElementName(tinfo.extensions, KHR_TEXTURE_TRANSFORM_EXTENSION_NAME))
+  {
+    const tinygltf::Value& ext = tinygltf::utils::getElementValue(tinfo.extensions, KHR_TEXTURE_TRANSFORM_EXTENSION_NAME);
+    tinygltf::utils::getArrayValue(ext, "offset", gmat.offset);
+    tinygltf::utils::getArrayValue(ext, "scale", gmat.scale);
+    tinygltf::utils::getValue(ext, "rotation", gmat.rotation);
+    tinygltf::utils::getValue(ext, "texCoord", gmat.texCoord);
+
+    gmat.updateTransform();
+  }
+  return gmat;
+}
 
 }  // namespace utils
 

@@ -31,11 +31,11 @@
 
 struct MeshState
 {
-  vec3 N;   // Normal
-  vec3 T;   // Tangent
-  vec3 B;   // Bitangent
-  vec3 Ng;  // Geometric normal
-  vec2 tc;  // Texture coordinates
+  vec3 N;      // Normal
+  vec3 T;      // Tangent
+  vec3 B;      // Bitangent
+  vec3 Ng;     // Geometric normal
+  vec2 tc[2];  // Texture coordinates
   bool isInside;
 };
 
@@ -49,13 +49,20 @@ struct MeshState
 #define USE_TEXTURES
 #endif
 
-vec4 getTexture(in int textureIndex, in vec2 texCoord)
+vec4 getTexture(in GltfTextureInfo tinfo, in MeshState mstate)
 {
 #ifdef USE_TEXTURES
-  return texture(MAT_EVAL_TEXTURE_ARRAY[nonuniformEXT(textureIndex)], texCoord);
+  // KHR_texture_transform
+  vec2 texCoord = vec2(vec3(mstate.tc[tinfo.texCoord], 1) * tinfo.uvTransform);
+  return texture(MAT_EVAL_TEXTURE_ARRAY[nonuniformEXT(tinfo.index)], texCoord);
 #else
   return vec4(1.0F);
 #endif
+}
+
+bool isTexturePresent(in GltfTextureInfo tinfo)
+{
+  return tinfo.index > -1;
 }
 
 // Minimum roughness for microfacet models.
@@ -72,14 +79,11 @@ PbrMaterial evaluateMaterial(in GltfShadeMaterial material, MeshState mesh)
   // Material Evaluated
   PbrMaterial pbrMat;
 
-  // KHR_texture_transform
-  vec2 texCoord = vec2(vec3(mesh.tc, 1) * material.uvTransform);
-
   // Base Color/Albedo may be defined from a base texture or a flat color
   vec4 baseColor = material.pbrBaseColorFactor;
-  if(material.pbrBaseColorTexture > -1.0F)
+  if(isTexturePresent(material.pbrBaseColorTexture))
   {
-    baseColor *= getTexture(material.pbrBaseColorTexture, texCoord);
+    baseColor *= getTexture(material.pbrBaseColorTexture, mesh);
   }
   pbrMat.baseColor = baseColor.rgb;
   pbrMat.opacity   = baseColor.a;
@@ -88,10 +92,10 @@ PbrMaterial evaluateMaterial(in GltfShadeMaterial material, MeshState mesh)
   // Metallic-Roughness
   float roughness = material.pbrRoughnessFactor;
   float metallic  = material.pbrMetallicFactor;
-  if(material.pbrMetallicRoughnessTexture > -1.0F)
+  if(isTexturePresent(material.pbrMetallicRoughnessTexture))
   {
     // Roughness is stored in the 'g' channel, metallic is stored in the 'b' channel.
-    vec4 mr_sample = getTexture(material.pbrMetallicRoughnessTexture, texCoord);
+    vec4 mr_sample = getTexture(material.pbrMetallicRoughnessTexture, mesh);
     roughness *= mr_sample.g;
     metallic *= mr_sample.b;
   }
@@ -103,10 +107,10 @@ PbrMaterial evaluateMaterial(in GltfShadeMaterial material, MeshState mesh)
   vec3 normal    = mesh.N;
   vec3 tangent   = mesh.T;
   vec3 bitangent = mesh.B;
-  if(material.normalTexture > -1)
+  if(isTexturePresent(material.normalTexture))
   {
     mat3 tbn           = mat3(mesh.T, mesh.B, mesh.N);
-    vec3 normal_vector = getTexture(material.normalTexture, texCoord).xyz;
+    vec3 normal_vector = getTexture(material.normalTexture, mesh).xyz;
     normal_vector      = normal_vector * 2.0F - 1.0F;
     normal_vector *= vec3(material.normalTextureScale, material.normalTextureScale, 1.0F);
     normal = normalize(tbn * normal_vector);
@@ -122,24 +126,24 @@ PbrMaterial evaluateMaterial(in GltfShadeMaterial material, MeshState mesh)
 
   // Emissive term
   vec3 emissive = material.emissiveFactor;
-  if(material.emissiveTexture > -1.0F)
+  if(isTexturePresent(material.emissiveTexture))
   {
-    emissive *= vec3(getTexture(material.emissiveTexture, texCoord));
+    emissive *= vec3(getTexture(material.emissiveTexture, mesh));
   }
   pbrMat.emissive = max(vec3(0.0F), emissive);
 
   // KHR_materials_specular
   // https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Khronos/KHR_materials_specular
   pbrMat.specularColor = material.specularColorFactor;
-  if(material.specularColorTexture > -1)
+  if(isTexturePresent(material.specularColorTexture))
   {
-    pbrMat.specularColor *= getTexture(material.specularColorTexture, texCoord).rgb;
+    pbrMat.specularColor *= getTexture(material.specularColorTexture, mesh).rgb;
   }
 
   pbrMat.specular = material.specularFactor;
-  if(material.specularTexture > -1)
+  if(isTexturePresent(material.specularTexture))
   {
-    pbrMat.specular *= getTexture(material.specularTexture, texCoord).a;
+    pbrMat.specular *= getTexture(material.specularTexture, mesh).a;
   }
 
 
@@ -157,9 +161,9 @@ PbrMaterial evaluateMaterial(in GltfShadeMaterial material, MeshState mesh)
 
   // KHR_materials_transmission
   pbrMat.transmission = material.transmissionFactor;
-  if(material.transmissionTexture > -1)
+  if(isTexturePresent(material.transmissionTexture))
   {
-    pbrMat.transmission *= getTexture(material.transmissionTexture, texCoord).r;
+    pbrMat.transmission *= getTexture(material.transmissionTexture, mesh).r;
   }
 
   // KHR_materials_volume
@@ -171,35 +175,35 @@ PbrMaterial evaluateMaterial(in GltfShadeMaterial material, MeshState mesh)
   pbrMat.clearcoat          = material.clearcoatFactor;
   pbrMat.clearcoatRoughness = material.clearcoatRoughness;
   pbrMat.Nc                 = pbrMat.N;
-  if(material.clearcoatTexture > -1)
+  if(isTexturePresent(material.clearcoatTexture))
   {
-    pbrMat.clearcoat *= getTexture(material.clearcoatTexture, texCoord).r;
+    pbrMat.clearcoat *= getTexture(material.clearcoatTexture, mesh).r;
   }
 
-  if(material.clearcoatRoughnessTexture > -1)
+  if(isTexturePresent(material.clearcoatRoughnessTexture))
   {
-    pbrMat.clearcoatRoughness *= getTexture(material.clearcoatRoughnessTexture, texCoord).g;
+    pbrMat.clearcoatRoughness *= getTexture(material.clearcoatRoughnessTexture, mesh).g;
   }
   pbrMat.clearcoatRoughness = max(pbrMat.clearcoatRoughness, 0.001F);
 
-  if(material.clearcoatNormalTexture > -1)
+  if(isTexturePresent(material.clearcoatNormalTexture))
   {
     mat3 tbn           = mat3(pbrMat.T, pbrMat.B, pbrMat.Nc);
-    vec3 normal_vector = getTexture(material.clearcoatNormalTexture, texCoord).xyz;
+    vec3 normal_vector = getTexture(material.clearcoatNormalTexture, mesh).xyz;
     normal_vector      = normal_vector * 2.0F - 1.0F;
     pbrMat.Nc          = normalize(tbn * normal_vector);
   }
 
   // Iridescence
   float iridescence = material.iridescenceFactor;
-  if(material.iridescenceTexture > -1)
+  if(isTexturePresent(material.iridescenceTexture))
   {
-    iridescence *= getTexture(material.iridescenceTexture, texCoord).x;
+    iridescence *= getTexture(material.iridescenceTexture, mesh).x;
   }
   float iridescenceThickness = material.iridescenceThicknessMaximum;
-  if(material.iridescenceThicknessTexture > -1)
+  if(isTexturePresent(material.iridescenceThicknessTexture))
   {
-    const float t        = getTexture(material.iridescenceThicknessTexture, texCoord).y;
+    const float t        = getTexture(material.iridescenceThicknessTexture, mesh).y;
     iridescenceThickness = mix(material.iridescenceThicknessMinimum, material.iridescenceThicknessMaximum, t);
   }
   pbrMat.iridescence = (iridescenceThickness > 0.0f) ? iridescence : 0.0f;  // No iridescence when the thickness is zero.
@@ -209,9 +213,9 @@ PbrMaterial evaluateMaterial(in GltfShadeMaterial material, MeshState mesh)
   // KHR_materials_anisotropy
   float anisotropyStrength  = material.anisotropyStrength;
   vec2  anisotropyDirection = vec2(1.0f, 0.0f);  // By default the anisotropy strength is along the tangent.
-  if(material.anisotropyTexture > -1)
+  if(isTexturePresent(material.anisotropyTexture))
   {
-    const vec4 anisotropyTex = getTexture(material.anisotropyTexture, texCoord);
+    const vec4 anisotropyTex = getTexture(material.anisotropyTexture, mesh);
 
     // .xy encodes the direction in (tangent, bitangent) space. Remap from [0, 1] to [-1, 1].
     anisotropyDirection = normalize(vec2(anisotropyTex) * 2.0f - 1.0f);
@@ -225,9 +229,9 @@ PbrMaterial evaluateMaterial(in GltfShadeMaterial material, MeshState mesh)
   {
     pbrMat.roughness.x = mix(pbrMat.roughness.y, 1.0f, anisotropyStrength * anisotropyStrength);
 
-    const float s = sin(material.anisotropyRotation);  // FIXME PERF Precalculate sin, cos on host.
-    const float c = cos(material.anisotropyRotation);
-
+    // Rotate the anisotropy direction in the tangent space.
+    const float s = material.anisotropyRotation.x;  // Sin and Cos of the rotation angle.
+    const float c = material.anisotropyRotation.y;
     anisotropyDirection =
         vec2(c * anisotropyDirection.x + s * anisotropyDirection.y, c * anisotropyDirection.y - s * anisotropyDirection.x);
 
@@ -240,16 +244,16 @@ PbrMaterial evaluateMaterial(in GltfShadeMaterial material, MeshState mesh)
 
   // KHR_materials_sheen
   vec3 sheenColor = material.sheenColorFactor;
-  if(material.sheenColorTexture > -1)
+  if(isTexturePresent(material.sheenColorTexture))
   {
-    sheenColor *= vec3(getTexture(material.sheenColorTexture, texCoord));  // sRGB
+    sheenColor *= vec3(getTexture(material.sheenColorTexture, mesh));  // sRGB
   }
   pbrMat.sheenColor = sheenColor;  // No sheen if this is black.
 
   float sheenRoughness = material.sheenRoughnessFactor;
-  if(material.sheenRoughnessTexture > -1)
+  if(isTexturePresent(material.sheenRoughnessTexture))
   {
-    sheenRoughness *= getTexture(material.sheenRoughnessTexture, texCoord).w;
+    sheenRoughness *= getTexture(material.sheenRoughnessTexture, mesh).w;
   }
   sheenRoughness        = max(MICROFACET_MIN_ROUGHNESS, sheenRoughness);
   pbrMat.sheenRoughness = sheenRoughness;
@@ -260,7 +264,8 @@ PbrMaterial evaluateMaterial(in GltfShadeMaterial material, MeshState mesh)
 // Compatibility function
 PbrMaterial evaluateMaterial(in GltfShadeMaterial material, in vec3 normal, in vec3 tangent, in vec3 bitangent, in vec2 texCoord)
 {
-  MeshState mesh = MeshState(normal, tangent, bitangent, normal, texCoord, false);
+  vec2      tcoords[2] = {texCoord, vec2(0.0F)};
+  MeshState mesh       = MeshState(normal, tangent, bitangent, normal, tcoords, false);
   return evaluateMaterial(material, mesh);
 }
 

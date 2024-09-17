@@ -605,10 +605,10 @@ public:
 
     VkImage                  sourceImage{VK_NULL_HANDLE};
     uint32_t                 selectedPixelIndex{~0u};
-    nvvk::ResourceAllocator* allocator;
-    VkDevice                 device;
-    uint32_t                 graphicsQueueFamilyIndex;
-    VkSampler                sampler;
+    nvvk::ResourceAllocator* allocator{nullptr};
+    VkDevice                 device{nullptr};
+    uint32_t                 graphicsQueueFamilyIndex{};
+    VkSampler                sampler{VK_NULL_HANDLE};
 
     InspectedImage& operator=(const InspectedImage& rhs)
     {
@@ -864,7 +864,7 @@ public:
   }
 
 
-  nvvkhl::Application* m_app;
+  nvvkhl::Application* m_app = nullptr;
 
   bool hasSnapshotContent()
   {

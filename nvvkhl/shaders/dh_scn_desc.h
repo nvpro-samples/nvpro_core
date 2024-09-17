@@ -24,13 +24,16 @@
 #define DH_SCN_DESC_H 1
 
 #ifdef __cplusplus
+#define INLINE inline
 namespace nvvkhl_shaders {
-
-using mat4 = glm::mat4;
-using mat3 = glm::mat3;
-using vec4 = glm::vec4;
-using vec3 = glm::vec3;
-using vec2 = glm::vec2;
+using mat4   = glm::mat4;
+using mat3   = glm::mat3;
+using mat2x3 = glm::mat2x3;
+using vec4   = glm::vec4;
+using vec3   = glm::vec3;
+using vec2   = glm::vec2;
+#else
+#define INLINE
 #endif  // __cplusplus
 
 // This is the GLTF Node structure, but flattened
@@ -50,6 +53,7 @@ struct VertexBuffers
   uint64_t colorAddress;
   uint64_t tangentAddress;
   uint64_t texCoord0Address;
+  uint64_t texCoord1Address;
 };
 
 // This is the GLTF Primitive structure
@@ -75,115 +79,100 @@ struct SceneDescription
 #define ALPHA_OPAQUE 0
 #define ALPHA_MASK 1
 #define ALPHA_BLEND 2
+struct GltfTextureInfo
+{
+  mat2x3 uvTransform;  // 24 bytes (2x3 matrix)
+  int    index;        // 4 bytes
+  int    texCoord;     // 4 bytes
+};                     // Total: 32 bytes
 
 struct GltfShadeMaterial
 {
-  // Core
-  vec4  pbrBaseColorFactor;           // offset 0 - 16 bytes
+  vec4  pbrBaseColorFactor;           // offset 0 - 16 bytes    - glTF Core
   vec3  emissiveFactor;               // offset 16 - 12 bytes
-  int   pbrBaseColorTexture;          // offset 28 - 4 bytes
-  int   normalTexture;                // offset 32 - 4 bytes
-  float normalTextureScale;           // offset 36 - 4 bytes
-  int   _pad0;                        // offset 40 - 4 bytes
-  float pbrRoughnessFactor;           // offset 44 - 4 bytes
-  float pbrMetallicFactor;            // offset 48 - 4 bytes
-  int   pbrMetallicRoughnessTexture;  // offset 52 - 4 bytes
-  int   emissiveTexture;              // offset 56 - 4 bytes
-  int   alphaMode;                    // offset 60 - 4 bytes
-  float alphaCutoff;                  // offset 64 - 4 bytes
+  float normalTextureScale;           // offset 28 - 4 bytes
+  float pbrRoughnessFactor;           // offset 32 - 4 bytes
+  float pbrMetallicFactor;            // offset 36 - 4 bytes
+  int   alphaMode;                    // offset 40 - 4 bytes
+  float alphaCutoff;                  // offset 44 - 4 bytes
+  float transmissionFactor;           // offset 48 - 4 bytes    - KHR_materials_transmission
+  float ior;                          // offset 52 - 4 bytes    - KHR_materials_ior
+  vec3  attenuationColor;             // offset 56 - 12 bytes   - KHR_materials_volume
+  float thicknessFactor;              // offset 68 - 4 bytes
+  float attenuationDistance;          // offset 72 - 4 bytes
+  float clearcoatFactor;              // offset 76 - 4 bytes    - KHR_materials_clearcoat
+  float clearcoatRoughness;           // offset 80 - 4 bytes
+  vec3  specularColorFactor;          // offset 84 - 12 bytes   - KHR_materials_specular
+  float specularFactor;               // offset 96 - 4 bytes
+  int   unlit;                        // offset 100 - 4 bytes   - KHR_materials_unlit
+  float iridescenceFactor;            // offset 104 - 4 bytes   - KHR_materials_iridescence
+  float iridescenceThicknessMaximum;  // offset 108 - 4 bytes
+  float iridescenceThicknessMinimum;  // offset 112 - 4 bytes
+  float iridescenceIor;               // offset 116 - 4 bytes
+  float anisotropyStrength;           // offset 120 - 4 bytes   - KHR_materials_anisotropy
+  vec2  anisotropyRotation;           // offset 124 - 8 bytes
+  float sheenRoughnessFactor;         // offset 132 - 4 bytes   - KHR_materials_sheen
+  vec3  sheenColorFactor;             // offset 136 - 12 bytes
 
-  // KHR_materials_transmission
-  float transmissionFactor;   // offset 68 - 4 bytes
-  int   transmissionTexture;  // offset 72 - 4 bytes
-
-  // KHR_materials_ior
-  float ior;  // offset 76 - 4 bytes
-
-  // KHR_materials_volume
-  vec3  attenuationColor;     // offset 80 - 12 bytes
-  float thicknessFactor;      // offset 92 - 4 bytes
-  int   thicknessTexture;     // offset 96 - 4 bytes
-  float attenuationDistance;  // offset 100 - 4 bytes
-
-  // KHR_materials_clearcoat
-  float clearcoatFactor;            // offset 104 - 4 bytes
-  float clearcoatRoughness;         // offset 108 - 4 bytes
-  int   clearcoatTexture;           // offset 112 - 4 bytes
-  int   clearcoatRoughnessTexture;  // offset 116 - 4 bytes
-  int   clearcoatNormalTexture;     // offset 120 - 4 bytes
-
-  // KHR_materials_specular
-  vec3  specularColorFactor;   // offset 124 - 12 bytes
-  float specularFactor;        // offset 136 - 4 bytes
-  int   specularTexture;       // offset 140 - 4 bytes
-  int   specularColorTexture;  // offset 144 - 4 bytes
-
-  // KHR_materials_unlit
-  int unlit;  // offset 148 - 4 bytes
-
-  // KHR_materials_iridescence
-  float iridescenceFactor;            // offset 152 - 4 bytes
-  int   iridescenceTexture;           // offset 156 - 4 bytes
-  float iridescenceThicknessMaximum;  // offset 160 - 4 bytes
-  float iridescenceThicknessMinimum;  // offset 164 - 4 bytes
-  int   iridescenceThicknessTexture;  // offset 168 - 4 bytes
-  float iridescenceIor;               // offset 172 - 4 bytes
-
-  // KHR_materials_anisotropy
-  float anisotropyStrength;  // offset 176 - 4 bytes
-  int   anisotropyTexture;   // offset 180 - 4 bytes
-  float anisotropyRotation;  // offset 184 - 4 bytes
-
-  // KHR_texture_transform
-  mat3 uvTransform;  // offset 188 - 48 bytes (mat3 occupies 3 vec4, thus 3 * 16 bytes = 48 bytes)
-  vec4 _pad3;        // offset 236 - 16 bytes (to cover the 36 bytes of the mat3 (C++))
-
-  // KHR_materials_sheen
-  int   sheenColorTexture;      // offset 252 - 4 bytes
-  float sheenRoughnessFactor;   // offset 256 - 4 bytes
-  int   sheenRoughnessTexture;  // offset 260 - 4 bytes
-  vec3  sheenColorFactor;       // offset 264 - 12 bytes
-  int   _pad2;                  // offset 276 - 4 bytes (padding to align to 16 bytes)
-
-  // Total size: 280 bytes
-};
+  // Texture infos (32 bytes each)
+  GltfTextureInfo pbrBaseColorTexture;          // offset 148 - 32 bytes
+  GltfTextureInfo normalTexture;                // offset 180 - 32 bytes
+  GltfTextureInfo pbrMetallicRoughnessTexture;  // offset 212 - 32 bytes
+  GltfTextureInfo emissiveTexture;              // offset 244 - 32 bytes
+  GltfTextureInfo transmissionTexture;          // offset 276 - 32 bytes
+  GltfTextureInfo thicknessTexture;             // offset 308 - 32 bytes
+  GltfTextureInfo clearcoatTexture;             // offset 340 - 32 bytes
+  GltfTextureInfo clearcoatRoughnessTexture;    // offset 372 - 32 bytes
+  GltfTextureInfo clearcoatNormalTexture;       // offset 404 - 32 bytes
+  GltfTextureInfo specularTexture;              // offset 436 - 32 bytes
+  GltfTextureInfo specularColorTexture;         // offset 468 - 32 bytes
+  GltfTextureInfo iridescenceTexture;           // offset 500 - 32 bytes
+  GltfTextureInfo iridescenceThicknessTexture;  // offset 532 - 32 bytes
+  GltfTextureInfo anisotropyTexture;            // offset 564 - 32 bytes
+  GltfTextureInfo sheenColorTexture;            // offset 596 - 32 bytes
+  GltfTextureInfo sheenRoughnessTexture;        // offset 628 - 32 bytes
+};                                              // Total size: 660 bytes
 
 
-#ifdef __cplusplus
-inline
-#endif
-    GltfShadeMaterial
-    defaultGltfMaterial()
+INLINE GltfTextureInfo defaultGltftextureInfo()
+{
+  GltfTextureInfo t;
+  t.uvTransform = mat2x3(1);
+  t.index       = -1;
+  t.texCoord    = 0;
+  return t;
+}
+
+INLINE GltfShadeMaterial defaultGltfMaterial()
 {
   GltfShadeMaterial m;
   m.pbrBaseColorFactor          = vec4(1, 1, 1, 1);
   m.emissiveFactor              = vec3(0, 0, 0);
-  m.pbrBaseColorTexture         = -1;
-  m.normalTexture               = -1;
+  m.pbrBaseColorTexture         = defaultGltftextureInfo();
+  m.normalTexture               = defaultGltftextureInfo();
   m.normalTextureScale          = 1;
   m.pbrRoughnessFactor          = 1;
   m.pbrMetallicFactor           = 1;
-  m.pbrMetallicRoughnessTexture = -1;
-  m.emissiveTexture             = -1;
+  m.pbrMetallicRoughnessTexture = defaultGltftextureInfo();
+  m.emissiveTexture             = defaultGltftextureInfo();
   m.alphaMode                   = ALPHA_OPAQUE;
   m.alphaCutoff                 = 0.5;
   m.transmissionFactor          = 0;
-  m.transmissionTexture         = -1;
+  m.transmissionTexture         = defaultGltftextureInfo();
   m.ior                         = 1.5;
   m.attenuationColor            = vec3(1, 1, 1);
   m.thicknessFactor             = 0;
-  m.thicknessTexture            = -1;
+  m.thicknessTexture            = defaultGltftextureInfo();
   m.attenuationDistance         = 0;
   m.clearcoatFactor             = 0;
   m.clearcoatRoughness          = 0;
-  m.clearcoatTexture            = -1;
-  m.clearcoatRoughnessTexture   = -1;
-  m.clearcoatNormalTexture      = -1;
+  m.clearcoatTexture            = defaultGltftextureInfo();
+  m.clearcoatRoughnessTexture   = defaultGltftextureInfo();
+  m.clearcoatNormalTexture      = defaultGltftextureInfo();
   m.specularFactor              = 0;
-  m.specularTexture             = -1;
+  m.specularTexture             = defaultGltftextureInfo();
   m.specularColorFactor         = vec3(1, 1, 1);
-  m.specularColorTexture        = -1;
-  m.uvTransform                 = mat3(1);
+  m.specularColorTexture        = defaultGltftextureInfo();
   return m;
 }
 

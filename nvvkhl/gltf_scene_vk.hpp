@@ -51,6 +51,7 @@ public:
     nvvk::Buffer normal;
     nvvk::Buffer tangent;
     nvvk::Buffer texCoord0;
+    nvvk::Buffer texCoord1;
     nvvk::Buffer color;
   };
 
@@ -78,7 +79,7 @@ protected:
   struct SceneImage  // Image to be loaded and created
   {
     nvvk::Image       nvvkImage;
-    VkImageCreateInfo createInfo;
+    VkImageCreateInfo createInfo{};
 
     // Loading information
     bool                              srgb{false};

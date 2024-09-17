@@ -83,22 +83,6 @@ KHR_materials_specular tinygltf::utils::getSpecular(const tinygltf::Material& tm
   return gmat;
 }
 
-KHR_texture_transform tinygltf::utils::getTextureTransform(const tinygltf::TextureInfo& tinfo)
-{
-  KHR_texture_transform gmat;
-  if(tinygltf::utils::hasElementName(tinfo.extensions, KHR_TEXTURE_TRANSFORM_EXTENSION_NAME))
-  {
-    const tinygltf::Value& ext = tinygltf::utils::getElementValue(tinfo.extensions, KHR_TEXTURE_TRANSFORM_EXTENSION_NAME);
-    tinygltf::utils::getArrayValue(ext, "offset", gmat.offset);
-    tinygltf::utils::getArrayValue(ext, "scale", gmat.scale);
-    tinygltf::utils::getValue(ext, "rotation", gmat.rotation);
-    tinygltf::utils::getValue(ext, "texCoord", gmat.texCoord);
-
-    gmat.updateTransform();
-  }
-  return gmat;
-}
-
 KHR_materials_clearcoat tinygltf::utils::getClearcoat(const tinygltf::Material& tmat)
 {
   KHR_materials_clearcoat gmat;

@@ -90,7 +90,7 @@ public:
   delayed_call(delayed_call&& other) { *this = std::move(other); }
   ~delayed_call() = default;
 
-  delayed_call& operator=(delayed_call&& other)
+  delayed_call& operator=(delayed_call&& other) noexcept
   {
     m_delay = std::move(other.m_delay);
     return *this;

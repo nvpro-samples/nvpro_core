@@ -68,7 +68,7 @@ struct SparseImagePage
   // Layer the page belongs to
   uint32_t layer{NVVK_SPARSE_IMAGE_INVALID_INDEX};
 
-  nvvk::MemHandle allocation;
+  nvvk::MemHandle allocation{};
 
   // Index of the page based on its location in the sparse texture
   // index = mipStartIndex + location.x + pageCount.x*(location.y + pageCount.z*location.z)
@@ -110,7 +110,7 @@ struct SparseImage
   static const size_t s_sparseImageCount{2};
 
   // Texture image handles (see above)
-  std::array<VkImage, s_sparseImageCount> images;
+  std::array<VkImage, s_sparseImageCount> images{};
   // Index of the image that can be used for rendering
   uint32_t currentImage{0u};
 

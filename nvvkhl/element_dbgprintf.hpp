@@ -17,6 +17,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#pragma once
+
 #include "application.hpp"
 #include "nvh/nvprint.hpp"
 #include "nvvk/error_vk.hpp"
