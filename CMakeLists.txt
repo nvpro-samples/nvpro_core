@@ -157,6 +157,12 @@ if(USING_VULKANSDK)
       COMMENT "Copying fallback vulkan extension code (disabled or python not found)"
     )
   endif()
+else()
+  # KTX files can only be loaded if Vulkan headers are available.
+  # Another option here would be to only add nv_ktx's files if _add_package_KTX()
+  # is called. Currently, _add_package_KTX() adds optional supercompression dependencies.
+  list(REMOVE_ITEM FILEFORMATS_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/fileformats/nv_ktx.h)
+  list(REMOVE_ITEM FILEFORMATS_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/fileformats/nv_ktx.cpp)
 endif(USING_VULKANSDK)
 
 if(USING_IMGUI)
@@ -295,6 +301,16 @@ if(USING_VULKANSDK)
       COMMENT "Updating vulkan extension code generation fallback"
     )
   endif()
+endif()
+
+if(USING_ZLIB)
+  target_link_libraries(nvpro_core zlibstatic)
+endif()
+
+# zstd and basisu are always enabled together and basisu links with zstd, so no
+# need to check for them separately
+if(USING_BASISU)
+  target_link_libraries(nvpro_core basisu)
 endif()
 
 target_link_libraries(nvpro_core

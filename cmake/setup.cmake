@@ -386,15 +386,13 @@ endmacro(_optional_package_OpenGL)
 # Optional ZLIB
 #
 macro(_add_package_ZLIB)
-  add_definitions(-DNVP_SUPPORTS_GZLIB=1)
+  message(STATUS "--> using package Zlib")
   get_directory_property(hasParent PARENT_DIRECTORY)
   if(hasParent)
     set(USING_ZLIB ON PARENT_SCOPE)
   else()
     set(USING_ZLIB ON)
   endif()
-  LIST(APPEND LIBRARIES_OPTIMIZED zlibstatic)
-  LIST(APPEND LIBRARIES_DEBUG zlibstatic)
 endmacro()
 
 #####################################################################################
@@ -784,84 +782,16 @@ macro(_add_package_KTX)
   # Zlib
   _add_package_ZLIB()
   
-  # Zstandard
-  set(_ZSTD_DIR ${BASE_DIRECTORY}/nvpro_core/third_party/zstd)
-  if(NOT TARGET libzstd_static AND EXISTS ${_ZSTD_DIR})
-    if(NOT EXISTS ${_ZSTD_DIR}/lib/zstd.h)
-      message(WARNING "It looks like the zstd submodule hasn't been downloaded; try running git submodule update --init --recursive in the nvpro_core directory.")
-    else()
-      set(ZSTD_BUILD_PROGRAMS OFF)
-      set(ZSTD_BUILD_SHARED OFF)
-      set(ZSTD_BUILD_STATIC ON)
-      set(ZSTD_BUILD_TESTS OFF) # Since our filtered repository omits tests
-      set(ZSTD_USE_STATIC_RUNTIME ON)
-      add_subdirectory(${_ZSTD_DIR}/build/cmake ${CMAKE_BINARY_DIR}/zstd)
-      target_sources(libzstd_static INTERFACE $<BUILD_INTERFACE:${_ZSTD_DIR}/lib/zstd.h>)
-      target_include_directories(libzstd_static INTERFACE $<BUILD_INTERFACE:${_ZSTD_DIR}/lib>)
-    endif()
-  endif()
-  if(TARGET libzstd_static)
-    message(STATUS "--> using package Zstd (from KTX)")
-    # Make targets linking with libzstd_static compile with NVP_SUPPORTS_ZSTD
-    target_compile_definitions(libzstd_static INTERFACE NVP_SUPPORTS_ZSTD)
-    LIST(APPEND LIBRARIES_OPTIMIZED libzstd_static)
-    LIST(APPEND LIBRARIES_DEBUG libzstd_static)
-    set_target_properties(libzstd_static clean-all uninstall PROPERTIES FOLDER "ThirdParty")
-    # Exclude Zstd's clean-all and uninstall targets from ALL_BUILD and INSTALL;
-    # otherwise, it'll fail when building everything.
-    set_target_properties(clean-all uninstall PROPERTIES
-      EXCLUDE_FROM_ALL 1
-      EXCLUDE_FROM_DEFAULT_BUILD 1
-    )
-  else()
-    message(STATUS "--> NOT using package Zstd (from KTX)") 
-  endif()
+  message(STATUS "--> using package Zstd (from KTX)")
+  message(STATUS "--> using package basisu (from KTX)")
   
-  # Basis Universal
-  set(_BASISU_DIR ${BASE_DIRECTORY}/nvpro_core/third_party/basis_universal)
-  if(NOT TARGET basisu AND EXISTS ${_BASISU_DIR})
-    if(NOT EXISTS ${_BASISU_DIR}/transcoder)
-      message(WARNING "It looks like the basis_universal folder hasn't been downloaded. Try making a fresh clone of nvpro_core.")
-    else()
-      file(GLOB _BASISU_FILES "${_BASISU_DIR}/transcoder/*.*" "${_BASISU_DIR}/encoder/*.*")
-      add_library(basisu STATIC "${_BASISU_FILES}")
-      target_include_directories(basisu INTERFACE "${_BASISU_DIR}/transcoder" "${_BASISU_DIR}/encoder")
-      target_include_directories(basisu PRIVATE "${_BASISU_DIR}")
-    endif()
-  endif()
-  if(TARGET basisu)
-    # basisu.h wants to set the iterator debug level to a different value than the
-    # default for debug performance. However, this can cause it to fail linking.
-    target_compile_definitions(basisu PUBLIC BASISU_NO_ITERATOR_DEBUG_LEVEL=1)
-    # Make targets linking with basisu compile with NVP_SUPPORTS_BASISU
-    target_compile_definitions(basisu INTERFACE NVP_SUPPORTS_BASISU)
-    # Turn off some transcoding formats we don't use to reduce code size by about
-    # 500 KB.
-    target_compile_definitions(basisu PRIVATE
-      BASISD_SUPPORT_ATC=0
-      BASISD_SUPPORT_DXT1=0
-      BASISD_SUPPORT_DXT5A=0
-      BASISD_SUPPORT_ETC2_EAC_A8=0
-      BASISD_SUPPORT_ETC2_EAC_RG11=0
-      BASISD_SUPPORT_FXT1=0
-      BASISD_SUPPORT_PVRTC1=0
-      BASISD_SUPPORT_PVRTC2=0
-    )
-    LIST(APPEND LIBRARIES_OPTIMIZED basisu)
-    LIST(APPEND LIBRARIES_DEBUG basisu)
-    set_property(TARGET basisu PROPERTY FOLDER "ThirdParty")
-    
-    # Set up linking between basisu and its dependencies, so that we always get
-    # a correct linking order on Linux:
-    if(TARGET libzstd_static)
-      target_link_libraries(basisu PUBLIC libzstd_static)
-    else()
-      # If Zstandard isn't included, also turn off Zstd support in Basis:
-      target_compile_definitions(basisu PRIVATE BASISD_SUPPORT_KTX2_ZSTD=0)
-    endif()
-    if(TARGET zlibstatic)
-      target_link_libraries(basisu PUBLIC zlibstatic)
-    endif()
+  get_directory_property(hasParent PARENT_DIRECTORY)
+  if(hasParent)
+    set( USING_ZSTD "YES" PARENT_SCOPE)
+    set( USING_BASISU "YES" PARENT_SCOPE)
+  else()
+    set( USING_ZSTD "YES")
+    set( USING_BASISU "YES")
   endif()
 endmacro()
 

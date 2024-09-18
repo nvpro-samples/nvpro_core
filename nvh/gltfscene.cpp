@@ -56,6 +56,9 @@ static const std::set<std::string> supportedExtensions = {
 #ifdef USE_DRACO
     "KHR_draco_mesh_compression",
 #endif
+#ifdef NVP_SUPPORTS_BASISU
+    "KHR_texture_basisu",
+#endif
 };
 
 // Given only a normal vector, finds a valid tangent.

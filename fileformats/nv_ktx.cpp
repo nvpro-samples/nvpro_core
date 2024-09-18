@@ -58,11 +58,12 @@ const size_t  IDENTIFIER_LEN                 = 12;
 const uint8_t ktx1Identifier[IDENTIFIER_LEN] = {0xAB, 0x4B, 0x54, 0x58, 0x20, 0x31, 0x31, 0xBB, 0x0D, 0x0A, 0x1A, 0x0A};
 const uint8_t ktx2Identifier[IDENTIFIER_LEN] = {0xAB, 0x4B, 0x54, 0x58, 0x20, 0x32, 0x30, 0xBB, 0x0D, 0x0A, 0x1A, 0x0A};
 
+namespace {
 // Resizing a vector can produce an exception if the allocation fails, but
 // there's no real way to validate this ahead of time. So we use
 // a try/catch block.
 template <class T>
-inline ErrorWithText ResizeVectorOrError(std::vector<T>& vec, size_t newSize)
+ErrorWithText ResizeVectorOrError(std::vector<T>& vec, size_t newSize)
 {
   try
   {
@@ -77,12 +78,13 @@ inline ErrorWithText ResizeVectorOrError(std::vector<T>& vec, size_t newSize)
 
 // Multiplies three values, returning false if the calculation would overflow,
 // interpreting each value as 1 if it would be 0.
-inline bool GetNumSubresources(size_t a, size_t b, size_t c, size_t& out)
+bool GetNumSubresources(size_t a, size_t b, size_t c, size_t& out)
 {
   return checked_math::mul3(std::max(a, size_t(1)), std::max(b, size_t(1)), std::max(c, size_t(1)), out);
 }
+}  // namespace
 
-inline ErrorWithText KTXImage::allocate(uint32_t _num_mips, uint32_t _num_layers, uint32_t _num_faces)
+ErrorWithText KTXImage::allocate(uint32_t _num_mips, uint32_t _num_layers, uint32_t _num_faces)
 {
   clear();
 
@@ -98,12 +100,12 @@ inline ErrorWithText KTXImage::allocate(uint32_t _num_mips, uint32_t _num_layers
   return ResizeVectorOrError(data, num_subresources);
 }
 
-inline void KTXImage::clear()
+void KTXImage::clear()
 {
   data.clear();
 }
 
-inline std::vector<char>& KTXImage::subresource(uint32_t mip, uint32_t layer, uint32_t face)
+std::vector<char>& KTXImage::subresource(uint32_t mip, uint32_t layer, uint32_t face)
 {
   const uint32_t num_mips_clamped   = std::max(num_mips, 1U);
   const uint32_t num_layers_clamped = std::max(num_layers_possibly_0, 1U);
@@ -117,7 +119,7 @@ inline std::vector<char>& KTXImage::subresource(uint32_t mip, uint32_t layer, ui
   return data[(size_t(mip) * size_t(num_layers_clamped) + size_t(layer)) * size_t(num_faces) + size_t(face)];
 }
 
-inline VkImageType KTXImage::getImageType() const
+VkImageType KTXImage::getImageType() const
 {
   if(mip_0_width == 0)
   {
@@ -133,7 +135,7 @@ inline VkImageType KTXImage::getImageType() const
   }
 }
 
-inline uint32_t KTXImage::getKTXVersion() const
+uint32_t KTXImage::getKTXVersion() const
 {
   return read_ktx_version;
 }
@@ -152,7 +154,8 @@ inline uint32_t KTXImage::getKTXVersion() const
     return unwrap_error_tmp;                                                                                           \
   }
 
-inline size_t RoundUp(size_t value, size_t multiplier)
+namespace {
+size_t RoundUp(size_t value, size_t multiplier)
 {
   const size_t mod = value % multiplier;
   if(mod == 0)
@@ -203,7 +206,7 @@ static_assert(sizeof(DFSample) == 16, "Basic data format descriptor sample type 
 
 // Interprets T as an array of uint32_ts and swaps the endianness of each element.
 template <class T>
-inline void SwapEndian32(T& data)
+void SwapEndian32(T& data)
 {
   static_assert((sizeof(T) % 4) == 0, "T must be interpretable as an array of 32-bit words.");
   size_t    numInts           = sizeof(T) / 4;
@@ -221,7 +224,7 @@ inline void SwapEndian32(T& data)
 
 // Interprets data, an array dataSizeBytes long, as an array of elements of size
 // typeSizeBytes. Then swaps the endianness of each element.
-inline void SwapEndianGeneral(size_t dataSizeBytes, void* data, uint32_t typeSizeBytes)
+void SwapEndianGeneral(size_t dataSizeBytes, void* data, uint32_t typeSizeBytes)
 {
   if(typeSizeBytes == 0 || typeSizeBytes == 1)
   {
@@ -242,12 +245,12 @@ inline void SwapEndianGeneral(size_t dataSizeBytes, void* data, uint32_t typeSiz
   }
 }
 
-static_assert(sizeof(char) == sizeof(uint8_t), "Things will probably go wrong in nv_ktx code with istream reads if chars aren't bytes.");
+static_assert(CHAR_BIT == 8, "Things will probably go wrong in nv_ktx code with istream reads if chars aren't 8 bits.");
 
-inline ErrorWithText ReadKeyValueData(std::istream&                             input,
-                                      uint32_t                                  kvdByteLength,
-                                      bool                                      srcIsBigEndian,
-                                      std::map<std::string, std::vector<char>>& outKeyValueData)
+ErrorWithText ReadKeyValueData(std::istream&                             input,
+                               uint32_t                                  kvdByteLength,
+                               bool                                      srcIsBigEndian,
+                               std::map<std::string, std::vector<char>>& outKeyValueData)
 {
   std::vector<char> kvBlock;
   UNWRAP_ERROR(ResizeVectorOrError(kvBlock, kvdByteLength));
@@ -320,7 +323,7 @@ inline ErrorWithText ReadKeyValueData(std::istream&                             
 // using ASTC blocks of size `blockWidth` x `blockHeight` x `blockDepth`. Returns false
 // if the calculation would overflow, and returns true and stores the result in
 // `out` otherwise.
-inline bool ASTCSize(size_t blockWidth, size_t blockHeight, size_t blockDepth, size_t width, size_t height, size_t depth, size_t& out)
+bool ASTCSize(size_t blockWidth, size_t blockHeight, size_t blockDepth, size_t width, size_t height, size_t depth, size_t& out)
 {
   return checked_math::mul4(((width + blockWidth - 1) / blockWidth),     // # of ASTC blocks along the x axis
                             ((height + blockHeight - 1) / blockHeight),  // # of ASTC blocks along the y axis
@@ -331,7 +334,7 @@ inline bool ASTCSize(size_t blockWidth, size_t blockHeight, size_t blockDepth, s
 
 // Returns the size of a width x height x depth image of the given VkFormat.
 // Returns an error if the given image sizes are strictly invalid.
-inline ErrorWithText ExportSize(size_t width, size_t height, size_t depth, VkFormat format, size_t& outSize)
+ErrorWithText ExportSize(size_t width, size_t height, size_t depth, VkFormat format, size_t& outSize)
 {
   static const char* overflow_error_message =
       "Invalid file: One of the subresources had a size that would require more than 2^64-1 bytes of data!";
@@ -595,7 +598,7 @@ inline ErrorWithText ExportSize(size_t width, size_t height, size_t depth, VkFor
   }
 }
 
-inline ErrorWithText ExportSizeExtended(size_t width, size_t height, size_t depth, VkFormat format, size_t& outSize, CustomExportSizeFuncPtr extra_callback)
+ErrorWithText ExportSizeExtended(size_t width, size_t height, size_t depth, VkFormat format, size_t& outSize, CustomExportSizeFuncPtr extra_callback)
 {
   const ErrorWithText builtin_result = ExportSize(width, height, depth, format, outSize);
   if(!builtin_result.has_value() || extra_callback == nullptr)
@@ -614,7 +617,7 @@ inline ErrorWithText ExportSizeExtended(size_t width, size_t height, size_t dept
 
 // Used in the KTX1 reader to determine the default transfer function for a
 // VkFormat, since KTX1 doesn't have the Data Format Descriptor.
-inline bool IsKTX1FormatSRGBByDefault(VkFormat format)
+bool IsKTX1FormatSRGBByDefault(VkFormat format)
 {
   switch(format)
   {
@@ -688,9 +691,10 @@ struct KTX1TopLevelHeader
   uint32_t numberOfMipmapLevels;
   uint32_t bytesOfKeyValueData;
 };
+}  // namespace
 
 // Reads a KTX 1.0 file, *starting after the 12-byte identifier*.
-inline ErrorWithText KTXImage::readFromKTX1Stream(std::istream& input, const ReadSettings& readSettings)
+ErrorWithText KTXImage::readFromKTX1Stream(std::istream& input, const ReadSettings& readSettings)
 {
   size_t validation_input_size = 0;
   if(readSettings.validate_input_size)
@@ -943,12 +947,12 @@ struct ScopedZstdDContext
 {
   ScopedZstdDContext() {}
   ~ScopedZstdDContext() { Free(); }
-  inline void Init()
+  void Init()
   {
     Free();
     pCtx = ZSTD_createDCtx();
   }
-  inline void Free()
+  void Free()
   {
     if(pCtx != nullptr)
     {
@@ -964,12 +968,12 @@ struct ScopedZstdCContext
 {
   ScopedZstdCContext() {}
   ~ScopedZstdCContext() { Free(); }
-  inline void Init()
+  void Init()
   {
     Free();
     pCtx = ZSTD_createCCtx();
   }
-  inline void Free()
+  void Free()
   {
     if(pCtx != nullptr)
     {
@@ -987,7 +991,7 @@ struct ScopedZlibDStream
 {
   ScopedZlibDStream() {}
   ~ScopedZlibDStream() { Free(); }
-  inline int Init()
+  int Init()
   {
     Free();
     stream.zalloc   = Z_NULL;
@@ -997,8 +1001,8 @@ struct ScopedZlibDStream
     stream.next_in  = Z_NULL;
     return inflateInit(&stream);
   }
-  inline void Free() { inflateEnd(&stream); }
-  z_stream    stream{};
+  void     Free() { inflateEnd(&stream); }
+  z_stream stream{};
 };
 #endif
 
@@ -1235,7 +1239,7 @@ static_assert(sizeof(VkFormat) == sizeof(uint32_t), "VkFormat size must match KT
 static_assert(sizeof(KTX2TopLevelHeader) == 68, "KTX2 top-level header size must match spec! Padding issue?");
 
 // Reads a KTX 2.0 file, *starting after the 12-byte identifier*.
-inline ErrorWithText KTXImage::readFromKTX2Stream(std::istream& input, const ReadSettings& readSettings)
+ErrorWithText KTXImage::readFromKTX2Stream(std::istream& input, const ReadSettings& readSettings)
 {
   // Get the position of the start of the file in the stream so that we can add
   // padding correctly later.
@@ -2016,9 +2020,10 @@ inline ErrorWithText KTXImage::readFromKTX2Stream(std::istream& input, const Rea
 //-----------------------------------------------------------------------------
 // Writing functions
 
+namespace {
 // Sets the Data Format Descriptor information for ASTC LDR formats given the
 // size of the block. Doesn't change the transfer function and flags.
-inline void SetASTCFlags(uint8_t xsize, uint8_t ysize, BasicDataFormatDescriptor& descriptor, std::vector<DFSample>& samples)
+void SetASTCFlags(uint8_t xsize, uint8_t ysize, BasicDataFormatDescriptor& descriptor, std::vector<DFSample>& samples)
 {
   descriptor.colorModel     = KHR_DF_MODEL_ASTC;
   descriptor.colorPrimaries = KHR_DF_PRIMARIES_BT709;
@@ -2036,12 +2041,12 @@ inline void SetASTCFlags(uint8_t xsize, uint8_t ysize, BasicDataFormatDescriptor
 }
 
 template <class T>
-inline size_t SizeofVector(const std::vector<T>& vec)
+size_t SizeofVector(const std::vector<T>& vec)
 {
   return vec.size() * sizeof(T);
 }
 
-inline std::vector<char> StringToCharVector(const std::string& str)
+std::vector<char> StringToCharVector(const std::string& str)
 {
   const char*  cString        = str.c_str();
   const size_t strlenWithZero = str.size() + 1;
@@ -2049,7 +2054,7 @@ inline std::vector<char> StringToCharVector(const std::string& str)
 }
 
 // Returns the least common multiple of n and 4.
-inline size_t LCM4(size_t n)
+size_t LCM4(size_t n)
 {
   if(n % 4 == 0)
   {
@@ -2064,9 +2069,10 @@ inline size_t LCM4(size_t n)
     return n * 4;
   }
 }
+}  // namespace
 
 
-inline ErrorWithText KTXImage::writeKTX2Stream(std::ostream& output, const WriteSettings& writeSettings)
+ErrorWithText KTXImage::writeKTX2Stream(std::ostream& output, const WriteSettings& writeSettings)
 {
   // This function is more difficult than DDS writing, since the header
   // contains offsets into the rest of the file.
@@ -3146,7 +3152,7 @@ inline ErrorWithText KTXImage::writeKTX2Stream(std::ostream& output, const Write
   return {};
 }
 
-inline ErrorWithText KTXImage::writeKTX2File(const char* filename, const WriteSettings& writeSettings)
+ErrorWithText KTXImage::writeKTX2File(const char* filename, const WriteSettings& writeSettings)
 {
   std::ofstream output(filename, std::ofstream::binary | std::ofstream::out | std::ofstream::trunc);
   return writeKTX2Stream(output, writeSettings);
@@ -3156,7 +3162,7 @@ inline ErrorWithText KTXImage::writeKTX2File(const char* filename, const WriteSe
 // KTX1/KTX2 READING BRANCH
 //-----------------------------------------------------------------------------
 
-inline ErrorWithText KTXImage::readFromStream(std::istream& input, const ReadSettings& readSettings)
+ErrorWithText KTXImage::readFromStream(std::istream& input, const ReadSettings& readSettings)
 {
   // Read the identifier.
   uint8_t identifier[IDENTIFIER_LEN]{};
@@ -3181,7 +3187,7 @@ inline ErrorWithText KTXImage::readFromStream(std::istream& input, const ReadSet
   return "Not a KTX1 or KTX2 file (first 12 bytes weren't a valid identifier).";
 }
 
-inline ErrorWithText KTXImage::readFromFile(const char* filename, const ReadSettings& readSettings)
+ErrorWithText KTXImage::readFromFile(const char* filename, const ReadSettings& readSettings)
 {
   std::ifstream input_stream(filename, std::ifstream::in | std::ifstream::binary);
   return readFromStream(input_stream, readSettings);

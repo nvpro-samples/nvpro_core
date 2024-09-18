@@ -24,8 +24,9 @@
 #include <sstream>
 #include "stb_image.h"
 
-#include "fileformats/texture_formats.h"
 #include "fileformats/nv_dds.h"
+#include "fileformats/nv_ktx.h"
+#include "fileformats/texture_formats.h"
 #include "fileformats/tinygltf_utils.hpp"
 #include "nvh/gltfscene.hpp"
 #include "nvh/parallel_work.hpp"
@@ -561,7 +562,7 @@ void nvvkhl::SceneVk::createTextureImages(VkCommandBuffer cmd, const tinygltf::M
     m_dutil->setObjectName(m_images[idx].nvvkImage.image, "Dummy");
   };
 
-  // Make dummy texture/image(1,1), needed as we cannot have an empty array
+  // Adds a texture that points to image 0, so that every texture points to some image.
   auto addDefaultTexture = [&]() {
     assert(!m_images.empty());
     SceneImage&           scn_image = m_images[0];
@@ -603,14 +604,7 @@ void nvvkhl::SceneVk::createTextureImages(VkCommandBuffer cmd, const tinygltf::M
   for(size_t i = 0; i < model.textures.size(); i++)
   {
     const auto& texture      = model.textures[i];
-    int         source_image = texture.source;
-
-    // MSFT_texture_dds: if the texture is a DDS file, we need to get the source image from the extension
-    if(tinygltf::utils::hasElementName(texture.extensions, MSFT_TEXTURE_DDS_NAME))
-    {
-      const tinygltf::Value& ext = tinygltf::utils::getElementValue(texture.extensions, MSFT_TEXTURE_DDS_NAME);
-      tinygltf::utils::getValue(ext, "source", source_image);
-    }
+    int         source_image = tinygltf::utils::getTextureImageIndex(texture);
 
     if(source_image >= model.images.size() || source_image < 0)
     {
@@ -640,7 +634,10 @@ void nvvkhl::SceneVk::findSrgbImages(const tinygltf::Model& model)
   // Lambda helper functions
   auto addImage = [&](int texID) {
     if(texID > -1)
-      m_sRgbImages.insert(model.textures[texID].source);
+    {
+      const tinygltf::Texture& texture = model.textures[texID];
+      m_sRgbImages.insert(tinygltf::utils::getTextureImageIndex(texture));
+    }
   };
 
   // For images in extensions
@@ -679,7 +676,7 @@ void nvvkhl::SceneVk::findSrgbImages(const tinygltf::Model& model)
     const auto& texture = model.textures[texID];
     if(texture.extras.Has("gamma") && texture.extras.Get("gamma").GetNumberAsDouble() > 1.0)
     {
-      m_sRgbImages.insert(texture.source);
+      m_sRgbImages.insert(tinygltf::utils::getTextureImageIndex(texture));
     }
   }
 }
@@ -704,16 +701,16 @@ void nvvkhl::SceneVk::loadImage(const std::filesystem::path& basedir, const tiny
   }
   std::string imgName = uri.filename().string();
   image.imgName       = imgName;
-  std::string img_uri = fs::path(basedir / uri).string();
+  std::string imgURI  = fs::path(basedir / uri).string();
 
   if(extension == ".dds")
   {
     nv_dds::Image         ddsImage;
     nv_dds::ReadSettings  settings{.mips = false};
-    nv_dds::ErrorWithText readResult = ddsImage.readFromFile(img_uri.c_str(), settings);
+    nv_dds::ErrorWithText readResult = ddsImage.readFromFile(imgURI.c_str(), settings);
     if(readResult.has_value())
     {
-      LOGE("Failed to read %s: %s\n", img_uri.c_str(), readResult.value().c_str());
+      LOGE("Failed to read %s using nv_dds: %s\n", imgURI.c_str(), readResult.value().c_str());
       return;
     }
 
@@ -747,6 +744,40 @@ void nvvkhl::SceneVk::loadImage(const std::filesystem::path& basedir, const tiny
     const uint8_t*             mip0Bytes = reinterpret_cast<const uint8_t*>(mip0.data.data());
     image.mipData                        = {{mip0Bytes, mip0Bytes + mip0.data.size()}};
   }
+  else if(extension == ".ktx" || extension == ".ktx2")
+  {
+    nv_ktx::KTXImage           ktxImage;
+    const nv_ktx::ReadSettings ktxReadSettings;
+    nv_ktx::ErrorWithText      maybeError = ktxImage.readFromFile(imgURI.c_str(), ktxReadSettings);
+    if(maybeError.has_value())
+    {
+      LOGE("Failed to read %s using nv_ktx: %s\n", imgURI.c_str(), maybeError->c_str());
+    }
+
+    image.srgb        = is_srgb;
+    image.size.width  = ktxImage.mip_0_width;
+    image.size.height = ktxImage.mip_0_height;
+    if(ktxImage.mip_0_depth > 1)
+    {
+      LOGE("This KTX image had a depth of %u, but loadImage() cannot handle volume textures.\n", ktxImage.mip_0_depth);
+      return;
+    }
+    if(ktxImage.num_faces > 1)
+    {
+      LOGE("This KTX image had %u faces, but loadImage() cannot handle cubemaps.\n", ktxImage.num_faces);
+      return;
+    }
+    if(ktxImage.num_layers_possibly_0 > 1)
+    {
+      LOGE("This KTX image had %u array elements, but loadImage() cannot handle array textures.\n", ktxImage.num_layers_possibly_0);
+      return;
+    }
+    image.format = texture_formats::tryForceVkFormatTransferFunction(ktxImage.format, image.srgb);
+
+    const std::vector<char>& mip0      = ktxImage.subresource(0, 0, 0);
+    const uint8_t*           mip0Bytes = reinterpret_cast<const uint8_t*>(mip0.data());
+    image.mipData                      = {{mip0Bytes, mip0Bytes + mip0.size()}};
+  }
   else if(!extension.empty())
   {
     stbi_uc* data;
@@ -754,27 +785,27 @@ void nvvkhl::SceneVk::loadImage(const std::filesystem::path& basedir, const tiny
 
     // Read the header once to check how many channels it has. We can't trivially use RGB/VK_FORMAT_R8G8B8_UNORM and
     // need to set req_comp=4 in such cases.
-    if(!stbi_info(img_uri.c_str(), &w, &h, &comp))
+    if(!stbi_info(imgURI.c_str(), &w, &h, &comp))
     {
-      LOGE("Failed to read %s\n", img_uri.c_str());
+      LOGE("Failed to read %s\n", imgURI.c_str());
       return;
     }
 
     // Read the header again to check if it has 16 bit data, e.g. for a heightmap.
-    bool is_16Bit = stbi_is_16_bit(img_uri.c_str());
+    bool is_16Bit = stbi_is_16_bit(imgURI.c_str());
 
     // Load the image
     size_t bytes_per_pixel;
     int    req_comp = comp == 1 ? 1 : 4;
     if(is_16Bit)
     {
-      auto data16     = stbi_load_16(img_uri.c_str(), &w, &h, &comp, req_comp);
+      auto data16     = stbi_load_16(imgURI.c_str(), &w, &h, &comp, req_comp);
       bytes_per_pixel = sizeof(*data16) * req_comp;
       data            = reinterpret_cast<stbi_uc*>(data16);
     }
     else
     {
-      data            = stbi_load(img_uri.c_str(), &w, &h, &comp, req_comp);
+      data            = stbi_load(imgURI.c_str(), &w, &h, &comp, req_comp);
       bytes_per_pixel = sizeof(*data) * req_comp;
     }
     switch(req_comp)

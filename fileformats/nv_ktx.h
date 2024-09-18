@@ -317,6 +317,4 @@ private:
 
 }  // namespace nv_ktx
 
-#include "nv_ktx.inl"
-
 #endif

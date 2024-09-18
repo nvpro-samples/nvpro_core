@@ -118,4 +118,5 @@ endif()
 
 set_property(TARGET zlibstatic PROPERTY FOLDER "ThirdParty")
 target_include_directories(zlibstatic INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/zlib" ${CMAKE_CURRENT_BINARY_DIR})
-
+# Make targets linking with zlibstatic compile with NVP_SUPPORTS_GZLIB
+target_compile_definitions(zlibstatic INTERFACE NVP_SUPPORTS_GZLIB)

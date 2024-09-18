@@ -759,6 +759,10 @@ inline KHR_texture_transform getTextureTransform(const T& tinfo)
   return gmat;
 }
 
+// Retrieves the image index of a texture, accounting for extensions such as
+// MSFT_texture_dds and KHR_texture_basisu.
+int getTextureImageIndex(const tinygltf::Texture& texture);
+
 }  // namespace utils
 
 }  // namespace tinygltf

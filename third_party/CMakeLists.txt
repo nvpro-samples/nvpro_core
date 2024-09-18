@@ -134,10 +134,81 @@ if (TARGET cgltf)
   LIST(APPEND THIRDPARTY_LIBRARIES cgltf)
 endif()
 
-#zlib
+# zlib
 if (USING_ZLIB)
   if (NOT TARGET zlibstatic AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/zlib)
     include(zlibstatic.cmake)
+  endif()
+endif()
+
+# Zstandard
+if (USING_ZSTD)
+  set(_ZSTD_DIR ${CMAKE_CURRENT_SOURCE_DIR}/zstd)
+  if ((NOT TARGET libzstd_static) AND (EXISTS ${_ZSTD_DIR}))
+    set(ZSTD_BUILD_PROGRAMS OFF)
+    set(ZSTD_BUILD_SHARED OFF)
+    set(ZSTD_BUILD_STATIC ON)
+    set(ZSTD_BUILD_TESTS OFF) # Since our filtered repository omits tests
+    set(ZSTD_USE_STATIC_RUNTIME ON)
+    add_subdirectory(${_ZSTD_DIR}/build/cmake ${CMAKE_BINARY_DIR}/zstd)
+    target_sources(libzstd_static INTERFACE $<BUILD_INTERFACE:${_ZSTD_DIR}/lib/zstd.h>)
+    target_include_directories(libzstd_static INTERFACE $<BUILD_INTERFACE:${_ZSTD_DIR}/lib>)
+  endif()
+  if (TARGET libzstd_static)
+    # Make targets linking with libzstd_static compile with NVP_SUPPORTS_ZSTD
+    target_compile_definitions(libzstd_static INTERFACE NVP_SUPPORTS_ZSTD)
+    set_target_properties(libzstd_static clean-all uninstall PROPERTIES FOLDER "ThirdParty")
+    # Exclude Zstd's clean-all and uninstall targets from ALL_BUILD and INSTALL;
+    # otherwise, it'll fail when building everything.
+    set_target_properties(clean-all uninstall PROPERTIES
+      EXCLUDE_FROM_ALL 1
+      EXCLUDE_FROM_DEFAULT_BUILD 1
+    )
+  endif()
+endif()
+
+# Basis Universal
+if (USING_BASISU)
+  set(_BASISU_DIR ${CMAKE_CURRENT_SOURCE_DIR}/basis_universal)
+  if ((NOT TARGET basisu) AND (EXISTS ${_BASISU_DIR}))
+    file(GLOB _BASISU_FILES "${_BASISU_DIR}/transcoder/*.*" "${_BASISU_DIR}/encoder/*.*")
+    add_library(basisu STATIC "${_BASISU_FILES}")
+    target_include_directories(basisu INTERFACE "${_BASISU_DIR}/transcoder" "${_BASISU_DIR}/encoder")
+    target_include_directories(basisu PRIVATE "${_BASISU_DIR}")
+  endif()
+  if(TARGET basisu)
+    # basisu.h wants to set the iterator debug level to a different value than the
+    # default for debug performance. However, this can cause it to fail linking.
+    target_compile_definitions(basisu PUBLIC BASISU_NO_ITERATOR_DEBUG_LEVEL=1)
+    # Make targets linking with basisu compile with NVP_SUPPORTS_BASISU
+    target_compile_definitions(basisu INTERFACE NVP_SUPPORTS_BASISU)
+    # Turn off some transcoding formats we don't use to reduce code size by about
+    # 500 KB.
+    target_compile_definitions(basisu PRIVATE
+      BASISD_SUPPORT_ATC=0
+      BASISD_SUPPORT_DXT1=0
+      BASISD_SUPPORT_DXT5A=0
+      BASISD_SUPPORT_ETC2_EAC_A8=0
+      BASISD_SUPPORT_ETC2_EAC_RG11=0
+      BASISD_SUPPORT_FXT1=0
+      BASISD_SUPPORT_PVRTC1=0
+      BASISD_SUPPORT_PVRTC2=0
+    )
+    LIST(APPEND LIBRARIES_OPTIMIZED basisu)
+    LIST(APPEND LIBRARIES_DEBUG basisu)
+    set_property(TARGET basisu PROPERTY FOLDER "ThirdParty")
+    
+    # Set up linking between basisu and its dependencies, so that we always get
+    # a correct linking order on Linux:
+    if(TARGET libzstd_static)
+      target_link_libraries(basisu PUBLIC libzstd_static)
+    else()
+      # If Zstandard isn't included, also turn off Zstd support in Basis:
+      target_compile_definitions(basisu PRIVATE BASISD_SUPPORT_KTX2_ZSTD=0)
+    endif()
+    if(TARGET zlibstatic)
+      target_link_libraries(basisu PUBLIC zlibstatic)
+    endif()
   endif()
 endif()
 

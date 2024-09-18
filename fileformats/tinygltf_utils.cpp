@@ -295,3 +295,26 @@ size_t tinygltf::utils::getIndexCount(const tinygltf::Model& model, const tinygl
   // Return the vertex count when no indices are present
   return getVertexCount(model, primitive);
 }
+
+int tinygltf::utils::getTextureImageIndex(const tinygltf::Texture& texture)
+{
+  int source_image = texture.source;
+
+  // MSFT_texture_dds: if the texture is a DDS file, we need to get the source image from the extension
+  if(hasElementName(texture.extensions, MSFT_TEXTURE_DDS_NAME))
+  {
+    const tinygltf::Value& ext = getElementValue(texture.extensions, MSFT_TEXTURE_DDS_NAME);
+    getValue(ext, "source", source_image);
+  }
+
+  // KHR_texture_basisu: if the texture has this extension, we need to get the source image from that extension.
+  // glTF doesn't specify what happens if both KHR_texture_basisu and MSFT_texture_dds exist;
+  // for now, we arbitrarily prefer the KTX source.
+  if(hasElementName(texture.extensions, KHR_TEXTURE_BASISU_EXTENSION_NAME))
+  {
+    const tinygltf::Value& ext = getElementValue(texture.extensions, KHR_TEXTURE_BASISU_EXTENSION_NAME);
+    getValue(ext, "source", source_image);
+  }
+
+  return source_image;
+}
