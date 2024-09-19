@@ -113,8 +113,10 @@ static nvvkhl_shaders::GltfShadeMaterial getShaderMaterial(const tinygltf::Mater
   dstMat.pbrMetallicFactor           = static_cast<float>(srcMat.pbrMetallicRoughness.metallicFactor);
   dstMat.pbrMetallicRoughnessTexture = getTextureInfo(srcMat.pbrMetallicRoughness.metallicRoughnessTexture);
   dstMat.pbrRoughnessFactor          = static_cast<float>(srcMat.pbrMetallicRoughness.roughnessFactor);
-  dstMat.alphaMode   = srcMat.alphaMode == "OPAQUE" ? 0 : (srcMat.alphaMode == "MASK" ? 1 : 2 /*BLEND*/);
-  dstMat.alphaCutoff = static_cast<float>(srcMat.alphaCutoff);
+  dstMat.alphaMode         = srcMat.alphaMode == "OPAQUE" ? 0 : (srcMat.alphaMode == "MASK" ? 1 : 2 /*BLEND*/);
+  dstMat.alphaCutoff       = static_cast<float>(srcMat.alphaCutoff);
+  dstMat.occlusionStrength = srcMat.occlusionTexture.strength;
+  dstMat.occlusionTexture  = getTextureInfo(srcMat.occlusionTexture);
 
   KHR_materials_transmission transmission = tinygltf::utils::getTransmission(srcMat);
   dstMat.transmissionFactor               = transmission.factor;

@@ -113,25 +113,27 @@ struct GltfShadeMaterial
   vec2  anisotropyRotation;           // offset 124 - 8 bytes
   float sheenRoughnessFactor;         // offset 132 - 4 bytes   - KHR_materials_sheen
   vec3  sheenColorFactor;             // offset 136 - 12 bytes
+  float occlusionStrength;            // offset 148 - 4 bytes   
 
   // Texture infos (32 bytes each)
-  GltfTextureInfo pbrBaseColorTexture;          // offset 148 - 32 bytes
-  GltfTextureInfo normalTexture;                // offset 180 - 32 bytes
-  GltfTextureInfo pbrMetallicRoughnessTexture;  // offset 212 - 32 bytes
-  GltfTextureInfo emissiveTexture;              // offset 244 - 32 bytes
-  GltfTextureInfo transmissionTexture;          // offset 276 - 32 bytes
-  GltfTextureInfo thicknessTexture;             // offset 308 - 32 bytes
-  GltfTextureInfo clearcoatTexture;             // offset 340 - 32 bytes
-  GltfTextureInfo clearcoatRoughnessTexture;    // offset 372 - 32 bytes
-  GltfTextureInfo clearcoatNormalTexture;       // offset 404 - 32 bytes
-  GltfTextureInfo specularTexture;              // offset 436 - 32 bytes
-  GltfTextureInfo specularColorTexture;         // offset 468 - 32 bytes
-  GltfTextureInfo iridescenceTexture;           // offset 500 - 32 bytes
-  GltfTextureInfo iridescenceThicknessTexture;  // offset 532 - 32 bytes
-  GltfTextureInfo anisotropyTexture;            // offset 564 - 32 bytes
-  GltfTextureInfo sheenColorTexture;            // offset 596 - 32 bytes
-  GltfTextureInfo sheenRoughnessTexture;        // offset 628 - 32 bytes
-};                                              // Total size: 660 bytes
+  GltfTextureInfo pbrBaseColorTexture;          // offset 152 - 32 bytes
+  GltfTextureInfo normalTexture;                // offset 184 - 32 bytes
+  GltfTextureInfo pbrMetallicRoughnessTexture;  // offset 216 - 32 bytes
+  GltfTextureInfo emissiveTexture;              // offset 248 - 32 bytes
+  GltfTextureInfo transmissionTexture;          // offset 280 - 32 bytes
+  GltfTextureInfo thicknessTexture;             // offset 312 - 32 bytes
+  GltfTextureInfo clearcoatTexture;             // offset 344 - 32 bytes
+  GltfTextureInfo clearcoatRoughnessTexture;    // offset 376 - 32 bytes
+  GltfTextureInfo clearcoatNormalTexture;       // offset 408 - 32 bytes
+  GltfTextureInfo specularTexture;              // offset 440 - 32 bytes
+  GltfTextureInfo specularColorTexture;         // offset 472 - 32 bytes
+  GltfTextureInfo iridescenceTexture;           // offset 504 - 32 bytes
+  GltfTextureInfo iridescenceThicknessTexture;  // offset 536 - 32 bytes
+  GltfTextureInfo anisotropyTexture;            // offset 568 - 32 bytes
+  GltfTextureInfo sheenColorTexture;            // offset 600 - 32 bytes
+  GltfTextureInfo sheenRoughnessTexture;        // offset 632 - 32 bytes
+  GltfTextureInfo occlusionTexture;             // offset 664 - 32 bytes
+};                                              // Total size: 696 bytes
 
 
 INLINE GltfTextureInfo defaultGltftextureInfo()

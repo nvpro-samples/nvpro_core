@@ -703,6 +703,10 @@ void bsdfEvaluate(INOUT_TYPE(BsdfEvaluateData) data, PbrMaterial mat)
   {
     brdf_sheen_eval(data, mat);
   }
+
+  // Occlusion effect (glTF occlusion texture)
+  data.bsdf_diffuse *= mat.occlusion;
+  data.bsdf_glossy *= mat.occlusion;
 }
 
 /** @DOC_START

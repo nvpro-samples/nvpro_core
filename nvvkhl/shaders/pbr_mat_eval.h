@@ -88,6 +88,12 @@ PbrMaterial evaluateMaterial(in GltfShadeMaterial material, MeshState mesh)
   pbrMat.baseColor = baseColor.rgb;
   pbrMat.opacity   = baseColor.a;
 
+  pbrMat.occlusion = material.occlusionStrength;
+  if(isTexturePresent(material.occlusionTexture))
+  {
+    float occlusion  = getTexture(material.occlusionTexture, mesh).r;
+    pbrMat.occlusion = 1.0 + pbrMat.occlusion * (occlusion - 1.0);
+  }
 
   // Metallic-Roughness
   float roughness = material.pbrRoughnessFactor;

@@ -31,6 +31,7 @@ struct PbrMaterial
   vec2  roughness;  // 0 = smooth, 1 = rough (anisotropic: x = U, y = V)
   float metallic;   // 0 = dielectric, 1 = metallic
   vec3  emissive;   // emissive color
+  float occlusion;  // occlusion factor
 
   vec3 N;   // shading normal
   vec3 T;   // shading normal
