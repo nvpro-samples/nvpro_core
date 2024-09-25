@@ -165,6 +165,16 @@ KHR_materials_iridescence tinygltf::utils::getIridescence(const tinygltf::Materi
   return gmat;
 }
 
+KHR_materials_dispersion tinygltf::utils::getDispersion(const tinygltf::Material& tmat)
+{
+  KHR_materials_dispersion gmat;
+  if(tinygltf::utils::hasElementName(tmat.extensions, KHR_MATERIALS_DISPERSION_EXTENSION_NAME))
+  {
+    const tinygltf::Value& ext = tinygltf::utils::getElementValue(tmat.extensions, KHR_MATERIALS_DISPERSION_EXTENSION_NAME);
+    tinygltf::utils::getValue(ext, "dispersion", gmat.dispersion);
+  }
+  return gmat;
+}
 
 tinygltf::Value tinygltf::utils::convertToTinygltfValue(int numElements, const float* elements)
 {

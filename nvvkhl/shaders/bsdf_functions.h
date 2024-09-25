@@ -361,12 +361,101 @@ void brdf_ggx_smith_sample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat, con
   data.bsdf_over_pdf *= tint;
 }
 
+/*
+ * In rare cases (mainly dispersion), we need to get an additional random
+ * number. This function takes a random number and applies the hash function
+ * from pcg_output_rxs_m_xs_32_32 to it.
+ * Its quality hasn't been tested and it's not very principled, but it's better
+ * than using a random number that's correlated with material sampling.
+*/
+float rerandomize(float v)
+{
+  uint word = floatBitsToUint(v);
+  word      = ((word >> ((word >> 28) + 4)) ^ word) * 277803737U;
+  word      = (word >> 22) ^ word;
+  return float(word) / uintBitsToFloat(0x4f800000U);
+}
 
-void btdf_ggx_smith_eval(INOUT_TYPE(BsdfEvaluateData) data, PbrMaterial mat, const vec3 tint)
+/**
+ * Calculates the IOR at a given wavelength (in nanometers) given the base IOR
+ * and glTF dispersion factor.
+ * This function calculates the IOR for red, green, and blue wavelengths by spreading the base IOR
+ * according to the dispersion factor. The dispersion factor determines how much the IOR varies
+ * across different wavelengths. See: 
+*/
+float compute_dispersed_ior(float base_ior, float dispersion, float wavelength_nm)
+{
+  // Since the glTF extension stores 20 / V_d
+  float abbeNumber = 20.0F / dispersion;
+  // Last equation of https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_materials_dispersion
+  return max(base_ior + (base_ior - 1.0F) * (523655.0F / (wavelength_nm * wavelength_nm) - 1.5168F) / abbeNumber, 1.0F);
+}
+
+/**
+ * Given a wavelength of light, returns an approximation to the linear RGB
+ * color of a D65 illuminant (sRGB whitepoint) sampled at a wavelength of `x`
+ * nanometers.
+ *
+ * This is normalized so that sum(dispersion_tint(i), {i, 350, 750}) == vec3(1.),
+ * which means that the values it returns are usually low. You'll need to multiply
+ * by an appropriate normalization factor if you're randomly sampling it.
+ *
+ * Additionally, note that this sometimes returns negative values. This is
+ * because perfect wavelengths of light are outside the sRGB gamut.
+ */
+#define WAVELENGTH_MIN 399.43862850585765F
+#define WAVELENGTH_MAX 668.6617899434457F
+vec3 dispersion_tint(float x)
+{
+  // This uses a piecewise-linear approximation generated using the CIE 2015
+  // 2-degree standard observer times the D65 illuminant, minimizing the L2
+  // norm, then normalized to have an integral of 1.
+  vec3 rgb = vec3(0.);
+  if(399.43862850585765 < x)
+  {
+    if(x < 435.3450352446586)
+      rgb.r = 2.6268757476158464e-05 * x + -0.010492756458829732;
+    else if(x < 452.7741480943567)
+      rgb.r = -5.383671438883332e-05 * x + 0.024380763013525125;
+    else if(x < 550.5919453498173)
+      rgb.r = 1.2536207000814165e-07 * x + -5.187018452935683e-05;
+    else if(x < 600.8694441891222)
+      rgb.r = 0.00032842519537482 * x + -0.18081111406184644;
+    else if(x < 668.6617899434457)
+      rgb.r = -0.0002438262071743009 * x + 0.16303726812428945;
+  }
+  if(467.41924217251835 < x)
+  {
+    if(x < 532.3927928594046)
+      rgb.g = 0.00020126149345609334 * x + -0.0940734947497564;
+    else if(x < 552.5312202450474)
+      rgb.g = -4.3718474429905034e-05 * x + 0.03635207454767751;
+    else if(x < 605.5304635656746)
+      rgb.g = -0.00023012125757884968 * x + 0.13934543177803685;
+  }
+  if(400.68666327204835 < x)
+  {
+    if(x < 447.59688835108466)
+      rgb.b = 0.00042519082480799777 * x + -0.1703682928462067;
+    else if(x < 501.2110070697423)
+      rgb.b = -0.00037202508909921054 * x + 0.18646306956262593;
+  }
+  return rgb;
+}
+
+
+void btdf_ggx_smith_eval(INOUT_TYPE(BsdfEvaluateData) data, PbrMaterial mat, vec3 tint)
 {
   bool isThinWalled = (mat.thickness == 0.0f);
 
-  const vec2 ior = vec2(mat.ior1, mat.ior2);
+  vec2 ior = vec2(mat.ior1, mat.ior2);
+  if(mat.dispersion > 0.0f)
+  {
+    // Randomly choose a wavelength; for now, uniformly choose from 399-669 nm.
+    float wavelength = mix(WAVELENGTH_MIN, WAVELENGTH_MAX, rerandomize(data.xi.z));
+    ior.x            = compute_dispersed_ior(ior.x, mat.dispersion, wavelength);
+    tint *= (WAVELENGTH_MAX - WAVELENGTH_MIN) * dispersion_tint(wavelength);
+  }
 
   const float nk1 = abs(dot(data.k1, mat.N));
   const float nk2 = abs(dot(data.k2, mat.N));
@@ -444,7 +533,8 @@ void btdf_ggx_smith_eval(INOUT_TYPE(BsdfEvaluateData) data, PbrMaterial mat, con
   data.bsdf_glossy = bsdf * tint;
 }
 
-void btdf_ggx_smith_sample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat, const vec3 tint)
+
+void btdf_ggx_smith_sample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat, vec3 tint)
 {
   bool isThinWalled = (mat.thickness == 0.0f);
 
@@ -453,7 +543,14 @@ void btdf_ggx_smith_sample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat, con
   data.bsdf_over_pdf = vec3(0.0f);
   data.pdf           = 0.0f;
 
-  const vec2 ior = vec2(mat.ior1, mat.ior2);
+  vec2 ior = vec2(mat.ior1, mat.ior2);
+  if(mat.dispersion > 0.0f)
+  {
+    // Randomly choose a wavelength; for now, uniformly choose from 361-716 nm.
+    float wavelength = mix(WAVELENGTH_MIN, WAVELENGTH_MAX, rerandomize(data.xi.z));
+    ior.x            = compute_dispersed_ior(ior.x, mat.dispersion, wavelength);
+    tint *= (WAVELENGTH_MAX - WAVELENGTH_MIN) * dispersion_tint(wavelength);
+  }
 
   const float nk1 = abs(dot(data.k1, mat.N));
 

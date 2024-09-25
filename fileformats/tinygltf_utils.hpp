@@ -170,6 +170,13 @@ struct KHR_materials_iridescence
   tinygltf::TextureInfo iridescenceThicknessTexture = {};
 };
 
+// https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Khronos/KHR_materials_dispersion
+#define KHR_MATERIALS_DISPERSION_EXTENSION_NAME "KHR_materials_dispersion"
+struct KHR_materials_dispersion
+{
+  float dispersion = 0.0f;
+};
+
 
 namespace tinygltf {
 
@@ -741,6 +748,7 @@ KHR_materials_volume            getVolume(const tinygltf::Material& tmat);
 KHR_materials_displacement      getDisplacement(const tinygltf::Material& tmat);
 KHR_materials_emissive_strength getEmissiveStrength(const tinygltf::Material& tmat);
 KHR_materials_iridescence       getIridescence(const tinygltf::Material& tmat);
+KHR_materials_dispersion        getDispersion(const tinygltf::Material& tmat);
 
 template <typename T>
 inline KHR_texture_transform getTextureTransform(const T& tinfo)

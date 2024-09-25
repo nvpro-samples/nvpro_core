@@ -41,6 +41,7 @@ struct PbrMaterial
 
   float ior1;  // index of refraction : current medium (i.e. air)
   float ior2;  // index of refraction : the other side (i.e. glass)
+  float dispersion;  // KHR_materials_specular
 
   float specular;       // weight of the dielectric specular layer
   vec3  specularColor;  // color of the dielectric specular layer

@@ -264,6 +264,9 @@ PbrMaterial evaluateMaterial(in GltfShadeMaterial material, MeshState mesh)
   sheenRoughness        = max(MICROFACET_MIN_ROUGHNESS, sheenRoughness);
   pbrMat.sheenRoughness = sheenRoughness;
 
+  // KHR_materials_dispersion
+  pbrMat.dispersion = material.dispersion;
+
   return pbrMat;
 }
 

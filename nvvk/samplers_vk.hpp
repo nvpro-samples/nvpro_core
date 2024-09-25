@@ -125,7 +125,7 @@ VkSamplerCreateInfo makeSamplerCreateInfo(VkFilter             magFilter        
                                           float                maxAnisotropy    = 16,
                                           VkSamplerMipmapMode  mipmapMode       = VK_SAMPLER_MIPMAP_MODE_LINEAR,
                                           float                minLod           = 0.0f,
-                                          float                maxLod           = FLT_MAX,
+                                          float                maxLod           = VK_LOD_CLAMP_NONE,
                                           float                mipLodBias       = 0.0f,
                                           VkBool32             compareEnable    = VK_FALSE,
                                           VkCompareOp          compareOp        = VK_COMPARE_OP_ALWAYS,

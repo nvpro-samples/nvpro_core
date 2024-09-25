@@ -169,6 +169,9 @@ static nvvkhl_shaders::GltfShadeMaterial getShaderMaterial(const tinygltf::Mater
   dstMat.sheenRoughnessFactor  = sheen.sheenRoughnessFactor;
   dstMat.sheenRoughnessTexture = getTextureInfo(sheen.sheenRoughnessTexture);
 
+  KHR_materials_dispersion dispersion = tinygltf::utils::getDispersion(srcMat);
+  dstMat.dispersion                   = dispersion.dispersion;
+
   return dstMat;
 }
 
@@ -505,7 +508,7 @@ static VkSamplerCreateInfo getSampler(const tinygltf::Model& model, int index)
   samplerInfo.minFilter  = VK_FILTER_LINEAR;
   samplerInfo.magFilter  = VK_FILTER_LINEAR;
   samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-  samplerInfo.maxLod     = FLT_MAX;
+  samplerInfo.maxLod     = VK_LOD_CLAMP_NONE;
 
   if(index < 0)
     return samplerInfo;
@@ -550,7 +553,7 @@ void nvvkhl::SceneVk::createTextureImages(VkCommandBuffer cmd, const tinygltf::M
   default_sampler.minFilter  = VK_FILTER_LINEAR;
   default_sampler.magFilter  = VK_FILTER_LINEAR;
   default_sampler.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-  default_sampler.maxLod     = FLT_MAX;
+  default_sampler.maxLod     = VK_LOD_CLAMP_NONE;
 
   // Find and all textures/images that should be sRgb encoded.
   findSrgbImages(model);
@@ -572,6 +575,15 @@ void nvvkhl::SceneVk::createTextureImages(VkCommandBuffer cmd, const tinygltf::M
     m_textures.emplace_back(m_alloc->createTexture(scn_image.nvvkImage, iv_info, default_sampler));
   };
 
+  // Collect images that are in use by textures
+  // If an image is not used, it will not be loaded. Instead, a dummy image will be created to avoid modifying the texture image source index.
+  std::set<int> usedImages;
+  for(const auto& texture : model.textures)
+  {
+    int source_image = tinygltf::utils::getTextureImageIndex(texture);
+    usedImages.insert(source_image);
+  }
+
   // Load images in parallel
   m_images.resize(model.images.size());
   uint32_t          num_threads = std::min((uint32_t)model.images.size(), std::thread::hardware_concurrency());
@@ -579,6 +591,8 @@ void nvvkhl::SceneVk::createTextureImages(VkCommandBuffer cmd, const tinygltf::M
   nvh::parallel_batches<1>(  // Not batching
       model.images.size(),
       [&](uint64_t i) {
+        if(usedImages.find(i) == usedImages.end())
+          return;  // Skip unused images
         const auto& image = model.images[i];
         LOGI("%s(%" PRIu64 ") %s \n", indent.c_str(), i, image.uri.c_str());
         loadImage(basedir, image, static_cast<int>(i));
@@ -707,8 +721,8 @@ void nvvkhl::SceneVk::loadImage(const std::filesystem::path& basedir, const tiny
 
   if(extension == ".dds")
   {
-    nv_dds::Image         ddsImage;
-    nv_dds::ReadSettings  settings{.mips = false};
+    nv_dds::Image         ddsImage{};
+    nv_dds::ReadSettings  settings{};
     nv_dds::ErrorWithText readResult = ddsImage.readFromFile(imgURI.c_str(), settings);
     if(readResult.has_value())
     {
@@ -742,9 +756,12 @@ void nvvkhl::SceneVk::loadImage(const std::filesystem::path& basedir, const tiny
            texture_formats::getDXGIFormatName(ddsImage.dxgiFormat));
     }
 
-    const nv_dds::Subresource& mip0      = ddsImage.subresource(0, 0, 0);
-    const uint8_t*             mip0Bytes = reinterpret_cast<const uint8_t*>(mip0.data.data());
-    image.mipData                        = {{mip0Bytes, mip0Bytes + mip0.data.size()}};
+    // Add all mip-levels
+    for(uint32_t i = 0; i < ddsImage.getNumMips(); i++)
+    {
+      const std::vector<char>& mip = ddsImage.subresource(i, 0, 0).data;
+      image.mipData.emplace_back(mip.data(), mip.data() + mip.size());
+    }
   }
   else if(extension == ".ktx" || extension == ".ktx2")
   {
@@ -776,9 +793,12 @@ void nvvkhl::SceneVk::loadImage(const std::filesystem::path& basedir, const tiny
     }
     image.format = texture_formats::tryForceVkFormatTransferFunction(ktxImage.format, image.srgb);
 
-    const std::vector<char>& mip0      = ktxImage.subresource(0, 0, 0);
-    const uint8_t*           mip0Bytes = reinterpret_cast<const uint8_t*>(mip0.data());
-    image.mipData                      = {{mip0Bytes, mip0Bytes + mip0.size()}};
+    // Add all mip-levels
+    for(uint32_t i = 0; i < ktxImage.num_mips; i++)
+    {
+      const std::vector<char>& mip = ktxImage.subresource(i, 0, 0);
+      image.mipData.emplace_back(mip.data(), mip.data() + mip.size());
+    }
   }
   else if(!extension.empty())
   {
@@ -849,9 +869,8 @@ bool nvvkhl::SceneVk::createImage(const VkCommandBuffer& cmd, SceneImage& image)
   if(image.size.width == 0 || image.size.height == 0)
     return false;
 
-  VkFormat          format            = image.format;
-  VkExtent2D        img_size          = image.size;
-  VkImageCreateInfo image_create_info = nvvk::makeImage2DCreateInfo(img_size, format, VK_IMAGE_USAGE_SAMPLED_BIT, true);
+  VkFormat   format   = image.format;
+  VkExtent2D img_size = image.size;
 
   // Check if we can generate mipmap with the the incoming image
   bool               can_generate_mipmaps = false;
@@ -859,11 +878,18 @@ bool nvvkhl::SceneVk::createImage(const VkCommandBuffer& cmd, SceneImage& image)
   vkGetPhysicalDeviceFormatProperties(m_physicalDevice, format, &format_properties);
   if((format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_BLIT_DST_BIT) == VK_FORMAT_FEATURE_BLIT_DST_BIT)
     can_generate_mipmaps = true;
-  if(image.mipData.size() > 1)  // Use only the number of levels defined
-    image_create_info.mipLevels = (uint32_t)image.mipData.size();
-  if(image.mipData.size() == 1 || can_generate_mipmaps == false)
-    image_create_info.mipLevels = 1;  // Cannot use cmdGenerateMipmaps
+  VkImageCreateInfo image_create_info = nvvk::makeImage2DCreateInfo(img_size, format, VK_IMAGE_USAGE_SAMPLED_BIT);
 
+  // Mip-mapping images were defined (.ktx, .dds), use the number of levels defined
+  if(image.mipData.size() > 1)
+  {
+    image_create_info.mipLevels = static_cast<uint32_t>(image.mipData.size());
+  }
+  else if(can_generate_mipmaps)
+  {
+    // Compute the number of mipmaps levels
+    image_create_info.mipLevels = nvvk::mipLevels(img_size);
+  }
   // Keep info for the creation of the texture
   image.createInfo = image_create_info;
 
@@ -879,7 +905,7 @@ bool nvvkhl::SceneVk::createImage(const VkCommandBuffer& cmd, SceneImage& image)
     // Create all mip-levels
     nvvk::cmdBarrierImageLayout(cmd, result_image.image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
     auto staging = m_alloc->getStaging();
-    for(uint32_t mip = 1; mip < (uint32_t)image.mipData.size(); mip++)
+    for(uint32_t mip = 1; mip < (uint32_t)image_create_info.mipLevels; mip++)
     {
       image_create_info.extent.width  = std::max(1u, image.size.width >> mip);
       image_create_info.extent.height = std::max(1u, image.size.height >> mip);

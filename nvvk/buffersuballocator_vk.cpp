@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2014-2022, NVIDIA CORPORATION.  All rights reserved.
+* Copyright (c) 2014-2024, NVIDIA CORPORATION.  All rights reserved.
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
 * See the License for the specific language governing permissions and
 * limitations under the License.
 *
-* SPDX-FileCopyrightText: Copyright (c) 2014-2022, NVIDIA CORPORATION.
+* SPDX-FileCopyrightText: Copyright (c) 2014-2024, NVIDIA CORPORATION.
 * SPDX-License-Identifier: Apache-2.0
 */
 
@@ -301,6 +301,10 @@ VkResult BufferSubAllocator::allocBlock(Block& block, uint32_t index, VkDeviceSi
 
   MemAllocateInfo memAllocateInfo(memReqs.memoryRequirements, m_memoryPropFlags, false);
   memAllocateInfo.setDebugName(debugName);
+  if(m_bufferUsageFlags & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT)
+  {
+    memAllocateInfo.setAllocationFlags(VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT);
+  }
 
   MemHandle memory = m_memAllocator->allocMemory(memAllocateInfo, &result);
   if(result != VK_SUCCESS)

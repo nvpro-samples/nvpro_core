@@ -86,6 +86,7 @@ struct GltfTextureInfo
   int    texCoord;     // 4 bytes
 };                     // Total: 32 bytes
 
+
 struct GltfShadeMaterial
 {
   vec4  pbrBaseColorFactor;           // offset 0 - 16 bytes    - glTF Core
@@ -114,7 +115,7 @@ struct GltfShadeMaterial
   float sheenRoughnessFactor;         // offset 132 - 4 bytes   - KHR_materials_sheen
   vec3  sheenColorFactor;             // offset 136 - 12 bytes
   float occlusionStrength;            // offset 148 - 4 bytes   
-
+  float dispersion;                   // offset 148 - 4 bytes   - KHR_materials_dispersion
   // Texture infos (32 bytes each)
   GltfTextureInfo pbrBaseColorTexture;          // offset 152 - 32 bytes
   GltfTextureInfo normalTexture;                // offset 184 - 32 bytes
@@ -135,8 +136,7 @@ struct GltfShadeMaterial
   GltfTextureInfo occlusionTexture;             // offset 664 - 32 bytes
 };                                              // Total size: 696 bytes
 
-
-INLINE GltfTextureInfo defaultGltftextureInfo()
+INLINE GltfTextureInfo defaultGltfTextureInfo()
 {
   GltfTextureInfo t;
   t.uvTransform = mat2x3(1);
@@ -150,31 +150,48 @@ INLINE GltfShadeMaterial defaultGltfMaterial()
   GltfShadeMaterial m;
   m.pbrBaseColorFactor          = vec4(1, 1, 1, 1);
   m.emissiveFactor              = vec3(0, 0, 0);
-  m.pbrBaseColorTexture         = defaultGltftextureInfo();
-  m.normalTexture               = defaultGltftextureInfo();
   m.normalTextureScale          = 1;
   m.pbrRoughnessFactor          = 1;
   m.pbrMetallicFactor           = 1;
-  m.pbrMetallicRoughnessTexture = defaultGltftextureInfo();
-  m.emissiveTexture             = defaultGltftextureInfo();
   m.alphaMode                   = ALPHA_OPAQUE;
   m.alphaCutoff                 = 0.5;
   m.transmissionFactor          = 0;
-  m.transmissionTexture         = defaultGltftextureInfo();
   m.ior                         = 1.5;
   m.attenuationColor            = vec3(1, 1, 1);
   m.thicknessFactor             = 0;
-  m.thicknessTexture            = defaultGltftextureInfo();
   m.attenuationDistance         = 0;
   m.clearcoatFactor             = 0;
   m.clearcoatRoughness          = 0;
-  m.clearcoatTexture            = defaultGltftextureInfo();
-  m.clearcoatRoughnessTexture   = defaultGltftextureInfo();
-  m.clearcoatNormalTexture      = defaultGltftextureInfo();
   m.specularFactor              = 0;
-  m.specularTexture             = defaultGltftextureInfo();
   m.specularColorFactor         = vec3(1, 1, 1);
-  m.specularColorTexture        = defaultGltftextureInfo();
+  m.unlit                       = 0;
+  m.iridescenceFactor           = 0;
+  m.iridescenceThicknessMaximum = 100;
+  m.iridescenceThicknessMinimum = 400;
+  m.iridescenceIor              = 1.3f;
+  m.anisotropyStrength          = 0;
+  m.anisotropyRotation          = vec2(0, 0);
+  m.sheenRoughnessFactor        = 0;
+  m.sheenColorFactor            = vec3(0, 0, 0);
+  m.dispersion                  = 0;
+
+  m.pbrBaseColorTexture         = defaultGltfTextureInfo();
+  m.normalTexture               = defaultGltfTextureInfo();
+  m.pbrMetallicRoughnessTexture = defaultGltfTextureInfo();
+  m.emissiveTexture             = defaultGltfTextureInfo();
+  m.transmissionTexture         = defaultGltfTextureInfo();
+  m.thicknessTexture            = defaultGltfTextureInfo();
+  m.clearcoatTexture            = defaultGltfTextureInfo();
+  m.clearcoatRoughnessTexture   = defaultGltfTextureInfo();
+  m.clearcoatNormalTexture      = defaultGltfTextureInfo();
+  m.specularTexture             = defaultGltfTextureInfo();
+  m.specularColorTexture        = defaultGltfTextureInfo();
+  m.iridescenceTexture          = defaultGltfTextureInfo();
+  m.iridescenceThicknessTexture = defaultGltfTextureInfo();
+  m.anisotropyTexture           = defaultGltfTextureInfo();
+  m.sheenColorTexture           = defaultGltfTextureInfo();
+  m.sheenRoughnessTexture       = defaultGltfTextureInfo();
+
   return m;
 }
 

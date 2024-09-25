@@ -50,6 +50,7 @@ static const std::set<std::string> supportedExtensions = {
     "KHR_materials_variants",
     "KHR_materials_volume",
     "KHR_texture_transform",
+    "KHR_materials_dispersion",
     "EXT_mesh_gpu_instancing",
     "NV_attributes_iray",
     "MSFT_texture_dds",

@@ -822,24 +822,24 @@ VkCommandBuffer nvvkhl::Application::createTempCmdBuffer()
   allocate_info.commandPool        = m_cmdPool;
   allocate_info.level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
   VkCommandBuffer cmd_buffer       = nullptr;
-  vkAllocateCommandBuffers(m_device, &allocate_info, &cmd_buffer);
+  NVVK_CHECK(vkAllocateCommandBuffers(m_device, &allocate_info, &cmd_buffer));
 
   VkCommandBufferBeginInfo begin_info{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
   begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-  vkBeginCommandBuffer(cmd_buffer, &begin_info);
+  NVVK_CHECK(vkBeginCommandBuffer(cmd_buffer, &begin_info));
   return cmd_buffer;
 }
 
 // Submit the temporary command buffer
 void nvvkhl::Application::submitAndWaitTempCmdBuffer(VkCommandBuffer cmd)
 {
-  vkEndCommandBuffer(cmd);
+  NVVK_CHECK(vkEndCommandBuffer(cmd));
 
   VkSubmitInfo submit_info{VK_STRUCTURE_TYPE_SUBMIT_INFO};
   submit_info.commandBufferCount = 1;
   submit_info.pCommandBuffers    = &cmd;
-  vkQueueSubmit(m_queues[0].queue, 1, &submit_info, {});
-  vkQueueWaitIdle(m_queues[0].queue);
+  NVVK_CHECK(vkQueueSubmit(m_queues[0].queue, 1, &submit_info, {}));
+  NVVK_CHECK(vkQueueWaitIdle(m_queues[0].queue));
   vkFreeCommandBuffers(m_device, m_cmdPool, 1, &cmd);
 }
 

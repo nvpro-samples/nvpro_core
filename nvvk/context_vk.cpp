@@ -665,8 +665,6 @@ bool Context::initDevice(uint32_t deviceIndex, const ContextCreateInfo& info)
 
   load_VK_EXTENSIONS(m_instance, vkGetInstanceProcAddr, m_device, vkGetDeviceProcAddr);
 
-  nvvk::DebugUtil::setEnabled(hasDebugUtils());
-
   if(hasDeviceExtension(VK_NV_DEVICE_DIAGNOSTIC_CHECKPOINTS_EXTENSION_NAME)
      || hasDeviceExtension(VK_NV_DEVICE_DIAGNOSTICS_CONFIG_EXTENSION_NAME))
   {
@@ -761,8 +759,6 @@ void Context::deinit()
   m_createDebugUtilsMessengerEXT  = nullptr;
   m_destroyDebugUtilsMessengerEXT = nullptr;
   m_dbgMessenger                  = nullptr;
-
-  nvvk::DebugUtil::setEnabled(false);
 }
 
 bool Context::hasDeviceExtension(const char* name) const
