@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2022, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2019-2024, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -131,16 +131,7 @@ nvh::Profiler::SectionID ProfilerVK::beginSection(const char* name, VkCommandBuf
 
   if(useHostReset)
   {
-#if 0
-    if(m_useCoreHostReset)
-    {
-      vkResetQueryPool(m_device, m_queryPool, idx, 2);
-    }
-    else
-#endif
-    {
-      vkResetQueryPoolEXT(m_device, m_queryPool, idx, 2);
-    }
+    vkResetQueryPool(m_device, m_queryPool, idx, 2);
   }
   else
   {

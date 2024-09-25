@@ -88,7 +88,7 @@ namespace nvvk {
 class ProfilerVK : public nvh::Profiler
 {
 public:
-  // hostReset usage depends on VK_EXT_host_query_reset
+  // hostReset usage depends on Vulkan 1.2
   // mandatory for transfer-only queues
 
   //////////////////////////////////////////////////////////////////////////
@@ -145,6 +145,8 @@ public:
 
   // enable debug label per section, requires VK_EXT_debug_utils
   void setLabelUsage(bool state);
+  // enables version related behavior, default 1.0
+  void setVersion(uint32_t major, uint32_t minor);
 
   SectionID beginSection(const char* name, VkCommandBuffer cmd, bool singleShot = false, bool hostReset = false);
   void      endSection(SectionID slot, VkCommandBuffer cmd);
@@ -153,10 +155,8 @@ public:
 
 private:
   void resize();
-  bool m_useLabels = false;
-#if 0
+  bool m_useLabels        = false;
   bool m_useCoreHostReset = false;
-#endif
 
   VkDevice    m_device          = VK_NULL_HANDLE;
   VkQueryPool m_queryPool       = VK_NULL_HANDLE;
