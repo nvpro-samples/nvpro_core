@@ -219,14 +219,16 @@ void nvvkhl::SceneRtx::cmdCreateBuildTopLevelAccelerationStructure(VkCommandBuff
     }
 
     VkDeviceAddress blasAddress = m_blasAccel[object.renderPrimID].address;
+    if(!object.visible)
+      blasAddress = 0;  // The instance is added, but the BLAS is set to null making it invisible
 
     VkAccelerationStructureInstanceKHR asInstance{};
     asInstance.transform           = nvvk::toTransformMatrixKHR(object.worldMatrix);  // Position of the instance
     asInstance.instanceCustomIndex = object.renderPrimID;                             // gl_InstanceCustomIndexEXT
     asInstance.accelerationStructureReference         = blasAddress;                  // The reference to the BLAS
-    asInstance.instanceShaderBindingTableRecordOffset = 0;  // We will use the same hit group for all objects
+    asInstance.instanceShaderBindingTableRecordOffset = 0;     // We will use the same hit group for all objects
+    asInstance.mask                                   = 0x01;  // Visibility mask
     asInstance.flags                                  = instanceFlags;
-    asInstance.mask                                   = 0xFF;  // Visibility mask, always visible
 
     // Storing the instance
     m_tlasInstances.push_back(asInstance);
@@ -274,12 +276,25 @@ void nvvkhl::SceneRtx::cmdCreateBuildTopLevelAccelerationStructure(VkCommandBuff
 void nvvkhl::SceneRtx::updateTopLevelAS(VkCommandBuffer cmd, const nvh::gltf::Scene& scn)
 {
   //nvh::ScopedTimer st(__FUNCTION__);
-  const auto& drawObjects = scn.getRenderNodes();
+  const std::vector<nvh::gltf::RenderNode>& drawObjects = scn.getRenderNodes();
 
+  uint32_t numVisibleElement = 0;
   // Updating all matrices
   for(size_t i = 0; i < drawObjects.size(); i++)
   {
-    m_tlasInstances[i].transform = nvvk::toTransformMatrixKHR(drawObjects[i].worldMatrix);  // Position of the instance
+    auto& object                 = drawObjects[i];
+    m_tlasInstances[i].transform = nvvk::toTransformMatrixKHR(object.worldMatrix);  // Position of the instance
+
+    VkDeviceAddress blasAddress = m_blasAccel[object.renderPrimID].address;
+    if(object.visible)
+    {
+      numVisibleElement++;
+      m_tlasInstances[i].accelerationStructureReference = blasAddress;  // The reference to the BLAS
+    }
+    else
+    {
+      m_tlasInstances[i].accelerationStructureReference = 0;  // Making the instance invisible
+    }
   }
 
   // Update the instance buffer
@@ -296,9 +311,17 @@ void nvvkhl::SceneRtx::updateTopLevelAS(VkCommandBuffer cmd, const nvh::gltf::Sc
                                                 VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
   }
 
-  // Updating the buffer address in the instance
-  m_tlasBuildData.asGeometry[0].geometry.instances.data.deviceAddress = m_instancesBuffer.address;
-  m_tlasBuildData.cmdUpdateAccelerationStructure(cmd, m_tlasAccel.accel, m_tlasScratchBuffer.address);
+  // Building or updating the top-level acceleration structure
+  if(m_numVisibleElement != numVisibleElement)
+  {
+    m_tlasBuildData.cmdBuildAccelerationStructure(cmd, m_tlasAccel.accel, m_tlasScratchBuffer.address);
+  }
+  else
+  {
+    m_tlasBuildData.cmdUpdateAccelerationStructure(cmd, m_tlasAccel.accel, m_tlasScratchBuffer.address);
+  }
+
+  m_numVisibleElement = numVisibleElement;
 
   // Make sure to have the TLAS ready before using it
   nvvk::accelerationStructureBarrier(cmd, VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR, VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR);

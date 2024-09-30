@@ -177,6 +177,11 @@ struct KHR_materials_dispersion
   float dispersion = 0.0f;
 };
 
+#define KHR_NODE_VISIBILITY_EXTENSION_NAME "KHR_node_visibility"
+struct KHR_node_visibility
+{
+  bool visible = true;
+};
 
 namespace tinygltf {
 
@@ -770,6 +775,9 @@ inline KHR_texture_transform getTextureTransform(const T& tinfo)
 // Retrieves the image index of a texture, accounting for extensions such as
 // MSFT_texture_dds and KHR_texture_basisu.
 int getTextureImageIndex(const tinygltf::Texture& texture);
+
+// Retrieves the visibility of current node, not looking for hierarchy
+KHR_node_visibility getNodeVisibility(const tinygltf::Node& node);
 
 }  // namespace utils
 

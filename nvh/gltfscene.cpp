@@ -51,6 +51,7 @@ static const std::set<std::string> supportedExtensions = {
     "KHR_materials_volume",
     "KHR_texture_transform",
     "KHR_materials_dispersion",
+    "KHR_node_visibility",
     "EXT_mesh_gpu_instancing",
     "NV_attributes_iray",
     "MSFT_texture_dds",
@@ -271,6 +272,42 @@ void nvh::gltf::Scene::parseScene()
   // Parse various scene components
   parseVariants();
   parseAnimations();
+
+  // Update the visibility of the render nodes
+  uint32_t renderNodeID = 0;
+  for(const int sceneNode : m_model.scenes[m_currentScene].nodes)
+  {
+    bool visible = tinygltf::utils::getNodeVisibility(m_model.nodes[sceneNode]).visible;
+    updateVisibility(sceneNode, visible, renderNodeID);
+  }
+}
+
+
+// This function recursively updates the visibility of nodes in the scene graph.
+// If a node is marked as not visible, all its children will also be marked as not visible,
+// regardless of their individual visibility flags.
+void nvh::gltf::Scene::updateVisibility(int nodeID, bool visible, uint32_t& renderNodeID)
+{
+  tinygltf::Node& node = m_model.nodes[nodeID];
+
+  if(visible)
+  {
+    // Changing the visibility only if the parent was visible
+    visible = tinygltf::utils::getNodeVisibility(node).visible;
+  }
+
+  if(node.mesh >= 0)
+  {
+    // If the node has a mesh, update the visibility of all its primitives
+    tinygltf::Mesh mesh = m_model.meshes[node.mesh];
+    for(size_t j = 0; j < mesh.primitives.size(); j++)
+      m_renderNodes[renderNodeID++].visible = visible;
+  }
+
+  for(auto& child : node.children)
+  {
+    updateVisibility(child, visible, renderNodeID);
+  }
 }
 
 // Set the default names for the scene elements if they are empty
@@ -381,6 +418,14 @@ void nvh::gltf::Scene::updateRenderNodes()
           }
           return false;  // Continue traversal
         });
+  }
+
+  // Update the visibility of the render nodes
+  renderNodeID = 0;
+  for(const int sceneNode : m_model.scenes[m_currentScene].nodes)
+  {
+    KHR_node_visibility nvisible = tinygltf::utils::getNodeVisibility(m_model.nodes[sceneNode]);
+    updateVisibility(sceneNode, nvisible.visible, renderNodeID);
   }
 }
 

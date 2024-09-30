@@ -91,6 +91,8 @@ protected:
   nvvk::Buffer m_blasScratchBuffer;
   nvvk::Buffer m_tlasScratchBuffer;
   nvvk::Buffer m_instancesBuffer;
+
+  uint32_t m_numVisibleElement = 0;
 };
 
 }  // namespace nvvkhl

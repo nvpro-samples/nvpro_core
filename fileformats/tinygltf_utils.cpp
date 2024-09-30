@@ -176,6 +176,18 @@ KHR_materials_dispersion tinygltf::utils::getDispersion(const tinygltf::Material
   return gmat;
 }
 
+KHR_node_visibility tinygltf::utils::getNodeVisibility(const tinygltf::Node& node)
+{
+  KHR_node_visibility gnode;
+  if(tinygltf::utils::hasElementName(node.extensions, KHR_NODE_VISIBILITY_EXTENSION_NAME))
+  {
+    const tinygltf::Value& ext = tinygltf::utils::getElementValue(node.extensions, KHR_NODE_VISIBILITY_EXTENSION_NAME);
+    tinygltf::utils::getValue(ext, "visible", gnode.visible);
+  }
+  return gnode;
+}
+
+
 tinygltf::Value tinygltf::utils::convertToTinygltfValue(int numElements, const float* elements)
 {
   tinygltf::Value::Array result;

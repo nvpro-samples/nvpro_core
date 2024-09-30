@@ -46,6 +46,7 @@ struct RenderNode
   int       renderPrimID = -1;  // Reference to the unique primitive
   int       primID       = -1;  // Reference to the tinygltf::Primitive
   int       refNodeID    = -1;  // Reference to the tinygltf::Node
+  bool      visible      = true;
 };
 
 // The RenderPrimitive is a unique primitive in the scene
@@ -229,6 +230,7 @@ private:
   size_t handleGpuInstancing(const tinygltf::Value& attributes, gltf::RenderNode renderNode, glm::mat4 worldMatrix);
   bool   handleCameraTraversal(int nodeID, const glm::mat4& worldMatrix);
   bool   handleLightTraversal(int nodeID, const glm::mat4& worldMatrix);
+  void   updateVisibility(int nodeID, bool visible, uint32_t& renderNodeID);
 
 
   tinygltf::Model                      m_model;                 // The glTF model
