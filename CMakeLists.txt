@@ -131,7 +131,7 @@ if(USING_VULKANSDK)
   set(Vulkan_EXTENSIONS_GENERATED FALSE)
   if(Vulkan_generate_extensions)
     find_package (Python COMPONENTS Interpreter)
-    if(Python_FOUND)
+    if(Python_FOUND AND (${Python_VERSION} VERSION_GREATER_EQUAL "3.0"))
       add_custom_command(
         OUTPUT "${GENERATED_EXTENSION_DIR}/nvvk/extensions_vk.cpp" "${GENERATED_EXTENSION_DIR}/nvvk/extensions_vk.hpp"
         DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/nvvk/extensions_vk.py"
@@ -141,7 +141,7 @@ if(USING_VULKANSDK)
       set(Vulkan_EXTENSIONS_GENERATED TRUE)
     else()
       message(WARNING "Python not found. Cannot generate code with local Vulkan SDK. Falling back to packaged code.")
-    endif(Python_FOUND)
+    endif()
   endif(Vulkan_generate_extensions)
 
   # Use fallback source files

@@ -23,7 +23,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include <glm/glm.hpp>
-#include "nvvk/memorymanagement_vk.hpp"
+#include <nvvk/memallocator_vk.hpp>
 #include "nvh/nvprint.hpp"
 #include "nvh/container_utils.hpp"
 

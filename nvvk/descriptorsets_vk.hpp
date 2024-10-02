@@ -638,6 +638,10 @@ void TDescriptorSetContainer<SETS, PIPES>::deinit()
 {
   deinitPools();
   deinitLayouts();
+  for(int d = 0; d < SETS; d++)
+  {
+    m_sets[d].deinit();
+  }
 }
 
 template <int SETS, int PIPES>

@@ -34,6 +34,19 @@ KHR_materials_displacement tinygltf::utils::getDisplacement(const tinygltf::Mate
   return gmat;
 }
 
+void tinygltf::utils::setDisplacement(tinygltf::Material& tmat, const KHR_materials_displacement& displacement)
+{
+  if(!tinygltf::utils::hasElementName(tmat.extensions, KHR_MATERIALS_DISPLACEMENT_EXTENSION_NAME))
+  {
+    tmat.extensions[KHR_MATERIALS_DISPLACEMENT_EXTENSION_NAME] = tinygltf::Value(tinygltf::Value::Object());
+  }
+
+  tinygltf::Value& ext = tmat.extensions[KHR_MATERIALS_DISPLACEMENT_EXTENSION_NAME];
+  tinygltf::utils::setValue(ext, "displacementGeometryTexture", displacement.displacementGeometryTexture);
+  tinygltf::utils::setValue(ext, "displacementGeometryFactor", displacement.displacementGeometryFactor);
+  tinygltf::utils::setValue(ext, "displacementGeometryOffset", displacement.displacementGeometryOffset);
+}
+
 KHR_materials_emissive_strength tinygltf::utils::getEmissiveStrength(const tinygltf::Material& tmat)
 {
   KHR_materials_emissive_strength gmat;
@@ -44,6 +57,18 @@ KHR_materials_emissive_strength tinygltf::utils::getEmissiveStrength(const tinyg
   }
   return gmat;
 }
+
+void tinygltf::utils::setEmissiveStrength(tinygltf::Material& tmat, const KHR_materials_emissive_strength& emissiveStrength)
+{
+  if(!tinygltf::utils::hasElementName(tmat.extensions, KHR_MATERIALS_EMISSIVE_STRENGTH_EXTENSION_NAME))
+  {
+    tmat.extensions[KHR_MATERIALS_EMISSIVE_STRENGTH_EXTENSION_NAME] = tinygltf::Value(tinygltf::Value::Object());
+  }
+
+  tinygltf::Value& ext = tmat.extensions[KHR_MATERIALS_EMISSIVE_STRENGTH_EXTENSION_NAME];
+  tinygltf::utils::setValue(ext, "emissiveStrength", emissiveStrength.emissiveStrength);
+}
+
 
 KHR_materials_volume tinygltf::utils::getVolume(const tinygltf::Material& tmat)
 {
@@ -59,6 +84,20 @@ KHR_materials_volume tinygltf::utils::getVolume(const tinygltf::Material& tmat)
   return gmat;
 }
 
+void tinygltf::utils::setVolume(tinygltf::Material& tmat, const KHR_materials_volume& volume)
+{
+  if(!tinygltf::utils::hasElementName(tmat.extensions, KHR_MATERIALS_VOLUME_EXTENSION_NAME))
+  {
+    tmat.extensions[KHR_MATERIALS_VOLUME_EXTENSION_NAME] = tinygltf::Value(tinygltf::Value::Object());
+  }
+
+  tinygltf::Value& ext = tmat.extensions[KHR_MATERIALS_VOLUME_EXTENSION_NAME];
+  tinygltf::utils::setValue(ext, "thicknessFactor", volume.thicknessFactor);
+  tinygltf::utils::setValue(ext, "thicknessTexture", volume.thicknessTexture);
+  tinygltf::utils::setValue(ext, "attenuationDistance", volume.attenuationDistance);
+  tinygltf::utils::setArrayValue(ext, "attenuationColor", 3, glm::value_ptr(volume.attenuationColor));
+}
+
 KHR_materials_unlit tinygltf::utils::getUnlit(const tinygltf::Material& tmat)
 {
   KHR_materials_unlit gmat;
@@ -68,6 +107,18 @@ KHR_materials_unlit tinygltf::utils::getUnlit(const tinygltf::Material& tmat)
   }
   return gmat;
 }
+
+void tinygltf::utils::setUnlit(tinygltf::Material& tmat, const KHR_materials_unlit& unlit)
+{
+  if(!tinygltf::utils::hasElementName(tmat.extensions, KHR_MATERIALS_UNLIT_EXTENSION_NAME))
+  {
+    tmat.extensions[KHR_MATERIALS_UNLIT_EXTENSION_NAME] = tinygltf::Value(tinygltf::Value::Object());
+  }
+
+  tinygltf::Value& ext = tmat.extensions[KHR_MATERIALS_UNLIT_EXTENSION_NAME];
+  tinygltf::utils::setValue(ext, "unlit", true);
+}
+
 
 KHR_materials_specular tinygltf::utils::getSpecular(const tinygltf::Material& tmat)
 {
@@ -82,6 +133,21 @@ KHR_materials_specular tinygltf::utils::getSpecular(const tinygltf::Material& tm
   }
   return gmat;
 }
+
+void tinygltf::utils::setSpecular(tinygltf::Material& tmat, const KHR_materials_specular& specular)
+{
+  if(!tinygltf::utils::hasElementName(tmat.extensions, KHR_MATERIALS_SPECULAR_EXTENSION_NAME))
+  {
+    tmat.extensions[KHR_MATERIALS_SPECULAR_EXTENSION_NAME] = tinygltf::Value(tinygltf::Value::Object());
+  }
+
+  tinygltf::Value& ext = tmat.extensions[KHR_MATERIALS_SPECULAR_EXTENSION_NAME];
+  tinygltf::utils::setValue(ext, "specularFactor", specular.specularFactor);
+  tinygltf::utils::setValue(ext, "specularTexture", specular.specularTexture);
+  tinygltf::utils::setValue(ext, "specularColorTexture", specular.specularColorTexture);
+  tinygltf::utils::setArrayValue(ext, "specularColorFactor", 3, glm::value_ptr(specular.specularColorFactor));
+}
+
 
 KHR_materials_clearcoat tinygltf::utils::getClearcoat(const tinygltf::Material& tmat)
 {
@@ -98,6 +164,21 @@ KHR_materials_clearcoat tinygltf::utils::getClearcoat(const tinygltf::Material& 
   return gmat;
 }
 
+void tinygltf::utils::setClearcoat(tinygltf::Material& tmat, const KHR_materials_clearcoat& clearcoat)
+{
+  if(!tinygltf::utils::hasElementName(tmat.extensions, KHR_MATERIALS_CLEARCOAT_EXTENSION_NAME))
+  {
+    tmat.extensions[KHR_MATERIALS_CLEARCOAT_EXTENSION_NAME] = tinygltf::Value(tinygltf::Value::Object());
+  }
+
+  tinygltf::Value& ext = tmat.extensions[KHR_MATERIALS_CLEARCOAT_EXTENSION_NAME];
+  tinygltf::utils::setValue(ext, "clearcoatFactor", clearcoat.factor);
+  tinygltf::utils::setValue(ext, "clearcoatRoughnessFactor", clearcoat.roughnessFactor);
+  tinygltf::utils::setValue(ext, "clearcoatTexture", clearcoat.texture);
+  tinygltf::utils::setValue(ext, "clearcoatRoughnessTexture", clearcoat.roughnessTexture);
+  tinygltf::utils::setValue(ext, "clearcoatNormalTexture", clearcoat.normalTexture);
+}
+
 KHR_materials_sheen tinygltf::utils::getSheen(const tinygltf::Material& tmat)
 {
   KHR_materials_sheen gmat;
@@ -112,6 +193,21 @@ KHR_materials_sheen tinygltf::utils::getSheen(const tinygltf::Material& tmat)
   return gmat;
 }
 
+void tinygltf::utils::setSheen(tinygltf::Material& tmat, const KHR_materials_sheen& sheen)
+{
+  if(!tinygltf::utils::hasElementName(tmat.extensions, KHR_MATERIALS_SHEEN_EXTENSION_NAME))
+  {
+    tmat.extensions[KHR_MATERIALS_SHEEN_EXTENSION_NAME] = tinygltf::Value(tinygltf::Value::Object());
+  }
+
+  tinygltf::Value& ext = tmat.extensions[KHR_MATERIALS_SHEEN_EXTENSION_NAME];
+  tinygltf::utils::setArrayValue(ext, "sheenColorFactor", 3, glm::value_ptr(sheen.sheenColorFactor));
+  tinygltf::utils::setValue(ext, "sheenColorTexture", sheen.sheenColorTexture);
+  tinygltf::utils::setValue(ext, "sheenRoughnessFactor", sheen.sheenRoughnessFactor);
+  tinygltf::utils::setValue(ext, "sheenRoughnessTexture", sheen.sheenRoughnessTexture);
+}
+
+
 KHR_materials_transmission tinygltf::utils::getTransmission(const tinygltf::Material& tmat)
 {
   KHR_materials_transmission gmat;
@@ -122,6 +218,18 @@ KHR_materials_transmission tinygltf::utils::getTransmission(const tinygltf::Mate
     tinygltf::utils::getValue(ext, "transmissionTexture", gmat.texture);
   }
   return gmat;
+}
+
+void tinygltf::utils::setTransmission(tinygltf::Material& tmat, const KHR_materials_transmission& transmission)
+{
+  if(!tinygltf::utils::hasElementName(tmat.extensions, KHR_MATERIALS_TRANSMISSION_EXTENSION_NAME))
+  {
+    tmat.extensions[KHR_MATERIALS_TRANSMISSION_EXTENSION_NAME] = tinygltf::Value(tinygltf::Value::Object());
+  }
+
+  tinygltf::Value& ext = tmat.extensions[KHR_MATERIALS_TRANSMISSION_EXTENSION_NAME];
+  tinygltf::utils::setValue(ext, "transmissionFactor", transmission.factor);
+  tinygltf::utils::setValue(ext, "transmissionTexture", transmission.texture);
 }
 
 KHR_materials_anisotropy tinygltf::utils::getAnisotropy(const tinygltf::Material& tmat)
@@ -137,6 +245,19 @@ KHR_materials_anisotropy tinygltf::utils::getAnisotropy(const tinygltf::Material
   return gmat;
 }
 
+void tinygltf::utils::setAnisotropy(tinygltf::Material& tmat, const KHR_materials_anisotropy& anisotropy)
+{
+  if(!tinygltf::utils::hasElementName(tmat.extensions, KHR_MATERIALS_ANISOTROPY_EXTENSION_NAME))
+  {
+    tmat.extensions[KHR_MATERIALS_ANISOTROPY_EXTENSION_NAME] = tinygltf::Value(tinygltf::Value::Object());
+  }
+
+  tinygltf::Value& ext = tmat.extensions[KHR_MATERIALS_ANISOTROPY_EXTENSION_NAME];
+  tinygltf::utils::setValue(ext, "anisotropyStrength", anisotropy.anisotropyStrength);
+  tinygltf::utils::setValue(ext, "anisotropyRotation", anisotropy.anisotropyRotation);
+  tinygltf::utils::setValue(ext, "anisotropyTexture", anisotropy.anisotropyTexture);
+}
+
 KHR_materials_ior tinygltf::utils::getIor(const tinygltf::Material& tmat)
 {
   KHR_materials_ior gmat;
@@ -147,6 +268,18 @@ KHR_materials_ior tinygltf::utils::getIor(const tinygltf::Material& tmat)
   }
   return gmat;
 }
+
+void tinygltf::utils::setIor(tinygltf::Material& tmat, const KHR_materials_ior& ior)
+{
+  if(!tinygltf::utils::hasElementName(tmat.extensions, KHR_MATERIALS_IOR_EXTENSION_NAME))
+  {
+    tmat.extensions[KHR_MATERIALS_IOR_EXTENSION_NAME] = tinygltf::Value(tinygltf::Value::Object());
+  }
+
+  tinygltf::Value& ext = tmat.extensions[KHR_MATERIALS_IOR_EXTENSION_NAME];
+  tinygltf::utils::setValue(ext, "ior", ior.ior);
+}
+
 
 KHR_materials_iridescence tinygltf::utils::getIridescence(const tinygltf::Material& tmat)
 {
@@ -165,6 +298,23 @@ KHR_materials_iridescence tinygltf::utils::getIridescence(const tinygltf::Materi
   return gmat;
 }
 
+void tinygltf::utils::setIridescence(tinygltf::Material& tmat, const KHR_materials_iridescence& iridescence)
+{
+  if(!tinygltf::utils::hasElementName(tmat.extensions, KHR_MATERIALS_IRIDESCENCE_EXTENSION_NAME))
+  {
+    tmat.extensions[KHR_MATERIALS_IRIDESCENCE_EXTENSION_NAME] = tinygltf::Value(tinygltf::Value::Object());
+  }
+
+  tinygltf::Value& ext = tmat.extensions[KHR_MATERIALS_IRIDESCENCE_EXTENSION_NAME];
+  tinygltf::utils::setValue(ext, "iridescenceFactor", iridescence.iridescenceFactor);
+  tinygltf::utils::setValue(ext, "iridescenceTexture", iridescence.iridescenceTexture);
+  tinygltf::utils::setValue(ext, "iridescenceIor", iridescence.iridescenceIor);
+  tinygltf::utils::setValue(ext, "iridescenceThicknessMinimum", iridescence.iridescenceThicknessMinimum);
+  tinygltf::utils::setValue(ext, "iridescenceThicknessMaximum", iridescence.iridescenceThicknessMaximum);
+  tinygltf::utils::setValue(ext, "iridescenceThicknessTexture", iridescence.iridescenceThicknessTexture);
+}
+
+
 KHR_materials_dispersion tinygltf::utils::getDispersion(const tinygltf::Material& tmat)
 {
   KHR_materials_dispersion gmat;
@@ -174,6 +324,17 @@ KHR_materials_dispersion tinygltf::utils::getDispersion(const tinygltf::Material
     tinygltf::utils::getValue(ext, "dispersion", gmat.dispersion);
   }
   return gmat;
+}
+
+void tinygltf::utils::setDispersion(tinygltf::Material& tmat, const KHR_materials_dispersion& dispersion)
+{
+  if(!tinygltf::utils::hasElementName(tmat.extensions, KHR_MATERIALS_DISPERSION_EXTENSION_NAME))
+  {
+    tmat.extensions[KHR_MATERIALS_DISPERSION_EXTENSION_NAME] = tinygltf::Value(tinygltf::Value::Object());
+  }
+
+  tinygltf::Value& ext = tmat.extensions[KHR_MATERIALS_DISPERSION_EXTENSION_NAME];
+  tinygltf::utils::setValue(ext, "dispersion", dispersion.dispersion);
 }
 
 KHR_node_visibility tinygltf::utils::getNodeVisibility(const tinygltf::Node& node)
@@ -187,6 +348,16 @@ KHR_node_visibility tinygltf::utils::getNodeVisibility(const tinygltf::Node& nod
   return gnode;
 }
 
+void tinygltf::utils::setNodeVisibility(tinygltf::Node& node, const KHR_node_visibility& visibility)
+{
+  if(!tinygltf::utils::hasElementName(node.extensions, KHR_NODE_VISIBILITY_EXTENSION_NAME))
+  {
+    node.extensions[KHR_NODE_VISIBILITY_EXTENSION_NAME] = tinygltf::Value(tinygltf::Value::Object());
+  }
+
+  tinygltf::Value& ext = node.extensions[KHR_NODE_VISIBILITY_EXTENSION_NAME];
+  tinygltf::utils::setValue(ext, "visible", visibility.visible);
+}
 
 tinygltf::Value tinygltf::utils::convertToTinygltfValue(int numElements, const float* elements)
 {

@@ -48,8 +48,8 @@
    This strategy is only useful for very simple applications due to the overhead of vkAllocateMemory and 
    an implementation dependent bounded number of vkDeviceMemory allocations possible.
  * nvvk::DMAMemoryAllocator delegates memory requests to a 'nvvk:DeviceMemoryAllocator',
-   as an example implemention of a suballocator
- * nvvk::VMAMemoryAllocator delegates memory requests to a [Vulkan Memory Allocator](https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator)
+   as an example implemention of a suballocator. Not thread-safe.
+ * nvvk::VMAMemoryAllocator delegates memory requests to a [Vulkan Memory Allocator](https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator), thread-safe
  
  Utility wrapper structs contain the appropriate Vulkan resource and the
  appropriate nvvk::MemHandle :
@@ -73,10 +73,12 @@
  > not optimized nor meant for production code.
 
  ```cpp
- nvvk::DeviceMemoryAllocator memAllocator;
+ VmaAllocator                vma;
+ nvvk::VMAMemoryAllocator    memAllocator;
  nvvk::ResourceAllocator     resAllocator;
 
- memAllocator.init(device, physicalDevice);
+ vma .. init
+ memAllocator.init(device, physicalDevice, vma);
  resAllocator.init(device, physicalDevice, &memAllocator);
 
  ...
@@ -119,6 +121,26 @@
  memory
  ExplicitDeviceMaskResourceAllocator overrides the devicemask of allocations such that
  objects can be created on a specific device in a device group.
+
+ ## Multi-Threading
+
+ For multi-threaded usage, for example dedicating a thread to handling uploads or downloads,
+it is possible to use a ResourceAllocator per thread.
+
+ ```
+ ResourceAllocator resAllocatorPrimary;
+ ResourceAllocator resAllocatorTransferThread;
+
+ // make sure to use a thread-safe primary memory allocator
+ resAllocator.init(...);
+
+ // The res allocator used exclusively by the transfer thread will
+ // use the primary's memory allocator and sampler pool. It will
+ // get its own staging memory manager (which is not thread-safe)
+ // so that staging memory can be accessed easily.
+ resAllocatorTransferThread.init(resAllocatorPrimary);
+ ```
+
  @DOC_END */
 
 namespace nvvk {
@@ -170,21 +192,41 @@ public:
   ResourceAllocator& operator=(ResourceAllocator const&) = delete;
 
   ResourceAllocator() = default;
+
+  // Both `memAllocator`, and the optional `externalSamplerPool` are directly referenced,
+  // no ownership transfer.
   ResourceAllocator(VkDevice         device,
                     VkPhysicalDevice physicalDevice,
                     MemAllocator*    memAllocator,
-                    VkDeviceSize     stagingBlockSize = NVVK_DEFAULT_STAGING_BLOCKSIZE);
+                    VkDeviceSize     stagingBlockSize    = NVVK_DEFAULT_STAGING_BLOCKSIZE,
+                    SamplerPool*     externalSamplerPool = nullptr);
+
+  ResourceAllocator(ResourceAllocator& other);
 
   // All staging buffers must be cleared before
   virtual ~ResourceAllocator();
 
   //--------------------------------------------------------------------------------------------------
   // Initialization of the allocator
-  void init(VkDevice device, VkPhysicalDevice physicalDevice, MemAllocator* memAlloc, VkDeviceSize stagingBlockSize = NVVK_DEFAULT_STAGING_BLOCKSIZE);
+  // Both `memAllocator`, and the optional `externalSamplerPool` are directly referenced,
+  // no ownership transfer.
+  void init(VkDevice         device,
+            VkPhysicalDevice physicalDevice,
+            MemAllocator*    memAlloc,
+            VkDeviceSize     stagingBlockSize    = NVVK_DEFAULT_STAGING_BLOCKSIZE,
+            SamplerPool*     externalSamplerPool = nullptr);
+
+  // inherits memAllocator and samplerPool from other
+  void init(ResourceAllocator& other);
 
   void deinit();
 
   MemAllocator* getMemoryAllocator() { return m_memAlloc; }
+
+  SamplerPool* getSamplerPool() { return m_samplerPool; }
+
+  // can return nullptr if the sampler pool is not owned by this resource allocator
+  SamplerPool* getInternalSamplerPool() { return m_samplerPoolInternal.get(); }
 
   //--------------------------------------------------------------------------------------------------
   // Basic buffer creation
@@ -327,7 +369,8 @@ protected:
   VkPhysicalDeviceMemoryProperties      m_memoryProperties{};
   MemAllocator*                         m_memAlloc{nullptr};
   std::unique_ptr<StagingMemoryManager> m_staging;
-  SamplerPool                           m_samplerPool;
+  std::unique_ptr<SamplerPool>          m_samplerPoolInternal;
+  SamplerPool*                          m_samplerPool;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -338,7 +381,8 @@ class DeviceMemoryAllocator;
 
 /** @DOC_START
  # class nvvk::ResourceAllocatorDma
- nvvk::ResourceAllocatorDMA is a convencience class owning a nvvk::DMAMemoryAllocator and nvvk::DeviceMemoryAllocator object
+ nvvk::ResourceAllocatorDMA is a convencience class owning a nvvk::DeviceMemoryAllocator object.
+ **Not** thread-safe.
 @DOC_END */
 class ResourceAllocatorDma : public ResourceAllocator
 {
@@ -363,11 +407,53 @@ public:
 
   void deinit();
 
-  nvvk::DeviceMemoryAllocator*       getDMA() { return m_dma.get(); }
-  const nvvk::DeviceMemoryAllocator* getDMA() const { return m_dma.get(); }
+  nvvk::DeviceMemoryAllocator*       getDMA() { return m_dma; }
+  const nvvk::DeviceMemoryAllocator* getDMA() const { return m_dma; }
 
 protected:
-  std::unique_ptr<nvvk::DeviceMemoryAllocator> m_dma;
+  nvvk::DeviceMemoryAllocator* m_dma = nullptr;
+};
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+class DMAMemoryAllocatorTS;
+
+/** @DOC_START
+# class nvvk::ResourceAllocatorDma
+nvvk::ResourceAllocatorDMA is a convencience class owning a nvvk::DeviceMemoryAllocator and its simple thread-safe wrapper nvvk::DMAMemoryAllocatorTS object.
+@DOC_END */
+class ResourceAllocatorDmaTS : public ResourceAllocator
+{
+public:
+  ResourceAllocatorDmaTS() = default;
+  ResourceAllocatorDmaTS(VkDevice         device,
+                         VkPhysicalDevice physicalDevice,
+                         VkDeviceSize     stagingBlockSize = NVVK_DEFAULT_STAGING_BLOCKSIZE,
+                         VkDeviceSize     memBlockSize     = 0);
+  virtual ~ResourceAllocatorDmaTS();
+
+  void init(VkDevice         device,
+            VkPhysicalDevice physicalDevice,
+            VkDeviceSize     stagingBlockSize = NVVK_DEFAULT_STAGING_BLOCKSIZE,
+            VkDeviceSize     memBlockSize     = 0);
+  // Provided such that ResourceAllocatorDedicated, ResourceAllocatorDma and ResourceAllocatorVma all have the same interface
+  void init(VkInstance,
+            VkDevice         device,
+            VkPhysicalDevice physicalDevice,
+            VkDeviceSize     stagingBlockSize = NVVK_DEFAULT_STAGING_BLOCKSIZE,
+            VkDeviceSize     memBlockSize     = 0);
+
+  void deinit();
+
+  nvvk::DMAMemoryAllocatorTS*       getDMA() { return m_dmaTS; }
+  const nvvk::DMAMemoryAllocatorTS* getDMA() const { return m_dmaTS; }
+
+protected:
+  nvvk::DeviceMemoryAllocator* m_dma   = nullptr;
+  nvvk::DMAMemoryAllocatorTS*  m_dmaTS = nullptr;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

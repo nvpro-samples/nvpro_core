@@ -131,6 +131,8 @@ public:
   void init(MemAllocator* memAllocator, VkDeviceSize stagingBlockSize = NVVK_DEFAULT_STAGING_BLOCKSIZE);
   void deinit();
 
+  VkDeviceSize getBlockSize() const { return m_subToDevice.getBlockSize(); }
+
   void setDebugName(const std::string& name) { m_debugName = name; }
 
   // if true (default) we free the memory completely when released

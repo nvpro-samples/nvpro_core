@@ -19,6 +19,8 @@
 
 #pragma once
 
+#include <mutex>
+
 #include "memallocator_vk.hpp"
 #include "memorymanagement_vk.hpp"
 
@@ -28,7 +30,7 @@ class DeviceMemoryAllocator;
 
 /** @DOC_START
  # class nvvk::DMAMemoryAllocator
- nvvk::DMAMemoryAllocator is  using nvvk::DeviceMemoryAllocator internally.
+ nvvk::DMAMemoryAllocator is using nvvk::DeviceMemoryAllocator internally. **Not** thread-safe.
  nvvk::DeviceMemoryAllocator derives from nvvk::MemAllocator as well, so this class here is for those prefering a reduced wrapper;
 @DOC_END */
 class DMAMemoryAllocator : public MemAllocator
@@ -66,6 +68,70 @@ public:
 
 private:
   nvvk::DeviceMemoryAllocator* m_dma;
+};
+
+/** @DOC_START
+# class nvvk::DMAMemoryAllocatorTS
+nvvk::DMAMemoryAllocatorTS is using nvvk::DeviceMemoryAllocator internally. It implements a simple thread-safe wrapper, not optimized for performance.
+nvvk::DeviceMemoryAllocator derives from nvvk::MemAllocator as well, so this class here is for those prefering a reduced wrapper;
+@DOC_END */
+class DMAMemoryAllocatorTS : public MemAllocator
+{
+public:
+  DMAMemoryAllocatorTS(DMAMemoryAllocatorTS const&)            = delete;
+  DMAMemoryAllocatorTS& operator=(DMAMemoryAllocatorTS const&) = delete;
+
+  DMAMemoryAllocatorTS() = default;
+  explicit DMAMemoryAllocatorTS(nvvk::DeviceMemoryAllocator* dma) { init(dma); }
+  virtual ~DMAMemoryAllocatorTS() { deinit(); }
+
+  bool init(nvvk::DeviceMemoryAllocator* dma)
+  {
+    m_dma = dma;
+    return m_dma != nullptr;
+  }
+  void deinit() { m_dma = nullptr; }
+
+  // Implement MemAllocator interface
+  virtual MemHandle allocMemory(const MemAllocateInfo& allocInfo, VkResult* pResult = nullptr) override
+  {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return m_dma->allocMemory(allocInfo, pResult);
+  }
+  virtual void freeMemory(MemHandle memHandle) override
+  {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return m_dma->freeMemory(memHandle);
+  }
+  virtual MemInfo getMemoryInfo(MemHandle memHandle) const override
+  {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return m_dma->getMemoryInfo(memHandle);
+  }
+  virtual void* map(MemHandle memHandle, VkDeviceSize offset = 0, VkDeviceSize size = VK_WHOLE_SIZE, VkResult* pResult = nullptr) override
+  {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return m_dma->map(memHandle, offset, size, pResult);
+  }
+  virtual void unmap(MemHandle memHandle) override
+  {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return m_dma->unmap(memHandle);
+  }
+
+  virtual VkDevice         getDevice() const override { return m_dma->getDevice(); }
+  virtual VkPhysicalDevice getPhysicalDevice() const override { return m_dma->getPhysicalDevice(); }
+
+  // Utility function
+  AllocationID getAllocationID(MemHandle memHandle) const
+  {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return m_dma->getAllocationID(memHandle);
+  }
+
+private:
+  nvvk::DeviceMemoryAllocator* m_dma;
+  mutable std::mutex           m_mutex;
 };
 
 }  // namespace nvvk

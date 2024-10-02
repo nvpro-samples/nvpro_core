@@ -234,6 +234,21 @@ inline void getValue(const tinygltf::Value& value, const std::string& name, tiny
   }
 }
 
+template <typename T>
+inline void setValue(tinygltf::Value& value, const std::string& key, const T& val)
+{
+  value.Get<tinygltf::Value::Object>()[key] = tinygltf::Value(val);
+}
+
+
+inline void setValue(tinygltf::Value& value, const std::string& key, const tinygltf::TextureInfo& textureInfo)
+{
+  auto& t                                      = value.Get<tinygltf::Value::Object>()[key];
+  t.Get<tinygltf::Value::Object>()["index"]    = tinygltf::Value(textureInfo.index);
+  t.Get<tinygltf::Value::Object>()["texCoord"] = tinygltf::Value(textureInfo.texCoord);
+  value.Get<tinygltf::Value::Object>()[key]    = t;
+}
+
 // Get the value of type T for the attribute `name`.
 // This function retrieves the array value of the specified attribute from a tinygltf::Value
 // and stores it in the provided result variable. It is used for types such as glm::vec3, glm::vec4, glm::mat4, etc.
@@ -252,6 +267,18 @@ inline void getArrayValue(const tinygltf::Value& value, const std::string& name,
                    [](const tinygltf::Value& v) { return static_cast<float>(v.Get<double>()); });
   }
 }
+
+template <typename T>
+inline void setArrayValue(tinygltf::Value& value, const std::string& name, uint32_t numElem, T* array)
+{
+  tinygltf::Value::Array arrayValue(numElem);
+  for(uint32_t n = 0; n < numElem; n++)
+  {
+    arrayValue[n] = tinygltf::Value(array[n]);
+  }
+  value.Get<tinygltf::Value::Object>()[name] = tinygltf::Value(arrayValue);
+}
+
 
 // Converts a vector of elements to a tinygltf::Value.
 // This function converts a given array of float elements into a tinygltf::Value::Array,
@@ -742,18 +769,31 @@ uint32_t appendData(tinygltf::Buffer& buffer, const T& inData)
 //--------------------------------------------------------------------------------------------------
 // Materials
 //--------------------------------------------------------------------------------------------------
-KHR_materials_unlit             getUnlit(const tinygltf::Material& tmat);
-KHR_materials_specular          getSpecular(const tinygltf::Material& tmat);
-KHR_materials_clearcoat         getClearcoat(const tinygltf::Material& tmat);
-KHR_materials_sheen             getSheen(const tinygltf::Material& tmat);
-KHR_materials_transmission      getTransmission(const tinygltf::Material& tmat);
-KHR_materials_anisotropy        getAnisotropy(const tinygltf::Material& tmat);
-KHR_materials_ior               getIor(const tinygltf::Material& tmat);
-KHR_materials_volume            getVolume(const tinygltf::Material& tmat);
-KHR_materials_displacement      getDisplacement(const tinygltf::Material& tmat);
+KHR_materials_unlit        getUnlit(const tinygltf::Material& tmat);
+void                       setUnlit(tinygltf::Material& tmat, const KHR_materials_unlit& unlit);
+KHR_materials_specular     getSpecular(const tinygltf::Material& tmat);
+void                       setSpecular(tinygltf::Material& tmat, const KHR_materials_specular& specular);
+KHR_materials_clearcoat    getClearcoat(const tinygltf::Material& tmat);
+void                       setClearcoat(tinygltf::Material& tmat, const KHR_materials_clearcoat& clearcoat);
+KHR_materials_sheen        getSheen(const tinygltf::Material& tmat);
+void                       setSheen(tinygltf::Material& tmat, const KHR_materials_sheen& sheen);
+KHR_materials_transmission getTransmission(const tinygltf::Material& tmat);
+void                       setTransmission(tinygltf::Material& tmat, const KHR_materials_transmission& transmission);
+KHR_materials_anisotropy   getAnisotropy(const tinygltf::Material& tmat);
+void                       setAnisotropy(tinygltf::Material& tmat, const KHR_materials_anisotropy& anisotropy);
+KHR_materials_ior          getIor(const tinygltf::Material& tmat);
+void                       setIor(tinygltf::Material& tmat, const KHR_materials_ior& ior);
+KHR_materials_volume       getVolume(const tinygltf::Material& tmat);
+void                       setVolume(tinygltf::Material& tmat, const KHR_materials_volume& volume);
+KHR_materials_displacement getDisplacement(const tinygltf::Material& tmat);
+void                       setDisplacement(tinygltf::Material& tmat, const KHR_materials_displacement& displacement);
 KHR_materials_emissive_strength getEmissiveStrength(const tinygltf::Material& tmat);
-KHR_materials_iridescence       getIridescence(const tinygltf::Material& tmat);
-KHR_materials_dispersion        getDispersion(const tinygltf::Material& tmat);
+void setEmissiveStrength(tinygltf::Material& tmat, const KHR_materials_emissive_strength& emissiveStrength);
+KHR_materials_iridescence getIridescence(const tinygltf::Material& tmat);
+void                      setIridescence(tinygltf::Material& tmat, const KHR_materials_iridescence& iridescence);
+KHR_materials_dispersion  getDispersion(const tinygltf::Material& tmat);
+void                      setDispersion(tinygltf::Material& tmat, const KHR_materials_dispersion& dispersion);
+
 
 template <typename T>
 inline KHR_texture_transform getTextureTransform(const T& tinfo)
@@ -778,6 +818,7 @@ int getTextureImageIndex(const tinygltf::Texture& texture);
 
 // Retrieves the visibility of current node, not looking for hierarchy
 KHR_node_visibility getNodeVisibility(const tinygltf::Node& node);
+void                setNodeVisibility(tinygltf::Node& node, const KHR_node_visibility& visibility);
 
 }  // namespace utils
 

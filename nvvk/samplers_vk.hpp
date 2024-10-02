@@ -28,6 +28,7 @@
 #include <string.h>  //memcmp
 #include <unordered_map>
 #include <vector>
+#include <mutex>
 
 #include "nvh/container_utils.hpp"
 
@@ -74,6 +75,9 @@ public:
   void init(VkDevice device) { m_device = device; }
   void deinit();
 
+
+  // these two functions are thread-safe, protected by an internal lock
+
   // creates a new sampler or re-uses an existing one with ref-count
   // createInfo may contain VkSamplerReductionModeCreateInfo and VkSamplerYcbcrConversionCreateInfo
   VkSampler acquireSampler(const VkSamplerCreateInfo& createInfo);
@@ -108,6 +112,8 @@ private:
     SamplerState state;
   };
 
+
+  std::mutex         m_mutex;
   VkDevice           m_device    = nullptr;
   uint32_t           m_freeIndex = ~0;
   std::vector<Entry> m_entries;

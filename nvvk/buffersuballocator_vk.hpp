@@ -169,6 +169,8 @@ public:
 
   void setKeepLastBlockOnFree(bool state) { m_keepLastBlock = state; }
 
+  VkDeviceSize getBlockSize() const { return m_blockSize; }
+
   // alignment will be BASE_ALIGNMENT byte at least
   // alignment must be power of 2
   Handle subAllocate(VkDeviceSize size, uint32_t alignment = BASE_ALIGNMENT);

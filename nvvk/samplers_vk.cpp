@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2020-2024, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2020-2021 NVIDIA CORPORATION
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2024 NVIDIA CORPORATION
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -69,43 +69,49 @@ VkSampler SamplerPool::acquireSampler(const VkSamplerCreateInfo& createInfo)
   state.reduction.pNext  = nullptr;
   state.ycbr.pNext       = nullptr;
 
-  auto it = m_stateMap.find(state);
-  if(it == m_stateMap.end())
   {
-    uint32_t index = 0;
-    if(m_freeIndex != ~0)
+    std::lock_guard<std::mutex> lock(m_mutex);
+
+    auto it = m_stateMap.find(state);
+    if(it == m_stateMap.end())
     {
-      index       = m_freeIndex;
-      m_freeIndex = m_entries[index].nextFreeIndex;
+      uint32_t index = 0;
+      if(m_freeIndex != ~0)
+      {
+        index       = m_freeIndex;
+        m_freeIndex = m_entries[index].nextFreeIndex;
+      }
+      else
+      {
+        index = (uint32_t)m_entries.size();
+        m_entries.resize(m_entries.size() + 1);
+      }
+
+      VkSampler sampler;
+      VkResult  result = vkCreateSampler(m_device, &createInfo, nullptr, &sampler);
+      assert(result == VK_SUCCESS);
+
+      m_entries[index].refCount = 1;
+      m_entries[index].sampler  = sampler;
+      m_entries[index].state    = state;
+
+      m_stateMap.insert({state, index});
+      m_samplerMap.insert({sampler, index});
+
+      return sampler;
     }
     else
     {
-      index = (uint32_t)m_entries.size();
-      m_entries.resize(m_entries.size() + 1);
+      m_entries[it->second].refCount++;
+      return m_entries[it->second].sampler;
     }
-
-    VkSampler sampler;
-    VkResult  result = vkCreateSampler(m_device, &createInfo, nullptr, &sampler);
-    assert(result == VK_SUCCESS);
-
-    m_entries[index].refCount = 1;
-    m_entries[index].sampler  = sampler;
-    m_entries[index].state    = state;
-
-    m_stateMap.insert({state, index});
-    m_samplerMap.insert({sampler, index});
-
-    return sampler;
-  }
-  else
-  {
-    m_entries[it->second].refCount++;
-    return m_entries[it->second].sampler;
   }
 }
 
 void SamplerPool::releaseSampler(VkSampler sampler)
 {
+  std::lock_guard<std::mutex> lock(m_mutex);
+
   auto it = m_samplerMap.find(sampler);
   assert(it != m_samplerMap.end());
 

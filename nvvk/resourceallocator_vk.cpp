@@ -26,9 +26,18 @@
 
 namespace nvvk {
 
-ResourceAllocator::ResourceAllocator(VkDevice device, VkPhysicalDevice physicalDevice, MemAllocator* memAlloc, VkDeviceSize stagingBlockSize)
+ResourceAllocator::ResourceAllocator(VkDevice         device,
+                                     VkPhysicalDevice physicalDevice,
+                                     MemAllocator*    memAlloc,
+                                     VkDeviceSize     stagingBlockSize,
+                                     SamplerPool*     externalSamplerPool)
 {
-  init(device, physicalDevice, memAlloc, stagingBlockSize);
+  init(device, physicalDevice, memAlloc, stagingBlockSize, externalSamplerPool);
+}
+
+ResourceAllocator::ResourceAllocator(ResourceAllocator& other)
+{
+  init(other);
 }
 
 ResourceAllocator::~ResourceAllocator()
@@ -36,20 +45,41 @@ ResourceAllocator::~ResourceAllocator()
   deinit();
 }
 
-void ResourceAllocator::init(VkDevice device, VkPhysicalDevice physicalDevice, MemAllocator* memAlloc, VkDeviceSize stagingBlockSize)
+void ResourceAllocator::init(VkDevice device, VkPhysicalDevice physicalDevice, MemAllocator* memAlloc, VkDeviceSize stagingBlockSize, SamplerPool* externalSamplerPool)
 {
   m_device         = device;
   m_physicalDevice = physicalDevice;
   m_memAlloc       = memAlloc;
   vkGetPhysicalDeviceMemoryProperties(physicalDevice, &m_memoryProperties);
-  m_samplerPool.init(device);
+
+  if(externalSamplerPool)
+  {
+    m_samplerPool = externalSamplerPool;
+  }
+  else
+  {
+    m_samplerPoolInternal = std::make_unique<SamplerPool>();
+    m_samplerPoolInternal->init(device);
+    m_samplerPool = m_samplerPoolInternal.get();
+  }
+
   m_staging = std::make_unique<StagingMemoryManager>(memAlloc, stagingBlockSize);
+}
+
+void ResourceAllocator::init(ResourceAllocator& other)
+{
+  init(other.m_device, other.m_physicalDevice, other.m_memAlloc, other.m_staging->getBlockSize(), other.m_samplerPool);
 }
 
 void ResourceAllocator::deinit()
 {
-  m_samplerPool.deinit();
+  if(m_samplerPoolInternal)
+  {
+    m_samplerPoolInternal->deinit();
+    m_samplerPoolInternal.reset();
+  }
   m_staging.reset();
+  m_samplerPool = nullptr;
 }
 
 Buffer ResourceAllocator::createBuffer(const VkBufferCreateInfo& info_, const VkMemoryPropertyFlags memProperties_)
@@ -220,7 +250,7 @@ nvvk::Texture ResourceAllocator::createTexture(const Image&                 imag
                                                const VkSamplerCreateInfo&   samplerCreateInfo)
 {
   Texture resultTexture            = createTexture(image, imageViewCreateInfo);
-  resultTexture.descriptor.sampler = m_samplerPool.acquireSampler(samplerCreateInfo);
+  resultTexture.descriptor.sampler = m_samplerPool->acquireSampler(samplerCreateInfo);
 
   return resultTexture;
 }
@@ -422,7 +452,7 @@ void ResourceAllocator::destroy(Texture& t_)
 
   if(t_.descriptor.sampler)
   {
-    m_samplerPool.releaseSampler(t_.descriptor.sampler);
+    m_samplerPool->releaseSampler(t_.descriptor.sampler);
   }
 
   t_ = Texture();
@@ -582,12 +612,12 @@ void ResourceAllocator::destroy(AccelKHR& a_)
 
 VkSampler ResourceAllocator::acquireSampler(const VkSamplerCreateInfo& info)
 {
-  return m_samplerPool.acquireSampler(info);
+  return m_samplerPool->acquireSampler(info);
 }
 
 void ResourceAllocator::releaseSampler(VkSampler sampler)
 {
-  m_samplerPool.releaseSampler(sampler);
+  m_samplerPool->releaseSampler(sampler);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -704,8 +734,8 @@ ResourceAllocatorDma::~ResourceAllocatorDma()
 
 void ResourceAllocatorDma::init(VkDevice device, VkPhysicalDevice physicalDevice, VkDeviceSize stagingBlockSize, VkDeviceSize memBlockSize)
 {
-  m_dma = std::make_unique<DeviceMemoryAllocator>(device, physicalDevice, memBlockSize);
-  ResourceAllocator::init(device, physicalDevice, m_dma.get(), stagingBlockSize);
+  m_dma = new DeviceMemoryAllocator(device, physicalDevice, memBlockSize);
+  ResourceAllocator::init(device, physicalDevice, m_dma, stagingBlockSize);
 }
 
 
@@ -717,8 +747,45 @@ void ResourceAllocatorDma::init(VkInstance, VkDevice device, VkPhysicalDevice ph
 void ResourceAllocatorDma::deinit()
 {
   ResourceAllocator::deinit();
-  m_dma.reset();
+  delete m_dma;
+  m_dma = nullptr;
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+ResourceAllocatorDmaTS::ResourceAllocatorDmaTS(VkDevice device, VkPhysicalDevice physicalDevice, VkDeviceSize stagingBlockSize, VkDeviceSize memBlockSize)
+{
+  init(device, physicalDevice, stagingBlockSize, memBlockSize);
+}
+
+ResourceAllocatorDmaTS::~ResourceAllocatorDmaTS()
+{
+  deinit();
+}
+
+void ResourceAllocatorDmaTS::init(VkDevice device, VkPhysicalDevice physicalDevice, VkDeviceSize stagingBlockSize, VkDeviceSize memBlockSize)
+{
+  m_dma   = new DeviceMemoryAllocator(device, physicalDevice, memBlockSize);
+  m_dmaTS = new DMAMemoryAllocatorTS(m_dma);
+  ResourceAllocator::init(device, physicalDevice, m_dmaTS, stagingBlockSize);
+}
+
+
+void ResourceAllocatorDmaTS::init(VkInstance, VkDevice device, VkPhysicalDevice physicalDevice, VkDeviceSize stagingBlockSize, VkDeviceSize memBlockSize)
+{
+  init(device, physicalDevice, stagingBlockSize, memBlockSize);
+}
+
+void ResourceAllocatorDmaTS::deinit()
+{
+  ResourceAllocator::deinit();
+  delete m_dma;
+  delete m_dmaTS;
+  m_dma   = nullptr;
+  m_dmaTS = nullptr;
+}
+
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
