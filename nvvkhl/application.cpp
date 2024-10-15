@@ -984,7 +984,7 @@ void nvvkhl::Application::saveScreenShot(const std::string& filename, int qualit
   else
   {
     LOGW("Screenshot: unknown file extension, saving as PNG\n");
-    stbi_write_png(filename.c_str(), size.width, size.height, 4, data, size.width * 4);
+    stbi_write_png(filename.c_str(), size.width, size.height, 4, pixels.data(), size.width * 4);
   }
 
   LOGI("Screenshot saved to %s\n", filename.c_str());

@@ -27,68 +27,73 @@
 #include <string>
 
 /** @DOC_START
-  Multiple functions and macros that should be used for logging purposes,
-  rather than printf. These can print to multiple places at once
-  # Function nvprintf etc
+Multiple functions and macros that should be used for logging purposes,
+rather than `printf`. These can print to multiple places at once, produce
+breakpoints on certain types of messages, and more.
+
+# Function `nvprintf` etc.
   
-  Configuration:
-  - nvprintSetLevel : sets default loglevel
-  - nvprintGetLevel : gets default loglevel
-  - nvprintSetLogFileName : sets log filename
-  - nvprintSetLogging : sets file logging state
-  - nvprintSetCallback : sets custom callback
+Configuration:
+- `nvprintSetLevel` : sets default loglevel
+- `nvprintGetLevel` : gets default loglevel
+- `nvprintSetLogFileName` : sets log filename
+- `nvprintSetLogging` : sets file logging state
+- `nvprintSetCallback` : sets custom callback
 
-  Printf-style functions and macros.
-  These take printf-style specifiers.
-  - nvprintf : prints at default loglevel
-  - nvprintfLevel : nvprintfLevel print at a certain loglevel
-  - LOGI : macro that does nvprintfLevel(LOGLEVEL_INFO)
-  - LOGW : macro that does nvprintfLevel(LOGLEVEL_WARNING)
-  - LOGE : macro that does nvprintfLevel(LOGLEVEL_ERROR)
-  - LOGE_FILELINE : macro that does nvprintfLevel(LOGLEVEL_ERROR) combined with filename/line
-  - LOGD : macro that does nvprintfLevel(LOGLEVEL_DEBUG) (only in debug builds)
-  - LOGOK : macro that does nvprintfLevel(LOGLEVEL_OK)
-  - LOGSTATS : macro that does nvprintfLevel(LOGLEVEL_STATS)
+# Printf-style functions and macros.
+These take `printf`-style specifiers.
+- `nvprintf` : prints at default loglevel
+- `nvprintfLevel` : `nvprintfLevel` print at a certain loglevel
+- `LOGI` : macro that does `nvprintfLevel(LOGLEVEL_INFO)`
+- `LOGW` : macro that does `nvprintfLevel(LOGLEVEL_WARNING)`
+- `LOGE` : macro that does `nvprintfLevel(LOGLEVEL_ERROR)`
+- `LOGE_FILELINE` : macro that does `nvprintfLevel(LOGLEVEL_ERROR)` combined with filename/line
+- `LOGD` : macro that does `nvprintfLevel(LOGLEVEL_DEBUG)` (only in debug builds)
+- `LOGOK` : macro that does `nvprintfLevel(LOGLEVEL_OK)`
+- `LOGSTATS` : macro that does `nvprintfLevel(LOGLEVEL_STATS)`
 
-  std::print-style functions and macros.
-  These take std::format-style specifiers
-  (https://en.cppreference.com/w/cpp/utility/format/formatter#Standard_format_specification).
-  - nvprintLevel : print at a certain loglevel
-  - PRINTI : macro that does nvprintLevel(LOGLEVEL_INFO)
-  - PRINTW : macro that does nvprintLevel(LOGLEVEL_WARNING)
-  - PRINTE : macro that does nvprintLevel(LOGLEVEL_ERROR)
-  - PRINTE_FILELINE : macro that does nvprintLevel(LOGLEVEL_ERROR) combined with filename/line
-  - PRINTD : macro that does nvprintLevel(LOGLEVEL_DEBUG) (only in debug builds)
-  - PRINTOK : macro that does nvprintLevel(LOGLEVEL_OK)
-  - PRINTSTATS : macro that does nvprintLevel(LOGLEVEL_STATS)
+# `std::print`-style functions and macros.
+These take [`std::format`-style specifiers](https://en.cppreference.com/w/cpp/utility/format/formatter#Standard_format_specification).
+- `nvprintLevel` : print at a certain loglevel
+- `PRINTI` : macro that does `nvprintLevel(LOGLEVEL_INFO)`
+- `PRINTW` : macro that does `nvprintLevel(LOGLEVEL_WARNING)`
+- `PRINTE` : macro that does `nvprintLevel(LOGLEVEL_ERROR)`
+- `PRINTE_FILELINE` : macro that does `nvprintLevel(LOGLEVEL_ERROR)` combined with filename/line
+- `PRINTD` : macro that does `nvprintLevel(LOGLEVEL_DEBUG)` (only in debug builds)
+- `PRINTOK` : macro that does `nvprintLevel(LOGLEVEL_OK)`
+- `PRINTSTATS` : macro that does `nvprintLevel(LOGLEVEL_STATS)`
 
-  Safety:
-  On error, all functions print an error message.
-  All functions are thread-safe.
-  Printf-style functions have annotations that should produce warnings at
-  compile-time or when performing static analysis. Their format strings may be
-  dynamic - but this can be bad if an adversary can choose the content of the
-  format string.
-  std::print-style functions are safer: they produce compile-time errors, and
-  their format strings must be compile-time constants. Dynamic formatting
-  should be performed outside of printing, like this:
-  ```cpp
-  ImGui::InputText("Enter a format string: ", userFormat, sizeof(userFormat));
-  try
-  {
-    std::string formatted = fmt::vformat(userFormat, ...);
-  }
-  catch (const std::exception& e)
-  {
-    (error handling...)
-  }
-  PRINTI("{}", formatted);
-  ```
+# Safety:
+On error, all functions print an error message.
 
-  Text encoding:
-  Printing to the Windows debug console is the only operation that assumes a
-  text encoding; the input is assumed to be UTF-8. In all other cases, strings
-  are copied into the output.
+All functions are thread-safe.
+
+`Printf`-style functions have annotations that should produce warnings at
+compile-time or when performing static analysis. Their format strings may be
+dynamic - but this can be bad if an adversary can choose the content of the
+format string.
+
+`std::print`-style functions are safer: they produce compile-time errors, and
+their format strings must be compile-time constants. Dynamic formatting
+should be performed outside of printing, like this:
+
+```cpp
+ImGui::InputText("Enter a format string: ", userFormat, sizeof(userFormat));
+try
+{
+  std::string formatted = fmt::vformat(userFormat, ...);
+}
+catch (const std::exception& e)
+{
+  (error handling...)
+}
+PRINTI("{}", formatted);
+```
+
+# Text encoding:
+Printing to the Windows debug console is the only operation that assumes a
+text encoding; the input is assumed to be UTF-8. In all other cases, strings
+are copied into the output.
 @DOC_END */
 
 

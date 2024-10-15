@@ -1,18 +1,54 @@
-# This script generates a README.md file for each folder containing header files, 
-# with a table of contents and documentation extracted from the header files.
+"""
+This script generates a README.md file for each folder containing header files,
+with a table of contents and documentation extracted from the header files.
 
-# How to use:
-# 1. Customize the excluded_folders list as per your project's needs.
-# 2. Run the script in the root directory of your project.
+How to use:
+1. Customize the excluded_folders list as per your project's needs.
+2. Run the script in the root directory of your project.
 
-# Note: To include documentation in the README.md file, enclose the documentation 
-# within the "@DOC_START" and "@DOC_END" tags in the header files. Anything inside
-# will be threated as Markdown documentation. 
-# If the header contains @DOC_SKIP, the header will not try to generate documentation
+Note: To include documentation in the README.md file, enclose documentation
+within "@DOC_START" and "@DOC_END" tags in the header files. Anything inside
+will be treated as Markdown documentation. Files can contain multiple @DOC_START
+and @DOC_END tags.
+If a header file contains @DOC_SKIP, then no documentation will be generated
+for it.
 
-# Note: Any title (`#`) will be demoted by two level to fit the documentation.
-#       Level-1 (title): reserve, level-2 (sub-title): filename
-#       Ex. "# MyClass"  -> "### MyClass"
+Note: Any title (`#`) will be demoted by two levels to fit the rest of the
+      documentation. This is because the outer documentation reserves level-1
+      titles, and uses level-2 titles for filenames.
+      Ex. "# MyClass"  -> "### MyClass"
+
+For example, a header file might have a documentation block after the license
+like this:
+
+```cpp
+/** @DOC_START
+# functions in nvvk
+
+- makeAccessMaskPipelineStageFlags : depending on accessMask returns appropriate VkPipelineStageFlagBits
+- cmdBegin : wraps vkBeginCommandBuffer with VkCommandBufferUsageFlags and implicitly handles VkCommandBufferBeginInfo setup
+- makeSubmitInfo : VkSubmitInfo struct setup using provided arrays of signals and commandbuffers, leaving rest zeroed
+@DOC_END */
+```
+
+and then more documentation blocks above classes or functions like this:
+
+```cpp
+/** @DOC_START
+  # class nvvk::RingFences
+
+  nvvk::RingFences recycles a fixed number of fences, provides information in which cycle
+  we are currently at, and prevents accidental access to a cycle in-flight.
+
+  A typical frame would start by "setCycleAndWait", which waits for the
+  requested cycle to be available.
+@DOC_END */
+
+class RingFences
+...
+```
+
+"""
 
 import os
 
@@ -41,15 +77,31 @@ def extract_documentation(file_path):
     with open(file_path, 'r', encoding="utf-8") as file:
         in_doc_block = False
         for line in file:
-            if "@DOC_START" in line.strip():
+            if "@DOC_START" in line:
                 in_doc_block = True
-            elif "@DOC_END" in line.strip():
+                # For each doc block, we keep track of the minimum indentation
+                # so that we can uniformly un-indent it.
+                block_indent = 999
+                block_lines = []
+            elif "@DOC_END" in line:
+                # Un-indent block
+                for block_line in block_lines:
+                    documentation += block_line[block_indent:] + "\n"
+                # Reset for next block
+                block_lines = []
                 in_doc_block = False
             elif in_doc_block:
-                if line.lstrip().startswith("# "):
-                    documentation += "##" + line.lstrip() + "\n"
-                else:
-                    documentation += line.strip() + "\n"
+                # Remove whitespace and newline characters at the end
+                line = line.rstrip()
+                # Count number of whitespace characters
+                lstripped = line.lstrip()                
+                if len(line) > 0:
+                    block_indent = min(block_indent, len(line) - len(lstripped))
+                # If this is a title...
+                if lstripped.startswith("# ") or lstripped.startswith("##"):
+                    # Add two levels to it
+                    line = line.replace('#', '###', 1)
+                block_lines.append(line)
     if not documentation:
         documentation = "\n> Todo: Add documentation\n"
     return documentation

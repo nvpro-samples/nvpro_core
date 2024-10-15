@@ -509,16 +509,11 @@ void nvvk::BlasBuilder::getScratchAddresses(VkDeviceSize                        
 //   A string containing the formatted summary of the BLAS compaction statistics.
 std::string nvvk::BlasBuilder::Stats::toString() const
 {
-  // Sizes in MB
-  float originalSizeMB = totalOriginalSize / (1024.0f * 1024.0f);
-  float compactSizeMB  = totalCompactSize / (1024.0f * 1024.0f);
-  float savedSizeMB    = (totalOriginalSize - totalCompactSize) / (1024.0f * 1024.0f);
+  const VkDeviceSize savedSize = totalOriginalSize - totalCompactSize;
+  const float fractionSmaller  = (totalOriginalSize == 0) ? 0.0f : savedSize / static_cast<float>(totalOriginalSize);
 
-  float fractionSmaller =
-      (totalOriginalSize == 0) ? 0.0f : (totalOriginalSize - totalCompactSize) / static_cast<float>(totalOriginalSize);
-
-  std::string output = fmt::format("BLAS Compaction: {:.1f}MB -> {:.1f}MB ({:.1f}MB saved, {:.1f}% smaller)",
-                                   originalSizeMB, compactSizeMB, savedSizeMB, fractionSmaller * 100.0f);
+  const std::string output = fmt::format("BLAS Compaction: {} bytes -> {} bytes ({} bytes saved, {:.2f}% smaller)",
+                                         totalOriginalSize, totalCompactSize, savedSize, fractionSmaller * 100.0f);
 
   return output;
 }

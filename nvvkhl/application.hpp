@@ -29,53 +29,52 @@
 #include "imgui.h"
 
 /* @DOC_START
-# class nvvk::Application
+# class nvvkhl::Application
 
-  The Application is basically a small modification of the ImGui example for Vulkan.
-  Because we support multiple viewports, duplicating the code would be not necessary 
-  and the code is very well explained. 
+The Application is basically a small modification of the ImGui example for Vulkan.
+Because we support multiple viewports, duplicating the code would be not necessary 
+and the code is very well explained. 
 
-  To use the application, 
-  * Fill the ApplicationCreateInfo with all the information, including the Vulkan creation information (nvvk::ContextCreateInfo).
-  * Attach elements to the application, such as rendering, camera, etc.
-  * Call run() to start the application.
-  *
-  * The application will create the window, the Vulkan context, and the ImGui context.
- 
-  Worth notice
-  * ::init() : will create the GLFW window, call nvvk::context for the creation of the 
-               Vulkan context, initialize ImGui , create the surface and window (::setupVulkanWindow)  
-  * ::shutdown() : the oposite of init
-  * ::run() : while running, render the frame and present the frame. Check for resize, minimize window 
-                and other changes. In the loop, it will call some functions for each 'element' that is connected.
-                onUIRender, onUIMenu, onRender. See IApplication for details.
-  * The Application is a singleton, and the main loop is inside the run() function.
-  * The Application is the owner of the elements, and it will call the onRender, onUIRender, onUIMenu
-      for each element that is connected to it.
-  * The Application is the owner of the Vulkan context, and it will create the surface and window.
-  * The Application is the owner of the ImGui context, and it will create the dockspace and the main menu.
-  * The Application is the owner of the GLFW window, and it will create the window and handle the events.
-  
+To use the application, 
+* Fill the ApplicationCreateInfo with all the information, including the Vulkan creation information (nvvk::ContextCreateInfo).
+* Attach elements to the application, such as rendering, camera, etc.
+* Call run() to start the application.
+*
+* The application will create the window, the Vulkan context, and the ImGui context.
 
-  The application itself does not render per se. It contains control buffers for the images in flight,
-  it calls ImGui rendering for Vulkan, but that's it. Note that none of the samples render
-  directly into the swapchain. Instead, they render into an image, and the image is displayed in the ImGui window
-  window called "Viewport".
-  
-  Application elements must be created to render scenes or add "elements" to the application.  Several elements 
-  can be added to an application, and each of them will be called during the frame. This allows the application 
-  to be divided into smaller parts, or to reuse elements in various samples. For example, there is an element 
-  that adds a default menu (File/Tools), another that changes the window title with FPS, the resolution, and there
-  is also an element for our automatic tests.
-    
-  Each added element will be called in a frame, see the IAppElement interface for information on virtual functions.
-  Basically there is a call to create and destroy, a call to render the user interface and a call to render the 
-  frame with the command buffer.
+Worth notice
+* ::init() : will create the GLFW window, call nvvk::context for the creation of the 
+              Vulkan context, initialize ImGui , create the surface and window (::setupVulkanWindow)  
+* ::shutdown() : the oposite of init
+* ::run() : while running, render the frame and present the frame. Check for resize, minimize window 
+              and other changes. In the loop, it will call some functions for each 'element' that is connected.
+              onUIRender, onUIMenu, onRender. See IApplication for details.
+* The Application is a singleton, and the main loop is inside the run() function.
+* The Application is the owner of the elements, and it will call the onRender, onUIRender, onUIMenu
+    for each element that is connected to it.
+* The Application is the owner of the Vulkan context, and it will create the surface and window.
+* The Application is the owner of the ImGui context, and it will create the dockspace and the main menu.
+* The Application is the owner of the GLFW window, and it will create the window and handle the events.
 
-  Note: order of Elements can be important if one depends on the other. For example, the ElementCamera should
-        be added before the rendering sample, such that its matrices are updated before pulled by the renderer.
-         
- 
+
+The application itself does not render per se. It contains control buffers for the images in flight,
+it calls ImGui rendering for Vulkan, but that's it. Note that none of the samples render
+directly into the swapchain. Instead, they render into an image, and the image is displayed in the ImGui window
+window called "Viewport".
+
+Application elements must be created to render scenes or add "elements" to the application.  Several elements 
+can be added to an application, and each of them will be called during the frame. This allows the application 
+to be divided into smaller parts, or to reuse elements in various samples. For example, there is an element 
+that adds a default menu (File/Tools), another that changes the window title with FPS, the resolution, and there
+is also an element for our automatic tests.
+
+Each added element will be called in a frame, see the IAppElement interface for information on virtual functions.
+Basically there is a call to create and destroy, a call to render the user interface and a call to render the 
+frame with the command buffer.
+
+Note: order of Elements can be important if one depends on the other. For example, the ElementCamera should
+      be added before the rendering sample, such that its matrices are updated before pulled by the renderer.
+
 @DOC_END */
 
 // Forward declarations

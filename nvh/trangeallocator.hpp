@@ -25,9 +25,13 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#include <NvFoundation.h>  // for NV_X86 and NV_X64
+#if (__cplusplus >= 202002L)
+#include <bit>
+#endif
 
-#if(defined(NV_X86) || defined(NV_X64)) && defined(_MSC_VER)
+#include <NvFoundation.h>  // for NV_X64
+
+#if defined(NV_X64) && defined(_MSC_VER)
 #include <intrin.h>
 #endif
 
@@ -136,10 +140,16 @@ public:
     }
     uint32_t alignRest    = align - 1;
     uint32_t sizeReserved = size;
-#if(defined(NV_X86) || defined(NV_X64)) && defined(_MSC_VER)
-    bool alignIsPOT = __popcnt(align) == 1;
+
+#if (__cplusplus >= 202002L)
+    bool alignIsPOT = std::popcount(align) == 1;
 #else
+  // fallback for pre-C++20
+  #if defined(NV_X64) && defined(_MSC_VER)
+    bool alignIsPOT = __popcnt(align) == 1;
+  #else
     bool alignIsPOT = __builtin_popcount(align) == 1;
+  #endif
 #endif
 
     if(m_used >= m_size)

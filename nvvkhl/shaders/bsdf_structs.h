@@ -20,25 +20,35 @@
 #ifndef NVVKHL_BSDF_STRUCTS_H
 #define NVVKHL_BSDF_STRUCTS_H 1
 
-#define BSDF_EVENT_ABSORB 0               // 0
-#define BSDF_EVENT_DIFFUSE 1              // 1
-#define BSDF_EVENT_GLOSSY (1 << 1)        // 2
-#define BSDF_EVENT_SPECULAR (1 << 2)      // 4
-#define BSDF_EVENT_REFLECTION (1 << 3)    // 8
-#define BSDF_EVENT_TRANSMISSION (1 << 4)  // 16
+/* @DOC_START
+# `BSDF_EVENT*` Defines
+> These are the flags of the `BsdfSampleData::event_type` bitfield, which
+> indicates the type of lobe that was sampled.
 
-#define BSDF_EVENT_DIFFUSE_REFLECTION (BSDF_EVENT_DIFFUSE | BSDF_EVENT_REFLECTION)        // 9
-#define BSDF_EVENT_DIFFUSE_TRANSMISSION (BSDF_EVENT_DIFFUSE | BSDF_EVENT_TRANSMISSION)    // 17
-#define BSDF_EVENT_GLOSSY_REFLECTION (BSDF_EVENT_GLOSSY | BSDF_EVENT_REFLECTION)          // 10
-#define BSDF_EVENT_GLOSSY_TRANSMISSION (BSDF_EVENT_GLOSSY | BSDF_EVENT_TRANSMISSION)      // 18
-#define BSDF_EVENT_SPECULAR_REFLECTION (BSDF_EVENT_SPECULAR | BSDF_EVENT_REFLECTION)      // 12
-#define BSDF_EVENT_SPECULAR_TRANSMISSION (BSDF_EVENT_SPECULAR | BSDF_EVENT_TRANSMISSION)  // 20
+This terminology is based on McGuire et al., "A Taxonomy of Bidirectional
+Scattering Distribution Function Lobes for Rendering Engineers",
+https://casual-effects.com/research/McGuire2020BSDF/McGuire2020BSDF.pdf.
+@DOC_END */
 
-#define BSDF_USE_MATERIAL_IOR (-1.0)
+// Individual flags:
+#define BSDF_EVENT_ABSORB 0               // 0: invalid sample; path should be discarded (radiance 0)
+#define BSDF_EVENT_DIFFUSE 1              // 1: e.g. Lambert. Lobe is always centered on the surface normal.
+#define BSDF_EVENT_GLOSSY (1 << 1)        // 2; Center of lobe depends on viewing angle; not perfectly specular reflection.
+#define BSDF_EVENT_IMPULSE (1 << 2)       // 4; "Perfectly specular" or "mirror-like" reflection or transmission.
+#define BSDF_EVENT_REFLECTION (1 << 3)    // 8; Both view and light directions are on the same side of the geometric normal.
+#define BSDF_EVENT_TRANSMISSION (1 << 4)  // 16; View and light directions are on opposite sides of the geometric normal.
+
+// Combinations:
+#define BSDF_EVENT_DIFFUSE_REFLECTION (BSDF_EVENT_DIFFUSE | BSDF_EVENT_REFLECTION)      // 9
+#define BSDF_EVENT_DIFFUSE_TRANSMISSION (BSDF_EVENT_DIFFUSE | BSDF_EVENT_TRANSMISSION)  // 17
+#define BSDF_EVENT_GLOSSY_REFLECTION (BSDF_EVENT_GLOSSY | BSDF_EVENT_REFLECTION)        // 10
+#define BSDF_EVENT_GLOSSY_TRANSMISSION (BSDF_EVENT_GLOSSY | BSDF_EVENT_TRANSMISSION)    // 18
+#define BSDF_EVENT_IMPULSE_REFLECTION (BSDF_EVENT_IMPULSE | BSDF_EVENT_REFLECTION)      // 12
+#define BSDF_EVENT_IMPULSE_TRANSMISSION (BSDF_EVENT_IMPULSE | BSDF_EVENT_TRANSMISSION)  // 20
 
 /** @DOC_START
-# struct BsdfEvaluateData
->  Data structure for evaluating a BSDF
+# struct `BsdfEvaluateData`
+> Data structure for evaluating a BSDF. See the file for parameter documentation.
 @DOC_END */
 struct BsdfEvaluateData
 {
@@ -51,8 +61,8 @@ struct BsdfEvaluateData
 };
 
 /** @DOC_START
-# struct BsdfSampleData
->  Data structure for sampling a BSDF
+# struct `BsdfSampleData`
+> Data structure for sampling a BSDF. See the file for parameter documentation.
 @DOC_END  */
 struct BsdfSampleData
 {

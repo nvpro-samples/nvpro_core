@@ -195,11 +195,12 @@ public:
 
   // Both `memAllocator`, and the optional `externalSamplerPool` are directly referenced,
   // no ownership transfer.
-  ResourceAllocator(VkDevice         device,
-                    VkPhysicalDevice physicalDevice,
-                    MemAllocator*    memAllocator,
-                    VkDeviceSize     stagingBlockSize    = NVVK_DEFAULT_STAGING_BLOCKSIZE,
-                    SamplerPool*     externalSamplerPool = nullptr);
+  ResourceAllocator(VkDevice           device,
+                    VkPhysicalDevice   physicalDevice,
+                    MemAllocator*      memAllocator,
+                    VkDeviceSize       stagingBlockSize             = NVVK_DEFAULT_STAGING_BLOCKSIZE,
+                    VkBufferUsageFlags stagingExtraBufferUsageFlags = 0,
+                    SamplerPool*       externalSamplerPool          = nullptr);
 
   ResourceAllocator(ResourceAllocator& other);
 
@@ -210,11 +211,12 @@ public:
   // Initialization of the allocator
   // Both `memAllocator`, and the optional `externalSamplerPool` are directly referenced,
   // no ownership transfer.
-  void init(VkDevice         device,
-            VkPhysicalDevice physicalDevice,
-            MemAllocator*    memAlloc,
-            VkDeviceSize     stagingBlockSize    = NVVK_DEFAULT_STAGING_BLOCKSIZE,
-            SamplerPool*     externalSamplerPool = nullptr);
+  void init(VkDevice           device,
+            VkPhysicalDevice   physicalDevice,
+            MemAllocator*      memAlloc,
+            VkDeviceSize       stagingBlockSize             = NVVK_DEFAULT_STAGING_BLOCKSIZE,
+            VkBufferUsageFlags stagingExtraBufferUsageFlags = 0,
+            SamplerPool*       externalSamplerPool          = nullptr);
 
   // inherits memAllocator and samplerPool from other
   void init(ResourceAllocator& other);
@@ -368,6 +370,7 @@ protected:
   VkPhysicalDevice                      m_physicalDevice{VK_NULL_HANDLE};
   VkPhysicalDeviceMemoryProperties      m_memoryProperties{};
   MemAllocator*                         m_memAlloc{nullptr};
+  VkBufferUsageFlags                    m_stagingExtraBufferUsageFlags = 0;
   std::unique_ptr<StagingMemoryManager> m_staging;
   std::unique_ptr<SamplerPool>          m_samplerPoolInternal;
   SamplerPool*                          m_samplerPool;

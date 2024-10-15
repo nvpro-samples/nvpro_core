@@ -17,12 +17,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-
-//-------------------------------------------------------------------------------------------------
-// This file takes the incoming GltfShadeMaterial (material uploaded in a buffer) and
-// evaluates it, basically sample the textures and return the struct PbrMaterial
-// which is used by the Bsdf functions to evaluate and sample the material
-//
+/* @DOC_START
+This file takes the incoming `GltfShadeMaterial` (material uploaded in a buffer) and
+evaluates it, basically sampling the textures, and returns the struct `PbrMaterial`
+which is used by the BSDF functions to evaluate and sample the material.
+@DOC_END */
 
 #ifndef MAT_EVAL_H
 #define MAT_EVAL_H 1
@@ -40,11 +39,22 @@ struct MeshState
 };
 
 
-// This is the list of all textures
+/* @DOC_START
+# `MAT_EVAL_TEXTURE_ARRAY` Define
+> The name of the array that contains all texture samplers.
+
+Defaults to `texturesMap`; you can define this before including `pbr_mat_eval.h`
+to use textures from a different array name.
+@DOC_END */
 #ifndef MAT_EVAL_TEXTURE_ARRAY
 #define MAT_EVAL_TEXTURE_ARRAY texturesMap
 #endif
 
+/* @DOC_START
+# `NO_TEXTURES` Define
+> Define this before including `pbr_mat_eval.h` to use a color of `vec4(1.0f)`
+> for everything instead of reading textures.
+@DOC_END */
 #ifndef NO_TEXTURES
 #define USE_TEXTURES
 #endif
@@ -65,15 +75,23 @@ bool isTexturePresent(in GltfTextureInfo tinfo)
   return tinfo.index > -1;
 }
 
-// Minimum roughness for microfacet models.
-// This protects microfacet code from dividing by 0, as well as from numerical
-// instability around roughness == 0. However, it also means even roughness-0
-// surfaces will be rendered with a tiny amount of roughness.
+/* @DOC_START
+# `MICROFACET_MIN_ROUGHNESS` Define
+> Minimum roughness for microfacet models.
+
+This protects microfacet code from dividing by 0, as well as from numerical
+instability around roughness == 0. However, it also means even roughness-0
+surfaces will be rendered with a tiny amount of roughness.
+
+This value is ad-hoc; it could probably be lowered without issue.
+@DOC_END */
 #define MICROFACET_MIN_ROUGHNESS 0.0014142f
 
-//-----------------------------------------------------------------------
-// From the incoming material return the material for evaluating PBR
-//-----------------------------------------------------------------------
+/* @DOC_START
+# Function `evaluateMaterial`
+> From the incoming `material` and `mesh` info, return a `PbrMaterial` struct
+> for the BSDF system.
+@DOC_END */
 PbrMaterial evaluateMaterial(in GltfShadeMaterial material, MeshState mesh)
 {
   // Material Evaluated

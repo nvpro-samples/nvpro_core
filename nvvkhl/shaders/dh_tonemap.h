@@ -21,6 +21,10 @@
 #ifndef DH_TONEMAMP_H
 #define DH_TONEMAMP_H 1
 
+/* @DOC_START
+> Contains implementations for several local tone mappers.
+@DOC_END */
+
 #ifdef __cplusplus
 namespace nvvkhl_shaders {
 using mat3 = glm::mat3;
@@ -41,10 +45,13 @@ const int eTonemapAgX        = 4;
 const int eTonemapKhronosPBR = 5;
 
 
-// Tonemapper settings
+/* @DOC_START
+# Struct `Tonemapper`
+> Tonemapper settings.
+@DOC_END */
 struct Tonemapper
 {
-  int   method;
+  int   method; // One of the `eTonemap` values above.
   int   isActive;
   float exposure;
   float brightness;
@@ -53,6 +60,11 @@ struct Tonemapper
   float vignette;
 };
 
+/* @DOC_START
+# Struct `defaultTonemapper`
+> Returns default tonemapper settings: filmic tone mapping, no additional color
+> correction.
+@DOC_END */
 INLINE Tonemapper defaultTonemapper()
 {
   Tonemapper t;
@@ -71,7 +83,7 @@ const int eTonemapperInput  = 0;
 const int eTonemapperOutput = 1;
 
 /** @DOC_START
-# Function toSrgb
+# Function `toSrgb`
 > Converts a color from linear RGB to sRGB.
 @DOC_END */
 INLINE vec3 toSrgb(vec3 rgb)
@@ -82,7 +94,7 @@ INLINE vec3 toSrgb(vec3 rgb)
 }
 
 /** @DOC_START
-# Function toLinear
+# Function `toLinear`
 > Converts a color from sRGB to linear RGB.
 @DOC_END */
 INLINE vec3 toLinear(vec3 srgb)
@@ -93,10 +105,11 @@ INLINE vec3 toLinear(vec3 srgb)
 }
 
 /** @DOC_START
-# Function tonemapFilmic
->  Filmic tonemapping operator by Jim Hejl and Richard Burgess-Dawson,
->  approximating the Digital Fusion Cineon mode, but more saturated and with
->  darker midtones. sRGB correction is built in.
+# Function `tonemapFilmic`
+> Filmic tonemapping operator by Jim Hejl and Richard Burgess-Dawson,
+> approximating the Digital Fusion Cineon mode, but more saturated and with
+> darker midtones. sRGB correction is built in.
+
 http://filmicworlds.com/blog/filmic-tonemapping-operators/
 @DOC_END */
 INLINE vec3 tonemapFilmic(vec3 color)
@@ -107,9 +120,10 @@ INLINE vec3 tonemapFilmic(vec3 color)
 }
 
 /** @DOC_START
-# Function tonemapUncharted
->  Tone mapping operator from Uncharted 2 by John Hable. sRGB correction is built in.
-see: http://filmicworlds.com/blog/filmic-tonemapping-operators/
+# Function `tonemapUncharted`
+> Tone mapping operator from Uncharted 2 by John Hable. sRGB correction is built in.
+
+See: http://filmicworlds.com/blog/filmic-tonemapping-operators/
 @DOC_END */
 
 INLINE vec3 tonemapUncharted2Impl(vec3 color)
@@ -135,9 +149,10 @@ INLINE vec3 tonemapUncharted2(vec3 color)
 }
 
 /** @DOC_START
-# Function tonemapACES
->  An approximation by Stephen Hill to the Academy Color Encoding System's
+# Function `tonemapACES`
+> An approximation by Stephen Hill to the Academy Color Encoding System's
 > filmic curve for displaying HDR images on LDR output devices.
+
 From https://github.com/TheRealMJP/BakingLab/blob/master/BakingLab/ACES.hlsl,
 via https://knarkowicz.wordpress.com/2016/01/06/aces-filmic-tone-mapping-curve/
 @DOC_END */
@@ -161,8 +176,9 @@ INLINE vec3 tonemapACES(vec3 color)
 }
 
 /** @DOC_START
-# Function tonemapAgX
->  Benjamin Wrensch's approximation to the AgX tone mapping curve by Troy Sobotka.
+# Function `tonemapAgX`
+> Benjamin Wrensch's approximation to the AgX tone mapping curve by Troy Sobotka.
+
 From https://iolite-engine.com/blog_posts/minimal_agx_implementation
 @DOC_END */
 INLINE vec3 tonemapAgX(vec3 color)
@@ -198,8 +214,9 @@ INLINE vec3 tonemapAgX(vec3 color)
 }
 
 /** @DOC_START
-# Function KhronosPBR
->  The Khronos PBR neutral tone mapper.
+# Function `tonemapKhronosPBR`
+> The Khronos PBR neutral tone mapper.
+
 Adapted from https://github.com/KhronosGroup/ToneMapping/blob/main/PBR_Neutral/pbrNeutral.glsl
 @DOC_END */
 INLINE vec3 tonemapKhronosPBR(vec3 color)
@@ -230,6 +247,11 @@ INLINE vec3 tonemapKhronosPBR(vec3 color)
   return toSrgb(color);
 }
 
+/* @DOC_START
+> Applies the given tone mapper and color grading settings to a given color.
+
+Requires the UV coordinate so that it can apply vignetting.
+@DOC_END */
 INLINE vec3 applyTonemap(Tonemapper tm, vec3 color, vec2 uv)
 {
   // Exposure

@@ -23,7 +23,7 @@
 
 #include <algorithm>
 #include <platform.h>
-#if(defined(NV_X86) || defined(NV_X64)) && defined(_MSC_VER)
+#if(defined(NV_X64)) && defined(_MSC_VER)
 #include <intrin.h>
 #endif
 
@@ -77,7 +77,7 @@ private:
 };
 
 
-#if(defined(NV_X86) || defined(NV_X64)) && defined(_MSC_VER)
+#if(defined(NV_X64) || defined(NV_ARM)) && defined(_MSC_VER)
 template <typename Visitor>
 inline void bitTraverse(uint32_t bits, Visitor& visitor)
 {

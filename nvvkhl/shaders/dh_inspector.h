@@ -17,18 +17,32 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+/* @DOC_START
+> Shader header for inspecting shader variables.
 
-// Shader header for inspection shader variables
-// Prior to including this header the following macros need to be defined
-// Either INSPECTOR_MODE_COMPUTE or INSPECTOR_MODE_FRAGMENT
-// If INSPECTOR_MODE_COMPUTE is defined the shader must expose invocation information (e.g. gl_LocalInvocationID).
-// This typically applies to compute, task and mesh shaders
-// If INSPECTOR_MODE_FRAGMENT is defined the shader must expose fragment information (e.g. gl_FragCoord).
-// This applies to fragment shaders
-//
-// INSPECTOR_DESCRIPTOR_SET: the index of the descriptor set containing the Inspector buffers
-// INSPECTOR_INSPECTION_DATA_BINDING: the binding index of the buffer containing the inspection information, as provided by ElementInspector::getComputeInspectionBuffer()
-// INSPECTOR_METADATA_BINDING: the binding index of the buffer containing the inspection metadata, as provided by ElementInspector::getComputeMetadataBuffer()
+Prior to including this header either the `INSPECTOR_MODE_COMPUTE` or the
+`INSPECTOR_MODE_FRAGMENT` macro must be defined, depending on the type of
+shader to be inspected.
+
+* If `INSPECTOR_MODE_COMPUTE` is defined, the shader must expose invocation information (e.g. `gl_LocalInvocationID`).
+  This typically applies to compute, task and mesh shaders.
+* If `INSPECTOR_MODE_FRAGMENT` is defined, the shader must expose fragment information (e.g. `gl_FragCoord`).
+  This applies to fragment shaders.
+
+You must also define the following macros:
+* `INSPECTOR_DESCRIPTOR_SET`: the index of the descriptor set containing the
+  Inspector buffers.
+* `INSPECTOR_INSPECTION_DATA_BINDING`: the binding index of the buffer
+  containing the inspection information, as provided by
+  `ElementInspector::getComputeInspectionBuffer()`.
+* `INSPECTOR_METADATA_BINDING`: the binding index of the buffer containing the
+  inspection metadata, as provided by `ElementInspector::getComputeMetadataBuffer()`
+
+You can also set `INSPECTOR_MODE_CUSTOM`,
+`INSPECTOR_CUSTOM_INSPECTION_DATA_BINDING`, and
+`INSPECTOR_CUSTOM_METADATA_BINDING` to inspect more than one variable
+per thread.
+@DOC_END */
 
 #ifndef DH_INSPECTOR_H
 #define DH_INSPECTOR_H
@@ -125,8 +139,8 @@ layout(set = INSPECTOR_DESCRIPTOR_SET, binding = INSPECTOR_METADATA_BINDING) rea
 };
 
 /** @DOC_START
-# Function inspect32BitValue
->  Inspect a 32-bit value at a given index
+# Function `inspect32BitValue`
+> Use this to inspect a 32-bit value at a given index.
 @DOC_END  */
 void inspect32BitValue(uint32_t index, uint32_t v)
 {
@@ -208,8 +222,8 @@ layout(set = INSPECTOR_DESCRIPTOR_SET, binding = INSPECTOR_CUSTOM_METADATA_BINDI
 };
 
 /** @DOC_START
-# Function inspectCustom32BitValue
->  Inspect a 32-bit value at a given index
+# Function `inspectCustom32BitValue`
+> Use this to inspect a custom 32-bit value at a given index.
 @DOC_END  */
 void inspectCustom32BitValue(uint32_t index, uvec3 location, uint32_t v)
 {

@@ -17,9 +17,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/// @DOC_SKIP
 #ifndef DH_LIGHTING_H
 #define DH_LIGHTING_H 1
+
+/* @DOC_START
+Common structures used for lights other than environment lighting.
+@DOC_END */
 
 #ifdef __cplusplus
 namespace nvvkhl_shaders {

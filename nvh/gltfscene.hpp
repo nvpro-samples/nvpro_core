@@ -90,22 +90,22 @@ struct RenderLight
 
 
 /** @DOC_START
-* 
-* # nvh::gltf::Scene 
-* 
-* The Scene class is responsible for loading and managing a glTF scene.
-* - It is used to load a glTF file and parse it into a scene representation.
-* - It can be used to save the scene back to a glTF file.
-* - It can be used to manage the animations of the scene.
-* - What it returns is a list of RenderNodes, RenderPrimitives, RenderCameras, and RenderLights.
-* -  RenderNodes are the instances of the primitives in the scene that will be rendered.
-* -  RenderPrimitives are the unique primitives in the scene.
-* 
-* Note: The Scene class is a more advanced and light weight version of the GltfScene class.
-*       But it is to the user to retrieve the primitive data from the RenderPrimitives.
-*       Check the tinygltf_utils.hpp for more information on how to extract the primitive data.
-* 
-** @DOC_END */
+
+# nvh::gltf::Scene 
+
+The Scene class is responsible for loading and managing a glTF scene.
+- It is used to load a glTF file and parse it into a scene representation.
+- It can be used to save the scene back to a glTF file.
+- It can be used to manage the animations of the scene.
+- What it returns is a list of RenderNodes, RenderPrimitives, RenderCameras, and RenderLights.
+-  RenderNodes are the instances of the primitives in the scene that will be rendered.
+-  RenderPrimitives are the unique primitives in the scene.
+
+Note: The Scene class is a more advanced and light weight version of the GltfScene class.
+      But it is to the user to retrieve the primitive data from the RenderPrimitives.
+      Check the tinygltf_utils.hpp for more information on how to extract the primitive data.
+
+@DOC_END */
 
 
 class Scene

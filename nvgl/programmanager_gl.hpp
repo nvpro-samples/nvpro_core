@@ -32,30 +32,30 @@
 namespace nvgl {
 //////////////////////////////////////////////////////////////////////////
 /** @DOC_START
-    # class nvgl::ProgramManager
+# class nvgl::ProgramManager
 
-    The nvgl::ProgramManager manages OpenGL programs generated from shader files (GLSL)
+The nvgl::ProgramManager manages OpenGL programs generated from shader files (GLSL)
 
-    Using ShaderFileManager it will find the files and resolve #include for GLSL.
-    You must add include directories to the base-class for this.
+Using ShaderFileManager it will find the files and resolve #include for GLSL.
+You must add include directories to the base-class for this.
 
-    It also comes with some convenience functions to reload shaders etc.
-    That is why we pass out the ProgramID rather than a GLuint directly.
+It also comes with some convenience functions to reload shaders etc.
+That is why we pass out the ProgramID rather than a GLuint directly.
 
-    Example:
+Example:
 
 ```cpp
-    ProgramManager mgr;
+ProgramManager mgr;
 
-    // derived from ShaderFileManager
-    mgr.addDirectory("/shaders/")
+// derived from ShaderFileManager
+mgr.addDirectory("/shaders/")
 
-    // injected after #version directive
-    mgr.m_prepend = "#define USE_NOISE 1\n";
+// injected after #version directive
+mgr.m_prepend = "#define USE_NOISE 1\n";
 
-    id = mgr.createProgram({{GL_VERTEX_SHADER, "object.vert.glsl"},{GL_FRAGMENT_SHADER, "object.frag.glsl"}}):
+id = mgr.createProgram({{GL_VERTEX_SHADER, "object.vert.glsl"},{GL_FRAGMENT_SHADER, "object.frag.glsl"}}):
 
-    glUseProgram(mgr.get(id));
+glUseProgram(mgr.get(id));
 ```
 @DOC_END  */
 

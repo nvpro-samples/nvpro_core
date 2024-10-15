@@ -13,13 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2014-2024 NVIDIA CORPORATION
+ * SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION
  * SPDX-License-Identifier: Apache-2.0
  */
 
 
 #ifndef CONSTANTS_GLSL
 #define CONSTANTS_GLSL
+
+/* @DOC_START
+Useful mathematical constants:
+* `M_PI` (pi)
+* `M_TWO_PI` (2*pi)
+* `M_PI_2` (pi/2)
+* `M_PI_4` (pi/4)
+* `M_1_OVER_PI` (1/pi)
+* `M_2_OVER_PI` (2/pi)
+* `M_1_PI` (also 1/pi)
+* `INFINITE` (infinity)
+@DOC_END */
 
 #ifndef __cplusplus
 precision highp float;

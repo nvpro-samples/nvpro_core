@@ -32,7 +32,7 @@ Class TinyConverter
 
 > This class is used to convert a tinyobj::ObjReader to a tinygltf::Model.
 
- @DOC_END */
+@DOC_END */
 
 
 class TinyConverter

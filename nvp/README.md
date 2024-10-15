@@ -6,7 +6,6 @@
 ## nvpfilesystem.hpp
 ### class nvp::FileSystemMonitor
 
-
 Monitors files and/or directories for changes
 
 This cross-platform wrapper does not create any threads, but is designed for
@@ -14,11 +13,9 @@ it. checkEvents() will block until either an event is generated, or cancel()
 is called. See ModifiedFilesMonitor for an example.
 ### class nvp::FSMRunner
 
-
 Adds a thread to nvp::FileSystemMonitor that repeatedly calls
 nvp::FileSystemMonitor::checkEvents().
 ### class nvp::FSMCallbacks
-
 
 Utility class to get per-path callbacks.
 
@@ -30,20 +27,19 @@ Example:
 FSMCallbacks callbacks;
 
 auto callbackFile1 = callbacks.add(std::vector<std::string>{"file1.txt"}, nvp::FileSystemMonitor::FSM_MODIFY,
-[this](nvp::FileSystemMonitor::EventData ev) {
-// Do something with file1.txt
-});
+                                    [this](nvp::FileSystemMonitor::EventData ev) {
+                                      // Do something with file1.txt
+                                    });
 
 auto callbackFile2 = callbacks.add(std::vector<std::string>{"file2.txt"}, nvp::FileSystemMonitor::FSM_MODIFY,
-[this](nvp::FileSystemMonitor::EventData ev) {
-// Do something with file2.txt
-});
+                                    [this](nvp::FileSystemMonitor::EventData ev) {
+                                      // Do something with file2.txt
+                                    });
 
 // When callbackFile1 goes out of scope, file1.txt stops being monitored
 callbackFile1.reset()
 ```
 ### class nvp::ModifiedFilesMonitor
-
 
 Monitors files and/or directories for changes.
 
@@ -57,14 +53,13 @@ Example:
 ```cpp
 std::vector<std::string> dirs = {"shaders_bin"};
 nvp::FileSystemMonitor::Callback callback = [](nvp::FileSystemMonitor::EventData ev){
-g_reloadShaders = true;
+  g_reloadShaders = true;
 };
 auto fileMonitor = std::make_unique<nvp::ModifiedFilesMonitor>(dirs, callback);
 ```
 
 ## nvpsystem.hpp
 ### class NVPSystem
-
 >  NVPSystem is a utility class to handle some basic system
 functionality that all projects likely make use of.
 It does not require any window to be opened.
@@ -76,7 +71,6 @@ init
 
 ## nvpwindow.hpp
 ### class NVPWindow
-
 >  base class for a window, to catch events
 Using and deriving of NVPWindow base-class is optional.
 However one must always make use of the NVPSystem

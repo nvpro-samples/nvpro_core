@@ -132,7 +132,10 @@ void nvvk::RaytracingBuilderKHR::buildBlas(const std::vector<BlasInput>& input, 
       blasBuilder.destroyNonCompactedBlas();
     }
   } while(!finished);
-  LOGI("%s\n", blasBuilder.getStatistics().toString().c_str());
+  if(hasCompaction)
+  {
+    LOGI("%s\n", blasBuilder.getStatistics().toString().c_str());
+  }
 
   // Clean up
   m_alloc->finalizeAndReleaseStaging();

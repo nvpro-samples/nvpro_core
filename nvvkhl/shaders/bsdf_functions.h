@@ -20,6 +20,75 @@
 #ifndef NVVKHL_BSDF_FUNCTIONS_H
 #define NVVKHL_BSDF_FUNCTIONS_H 1
 
+/* @DOC_START
+> Implements bidirectional scattering distribution functions (BSDFs) for
+> physically-based rendering systems.
+
+To use this code, include `bsdf_functions.h`. When a ray hits a surface:
+* Create a `PbrMaterial` describing the material at that point
+* Call `bsdfEvaluate()` to evaluate the scattering from one direction to
+  another, or `bsdfSample()` to choose the next ray in the light path.
+  See these functions' documentation for more information on their parameters
+  and return values.
+
+See the vk_gltf_renderer and vk_mini_samples/gltf_raytrace samples for examples
+where these functions are used in a Monte Carlo path tracer.
+
+The returned BSDF values and weights have the cosine term from the rendering
+equation included; e.g. the Lambert lobe returns `max(0.0f, cos(N, k1)) / pi`.
+
+Advanced users can use some of the other functions in this file to evaluate
+and sample individual lobes, or subsets of lobes.
+
+This file also provides `bsdfEvaluateSimple()` and `bsdfSampleSimple()`, which
+implement a simpler and faster, though less fully-featured BSDF model. The
+simple model only has diffuse, specular, and metallic lobes, while the full
+model includes diffuse, transmission, specular, metal, sheen, and clearcoat
+lobes (plus support for most glTF extensions).
+
+Since GLSL doesn't have a distinction between public and private functions,
+only functions that are part of the "public API" will have annotations to
+appear in README.md.
+
+This file (and files that it depends on) should be a GLSL/C++ polyglot, and
+work so long as GLM has been included:
+
+```cpp
+#undef GLM_FORCE_XYZW_ONLY
+#define GLM_FORCE_SWIZZLE
+#include <glm/glm.hpp>
+using namespace glm;
+
+#include <nvvkhl/shaders/bsdf_functions.h>
+```
+
+## Technical Notes
+
+NVVKHL's BSDFs are based on [the glTF 2.0 specification](https://github.com/KhronosGroup/glTF) and
+[the NVIDIA MDL SDK's BSDF implementations](https://github.com/NVIDIA/MDL-SDK/blob/203d5140b1dee89de17b26e828c4333571878629/src/mdl/jit/libbsdf/libbsdf.cpp). 
+
+The largest divergence from the above is that NVVKHL's BSDF model uses a
+Fresnel term that depends only on the view and normal vectors, instead of the
+half vector. This allows it to compute weights for lobes independently, while
+BSDF code would normally need to sample a half vector for layer `i` to
+determine the Fresnel weight for layer `i+1`. This can result in slightly
+different glossy/diffuse blend weights (e.g. slightly differently shaped
+highlights on leather surfaces).
+
+All lobes are energy conserving (their integral over the sphere is at most 1)
+and probability distribution functions (PDFs) integrate to 1 (except for areas
+where the sampled direction results in an absorption event).
+
+All lobes use single-scattering BSDFs. Multiple-scattering lobes are a
+potential future improvement.
+
+Most lobes use GGX normal distribution functions (NDFs) and the uncorrelated
+Smith shadowing-maskiung function, except for the diffuse lobe (Lambert BRDF)
+and the sheen lobe ([Conty and Kulla's "Charlie" sheen](https://blog.selfshadow.com/publications/s2017-shading-course/#course_content)
+and a V-cavity shadowing-masking function).
+
+@DOC_END */
+
 #include "func.h"            // cosineSampleHemisphere
 #include "ggx.h"             // brdfLambertian, ..
 #include "bsdf_structs.h"    // Bsdf*,
@@ -35,13 +104,17 @@
 #define ARRAY_TYPE(T, N, name) T name[N]
 #endif
 
-// Define a value to represent an infinite impulse or singularity
-#define DIRAC -1.0
+/* @DOC_START
+# `DIRAC` Define
+> Special PDF value returned by `bsdfSample()` to represent an infinite impulse
+> or singularity.
+@DOC_END */
+#define DIRAC -1.0F
 
 
 /** @DOC_START
-# Function absorptionCoefficient
->  Compute the absorption coefficient of the material
+# Function `absorptionCoefficient`
+> Returns the absorption coefficient of the material.
 @DOC_END */
 vec3 absorptionCoefficient(PbrMaterial mat)
 {
@@ -50,6 +123,10 @@ vec3 absorptionCoefficient(PbrMaterial mat)
                         -vec3(log(mat.attenuationColor.x), log(mat.attenuationColor.y), log(mat.attenuationColor.z)) / tmp1;
 }
 
+/* @DOC_START
+# `LOBE_*` Defines
+> Indices for lobe weights returned by `computeLobeWeights()`.
+@DOC_END */
 #define LOBE_DIFFUSE_REFLECTION 0
 #define LOBE_SPECULAR_TRANSMISSION 1
 #define LOBE_SPECULAR_REFLECTION 2
@@ -69,7 +146,21 @@ float fresnelCosineApproximation(float VdotN, float roughness)
   return mix(VdotN, sqrt(0.5F + 0.5F * VdotN), sqrt(roughness));
 }
 
-// Calculate the weights of the individual lobes inside the standard PBR material.
+/* @DOC_START
+# Function `computeLobeWeights`
+>Calculates the weights of the individual lobes inside the standard PBR material.
+
+Returns an array which can be indexed using the `LOBE_*` defines. This can be
+used to perform your own lobe sampling.
+
+Note that `tint` will be changed if the material has iridescence! (It's
+convenient to compute the iridescence factor here.) This means you should avoid
+passing a material parameter to the `tint` field. Make a temporary instead:
+```glsl
+vec3 tint = mat.baseColor;
+float[LOBE_COUNT] weights = computeLobeWeights(mat, dot(k1, mat.N), tint);
+```
+@DOC_END */
 ARRAY_TYPE(float, LOBE_COUNT, ) computeLobeWeights(PbrMaterial mat, float VdotN, INOUT_TYPE(vec3) tint)
 {
   float frCoat = 0.0F;
@@ -80,7 +171,7 @@ ARRAY_TYPE(float, LOBE_COUNT, ) computeLobeWeights(PbrMaterial mat, float VdotN,
   }
 
   // This Fresnel value defines the weighting between dielectric specular reflection and
-  // the base dielectric BXDFs (diffuse reflection and specular transmission).
+  // the base dielectric BSDFs (diffuse reflection and specular transmission).
   float frDielectric = 0;
   if(mat.specular > 0)
   {
@@ -110,14 +201,15 @@ ARRAY_TYPE(float, LOBE_COUNT, ) computeLobeWeights(PbrMaterial mat, float VdotN,
   }
 
   /*
-  Lobe weights:
+  Our model consists of 6 layers. Each layer handles a fraction
+  of light that didn't hit any layers above it:
 
     - Clearcoat       : clearcoat * schlickFresnel(1.5, VdotN)
     - Sheen           : sheen
     - Metal           : metallic
     - Specular        : specular * schlickFresnel(ior, VdotN)
-    - Transmission    : transmission
-    - Diffuse         : 1.0 - clearcoat - sheen - metallic - specular - transmission
+    - Transmission    : transmission }
+    - Diffuse         : 1.0          } These two are technically parallel layers
   */
 
   ARRAY_TYPE(float, LOBE_COUNT, weightLobe);
@@ -143,20 +235,25 @@ ARRAY_TYPE(float, LOBE_COUNT, ) computeLobeWeights(PbrMaterial mat, float VdotN,
   weightBase *= 1.0f - frDielectric;
 
   weightLobe[LOBE_SPECULAR_TRANSMISSION] = weightBase * mat.transmission;  // BTDF dielectric specular transmission (GGX-Smith)
-  weightLobe[LOBE_DIFFUSE_REFLECTION] = weightBase * (1.0f - mat.transmission);  // BRDF diffuse dielectric reflection (Lambert). // PERF Currently not referenced below.
+  weightLobe[LOBE_DIFFUSE_REFLECTION] = weightBase * (1.0f - mat.transmission);  // BRDF diffuse dielectric reflection (Lambert).
 
   return weightLobe;
 }
 
-// Calculate the weights of the individual lobes inside the standard PBR material
-// and randomly select one.
+/* @DOC_START
+# Function `findLobe`
+> Calculates the weights of the individual lobes inside the standard PBR material
+> and randomly selects one.
+@DOC_END */
 int findLobe(PbrMaterial mat, float VdotN, float rndVal, INOUT_TYPE(vec3) tint)
 {
   ARRAY_TYPE(float, LOBE_COUNT, weightLobe) = computeLobeWeights(mat, VdotN, tint);
 
   int   lobe   = LOBE_COUNT;
   float weight = 0.0f;
-  while(--lobe > 0)  // Stops when lobe reaches 0!
+  // Stops when lobe reaches 0! No need to look at weightLobe[0] since we know
+  // light will always scatter on one lobe.
+  while(--lobe > 0)
   {
     weight += weightLobe[lobe];
     if(rndVal < weight)
@@ -165,9 +262,10 @@ int findLobe(PbrMaterial mat, float VdotN, float rndVal, INOUT_TYPE(vec3) tint)
     }
   }
 
-  return lobe;  // Last one is the diffuse reflection
+  return lobe;
 }
 
+// Evaluates a diffuse lobe.
 void brdf_diffuse_eval(INOUT_TYPE(BsdfEvaluateData) data, PbrMaterial mat, vec3 tint)
 {
   // If the incoming light direction is on the backside, there is nothing to evaluate for a BRDF.
@@ -189,6 +287,7 @@ void brdf_diffuse_eval(INOUT_TYPE(BsdfEvaluateData) data, PbrMaterial mat)
   brdf_diffuse_eval(data, mat, mat.baseColor);
 }
 
+// Samples a diffuse lobe.
 void brdf_diffuse_sample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat, vec3 tint)
 {
   data.k2  = cosineSampleHemisphere(data.xi.x, data.xi.y);
@@ -205,6 +304,8 @@ void brdf_diffuse_sample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat)
   brdf_diffuse_sample(data, mat, mat.baseColor);
 }
 
+// Evaluates a reflective lobe with a GGX NDF and an uncorrelated Smith
+// scattering-masking function.
 void brdf_ggx_smith_eval(INOUT_TYPE(BsdfEvaluateData) data, PbrMaterial mat, const int lobe, vec3 tint)
 {
   // BRDF or BTDF eval?
@@ -212,7 +313,8 @@ void brdf_ggx_smith_eval(INOUT_TYPE(BsdfEvaluateData) data, PbrMaterial mat, con
   // Include edge-on (== 0.0f) as "no light" case.
   const bool backside = (dot(data.k2, mat.Ng) <= 0.0f);
   // Nothing to evaluate for given directions?
-  if(backside && false)  // && scatter_reflect
+  // MDL uses "&& scatter_reflect" here; since this only handles reflection, `scatter_reflect` is false.
+  if(backside && false)
   {
     data.pdf         = 0.0f;
     data.bsdf_glossy = vec3(0.0f);
@@ -275,6 +377,8 @@ void brdf_ggx_smith_eval(INOUT_TYPE(BsdfEvaluateData) data, PbrMaterial mat, con
   data.bsdf_glossy = bsdf * tint;
 }
 
+// Samples a reflective lobe with a GGX NDF and an uncorrelated Smith
+// scattering-masking function.
 void brdf_ggx_smith_sample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat, const int lobe, vec3 tint)
 {
   // When the sampling returns eventType = BSDF_EVENT_ABSORB, the path ends inside the ray generation program.
@@ -313,7 +417,7 @@ void brdf_ggx_smith_sample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat, con
   data.k2 = (2.0f * kh) * h - data.k1;
 
   // Check if the resulting direction is on the correct side of the actual geometry
-  const float gnk2 = dot(data.k2, mat.Ng);  // * ((data.typeEvent == BSDF_EVENT_GLOSSY_REFLECTION) ? 1.0f : -1.0f);
+  const float gnk2 = dot(data.k2, mat.Ng);
 
   if(gnk2 <= 0.0f)
   {
@@ -376,14 +480,14 @@ float rerandomize(float v)
   return float(word) / uintBitsToFloat(0x4f800000U);
 }
 
-/**
- * Calculates the IOR at a given wavelength (in nanometers) given the base IOR
- * and glTF dispersion factor.
- * This function calculates the IOR for red, green, and blue wavelengths by spreading the base IOR
- * according to the dispersion factor. The dispersion factor determines how much the IOR varies
- * across different wavelengths. See: 
-*/
-float compute_dispersed_ior(float base_ior, float dispersion, float wavelength_nm)
+/* @DOC_START
+# Function `computeDispersedIOR`
+> Calculates the IOR at a given wavelength (in nanometers) given the base IOR
+> and glTF dispersion factor.
+
+See https://github.com/KhronosGroup/glTF/tree/0251c5c0cce8daec69bd54f29f891e3d0cdb52c8/extensions/2.0/Khronos/KHR_materials_dispersion.
+@DOC_END */
+float computeDispersedIOR(float base_ior, float dispersion, float wavelength_nm)
 {
   // Since the glTF extension stores 20 / V_d
   float abbeNumber = 20.0F / dispersion;
@@ -391,21 +495,24 @@ float compute_dispersed_ior(float base_ior, float dispersion, float wavelength_n
   return max(base_ior + (base_ior - 1.0F) * (523655.0F / (wavelength_nm * wavelength_nm) - 1.5168F) / abbeNumber, 1.0F);
 }
 
-/**
- * Given a wavelength of light, returns an approximation to the linear RGB
- * color of a D65 illuminant (sRGB whitepoint) sampled at a wavelength of `x`
- * nanometers.
- *
- * This is normalized so that sum(dispersion_tint(i), {i, 350, 750}) == vec3(1.),
- * which means that the values it returns are usually low. You'll need to multiply
- * by an appropriate normalization factor if you're randomly sampling it.
- *
- * Additionally, note that this sometimes returns negative values. This is
- * because perfect wavelengths of light are outside the sRGB gamut.
- */
+/* @DOC_START
+# Function `wavelengthToRGB`
+> Given a wavelength of light, returns an approximation to the linear RGB
+> color of a D65 illuminant (sRGB whitepoint) sampled at a wavelength of `x`
+> nanometers, using the CIE 2015 2-degree Standard Observer Color Matching Functions.
+
+This is normalized so that
+`sum(wavelengthToRGB(i), {i, WAVELENGTH_MIN, WAVELENGTH_MAX}) == vec3(1.)`,
+which means that the values it returns are usually low. You'll need to multiply
+by an appropriate normalization factor if you're randomly sampling it.
+
+The colors here are clamped to only positive sRGB values, in case renderers
+have problems with colors with negative sRGB components (i.e. are valid
+colors but are out-of-gamut).
+@DOC_END */
 #define WAVELENGTH_MIN 399.43862850585765F
 #define WAVELENGTH_MAX 668.6617899434457F
-vec3 dispersion_tint(float x)
+vec3 wavelengthToRGB(float x)
 {
   // This uses a piecewise-linear approximation generated using the CIE 2015
   // 2-degree standard observer times the D65 illuminant, minimizing the L2
@@ -444,6 +551,7 @@ vec3 dispersion_tint(float x)
 }
 
 
+// Evaluates the transmission lobe.
 void btdf_ggx_smith_eval(INOUT_TYPE(BsdfEvaluateData) data, PbrMaterial mat, vec3 tint)
 {
   bool isThinWalled = (mat.thickness == 0.0f);
@@ -453,8 +561,8 @@ void btdf_ggx_smith_eval(INOUT_TYPE(BsdfEvaluateData) data, PbrMaterial mat, vec
   {
     // Randomly choose a wavelength; for now, uniformly choose from 399-669 nm.
     float wavelength = mix(WAVELENGTH_MIN, WAVELENGTH_MAX, rerandomize(data.xi.z));
-    ior.x            = compute_dispersed_ior(ior.x, mat.dispersion, wavelength);
-    tint *= (WAVELENGTH_MAX - WAVELENGTH_MIN) * dispersion_tint(wavelength);
+    ior.x            = computeDispersedIOR(ior.x, mat.dispersion, wavelength);
+    tint *= (WAVELENGTH_MAX - WAVELENGTH_MIN) * wavelengthToRGB(wavelength);
   }
 
   const float nk1 = abs(dot(data.k1, mat.N));
@@ -534,6 +642,7 @@ void btdf_ggx_smith_eval(INOUT_TYPE(BsdfEvaluateData) data, PbrMaterial mat, vec
 }
 
 
+// Samples the transmission lobe.
 void btdf_ggx_smith_sample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat, vec3 tint)
 {
   bool isThinWalled = (mat.thickness == 0.0f);
@@ -548,8 +657,8 @@ void btdf_ggx_smith_sample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat, vec
   {
     // Randomly choose a wavelength; for now, uniformly choose from 361-716 nm.
     float wavelength = mix(WAVELENGTH_MIN, WAVELENGTH_MAX, rerandomize(data.xi.z));
-    ior.x            = compute_dispersed_ior(ior.x, mat.dispersion, wavelength);
-    tint *= (WAVELENGTH_MAX - WAVELENGTH_MIN) * dispersion_tint(wavelength);
+    ior.x            = computeDispersedIOR(ior.x, mat.dispersion, wavelength);
+    tint *= (WAVELENGTH_MAX - WAVELENGTH_MIN) * wavelengthToRGB(wavelength);
   }
 
   const float nk1 = abs(dot(data.k1, mat.N));
@@ -638,6 +747,8 @@ void btdf_ggx_smith_sample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat, vec
   data.bsdf_over_pdf *= tint;
 }
 
+
+// Evaluates the sheen lobe.
 void brdf_sheen_eval(INOUT_TYPE(BsdfEvaluateData) data, PbrMaterial mat)
 {
   // BRDF or BTDF eval?
@@ -689,6 +800,8 @@ void brdf_sheen_eval(INOUT_TYPE(BsdfEvaluateData) data, PbrMaterial mat)
   data.bsdf_glossy = bsdf * mat.sheenColor;
 }
 
+
+// Samples the sheen lobe.
 void brdf_sheen_sample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat)
 {
   // When the sampling returns eventType = BSDF_EVENT_ABSORB, the path ends inside the ray generation program.
@@ -761,8 +874,17 @@ void brdf_sheen_sample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat)
 
 
 /** @DOC_START
-# Function bsdfEvaluate
->  Evaluate the BSDF for the given material.
+# Function `bsdfEvaluate`
+> Evaluates the full BSDF model for the given material and set of directions.
+
+You must provide `BsdfEvaluateData`'s `k1`, `k2`, and `xi` parameters.
+(Evaluation is stochastic because this code randomly samples lobes depending on
+`xi`; this is valid to do in a Monte Carlo path tracer.)
+
+The diffuse lobe evaluation and the sum of the specular lobe evaluations
+(including the cosine term from the rendering equation) will be returned in
+`data.bsdf_diffuse` and `data.bsdf_glossy`. Additionally, the probability that
+the sampling code will return this direction will be returned in `data.pdf`.
 @DOC_END */
 void bsdfEvaluate(INOUT_TYPE(BsdfEvaluateData) data, PbrMaterial mat)
 {
@@ -807,8 +929,22 @@ void bsdfEvaluate(INOUT_TYPE(BsdfEvaluateData) data, PbrMaterial mat)
 }
 
 /** @DOC_START
-# Function bsdfSample
->  Sample the BSDF for the given material
+# Function `bsdfSample`
+
+> Samples the full BSDF model for the given material and input direction.
+
+You must provide `BsdfSampleData`'s `k1` and `xi` parameters. This function
+will set the other parameters of `BsdfSampleData`.
+
+There are two things you should check after calling this function:
+* Is `data.event_type` equal to `BSDF_EVENT_ABSORB`? If so, the sampler sampled
+  an output direction that would be absorbed by the material (e.g. it chose a
+  reflective lobe but sampled a vector below the surface).
+  The light path ends here.
+* Is `data.pdf` equal to `DIRAC`? If so, this sampled a perfectly specular lobe.
+  If you're using Multiple Importance Sampling weights, you should compute them
+  as if `data.pdf` was infinity.
+  
 @DOC_END */
 void bsdfSample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat)
 {
@@ -826,7 +962,6 @@ void bsdfSample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat)
   else if(lobe == LOBE_SPECULAR_REFLECTION)
   {
     brdf_ggx_smith_sample(data, mat, LOBE_SPECULAR_REFLECTION, mat.specularColor);
-    data.event_type = BSDF_EVENT_SPECULAR;
   }
   else if(lobe == LOBE_SPECULAR_TRANSMISSION)
   {
@@ -859,16 +994,18 @@ void bsdfSample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat)
   }
   if(isnan(data.pdf) || isinf(data.pdf))
   {
+    // Treat as a perfectly specular bounce; change GLOSSY to IMPULSE
+    data.event_type = (data.event_type & (~BSDF_EVENT_GLOSSY)) | BSDF_EVENT_IMPULSE;
     data.pdf = DIRAC;
   }
 }
 
-//--------------------------------------------------------------------------------------------------
-// Those functions are used to evaluate and sample the BSDF for a simple PBR material.
-// without any additional lobes like clearcoat, sheen, etc. and without the need of random numbers.
-// This is based on the metallic/roughness BRDF in Appendix B of the glTF specification.
-// For one sample of pure reflection, use xi == vec2(0,0).
-//--------------------------------------------------------------------------------------------------
+/* @DOC_START
+# Simple BSDF Model
+The functions below are used to evaluate and sample the BSDF for a simple PBR material,
+without any additional lobes like clearcoat, sheen, etc. and without the need of random numbers.
+This is based on the metallic/roughness BRDF in Appendix B of the glTF specification.
+@DOC_END */
 
 // Returns the probability that bsdfSampleSimple samples a glossy lobe.
 float bsdfSimpleGlossyProbability(float NdotV, float metallic)
@@ -876,6 +1013,12 @@ float bsdfSimpleGlossyProbability(float NdotV, float metallic)
   return mix(schlickFresnel(0.04F, 1.0F, NdotV), 1.0F, metallic);
 }
 
+/* @DOC_START
+# Function `bsdfEvaluateSimple`
+> Evaluates the simple BSDF model using the given material and input and output directions.
+
+You must provide `data.k1` and `data.k2`, but do not need to provide `data.xi`.
+@DOC_END */
 void bsdfEvaluateSimple(INOUT_TYPE(BsdfEvaluateData) data, PbrMaterial mat)
 {
   // Specular reflection
@@ -919,6 +1062,20 @@ void bsdfEvaluateSimple(INOUT_TYPE(BsdfEvaluateData) data, PbrMaterial mat)
   data.bsdf_glossy  = fGlossy * G2 * specularPdf;             // GGX-Smith
 }
 
+/* @DOC_START
+# Function `bsdfSampleSimple`
+> Evaluates the simple BSDF model using the given material and input and output directions.
+
+You must provide `data.k1` and `data.xi`. For one sample of pure reflection
+(e.g. vk_mini_samples/ray_trace), use `data.xi == vec2(0,0)`.
+
+After calling this function, you should check if `data.event_type` is
+`BSDF_EVENT_ABSORB`. If so, the sampling code sampled a direction below the
+surface, and the light path ends here (it should be treated as a reflectance of 0).
+
+This code cannot currently return a PDF of `DIRAC`, but that might change in
+the future.
+@DOC_END */
 void bsdfSampleSimple(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat)
 {
   vec3 tint          = mat.baseColor;
@@ -939,7 +1096,7 @@ void bsdfSampleSimple(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat)
   else
   {
     // Diffuse
-    data.event_type = BSDF_EVENT_DIFFUSE;
+    data.event_type = BSDF_EVENT_DIFFUSE_REFLECTION;
     vec3 localDir   = cosineSampleHemisphere(data.xi.x, data.xi.y);
     data.k2         = mat.T * localDir.x + mat.B * localDir.y + mat.N * localDir.z;
   }
@@ -961,12 +1118,16 @@ void bsdfSampleSimple(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat)
   }
 }
 
-// Returns the approximate average reflectance of the Simple BSDF -- that is,
-// average_over_k2(f(k1, k2)) -- if GGX didn't lose energy.
-// This is useful for things like the variance reduction algorithm in
-// Tomasz Stachowiak's *Stochastic Screen-Space Reflections*; see also
-// Ray-Tracing Gems 1, chapter 32, *Accurate Real-Time Specular Reflections
-// with Radiance Caching*.
+/* @DOC_START
+# Function `bsdfSimpleAverageReflectance`
+> Returns the approximate average reflectance of the Simple BSDF -- that is,
+> `average_over_k2(f(k1, k2))` -- if GGX didn't lose energy.
+
+This is useful for things like the variance reduction algorithm in
+Tomasz Stachowiak's *Stochastic Screen-Space Reflections*; see also
+Ray-Tracing Gems 1, chapter 32, *Accurate Real-Time Specular Reflections
+with Radiance Caching*.
+@DOC_END */
 vec3 bsdfSimpleAverageReflectance(vec3 k1, PbrMaterial mat)
 {
   float NdotV             = clampedDot(mat.N, k1);

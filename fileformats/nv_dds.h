@@ -21,18 +21,19 @@
 /** @DOC_START
 # nv_dds 2.1.0
      
-nv_dds is a small library for reading and writing DDS files. Other than the
-C++ standard library, it only requires five files: dxgiformat.h, nv_dds.h,
-nv_dds.cpp, texture_formats.h, and texture_formats.cpp.
+> A small yet complete library for reading and writing DDS files.
 
-To load a DDS file, use Image::readFromFile():
+Other than the C++ standard library, nv_dds only requires five files:
+dxgiformat.h, nv_dds.h, nv_dds.cpp, texture_formats.h, and texture_formats.cpp.
+
+To load a DDS file, use `Image::readFromFile()`:
 
 ```cpp
 nv_dds::Image image;
-nv_dds::ErrorWithText maybe_error = image.readFromFile("data/image.dds", {});
-if(maybe_error.has_value())
+nv_dds::ErrorWithText maybeError = image.readFromFile("data/image.dds", {});
+if(maybeError.has_value())
 {
-  // Do something with the error message, maybe_error.value()
+  // Do something with the error message, maybeError.value()
 }
 else
 {
@@ -45,7 +46,7 @@ else
 another API, you can use the functions in texture_formats.h to look up
 the corresponding API format.
 
-To write a DDS file, use Image::writeToFile():
+To write a DDS file, use `Image::writeToFile()`:
 
 ```cpp
 nv_dds::ErrorWithText maybe_error = image.writeToFile("output.dds", {});
@@ -57,8 +58,8 @@ if(maybe_error.has_value())
 ```
 
 `Image` also provides functions to read and write streams. Each of these
-read and write functions supports various settings; see ReadSettings
-and WriteSettings.
+read and write functions supports various settings; see `ReadSettings`
+and `WriteSettings`.
 
 Images can also be created from raw data:
 ```cpp
@@ -75,13 +76,13 @@ image.subresource(0, 0, 0) // mip, layer, face
 
 Not currently supported:
 * Multi-plane YUV textures with chroma subsampling
-  (e.g. DXGI_FORMAT_R8G8_B8G8_UNORM)
+  (e.g. `DXGI_FORMAT_R8G8_B8G8_UNORM`)
 * Paletted textures
 * DirectDraw Surface versions before DX9
 
 ## Changes from nv_dds 1.0
 
-nv_dds adds support for many more formats and fixes many issues, and now aims
+nv_dds adds support for many more formats, fixes many issues, and now aims
 to be secure against untrusted input, so it's worth updating. However, the API
 has almost entirely changed, and now looks much more like nv_ktx's API:
 

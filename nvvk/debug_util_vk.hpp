@@ -17,21 +17,27 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-
-/// # class DebugUtil
-/// This is a companion utility to add debug information to an application
-/// See https://vulkan.lunarg.com/doc/sdk/1.1.114.0/windows/chunked_spec/chap39.html
-/// - User defined name to objects
-/// - Logically annotate region of command buffers
-/// - Scoped command buffer label to make thing simpler
-
 #pragma once
+
+/* @DOC_START
+# class DebugUtil
+This is a companion utility to add debug information to Vulkan objects, using
+the VK_EXT_debug_utils extension.
+
+You can use it to:
+- Add user-defined names to objects, using `DebugUtil::setObjectName`
+- Annotate regions of command buffers, using `DebugUtil::{beginLabel, insertLabel, endLabel}`
+- Create scoped command buffer labels, which make things simpler by
+  automatically beginning and ending regions based on their C++ lifetime, using
+  `DebugUtil::scopeLabel`.
+
+See https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/VK_EXT_debug_utils.html.
+@DOC_END */
 
 #include <algorithm>
 #include <string.h>
 #include <string>
 #include <vulkan/vulkan_core.h>
-#include "nvh/nvprint.hpp"
 
 namespace nvvk {
 

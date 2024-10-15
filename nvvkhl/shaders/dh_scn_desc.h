@@ -1,4 +1,3 @@
-
 /*
  * Copyright (c) 2022-2024, NVIDIA CORPORATION.  All rights reserved.
  *
@@ -18,10 +17,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/// @DOC_SKIP
-
 #ifndef DH_SCN_DESC_H
 #define DH_SCN_DESC_H 1
+
+/* @DOC_START
+Common structures used to store glTF scenes in GPU buffers.
+@DOC_END */
 
 #ifdef __cplusplus
 #define INLINE inline

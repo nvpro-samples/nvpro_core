@@ -17,28 +17,42 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/// @DOC_SKIP (keyword to exclude this file from automatic README.md generation)
+/* @DOC_START
+Contains functions for aligning numbers to power-of-two boundaries.
+@DOC_END */
 
 #pragma once
 
-#ifndef NVH_ALIGNEMENT_HPP
-#define NVH_ALIGNEMENT_HPP 1
+#ifndef NVH_ALIGNMENT_HPP
+#define NVH_ALIGNMENT_HPP 1
 
 #include <stddef.h>  // for size_t
 
 namespace nvh {
+/* @DOC_START
+# Function `is_aligned<integral>(x, a)`
+Returns whether `x` is a multiple of `a`. `a` must be a power of two.
+@DOC_END */
 template <class integral>
 constexpr bool is_aligned(integral x, size_t a) noexcept
 {
   return (x & (integral(a) - 1)) == 0;
 }
 
+/* @DOC_START
+# Function `align_up<integral>(x, a)`
+Rounds `x` up to a multiple of `a`. `a` must be a power of two.
+@DOC_END */
 template <class integral>
 constexpr integral align_up(integral x, size_t a) noexcept
 {
   return integral((x + (integral(a) - 1)) & ~integral(a - 1));
 }
 
+/* @DOC_START
+# Function `align_down<integral>(x, a)`
+Rounds `x` down to a multiple of `a`. `a` must be a power of two.
+@DOC_END */
 template <class integral>
 constexpr integral align_down(integral x, size_t a) noexcept
 {
@@ -46,4 +60,4 @@ constexpr integral align_down(integral x, size_t a) noexcept
 }
 }  // namespace nvh
 
-#endif  // !NVH_ALIGNEMENT_HPP
+#endif  // !NVH_ALIGNMENT_HPP

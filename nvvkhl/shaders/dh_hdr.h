@@ -17,13 +17,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/// @DOC_SKIP
-
 #ifndef DH_HDR_H
 #define DH_HDR_H 1
 
+/* @DOC_START
+> Common structures used for HDR environment maps.
+@DOC_END */
+
 #ifndef WORKGROUP_SIZE
-#define WORKGROUP_SIZE 16  // Grid size used by compute shaders
+#define WORKGROUP_SIZE 16  // Grid size used by compute shaders; must match dh_comp.h
 #endif
 
 #ifdef __cplusplus

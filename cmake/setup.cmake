@@ -62,6 +62,9 @@ if(MSVC)
   # Enable parallel builds by default on MSVC
   string(APPEND CMAKE_C_FLAGS " /MP")
   string(APPEND CMAKE_CXX_FLAGS " /MP")
+
+  # Enable correct C++ version macros
+  string(APPEND CMAKE_CXX_FLAGS " /Zc:__cplusplus")
 endif()
 
 # USD specifc stuff
@@ -86,11 +89,7 @@ set(CMAKE_FIND_ROOT_PATH "")
 message(STATUS "BASE_DIRECTORY = ${BASE_DIRECTORY}")
 message(STATUS "CMAKE_CURRENT_SOURCE_DIR = ${CMAKE_CURRENT_SOURCE_DIR}")
 
-if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-  set(ARCH "x64" CACHE STRING "CPU Architecture")
-else ()
-  set(ARCH "x86" CACHE STRING "CPU Architecture")
-endif()
+set(ARCH "x64" CACHE STRING "CPU Architecture")
 
 if(NOT OUTPUT_PATH)
   set(OUTPUT_PATH ${BASE_DIRECTORY}/bin_${ARCH} CACHE PATH "Directory where outputs will be stored")

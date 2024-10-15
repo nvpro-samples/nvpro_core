@@ -21,6 +21,12 @@
 #ifndef NVVKHL_GGX_H
 #define NVVKHL_GGX_H 1
 
+/* @DOC_START
+Lower-level mathematical functions used for BSDFs. This file is named after the
+GGX normal distribution, which is the basis for much of nvvkhl's BSDF code, but
+includes Fresnel, shadowing-masking, sheen, and thin-film functions as well.
+@DOC_END */
+
 #include "constants.h"
 
 #ifdef __cplusplus
@@ -66,7 +72,8 @@ float sqr(float x)
   return x * x;
 }
 
-// Check for total internal reflection.
+// Check for total internal reflection. `kh` is the dot product of the view
+// vector and the half vector.
 bool isTIR(const vec2 ior, const float kh)
 {
   const float b = ior.x / ior.y;
@@ -74,7 +81,11 @@ bool isTIR(const vec2 ior, const float kh)
 }
 
 
-// Evaluate anisotropic GGX distribution on the non-projected hemisphere.
+/* @DOC_START
+# Function `hvd_ggx_eval`
+> Evaluates anisotropic GGX distribution on the non-projected hemisphere (i.e.
+> +z is up)
+@DOC_END */
 float hvd_ggx_eval(const vec2 invRoughness,
                    const vec3 h)  // == vec3(dot(tangent, h), dot(bitangent, h), dot(normal, h))
 {
@@ -86,11 +97,15 @@ float hvd_ggx_eval(const vec2 invRoughness,
   return M_1_PI * invRoughness.x * invRoughness.y * h.z / (f * f);
 }
 
-// Samples a visible (Smith-masked) half vector according to the anisotropic GGX distribution
-// (see Eric Heitz - A Simpler and Exact Sampling Routine for the GGX Distribution of Visible
-// normals)
-// The input and output will be in local space:
-// vec3(dot(T, k1), dot(B, k1), dot(N, k1)).
+/* @DOC_START
+# Function `hvd_ggx_sample_vndf`
+> Samples Samples a visible (Smith-masked) half vector according to the anisotropic GGX distribution.
+
+See Eric Heitz, "A Simpler and Exact Sampling Routine for the GGX Distribution of Visible Normals".
+
+The input and output will be in local space:
+`vec3(dot(T, k1), dot(B, k1), dot(N, k1))`.
+@DOC_END */
 vec3 hvd_ggx_sample_vndf(vec3 k, vec2 roughness, vec2 xi)
 {
   const vec3 v = normalize(vec3(k.x * roughness.x, k.y * roughness.y, k.z));
@@ -115,8 +130,7 @@ vec3 hvd_ggx_sample_vndf(vec3 k, vec2 roughness, vec2 xi)
   return normalize(h);
 }
 
-// Smith-masking for anisotropic GGX.
-float smith_shadow_mask(const vec3 k, const vec2 roughness)
+float smith_shadow_or_mask(const vec3 k, const vec2 roughness)
 {
   float kz2 = k.z * k.z;
   if(kz2 == 0.0f)
@@ -130,18 +144,28 @@ float smith_shadow_mask(const vec3 k, const vec2 roughness)
   return 2.0f / (1.0f + sqrt(1.0f + inv_a2));
 }
 
+/* @DOC_START
+# Function `ggx_smith_shadow_mask`
+> The uncorrelated Smith shadowing-masking function.
 
+Note that the joint Smith shadowing-masking function may be more realistic.
+@DOC_END */
 float ggx_smith_shadow_mask(OUT_TYPE(float) G1, OUT_TYPE(float) G2, const vec3 k1, const vec3 k2, const vec2 roughness)
 {
-  G1 = smith_shadow_mask(k1, roughness);
-  G2 = smith_shadow_mask(k2, roughness);
+  G1 = smith_shadow_or_mask(k1, roughness);
+  G2 = smith_shadow_or_mask(k2, roughness);
 
   return G1 * G2;
 }
 
 
-// Compute squared norm of s/p polarized Fresnel reflection coefficients and phase shifts in complex unit circle.
-// Born/Wolf - "Principles of Optics", section 13.4
+// Computes the squared norm of s/p polarized Fresnel reflection coefficients and phase shifts in complex unit circle.
+//
+// See Max Born and Emil Wolf, "Principles of Optics", section 13.4.1,
+// "An absorbing film on a transparent substrate".
+//
+// This comes from MDL, and is a different approach than the example
+// implementation in KHR_materials_iridescence.
 vec2 fresnel_conductor(OUT_TYPE(vec2) phase_shift_sin,
                        OUT_TYPE(vec2) phase_shift_cos,
                        const float n_a,
@@ -320,7 +344,10 @@ vec3 refract(const vec3  k,       // direction (pointing from surface)
 }
 
 
-// Fresnel equation for an equal mix of polarization.
+/* @DOC_START
+# Function `ior_fresnel`
+> Fresnel equation for an equal mix of polarization.
+@DOC_END */
 float ior_fresnel(const float eta,  // refracted / reflected ior
                   const float kh)   // cosine of angle between normal/half-vector and direction
 {
@@ -345,7 +372,10 @@ float ior_fresnel(const float eta,  // refracted / reflected ior
   return clamp(fres, 0.0f, 1.0f);
 }
 
-// Evaluate anisotropic sheen half-vector distribution on the non-projected hemisphere.
+/* @DOC_START
+# Function `hvd_sheen_eval`
+> Evaluates the anisotropic sheen half-vector distribution on the non-projected hemisphere.
+@DOC_END */
 float hvd_sheen_eval(const float invRoughness,
                      const float nh)  // dot(shading_normal, h)
 {
@@ -356,7 +386,7 @@ float hvd_sheen_eval(const float invRoughness,
 }
 
 
-// Cook-Torrance style v-cavities masking term.
+// Just the masking term for the v-cavity model.
 float vcavities_mask(const float nh,  // abs(dot(normal, half))
                      const float kh,  // abs(dot(dir, half))
                      const float nk)  // abs(dot(normal, dir))
@@ -365,6 +395,10 @@ float vcavities_mask(const float nh,  // abs(dot(normal, half))
 }
 
 
+/* @DOC_START
+# Function `vcavities_shadow_mask`
+> Cook-Torrance style v-cavities shadowing-masking term.
+@DOC_END */
 float vcavities_shadow_mask(OUT_TYPE(float) G1, OUT_TYPE(float) G2, const float nh, const vec3 k1, const float k1h, const vec3 k2, const float k2h)
 {
   G1 = vcavities_mask(nh, k1h, k1.z);  // In my renderer the z-coordinate is the normal!
@@ -375,7 +409,10 @@ float vcavities_shadow_mask(OUT_TYPE(float) G1, OUT_TYPE(float) G2, const float 
 }
 
 
-// Sample half-vector according to anisotropic sheen distribution.
+/* @DOC_START
+# Function `hvd_sheen_sample`
+> Samples a half-vector according to an anisotropic sheen distribution.
+@DOC_END */
 vec3 hvd_sheen_sample(const vec2 xi, const float invRoughness)
 {
   const float phi = 2.0f * M_PI * xi.x;

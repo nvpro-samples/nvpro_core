@@ -24,19 +24,19 @@
 
 /*  @DOC_START -------------------------------------------------------
  
- Function `Axis(ImVec2 pos, const glm::mat4& modelView, float size = 20.f)`
- which display right-handed axis in a ImGui window.
+Function `Axis(ImVec2 pos, const glm::mat4& modelView, float size = 20.f)`
+which display right-handed axis in a ImGui window.
 
- Example
+Example
 
- ```cpp
-       {  // Display orientation axis at the bottom left corner of the window
-        float  axisSize = 25.F;
-        ImVec2 pos      = ImGui::GetWindowPos();
-        pos.y += ImGui::GetWindowSize().y;
-        pos += ImVec2(axisSize * 1.1F, -axisSize * 1.1F) * ImGui::GetWindowDpiScale();  // Offset
-        ImGuiH::Axis(pos, CameraManip.getMatrix(), axisSize);
-      }
+```cpp
+{  // Display orientation axis at the bottom left corner of the window
+  float  axisSize = 25.F;
+  ImVec2 pos      = ImGui::GetWindowPos();
+  pos.y += ImGui::GetWindowSize().y;
+  pos += ImVec2(axisSize * 1.1F, -axisSize * 1.1F) * ImGui::GetWindowDpiScale();  // Offset
+  ImGuiH::Axis(pos, CameraManip.getMatrix(), axisSize);
+}
 ```      
 
 --- @DOC_END ------------------------------------------------------- */

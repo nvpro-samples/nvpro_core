@@ -17,8 +17,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+/* @DOC_START
+Included in shaders to provide access to vertex data, so long as vertex
+data follows a standard form.
 
-// This file is included in the shaders to provide access to the vertex data
+Includes `getTriangleIndices`, and `getVertex*` and `getInterpolatedVertex*`
+functions for all attributes.
+@DOC_END */
 
 
 #ifndef VERTEX_ACCESSOR_H

@@ -121,14 +121,18 @@ public:
   StagingMemoryManager& operator=(StagingMemoryManager const&) = delete;
 
   StagingMemoryManager() { m_debugName = "nvvk::StagingMemManager:" + std::to_string((uint64_t)this); }
-  StagingMemoryManager(MemAllocator* memAllocator, VkDeviceSize stagingBlockSize = NVVK_DEFAULT_STAGING_BLOCKSIZE)
+  StagingMemoryManager(MemAllocator*      memAllocator,
+                       VkDeviceSize       stagingBlockSize      = NVVK_DEFAULT_STAGING_BLOCKSIZE,
+                       VkBufferUsageFlags extraBufferUsageFlags = 0)
   {
-    init(memAllocator, stagingBlockSize);
+    init(memAllocator, stagingBlockSize, extraBufferUsageFlags);
   }
 
   virtual ~StagingMemoryManager() { deinit(); }
 
-  void init(MemAllocator* memAllocator, VkDeviceSize stagingBlockSize = NVVK_DEFAULT_STAGING_BLOCKSIZE);
+  void init(MemAllocator*      memAllocator,
+            VkDeviceSize       stagingBlockSize      = NVVK_DEFAULT_STAGING_BLOCKSIZE,
+            VkBufferUsageFlags extraBufferUsageFlags = 0);
   void deinit();
 
   VkDeviceSize getBlockSize() const { return m_subToDevice.getBlockSize(); }
@@ -210,7 +214,8 @@ public:
     return (const T*)cmdFromBuffer(cmd, buffer, offset, size);
   }
 
-  // Requires VK_NV_copy_memory_indirect to be enabled
+  // Requires VK_NV_copy_memory_indirect to be enabled and StagingMemoryManager
+  // to be created with extraBufferUsageFlags |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT
   const void* cmdFromAddressNV(VkCommandBuffer cmd, VkDeviceAddress address, VkDeviceSize size);
 
   template <class T>

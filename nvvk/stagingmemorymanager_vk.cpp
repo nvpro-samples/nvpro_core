@@ -25,15 +25,17 @@
 
 namespace nvvk {
 
-void StagingMemoryManager::init(MemAllocator* memAllocator, VkDeviceSize stagingBlockSize /*= 64 * 1024 * 1024*/)
+void StagingMemoryManager::init(MemAllocator*      memAllocator,
+                                VkDeviceSize       stagingBlockSize /*= 64 * 1024 * 1024*/,
+                                VkBufferUsageFlags extraBufferUsageFlags /* = 0 */)
 {
   assert(!m_device);
   m_device = memAllocator->getDevice();
 
   m_subToDevice.init(memAllocator, stagingBlockSize,
-                     VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+                     VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | extraBufferUsageFlags,
                      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, true);
-  m_subFromDevice.init(memAllocator, stagingBlockSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+  m_subFromDevice.init(memAllocator, stagingBlockSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | extraBufferUsageFlags,
                        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
                        true);
 

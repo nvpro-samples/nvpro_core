@@ -26,13 +26,14 @@
 
 namespace nvvk {
 
-ResourceAllocator::ResourceAllocator(VkDevice         device,
-                                     VkPhysicalDevice physicalDevice,
-                                     MemAllocator*    memAlloc,
-                                     VkDeviceSize     stagingBlockSize,
-                                     SamplerPool*     externalSamplerPool)
+ResourceAllocator::ResourceAllocator(VkDevice           device,
+                                     VkPhysicalDevice   physicalDevice,
+                                     MemAllocator*      memAlloc,
+                                     VkDeviceSize       stagingBlockSize,
+                                     VkBufferUsageFlags stagingExtraBufferUsageFlags,
+                                     SamplerPool*       externalSamplerPool)
 {
-  init(device, physicalDevice, memAlloc, stagingBlockSize, externalSamplerPool);
+  init(device, physicalDevice, memAlloc, stagingBlockSize, stagingExtraBufferUsageFlags, externalSamplerPool);
 }
 
 ResourceAllocator::ResourceAllocator(ResourceAllocator& other)
@@ -45,7 +46,12 @@ ResourceAllocator::~ResourceAllocator()
   deinit();
 }
 
-void ResourceAllocator::init(VkDevice device, VkPhysicalDevice physicalDevice, MemAllocator* memAlloc, VkDeviceSize stagingBlockSize, SamplerPool* externalSamplerPool)
+void ResourceAllocator::init(VkDevice           device,
+                             VkPhysicalDevice   physicalDevice,
+                             MemAllocator*      memAlloc,
+                             VkDeviceSize       stagingBlockSize,
+                             VkBufferUsageFlags stagingExtraBufferUsageFlags,
+                             SamplerPool*       externalSamplerPool)
 {
   m_device         = device;
   m_physicalDevice = physicalDevice;
@@ -63,12 +69,14 @@ void ResourceAllocator::init(VkDevice device, VkPhysicalDevice physicalDevice, M
     m_samplerPool = m_samplerPoolInternal.get();
   }
 
-  m_staging = std::make_unique<StagingMemoryManager>(memAlloc, stagingBlockSize);
+  m_stagingExtraBufferUsageFlags = stagingExtraBufferUsageFlags;
+  m_staging = std::make_unique<StagingMemoryManager>(memAlloc, stagingBlockSize, stagingExtraBufferUsageFlags);
 }
 
 void ResourceAllocator::init(ResourceAllocator& other)
 {
-  init(other.m_device, other.m_physicalDevice, other.m_memAlloc, other.m_staging->getBlockSize(), other.m_samplerPool);
+  init(other.m_device, other.m_physicalDevice, other.m_memAlloc, other.m_staging->getBlockSize(),
+       other.m_stagingExtraBufferUsageFlags, other.m_samplerPool);
 }
 
 void ResourceAllocator::deinit()

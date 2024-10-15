@@ -13,25 +13,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2014-2024 NVIDIA CORPORATION
+ * SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
-#ifdef USE_CPP_20
-#include <span>
-#endif
+
+/* @DOC_START
+# namespace `tinygltf::utils`
+> Utility functions for extracting structs from tinygltf's representation of glTF.
+@DOC_END */
 
 #include <tiny_gltf.h>
 #include <glm/glm.hpp>
 #include <glm/gtx/transform.hpp>
 #include <glm/gtx/matrix_decompose.hpp>
 #include <glm/gtc/type_ptr.hpp>
-#include <vector>
-#include <string>
 #include <algorithm>
+#include <span>
 #include <sstream>
-
+#include <string>
+#include <vector>
 
 #define KHR_MATERIALS_VARIANTS_EXTENSION_NAME "KHR_materials_variants"
 #define EXT_MESH_GPU_INSTANCING_EXTENSION_NAME "EXT_mesh_gpu_instancing"
@@ -187,19 +189,18 @@ namespace tinygltf {
 
 namespace utils {
 
-//--------------------------------------------------------------------------------------------------
-// Utility functions to parse the glTF file
-//--------------------------------------------------------------------------------------------------
+/* @DOC_START
+## Function `getValue<T>`
+> Gets the value of type T for the attribute `name`.
 
+This function retrieves the value of the specified attribute from a tinygltf::Value
+and stores it in the provided result variable.
 
-// Get the value of type T for the attribute `name`.
-// This function retrieves the value of the specified attribute from a tinygltf::Value
-// and stores it in the provided result variable.
-//
-// Parameters:
-// - value: The tinygltf::Value from which to retrieve the attribute.
-// - name: The name of the attribute to retrieve.
-// - result: The variable to store the retrieved value in.
+Parameters:
+- value: The `tinygltf::Value` from which to retrieve the attribute.
+- name: The name of the attribute to retrieve.
+- result: The variable to store the retrieved value in.
+@DOC_END */
 template <typename T>
 inline void getValue(const tinygltf::Value& value, const std::string& name, T& result)
 {
@@ -209,8 +210,12 @@ inline void getValue(const tinygltf::Value& value, const std::string& name, T& r
   }
 }
 
-// Specialization for float type.
-// Retrieves the value of the specified attribute as a float and stores it in the result variable.
+/* @DOC_START
+## Function `getValue(..., float& result)`
+> Specialization of `getValue()` for float type.
+
+Retrieves the value of the specified attribute as a float and stores it in the result variable.
+@DOC_END */
 template <>
 inline void getValue(const tinygltf::Value& value, const std::string& name, float& result)
 {
@@ -220,8 +225,12 @@ inline void getValue(const tinygltf::Value& value, const std::string& name, floa
   }
 }
 
-// Specialization for nvvkhl::Gltf::Texture type.
-// Retrieves the texture attribute values and stores them in the result variable.
+/* @DOC_START
+## Function `getValue(..., tinygltf::TextureInfo& result)`
+> Specialization of `getValue()` for `nvvkhl::Gltf::Texture` type.
+
+Retrieves the texture attribute values and stores them in the result variable.
+@DOC_END */
 template <>
 inline void getValue(const tinygltf::Value& value, const std::string& name, tinygltf::TextureInfo& result)
 {
@@ -234,6 +243,11 @@ inline void getValue(const tinygltf::Value& value, const std::string& name, tiny
   }
 }
 
+
+/* @DOC_START
+## Function `setValue<T>`
+> Sets attribute `key` to value `val`.
+@DOC_END */
 template <typename T>
 inline void setValue(tinygltf::Value& value, const std::string& key, const T& val)
 {
@@ -241,6 +255,11 @@ inline void setValue(tinygltf::Value& value, const std::string& key, const T& va
 }
 
 
+/* @DOC_START
+## Function `setValue(... tinygltf::TextureInfo)`
+> Sets attribute `key` to a JSON object with an `index` and `texCoord` set from
+> the members of `textureInfo`.
+@DOC_END */
 inline void setValue(tinygltf::Value& value, const std::string& key, const tinygltf::TextureInfo& textureInfo)
 {
   auto& t                                      = value.Get<tinygltf::Value::Object>()[key];
@@ -249,14 +268,19 @@ inline void setValue(tinygltf::Value& value, const std::string& key, const tinyg
   value.Get<tinygltf::Value::Object>()[key]    = t;
 }
 
-// Get the value of type T for the attribute `name`.
-// This function retrieves the array value of the specified attribute from a tinygltf::Value
-// and stores it in the provided result variable. It is used for types such as glm::vec3, glm::vec4, glm::mat4, etc.
-//
-// Parameters:
-// - value: The tinygltf::Value from which to retrieve the attribute.
-// - name: The name of the attribute to retrieve.
-// - result: The variable to store the retrieved array value in.
+
+/* @DOC_START
+## Function `getArrayValue<T>`
+> Gets the value of type T for the attribute `name`.
+
+This function retrieves the array value of the specified attribute from a `tinygltf::Value`
+and stores it in the provided result variable. It is used for types such as `glm::vec3`, `glm::vec4`, `glm::mat4`, etc.
+
+Parameters:
+- value: The `tinygltf::Value` from which to retrieve the attribute.
+- name: The name of the attribute to retrieve.
+- result: The variable to store the retrieved array value in.
+@DOC_END */
 template <class T>
 inline void getArrayValue(const tinygltf::Value& value, const std::string& name, T& result)
 {
@@ -268,6 +292,11 @@ inline void getArrayValue(const tinygltf::Value& value, const std::string& name,
   }
 }
 
+/* @DOC_START
+## Function `setArrayValue<T>`
+> Sets attribute `name` of the given `value` to an array with the first
+> `numElements` elements from the `array` pointer.
+@DOC_END */
 template <typename T>
 inline void setArrayValue(tinygltf::Value& value, const std::string& name, uint32_t numElem, T* array)
 {
@@ -280,83 +309,109 @@ inline void setArrayValue(tinygltf::Value& value, const std::string& name, uint3
 }
 
 
-// Converts a vector of elements to a tinygltf::Value.
-// This function converts a given array of float elements into a tinygltf::Value::Array,
-// suitable for use within the tinygltf library.
-//
-// Parameters:
-// - numElements: The number of elements in the array.
-// - elements: A pointer to the array of float elements.
-//
-// Returns:
-// - A tinygltf::Value representing the array of elements.
+/* @DOC_START
+## Function `convertToTinygltfValue`
+> Converts a vector of elements to a `tinygltf::Value`.
+
+This function converts a given array of float elements into a `tinygltf::Value::Array`,
+suitable for use within the tinygltf library.
+
+Parameters:
+- numElements: The number of elements in the array.
+- elements: A pointer to the array of float elements.
+
+Returns:
+- A `tinygltf::Value` representing the array of elements.
+@DOC_END */
 tinygltf::Value convertToTinygltfValue(int numElements, const float* elements);
 
 
-// Retrieves the translation, rotation, and scale of a GLTF node.
-// This function extracts the translation, rotation, and scale (TRS) properties
-// from the given GLTF node. If the node has a matrix defined, it decomposes
-// the matrix to obtain these properties. Otherwise, it directly retrieves
-// the TRS values from the node's properties.
-//
-// Parameters:
-// - node: The GLTF node from which to extract the TRS properties.
-// - translation: Output parameter for the translation vector.
-// - rotation: Output parameter for the rotation quaternion.
-// - scale: Output parameter for the scale vector.
+/* @DOC_START
+## Function `getNodeTRS`
+> Retrieves the translation, rotation, and scale of a GLTF node.
+
+This function extracts the translation, rotation, and scale (TRS) properties
+from the given GLTF node. If the node has a matrix defined, it decomposes
+the matrix to obtain these properties. Otherwise, it directly retrieves
+the TRS values from the node's properties.
+
+Parameters:
+- node: The GLTF node from which to extract the TRS properties.
+- translation: Output parameter for the translation vector.
+- rotation: Output parameter for the rotation quaternion.
+- scale: Output parameter for the scale vector.
+@DOC_END */
 void getNodeTRS(const tinygltf::Node& node, glm::vec3& translation, glm::quat& rotation, glm::vec3& scale);
 
 
-// Sets the translation, rotation, and scale of a GLTF node.
-// This function sets the translation, rotation, and scale (TRS) properties of
-// the given GLTF node using the provided values.
-//
-// Parameters:
-// - node: The GLTF node to modify.
-// - translation: The translation vector to set.
-// - rotation: The rotation quaternion to set.
-// - scale: The scale vector to set.
+/* @DOC_START
+* ## Function `setNodeTRS`
+> Sets the translation, rotation, and scale of a GLTF node.
+
+This function sets the translation, rotation, and scale (TRS) properties of
+the given GLTF node using the provided values.
+
+Parameters:
+- node: The GLTF node to modify.
+- translation: The translation vector to set.
+- rotation: The rotation quaternion to set.
+- scale: The scale vector to set.
+@DOC_END */
 void setNodeTRS(tinygltf::Node& node, const glm::vec3& translation, const glm::quat& rotation, const glm::vec3& scale);
 
-// Retrieves the transformation matrix of a GLTF node.
-// This function computes the transformation matrix for the given GLTF node.
-// If the node has a direct matrix defined, it returns that matrix as defined in
-// the specification. Otherwise, it computes the matrix from the node's translation,
-// rotation, and scale (TRS) properties.
-//
-// Parameters:
-// - node: The GLTF node for which to retrieve the transformation matrix.
-//
-// Returns:
-// - The transformation matrix of the node.
+
+/* @DOC_START
+* ## Function `getNodeMatrix`
+> Retrieves the transformation matrix of a GLTF node.
+
+This function computes the transformation matrix for the given GLTF node.
+If the node has a direct matrix defined, it returns that matrix as defined in
+the specification. Otherwise, it computes the matrix from the node's translation,
+rotation, and scale (TRS) properties.
+
+Parameters:
+- node: The GLTF node for which to retrieve the transformation matrix.
+
+Returns:
+- The transformation matrix of the node.
+@DOC_END */
 glm::mat4 getNodeMatrix(const tinygltf::Node& node);
 
 
-// Generates a unique key for a GLTF primitive based on its attributes.
-// This function creates a unique string key for the given GLTF primitive by
-// concatenating its attribute keys and values. This is useful for caching
-// the primitive data, thereby avoiding redundancy.
-//
-// Parameters:
-// - primitive: The GLTF primitive for which to generate the key.
-//
-// Returns:
-// - A unique string key representing the primitive's attributes.
+/* @DOC_START
+## Function `generatePrimitiveKey`
+> Generates a unique key for a GLTF primitive based on its attributes.
+
+This function creates a unique string key for the given GLTF primitive by
+concatenating its attribute keys and values. This is useful for caching
+the primitive data, thereby avoiding redundancy.
+
+Parameters:
+- primitive: The GLTF primitive for which to generate the key.
+
+Returns:
+- A unique string key representing the primitive's attributes.
+@DOC_END */
 std::string generatePrimitiveKey(const tinygltf::Primitive& primitive);
 
-// Traverses the scene graph and calls the provided functions for each element.
-// This utility function recursively traverses the scene graph starting from the
-// specified node ID. It calls the provided functions for cameras, lights, and
-// meshes when encountered. The traversal can be stopped early if any function
-// returns true.
-//
-// Parameters:
-// - model: The GLTF model containing the scene graph.
-// - nodeID: The ID of the node to start traversal from.
-// - parentMat: The transformation matrix of the parent node.
-// - fctCam: Function to call when a camera is encountered. Can be nullptr.
-// - fctLight: Function to call when a light is encountered. Can be nullptr.
-// - fctMesh: Function to call when a mesh is encountered. Can be nullptr.
+
+/* @DOC_START
+## Function `traverseSceneGraph`
+> Traverses the scene graph and calls the provided functions for each element.
+
+This utility function recursively traverses the scene graph starting from the
+specified node ID. It calls the provided functions for cameras, lights, and
+meshes when encountered. The traversal can be stopped early if any function
+returns `true`.
+
+Parameters:
+- model: The GLTF model containing the scene graph.
+- nodeID: The ID of the node to start traversal from.
+- parentMat: The transformation matrix of the parent node.
+- fctCam: Function to call when a camera is encountered. Can be `nullptr`.
+- fctLight: Function to call when a light is encountered. Can be `nullptr`.
+- fctMesh: Function to call when a mesh is encountered. Can be `nullptr`.
+@DOC_END */
 void traverseSceneGraph(const tinygltf::Model&                            model,
                         int                                               nodeID,
                         const glm::mat4&                                  parentMat,
@@ -364,43 +419,62 @@ void traverseSceneGraph(const tinygltf::Model&                            model,
                         const std::function<bool(int, const glm::mat4&)>& fctLight = nullptr,
                         const std::function<bool(int, const glm::mat4&)>& fctMesh  = nullptr);
 
-// Return the number of vertices in a primitive.
-// This function retrieves the number of vertices for the given GLTF primitive
-// by accessing the "POSITION" attribute in the model's accessors.
-//
-// Parameters:
-// - model: The GLTF model containing the primitive data.
-// - primitive: The GLTF primitive for which to retrieve the vertex count.
-//
-// Returns:
-// - The number of vertices in the primitive.
+
+/* @DOC_START
+## Function `getVertexCount`
+> Returns the number of vertices in a primitive.
+
+This function retrieves the number of vertices for the given GLTF primitive
+by accessing the "POSITION" attribute in the model's accessors.
+
+Parameters:
+- model: The GLTF model containing the primitive data.
+- primitive: The GLTF primitive for which to retrieve the vertex count.
+
+Returns:
+- The number of vertices in the primitive.
+@DOC_END */
 size_t getVertexCount(const tinygltf::Model& model, const tinygltf::Primitive& primitive);
 
-// Return the number of indices in a primitive.
-// This function retrieves the number of indices for the given GLTF primitive
-// by accessing the indices in the model's accessors. If no indices are present,
-// it returns the number of vertices instead.
-//
-// Parameters:
-// - model: The GLTF model containing the primitive data.
-// - primitive: The GLTF primitive for which to retrieve the index count.
-//
-// Returns:
-// - The number of indices in the primitive, or the number of vertices if no indices are present.
+/* @DOC_START
+## Function `getIndexCount`
+> Returns the number of indices in a primitive.
+
+This function retrieves the number of indices for the given GLTF primitive
+by accessing the indices in the model's accessors. If no indices are present,
+it returns the number of vertices instead.
+
+Parameters:
+- model: The GLTF model containing the primitive data.
+- primitive: The GLTF primitive for which to retrieve the index count.
+
+Returns:
+- The number of indices in the primitive, or the number of vertices if no indices are present.
+@DOC_END */
 size_t getIndexCount(const tinygltf::Model& model, const tinygltf::Primitive& primitive);
 
-// Check if the map has the specified element.
-// Can be used for extensions, extras, or any other map.
-// Returns true if the map has the specified element, false otherwise.
+
+/* @DOC_START
+## Function `hasElementName<MapType>`
+> Check if the map has the specified element.
+
+Can be used for extensions, extras, or any other map.
+Returns `true` if the map has the specified element, `false` otherwise.
+@DOC_END */
 template <typename MapType>
 bool hasElementName(const MapType& map, const std::string& key)
 {
   return map.find(key) != map.end();
 }
 
-// Get the value of the specified element from the map.
-// Can be extension, extras, or any other map.
-// Returns the value of the element.
+
+/* @DOC_START
+## Function `getElementValue<MapType>`
+> Get the value of the specified element from the map.
+
+Can be `extensions`, `extras`, or any other map.
+Returns the value of the element.
+@DOC_END */
 template <typename MapType>
 const typename MapType::mapped_type& getElementValue(const MapType& map, const std::string& key)
 {
@@ -408,19 +482,24 @@ const typename MapType::mapped_type& getElementValue(const MapType& map, const s
 }
 
 
-// This function retrieves the buffer data for the specified accessor from the GLTF model
-// and returns it as a span of type T. The function assumes that the buffer data is of type T.
-// The function performs assertions to ensure that the accessor and buffer data are compatible.
-// Example usage:
-// int accessorIndex = primitive.attributes.at("POSITION");
-// std::span<const glm::vec3> positions = tinygltf::utils::getBufferDataSpan<glm::vec3>(model, accessorIndex);
+/* @DOC_START
+## Function `getBufferDataSpan<T>`
+> Retrieves the buffer data for the specified accessor from the GLTF model
+> and returns it as a span of type `T`.
 
+The function assumes that the buffer data is of type `T`.
+It also performs assertions to ensure that the accessor and buffer data are compatible; these will be ignored
+if assertions are off.
+
+Example usage:
+
+```cpp
+int accessorIndex = primitive.attributes.at("POSITION");
+std::span<const glm::vec3> positions = tinygltf::utils::getBufferDataSpan<glm::vec3>(model, accessorIndex);
+```
+@DOC_END */
 template <typename T>
-#ifdef USE_CPP_20
 std::span<const T> getBufferDataSpan(const tinygltf::Model& model, int accessorIndex)
-#else
-std::pair<const T*, size_t> getBufferDataSpan(const tinygltf::Model& model, int accessorIndex)
-#endif
 {
   const tinygltf::Accessor&   accessor = model.accessors[accessorIndex];
   const tinygltf::BufferView& view     = model.bufferViews[accessor.bufferView];
@@ -464,29 +543,33 @@ std::pair<const T*, size_t> getBufferDataSpan(const tinygltf::Model& model, int 
 
 
   const T* bufferData = reinterpret_cast<const T*>(&model.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]);
-#ifdef USE_CPP_20
   return std::span<const T>(bufferData, accessor.count);
-#else
-  return {bufferData, accessor.count};
-#endif
 }
 
 
-// Extract the vector of type T for the attribute.
-// This function retrieves the data for the specified attribute from the GLTF model
-// and copies it into a vector of type T. Note that this method copies the data,
-// which may not be the most efficient way to handle large datasets.
-//
-// Example usage:
-// std::vector<glm::vec3> translations = tinygltf::utils::extractAttributeData<glm::vec3>(model, attributes, "TRANSLATION");
-//
-// Parameters:
-// - model: The GLTF model containing the attribute data.
-// - attributes: The attribute values to parse.
-// - attributeName: The name of the attribute to retrieve.
-//
-// Returns:
-// - A vector of type T containing the attribute data.
+/* @DOC_START
+## Function `extractAttributeData<T>`
+> Extracts a vector of type `T` from the attribute.
+
+This function retrieves the data for the specified attribute from the GLTF model
+and copies it into a vector of type `T`. Note that this copy may not be the
+most efficient way to handle large datasets compared to accessing the data
+without a copy.
+
+Example usage:
+```cpp
+std::vector<glm::vec3> translations
+  = tinygltf::utils::extractAttributeData<glm::vec3>(model, attributes, "TRANSLATION");
+```
+
+Parameters:
+- model: The GLTF model containing the attribute data.
+- attributes: The attribute values to parse.
+- attributeName: The name of the attribute to retrieve.
+
+Returns:
+- A vector of type T containing the attribute data.
+*/
 template <typename T>
 inline std::vector<T> extractAttributeData(const tinygltf::Model& model, const tinygltf::Value& attributes, const std::string& attributeName)
 {
@@ -506,9 +589,14 @@ inline std::vector<T> extractAttributeData(const tinygltf::Model& model, const t
 }
 
 
-// Calls a function (such as a lambda function) for each (index, value) pair in
-// a sparse accessor. It's only potentially called for indices from
-// accessorFirstElement through accessorFirstElement + numElementsToProcess - 1.
+/* @DOC_START
+## Function `forEachSparseValue<T>`
+> Calls a function (such as a lambda function) for each `(index, value)` pair in
+> a sparse accessor.
+
+It's only potentially called for indices from
+`accessorFirstElement` through `accessorFirstElement + numElementsToProcess - 1`.
+@DOC_END */
 template <class T>
 void forEachSparseValue(const tinygltf::Model&                            tmodel,
                         const tinygltf::Accessor&                         accessor,
@@ -575,21 +663,26 @@ void forEachSparseValue(const tinygltf::Model&                            tmodel
   }
 }
 
-// Copies accessor elements accessorFirstElement through
-// accessorFirstElement + numElementsToCopy - 1 to outData elements
-// outFirstElement through outFirstElement + numElementsToCopy - 1.
-// This handles sparse accessors correctly! It's intended as a replacement for
-// what would be memcpy(..., &buffer.data[...], ...) calls.
-//
-// However, it performs no conversion: it assumes (but does not check) that
-// accessor's elements are of type T. For instance, T should be a struct of two
-// floats for a VEC2 float accessor.
-//
-// This is range-checked, so elements that would be out-of-bounds are not
-// copied. We assume size_t overflow does not occur.
-// Note that outDataSizeInT is the number of elements in the outDataBuffer,
-// while numElementsToCopy is the number of elements to copy, not the number
-// of elements in accessor.
+/* @DOC_START
+## Function `copyAccessorData<T>`
+> Copies accessor elements `accessorFirstElement` through
+> `accessorFirstElement + numElementsToCopy - 1` to `outData` elements
+> `outFirstElement` through `outFirstElement + numElementsToCopy - 1`.
+
+This handles sparse accessors correctly! It's intended as a replacement for
+what would be `memcpy(..., &buffer.data[...], ...)` calls.
+
+However, it performs no conversion: it assumes (but does not check) that
+accessor's elements are of type `T`. For instance, `T` should be a struct of two
+floats for a `VEC2` float accessor.
+
+This is range-checked, so elements that would be out-of-bounds are not
+copied. We assume `size_t` overflow does not occur.
+
+Note that `outDataSizeInT` is the number of elements in the `outDataBuffer`,
+while `numElementsToCopy` is the number of elements to copy, not the number
+of elements in `accessor`.
+@DOC_END */
 template <class T>
 void copyAccessorData(T*                        outData,
                       size_t                    outDataSizeInElements,
@@ -635,7 +728,11 @@ void copyAccessorData(T*                        outData,
                         [&outData](size_t index, const T* value) { outData[index] = *value; });
 }
 
-// Same as copyAccessorData(T*, ...), but taking a vector.
+
+/* @DOC_START
+## Function `copyAccessorData<T>(std::vector<T>& outData, ...)`
+> Same as `copyAccessorData(T*, ...)`, but taking a vector.
+@DOC_END */
 template <class T>
 void copyAccessorData(std::vector<T>&           outData,
                       size_t                    outFirstElement,
@@ -647,9 +744,14 @@ void copyAccessorData(std::vector<T>&           outData,
   copyAccessorData<T>(outData.data(), outData.size(), outFirstElement, tmodel, accessor, accessorFirstElement, numElementsToCopy);
 }
 
-// Appending to \p attribVec, all the values of \p accessor
-// Return false if the accessor is invalid.
-// T must be glm::vec2, glm::vec3, or glm::vec4.
+
+/* @DOC_START
+## Function `getAccessorData<T>`
+> Appends all the values of `accessor` to `attribVec`.
+
+Returns `false` if the accessor is invalid.
+`T` must be `glm::vec2`, `glm::vec3`, or `glm::vec4`.
+@DOC_END */
 template <typename T>
 inline bool getAccessorData(const tinygltf::Model& tmodel, const tinygltf::Accessor& accessor, std::vector<T>& attribVec)
 {
@@ -740,9 +842,14 @@ inline bool getAccessorData(const tinygltf::Model& tmodel, const tinygltf::Acces
   return true;
 }
 
-// Appending to \p attribVec, all the values of \p attribName
-// Return false if the attribute is missing or invalid.
-// T must be glm::vec2, glm::vec3, or glm::vec4.
+
+/* @DOC_START
+## Function `getAttribute<T>`
+> Appends all the values of `attribName` to `attribVec`.
+
+Returns `false` if the attribute is missing or invalid.
+`T` must be `glm::vec2`, `glm::vec3`, or `glm::vec4`.
+@DOC_END */
 template <typename T>
 inline bool getAttribute(const tinygltf::Model& tmodel, const tinygltf::Primitive& primitive, std::vector<T>& attribVec, const std::string& attribName)
 {
@@ -754,8 +861,13 @@ inline bool getAttribute(const tinygltf::Model& tmodel, const tinygltf::Primitiv
 }
 
 
-// This is appending the incoming data to the binary buffer (just one)
-// and return the amount in byte of data that was added.
+/* @DOC_START
+## Function `appendData<T>`
+> Appends data from `inData` to the binary buffer `buffer` and returns the number
+> of bytes of data added.
+
+`T` should be a type like `std::vector`.
+@DOC_END */
 template <class T>
 uint32_t appendData(tinygltf::Buffer& buffer, const T& inData)
 {
@@ -812,11 +924,21 @@ inline KHR_texture_transform getTextureTransform(const T& tinfo)
   return gmat;
 }
 
-// Retrieves the image index of a texture, accounting for extensions such as
-// MSFT_texture_dds and KHR_texture_basisu.
+/* @DOC_START
+## Function `getTextureImageIndex`
+> Retrieves the image index of a texture, accounting for extensions such as
+> `MSFT_texture_dds` and `KHR_texture_basisu`.
+@DOC_END */
 int getTextureImageIndex(const tinygltf::Texture& texture);
 
-// Retrieves the visibility of current node, not looking for hierarchy
+/* @DOC_START
+> Retrieves the visibility of a node using `KHR_node_visibility`.
+
+Does not search up the node hierarchy, so e.g. if node A points to node B and
+node A is set to invisible and node B is set to visible, then
+`getNodeVisibility(B)` will return `KHR_node_visibility{true}` even though
+node B would not be visible due to node A.
+@DOC_END */
 KHR_node_visibility getNodeVisibility(const tinygltf::Node& node);
 void                setNodeVisibility(tinygltf::Node& node, const KHR_node_visibility& visibility);
 

@@ -17,9 +17,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-
 #ifndef DH_SKY_H
 #define DH_SKY_H 1
+
+/* @DOC_START
+> Contains structures and functions for procedural sky models.
+
+This file includes two sky models: a simple sky that is fast to compute, and
+a more complex "physical sky" model based on a model from Mental Ray,
+customized for nvpro-samples.
+@DOC_END */
 
 #ifdef __cplusplus
 #define OUT_TYPE(T) T&
@@ -74,7 +81,11 @@ eSkyParam = 1
 END_BINDING();
 // clang-format on
 
-// Struct to hold the sampling result
+/* @DOC_START
+# Struct `SkySamplingResult`
+> Contains the resulting direction, probability density function, and radiance
+> from sampling the procedural sky.
+@DOC_END */
 struct SkySamplingResult
 {
   vec3  direction;  // Direction to the sampled light
@@ -82,12 +93,19 @@ struct SkySamplingResult
   vec3  radiance;   // Light intensity
 };
 
-// Used by the sky shaders
+/* @DOC_START
+# Struct `SkyPushConstant`
+> Used by shaders that bake the procedural sky to a texture.
+@DOC_END */
 struct SkyPushConstant
 {
   mat4 mvp;
 };
 
+/* @DOC_START
+# Struct `SimpleSkyParameters`
+> Parameters for the simple sky model.
+@DOC_END */
 struct SimpleSkyParameters
 {
   vec3  directionToLight;
@@ -114,8 +132,8 @@ struct SimpleSkyParameters
 
 
 /** @DOC_START
-# Function initSimplSkyParameters
->  Initializes the sky shader parameters with default values
+# Function `initSimpleSkyParameters`
+> Initializes `SimpleSkyParameters` with default values.
 @DOC_END */
 inline SimpleSkyParameters initSimpleSkyParameters()
 {
@@ -139,8 +157,8 @@ inline SimpleSkyParameters initSimpleSkyParameters()
 }
 
 /** @DOC_START
-# Function proceduralSky
->  Return the color of the procedural sky shader
+# Function `evalSimpleSky`
+> Returns the radiance of the simple sky model in a given view direction.
 @DOC_END  */
 inline vec3 evalSimpleSky(SimpleSkyParameters params, vec3 direction)
 {
@@ -172,6 +190,10 @@ inline vec3 evalSimpleSky(SimpleSkyParameters params, vec3 direction)
   return environment + sunLight;
 }
 
+/** @DOC_START
+# Function `sampleSimpleSky`
+> Samples the simple sky model using two random values, returning a `SkySamplingResult`.
+@DOC_END  */
 inline SkySamplingResult sampleSimpleSky(SimpleSkyParameters params, vec2 randVal)
 {
   SkySamplingResult result;
@@ -239,6 +261,11 @@ inline SkySamplingResult sampleSimpleSky(SimpleSkyParameters params, vec2 randVa
 ////////////////////////////////////////////////////////////////////////
 // Physical Sky
 ////////////////////////////////////////////////////////////////////////
+
+/* @DOC_START
+# Struct `PhysicalSkyParameters`
+> Parameters for the physical sky model.
+@DOC_END */
 struct PhysicalSkyParameters
 {
   vec3  rgbUnitConversion;
@@ -263,7 +290,10 @@ struct PhysicalSkyParameters
 };
 
 
-// Function to initialize SunAndSky with default values
+/* @DOC_START
+# Function `initPhysicalSkyParameters`
+> Initializes `PhysicalSkyParameters` with default, realistic parameters.
+@DOC_END */
 inline PhysicalSkyParameters initPhysicalSkyParameters()
 {
   PhysicalSkyParameters ss;
@@ -296,7 +326,7 @@ inline PhysicalSkyParameters initPhysicalSkyParameters()
 
   // Default sun direction (45 degrees above horizon, facing south)
   float elevation = radians(45.0f);
-  ss.sunDirection = normalize(vec3(0.0f, sin(elevation), cos(elevation)));
+  ss.sunDirection = vec3(0.0f, sin(elevation), cos(elevation));
 
   // Default coordinate system (Y is up)
   ss.yIsUp = 1;
@@ -322,7 +352,8 @@ inline vec3 localCoordsToDir(vec3 mainVec, float x, float y, float z)
   return x * u + y * v + z * mainVec;
 }
 
-
+// Equal-area transformation of the square [0,1]^2 to the disk
+// {(x, y) | x^2 + y^2 <= 1}.
 inline vec2 squareToDisk(float inX, float inY)
 {
   float localX = 2.0f * inX - 1.0f;
@@ -585,6 +616,10 @@ inline float nightBrightnessAdjustment(vec3 sunDir)
 }
 
 
+/* @DOC_START
+# Function `evalPhysicalSky`
+> Returns the radiance of the physical sky model in a given direction.
+@DOC_END */
 inline vec3 evalPhysicalSky(PhysicalSkyParameters ss, vec3 inDirection)
 {
   if(ss.multiplier <= 0.0f)
@@ -676,7 +711,10 @@ inline vec3 evalPhysicalSky(PhysicalSkyParameters ss, vec3 inDirection)
   return result;
 }
 
-// Sampling the sun and sky model
+/* @DOC_START
+# Function `samplePhysicalSky`
+> Samples the physical sky model using two random values, returning a `SkySamplingResult`.
+@DOC_END  */
 inline SkySamplingResult samplePhysicalSky(PhysicalSkyParameters ss, vec2 randomSample)
 {
   SkySamplingResult result;

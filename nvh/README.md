@@ -1,4 +1,5 @@
 ## Table of Contents
+- [alignment.hpp](#alignmenthpp)
 - [appwindowcamerainertia.hpp](#appwindowcamerainertiahpp)
 - [appwindowprofiler.hpp](#appwindowprofilerhpp)
 - [bitarray.hpp](#bitarrayhpp)
@@ -24,16 +25,23 @@
 - [timesampler.hpp](#timesamplerhpp)
 - [trangeallocator.hpp](#trangeallocatorhpp)
 
+## alignment.hpp
+Contains functions for aligning numbers to power-of-two boundaries.
+### Function `is_aligned<integral>(x, a)`
+Returns whether `x` is a multiple of `a`. `a` must be a power of two.
+### Function `align_up<integral>(x, a)`
+Rounds `x` up to a multiple of `a`. `a` must be a power of two.
+### Function `align_down<integral>(x, a)`
+Rounds `x` down to a multiple of `a`. `a` must be a power of two.
+
 ## appwindowcamerainertia.hpp
 ### class AppWindowCameraInertia
-
 >  AppWindowCameraInertia is a Window base for samples, adding a camera with inertia
 
 It derives the Window for this sample
 
 ## appwindowprofiler.hpp
 ### class nvh::AppWindowProfiler
-
 nvh::AppWindowProfiler provides an alternative utility wrapper class around NVPWindow.
 It is useful to derive single-window applications from and is used by some
 but not all nvpro-samples.
@@ -41,16 +49,15 @@ but not all nvpro-samples.
 Further functionality is provided :
 - built-in profiler/timer reporting to console
 - command-line argument parsing as well as config file parsing using the ParameterTools
-see AppWindowProfiler::setupParameters() for built-in commands
+  see AppWindowProfiler::setupParameters() for built-in commands
 - benchmark/automation mode using ParameterTools
 - screenshot creation
 - logfile based on devicename (depends on context)
 - optional context/swapchain interface
-the derived classes nvvk/appwindowprofiler_vk and nvgl/appwindowprofiler_gl make use of this
+  the derived classes nvvk/appwindowprofiler_vk and nvgl/appwindowprofiler_gl make use of this
 
 ## bitarray.hpp
 ### class nvh::BitArray
-
 
 > The nvh::BitArray class implements a tightly packed boolean array using single bits stored in uint64_t values.
 Whenever you want large boolean arrays this representation is preferred for cache-efficiency.
@@ -68,9 +75,9 @@ modifiedObjects.setBit(37,true);
 
 struct MyVisitor {
 void operator()( size_t index ){
-// called with the index of a set bit
-myObjects[index].update();
-}
+    // called with the index of a set bit
+    myObjects[index].update();
+  }
 };
 
 MyVisitor visitor;
@@ -86,7 +93,6 @@ And it returns information, like its volume, its center, the min, max, etc..
 
 ## cameracontrol.hpp
 ### class nvh::CameraControl
-
 
 > nvh::CameraControl is a utility class to create a viewmatrix based on mouse inputs.
 
@@ -110,7 +116,6 @@ sensitivity values.
 
 ## camerainertia.hpp
 ### struct InertiaCamera
-
 >  Struct that offers a camera moving with some inertia effect around a target point
 
 InertiaCamera exposes a mix of pseudo polar rotation around a target point and
@@ -120,7 +125,6 @@ Either the keyboard or mouse can be used for all of the moves.
 
 ## cameramanipulator.hpp
 ### class nvh::CameraManipulator
-
 
 nvh::CameraManipulator is a camera manipulator help class
 It allow to simply do
@@ -170,17 +174,16 @@ m_ubo.view = CameraManip.getMatrix();
 ## commandlineparser.hpp
 Command line parser.
 ```cpp
-std::string inFilename = "";
-bool printHelp = false;
-CommandLineParser args("Test Parser");
-args.addArgument({"-f", "--filename"}, &inFilename, "Input filename");
-args.addArgument({"-h", "--help"}, &printHelp, "Print Help");
-bool result = args.parse(argc, argv);
+ std::string inFilename = "";
+ bool printHelp = false;
+ CommandLineParser args("Test Parser");
+ args.addArgument({"-f", "--filename"}, &inFilename, "Input filename");
+ args.addArgument({"-h", "--help"}, &printHelp, "Print Help");
+ bool result = args.parse(argc, argv);
 ```
 
 ## fileoperations.hpp
 ### functions in nvh
-
 
 - nvh::fileExists : check if file exists
 - nvh::findFile : finds filename in provided search directories
@@ -190,7 +193,6 @@ bool result = args.parse(argc, argv);
 
 ## geometry.hpp
 ### namespace nvh::geometry
-
 The geometry namespace provides a few procedural mesh primitives
 that are subdivided.
 
@@ -220,36 +222,49 @@ nvh::geometry::Box<nvh::geometry::Vertex> box(4,4,4);
 ```
 
 ## gltfscene.hpp
-### `nvh::GltfScene`
 
+### nvh::gltf::Scene
 
-These utilities are for loading glTF models in a
-canonical scene representation. From this representation
-you would create the appropriate 3D API resources (buffers
-and textures).
+The Scene class is responsible for loading and managing a glTF scene.
+- It is used to load a glTF file and parse it into a scene representation.
+- It can be used to save the scene back to a glTF file.
+- It can be used to manage the animations of the scene.
+- What it returns is a list of RenderNodes, RenderPrimitives, RenderCameras, and RenderLights.
+-  RenderNodes are the instances of the primitives in the scene that will be rendered.
+-  RenderPrimitives are the unique primitives in the scene.
 
-```cpp
-// Typical Usage
-// Load the GLTF Scene using TinyGLTF
+Note: The Scene class is a more advanced and light weight version of the GltfScene class.
+      But it is to the user to retrieve the primitive data from the RenderPrimitives.
+      Check the tinygltf_utils.hpp for more information on how to extract the primitive data.
 
-tinygltf::Model    gltfModel;
-tinygltf::TinyGLTF gltfContext;
-fileLoaded = gltfContext.LoadASCIIFromFile(&gltfModel, &error, &warn, m_filename);
+### `nvh::GltfScene` **DEPRECATED**
 
-// Fill the data in the gltfScene
-gltfScene.getMaterials(tmodel);
-gltfScene.getDrawableNodes(tmodel, GltfAttributes::Normal | GltfAttributes::Texcoord_0);
+  These utilities are for loading glTF models in a
+  canonical scene representation. From this representation
+  you would create the appropriate 3D API resources (buffers
+  and textures).
 
-// Todo in App:
-//   create buffers for vertices and indices, from gltfScene.m_position, gltfScene.m_index
-//   create textures from images: using tinygltf directly
-//   create descriptorSet for material using directly gltfScene.m_materials
-```
+  ```cpp
+  // Typical Usage
+  // Load the GLTF Scene using TinyGLTF
+
+  tinygltf::Model    gltfModel;
+  tinygltf::TinyGLTF gltfContext;
+  fileLoaded = gltfContext.LoadASCIIFromFile(&gltfModel, &error, &warn, m_filename);
+
+  // Fill the data in the gltfScene
+  gltfScene.getMaterials(tmodel);
+  gltfScene.getDrawableNodes(tmodel, GltfAttributes::Normal | GltfAttributes::Texcoord_0);
+
+  // Todo in App:
+  //   create buffers for vertices and indices, from gltfScene.m_position, gltfScene.m_index
+  //   create textures from images: using tinygltf directly
+  //   create descriptorSet for material using directly gltfScene.m_materials
+  ```
 
 
 ## inputparser.h
 ### class InputParser
-
 > InputParser is a Simple command line parser
 
 Example of usage for: test.exe -f name.txt -size 200 100
@@ -261,12 +276,11 @@ nvh::InputParser parser(argc, argv);
 std::string filename = parser.getString("-f");
 if(filename.empty())  filename = "default.txt";
 if(parser.exist("-size") {
-auto values = parser.getInt2("-size");
+      auto values = parser.getInt2("-size");
 ```
 
 ## misc.hpp
 ### functions in nvh
-
 
 - mipMapLevels : compute number of mip maps
 - stringFormat : sprintf for std::string
@@ -295,82 +309,85 @@ Measurements:
 
 ## nvprint.hpp
 Multiple functions and macros that should be used for logging purposes,
-rather than printf. These can print to multiple places at once
-### Function nvprintf etc
+rather than `printf`. These can print to multiple places at once, produce
+breakpoints on certain types of messages, and more.
 
+### Function `nvprintf` etc.
 
 Configuration:
-- nvprintSetLevel : sets default loglevel
-- nvprintGetLevel : gets default loglevel
-- nvprintSetLogFileName : sets log filename
-- nvprintSetLogging : sets file logging state
-- nvprintSetCallback : sets custom callback
+- `nvprintSetLevel` : sets default loglevel
+- `nvprintGetLevel` : gets default loglevel
+- `nvprintSetLogFileName` : sets log filename
+- `nvprintSetLogging` : sets file logging state
+- `nvprintSetCallback` : sets custom callback
 
-Printf-style functions and macros.
-These take printf-style specifiers.
-- nvprintf : prints at default loglevel
-- nvprintfLevel : nvprintfLevel print at a certain loglevel
-- LOGI : macro that does nvprintfLevel(LOGLEVEL_INFO)
-- LOGW : macro that does nvprintfLevel(LOGLEVEL_WARNING)
-- LOGE : macro that does nvprintfLevel(LOGLEVEL_ERROR)
-- LOGE_FILELINE : macro that does nvprintfLevel(LOGLEVEL_ERROR) combined with filename/line
-- LOGD : macro that does nvprintfLevel(LOGLEVEL_DEBUG) (only in debug builds)
-- LOGOK : macro that does nvprintfLevel(LOGLEVEL_OK)
-- LOGSTATS : macro that does nvprintfLevel(LOGLEVEL_STATS)
+### Printf-style functions and macros.
+These take `printf`-style specifiers.
+- `nvprintf` : prints at default loglevel
+- `nvprintfLevel` : `nvprintfLevel` print at a certain loglevel
+- `LOGI` : macro that does `nvprintfLevel(LOGLEVEL_INFO)`
+- `LOGW` : macro that does `nvprintfLevel(LOGLEVEL_WARNING)`
+- `LOGE` : macro that does `nvprintfLevel(LOGLEVEL_ERROR)`
+- `LOGE_FILELINE` : macro that does `nvprintfLevel(LOGLEVEL_ERROR)` combined with filename/line
+- `LOGD` : macro that does `nvprintfLevel(LOGLEVEL_DEBUG)` (only in debug builds)
+- `LOGOK` : macro that does `nvprintfLevel(LOGLEVEL_OK)`
+- `LOGSTATS` : macro that does `nvprintfLevel(LOGLEVEL_STATS)`
 
-std::print-style functions and macros.
-These take std::format-style specifiers
-(https://en.cppreference.com/w/cpp/utility/format/formatter#Standard_format_specification).
-- nvprintLevel : print at a certain loglevel
-- PRINTI : macro that does nvprintLevel(LOGLEVEL_INFO)
-- PRINTW : macro that does nvprintLevel(LOGLEVEL_WARNING)
-- PRINTE : macro that does nvprintLevel(LOGLEVEL_ERROR)
-- PRINTE_FILELINE : macro that does nvprintLevel(LOGLEVEL_ERROR) combined with filename/line
-- PRINTD : macro that does nvprintLevel(LOGLEVEL_DEBUG) (only in debug builds)
-- PRINTOK : macro that does nvprintLevel(LOGLEVEL_OK)
-- PRINTSTATS : macro that does nvprintLevel(LOGLEVEL_STATS)
+### `std::print`-style functions and macros.
+These take [`std::format`-style specifiers](https://en.cppreference.com/w/cpp/utility/format/formatter#Standard_format_specification).
+- `nvprintLevel` : print at a certain loglevel
+- `PRINTI` : macro that does `nvprintLevel(LOGLEVEL_INFO)`
+- `PRINTW` : macro that does `nvprintLevel(LOGLEVEL_WARNING)`
+- `PRINTE` : macro that does `nvprintLevel(LOGLEVEL_ERROR)`
+- `PRINTE_FILELINE` : macro that does `nvprintLevel(LOGLEVEL_ERROR)` combined with filename/line
+- `PRINTD` : macro that does `nvprintLevel(LOGLEVEL_DEBUG)` (only in debug builds)
+- `PRINTOK` : macro that does `nvprintLevel(LOGLEVEL_OK)`
+- `PRINTSTATS` : macro that does `nvprintLevel(LOGLEVEL_STATS)`
 
-Safety:
+### Safety:
 On error, all functions print an error message.
+
 All functions are thread-safe.
-Printf-style functions have annotations that should produce warnings at
+
+`Printf`-style functions have annotations that should produce warnings at
 compile-time or when performing static analysis. Their format strings may be
 dynamic - but this can be bad if an adversary can choose the content of the
 format string.
-std::print-style functions are safer: they produce compile-time errors, and
+
+`std::print`-style functions are safer: they produce compile-time errors, and
 their format strings must be compile-time constants. Dynamic formatting
 should be performed outside of printing, like this:
+
 ```cpp
 ImGui::InputText("Enter a format string: ", userFormat, sizeof(userFormat));
 try
 {
-std::string formatted = fmt::vformat(userFormat, ...);
+  std::string formatted = fmt::vformat(userFormat, ...);
 }
 catch (const std::exception& e)
 {
-(error handling...)
+  (error handling...)
 }
 PRINTI("{}", formatted);
 ```
 
-Text encoding:
+### Text encoding:
 Printing to the Windows debug console is the only operation that assumes a
-text encoding, which is ANSI. In all other cases, strings are copied into
-the output.
+text encoding; the input is assumed to be UTF-8. In all other cases, strings
+are copied into the output.
 
 ## parallel_work.hpp
 Distributes batches of loops over BATCHSIZE items across multiple threads. numItems reflects the total number
 of items to process.
 
 batches: fn (uint64_t itemIndex, uint32_t threadIndex)
-callback does single item
+         callback does single item
 ranges:  fn (uint64_t itemBegin, uint64_t itemEnd, uint32_t threadIndex)
-callback does loop `for (uint64_t itemIndex = itemBegin; itemIndex < itemEnd; itemIndex++)`
+         callback does loop `for (uint64_t itemIndex = itemBegin; itemIndex < itemEnd; itemIndex++)`
 
 
 ## parametertools.hpp
 ### class nvh::ParameterList
-
 
 The nvh::ParameterList helps parsing commandline arguments
 or commandline arguments stored within ascii config files.
@@ -393,7 +410,6 @@ Use in combination with the ParameterSequence class to iterate
 sequences of parameter changes for benchmarking/automation.
 ### class nvh::ParameterSequence
 
-
 The nvh::ParameterSequence processes provided tokens in sequences.
 The sequences are terminated by a special "separator" token.
 All tokens between the last iteration and the separator are applied
@@ -412,11 +428,11 @@ std::vector<const char*> tokens;
 ParameterList::tokenizeString("benchmark simple -mode 10 benchmark complex -mode 20", tokens);
 sequence.init(&list, tokens);
 
-// 1 means our separator is followed by one argument (simple/complex)
-// "-" as parameters in the string are prefixed with -
+   // 1 means our separator is followed by one argument (simple/complex)
+   // "-" as parameters in the string are prefixed with -
 
 while(!sequence.advanceIteration("benchmark", 1, "-")) {
-printf("%d %s mode %d\n", sequence.getIteration(), sequence.getSeparatorArg(0), mode);
+  printf("%d %s mode %d\n", sequence.getIteration(), sequence.getSeparatorArg(0), mode);
 }
 
 // would print:
@@ -426,13 +442,11 @@ printf("%d %s mode %d\n", sequence.getIteration(), sequence.getSeparatorArg(0), 
 
 ## primitives.hpp
 ### struct `nvh::PrimitiveMesh`
-
-- Common primitive type, made of vertices: position, normal and texture coordinates.
-- All primitives are triangles, and each 3 indices is forming a triangle.
+  - Common primitive type, made of vertices: position, normal and texture coordinates.
+  - All primitives are triangles, and each 3 indices is forming a triangle.
 
 ### struct `nvh::Node`
-
-- Structure to hold a reference to a mesh, with a material and transformation.
+  - Structure to hold a reference to a mesh, with a material and transformation.
 
 Primitives that can be created:
 * Tetrahedron
@@ -458,7 +472,6 @@ Other utilities
 ## profiler.hpp
 ### class nvh::Profiler
 
-
 > The nvh::Profiler class is designed to measure timed sections.
 
 Each section has a cpu and gpu time. Gpu times are typically provided
@@ -475,7 +488,6 @@ Profiler::Clock can be used standalone for time measuring.
 ## radixsort.hpp
 ### function nvh::radixsort
 
-
 The radixsort function sorts the provided keys based on
 BYTES many bytes stored inside TKey starting at BYTEOFFSET.
 The sorting result is returned as indices into the keys array.
@@ -484,8 +496,8 @@ For example:
 
 ```cpp
 struct MyData {
-uint32_t objectIdentifier;
-uint16_t objectSortKey;
+  uint32_t objectIdentifier;
+  uint16_t objectSortKey;
 };
 
 
@@ -505,7 +517,6 @@ keys[result[i]].objectSortKey < keys[result[i + 1]].objectSortKey
 ## shaderfilemanager.hpp
 ### class nvh::ShaderFileManager
 
-
 The nvh::ShaderFileManager class is meant to be derived from to create the actual api-specific
 shader/program managers.
 
@@ -524,27 +535,24 @@ regardless of m_handleIncludePasting's value.
 
 
 ## threading.hpp
-### class nvh::delayed_call 
-
+### class nvh::delayed_call
 Class returned by delay_noreturn_for to track the thread created and possibly reset the
 delay timer.
-Delay a call to a void function for sleep_duration.
+ Delay a call to a void function for sleep_duration.
 
-`return`: A delayed_call object that holds the running thread.
+ `return`: A delayed_call object that holds the running thread.
 
 Example:
-```cpp
-// Create or update a delayed call to callback. Useful to consolidate multiple events into one call.
-if(!m_delayedCall.delay_for(delay))
-m_delayedCall = nvh::delay_noreturn_for(delay, callback);
-```
+ ```cpp
+ // Create or update a delayed call to callback. Useful to consolidate multiple events into one call.
+ if(!m_delayedCall.delay_for(delay))
+   m_delayedCall = nvh::delay_noreturn_for(delay, callback);
+ ```
 
 ## timesampler.hpp
 ### struct TimeSampler
-
 TimeSampler does time sampling work
 ### struct nvh::Stopwatch
-
 > Timer in milliseconds.
 
 Starts the timer at creation and the elapsed time is retrieved by calling `elapsed()`.
@@ -553,15 +561,14 @@ The timer can be reset if it needs to start timing later in the code execution.
 Usage:
 ````cpp
 {
-nvh::Stopwatch sw;
-... work ...
-LOGI("Elapsed: %f ms\n", sw.elapsed()); // --> Elapsed: 128.157 ms
+  nvh::Stopwatch sw;
+  ... work ...
+  LOGI("Elapsed: %f ms\n", sw.elapsed()); // --> Elapsed: 128.157 ms
 }
 ````
 
 ## trangeallocator.hpp
 ### class nvh::TRangeAllocator
-
 
 The nvh::TRangeAllocator<GRANULARITY> template allows to sub-allocate ranges from a fixed
 maximum size. Ranges are allocated at GRANULARITY and are merged back on freeing.
@@ -589,8 +596,8 @@ uint32_t allocSize;
 uint32_t alignedOffset;
 
 if (range.subAllocate(size, alignment, allocOffset, alignedOffset, allocSize)) {
-... use the allocation space
-// [alignedOffset + size] is guaranteed to be within [allocOffset + allocSize]
+  ... use the allocation space
+  // [alignedOffset + size] is guaranteed to be within [allocOffset + allocSize]
 }
 
 // give back the memory range for re-use

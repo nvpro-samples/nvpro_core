@@ -21,15 +21,27 @@
 #ifndef DH_COMP_H
 #define DH_COMP_H 1
 
-#define WORKGROUP_SIZE 16  // Grid size used by compute shaders
+/* @DOC_START
+# Device/Host Polyglot Overview
+Files in nvvkhl named "*.h" are designed to be compiled by both C++ and GLSL
+code, so that they can share structure and function definitions.
+Not all functions will be available in both C++ and GLSL.
+@DOC_END */
+
+/* @DOC_START
+# `WORKGROUP_SIZE` Define
+> The number of threads per workgroup in X and Y used by 2D compute shaders.
+
+Generally, all nvvkhl compute shaders use the same workgroup size. (Workgroup
+sizes of 128, 256, or 512 threads are generally good choices across GPUs.)
+@DOC_END */
+#define WORKGROUP_SIZE 16
 
 #ifdef __cplusplus
 
 /** @DOC_START
-# Function getGroupCounts
->  Returns the number of workgroups needed to cover the size
-
-This function is used to calculate the number of workgroups needed to cover a given size. It is used in the compute shader to calculate the number of workgroups needed to cover the size of the image.
+# Function `getGroupCounts`
+> Returns the number of workgroups needed to cover `size` threads.
 @DOC_END  */
 inline VkExtent2D getGroupCounts(const VkExtent2D& size, int workgroupSize = WORKGROUP_SIZE)
 {

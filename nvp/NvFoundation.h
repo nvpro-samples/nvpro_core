@@ -126,9 +126,6 @@ Platform define
 #    ifdef XBOXONE
 #        define NV_XBOXONE
 #        define NV_X64
-#    elif defined(_M_IX86)
-#        define NV_X86
-#        define NV_WINDOWS
 #   elif defined(_M_X64)
 #       define NV_X64
 #       define NV_WINDOWS
@@ -157,9 +154,6 @@ Platform define
 #        if defined(__ARM_NEON__)
 #            define NV_ARM_NEON
 #        endif
-#   elif defined(__i386__)
-#       define NV_X86
-#        define NV_VMX
 #   elif defined(__x86_64__)
 #       ifdef __PS4__
 #         define NV_PS4
@@ -414,19 +408,13 @@ NV_COMPILE_TIME_ASSERT(NV_OFFSET_OF(NvPackValidation, a) == 8);
 #define NV_IS_WINDOWS 0
 #endif
 
-#ifdef NV_X86
-#define NV_IS_X86 1
-#else
-#define NV_IS_X86 0
-#endif
-
 #ifdef NV_X64
 #define NV_IS_X64 1
 #else
 #define NV_IS_X64 0
 #endif
 
-#if defined(NV_X86) || defined(NV_X64)
+#if defined(NV_X64)
 #define NV_IS_INTEL 1
 #else
 #define NV_IS_INTEL 0

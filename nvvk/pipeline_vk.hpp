@@ -72,6 +72,8 @@ struct GraphicsPipelineState
   // dynamic viewport and scissor, one render target, blending disabled
   GraphicsPipelineState()
   {
+    sampleMask = ~0;
+
     rasterizationState.flags                   = {};
     rasterizationState.depthClampEnable        = {};
     rasterizationState.rasterizerDiscardEnable = {};
@@ -139,6 +141,8 @@ struct GraphicsPipelineState
   // Attach the pointer values of the structures to the internal arrays
   void update()
   {
+    multisampleState.pSampleMask = &sampleMask;
+
     colorBlendState.attachmentCount = (uint32_t)blendAttachmentStates.size();
     colorBlendState.pAttachments    = blendAttachmentStates.data();
 
@@ -349,7 +353,7 @@ struct GraphicsPipelineState
     return (uint32_t)(scissors.size() - 1);
   }
 
-
+  VkSampleMask sampleMask{~0U};
   VkPipelineInputAssemblyStateCreateInfo inputAssemblyState{VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO};
   VkPipelineRasterizationStateCreateInfo rasterizationState{VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO};
   VkPipelineMultisampleStateCreateInfo   multisampleState{VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO};
@@ -385,6 +389,8 @@ protected:
 
 The graphics pipeline generator takes a GraphicsPipelineState object and pipeline-specific information such as 
 the render pass and pipeline layout to generate the final pipeline. 
+
+Note: `nvvk::GraphicsPipelineState::createInfo.pNext` is modified by the setter functions. Therefore custom changes must be done last.
 
 Example of usage :
 ```cpp
@@ -425,13 +431,10 @@ public:
     init();
   }
 
-  // For VK_KHR_dynamic_rendering
-  using PipelineRenderingCreateInfo = VkPipelineRenderingCreateInfo;
-
-  GraphicsPipelineGenerator(VkDevice                           device_,
-                            const VkPipelineLayout&            layout,
-                            const PipelineRenderingCreateInfo& pipelineRenderingCreateInfo,
-                            GraphicsPipelineState&             pipelineState_)
+  GraphicsPipelineGenerator(VkDevice                             device_,
+                            const VkPipelineLayout&              layout,
+                            const VkPipelineRenderingCreateInfo& pipelineRenderingCreateInfo,
+                            GraphicsPipelineState&               pipelineState_)
       : device(device_)
       , pipelineState(pipelineState_)
   {
@@ -455,12 +458,17 @@ public:
 
   void setRenderPass(VkRenderPass renderPass)
   {
+    assert(createInfo.pNext == nullptr || createInfo.pNext == &dynamicRenderingInfo);
+
     createInfo.renderPass = renderPass;
-    createInfo.pNext      = nullptr;
+    // removes potential &dynamicRenderingInfo
+    createInfo.pNext = nullptr;
   }
 
-  void setPipelineRenderingCreateInfo(const PipelineRenderingCreateInfo& pipelineRenderingCreateInfo)
+  void setPipelineRenderingCreateInfo(const VkPipelineRenderingCreateInfo& pipelineRenderingCreateInfo)
   {
+    assert(createInfo.pNext == nullptr || createInfo.pNext == &dynamicRenderingInfo);
+
     // Deep copy
     assert(pipelineRenderingCreateInfo.pNext == nullptr);  // Update deep copy if needed.
     dynamicRenderingInfo = pipelineRenderingCreateInfo;
@@ -559,7 +567,7 @@ private:
   std::vector<VkShaderModule>                  temporaryModules;
   std::vector<VkFormat>                        dynamicRenderingColorFormats;
   GraphicsPipelineState&                       pipelineState;
-  PipelineRenderingCreateInfo                  dynamicRenderingInfo{VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO};
+  VkPipelineRenderingCreateInfo                dynamicRenderingInfo{VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO};
 
 
   void init()
@@ -651,7 +659,6 @@ Example of usage :
 
 struct GraphicShaderObjectPipeline : GraphicsPipelineState
 {
-  VkSampleMask                                       sampleMask{~0U};
   std::vector<VkVertexInputBindingDescription2EXT>   vertexBindingDescriptions2;
   std::vector<VkColorBlendEquationEXT>               colorBlendEquationState;
   std::vector<VkBool32>                              colorBlendEnables;
@@ -682,7 +689,6 @@ struct GraphicShaderObjectPipeline : GraphicsPipelineState
   void update()
   {
     GraphicsPipelineState::update();
-    multisampleState.pSampleMask = &sampleMask;
 
     vertexBindingDescriptions2.resize(vertexInputState.vertexBindingDescriptionCount);
     for(uint32_t i = 0; i < vertexInputState.vertexBindingDescriptionCount; i++)
@@ -721,7 +727,7 @@ struct GraphicShaderObjectPipeline : GraphicsPipelineState
   }
 
   // Set the pipeline state in the command buffer
-  void cmdSetPipelineState(VkCommandBuffer cmd)
+  void cmdSetPipelineState(VkCommandBuffer cmd) const
   {
     vkCmdSetViewportWithCount(cmd, viewportState.viewportCount, viewportState.pViewports);
     vkCmdSetScissorWithCount(cmd, viewportState.scissorCount, viewportState.pScissors);

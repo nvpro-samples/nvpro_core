@@ -157,7 +157,7 @@ public:
   inline const nvvk::DescriptorSetBindings& getBindings() const { return m_bindings; }
 
   // Once the code for all pipelines has been provided and all bindings have been added by calling getBindings().addBinding(...), this method creates the pipeline layout and the pipelines.
-  bool finalizePipeline()
+  bool finalizePipeline(const VkSpecializationInfo* specialization = nullptr)
   {
     if(m_isFinalized)
     {
@@ -198,7 +198,7 @@ public:
     VkPipelineShaderStageCreateInfo stageCreateInfo = {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
     stageCreateInfo.stage                           = VK_SHADER_STAGE_COMPUTE_BIT;
     stageCreateInfo.pName                           = "main";
-
+    stageCreateInfo.pSpecializationInfo             = specialization;
 
     for(int32_t i = 0; i < TPipelineCount; i++)
     {

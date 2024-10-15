@@ -79,6 +79,7 @@ PbrMaterial defaultPbrMaterial()
 
   mat.ior1 = 1.0F;
   mat.ior2 = 1.5F;
+  mat.dispersion = 0.0F;
 
   mat.specular      = 1.0F;
   mat.specularColor = vec3(1.0F);
@@ -98,6 +99,7 @@ PbrMaterial defaultPbrMaterial()
 
   mat.sheenColor     = vec3(0.0F);
   mat.sheenRoughness = 0.0F;
+  mat.occlusion      = 1.0F;
 
   return mat;
 }

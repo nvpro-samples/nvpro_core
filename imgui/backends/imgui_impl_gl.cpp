@@ -2,9 +2,6 @@
 #include "imgui.h"
 #include <include_gl.h>
 
-// ImGui GLFW binding with OpenGL3 + shaders
-// More or less copy-pasted from https://raw.githubusercontent.com/ocornut/imgui/master/examples/opengl3_example/imgui_impl_glfw_gl3.cpp
-
 namespace {
 const char*  g_GlslVersion  = "#version 450\n";
 GLuint       g_FontTexture  = 0;

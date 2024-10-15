@@ -591,7 +591,7 @@ void nvvkhl::SceneVk::createTextureImages(VkCommandBuffer cmd, const tinygltf::M
   nvh::parallel_batches<1>(  // Not batching
       model.images.size(),
       [&](uint64_t i) {
-        if(usedImages.find(i) == usedImages.end())
+        if(usedImages.find(static_cast<int>(i)) == usedImages.end())
           return;  // Skip unused images
         const auto& image = model.images[i];
         LOGI("%s(%" PRIu64 ") %s \n", indent.c_str(), i, image.uri.c_str());
