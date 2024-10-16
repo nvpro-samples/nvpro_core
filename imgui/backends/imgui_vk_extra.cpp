@@ -21,16 +21,23 @@
 #include "imgui/imgui_helper.h"
 #include <backends/imgui_impl_vulkan.h>
 
-static ImGui_ImplVulkan_InitInfo g_VulkanInitInfo = {};
+static ImGui_ImplVulkan_InitInfo s_VulkanInitInfo = {};
 
 static void check_vk_result(VkResult err)
 {
   assert(err == VK_SUCCESS);
 }
 
-void ImGui::InitVK(VkDevice device, VkPhysicalDevice physicalDevice, VkQueue queue, uint32_t queueFamilyIndex, VkRenderPass pass, int subPassIndex)
+void ImGui::InitVK(VkDevice device, VkPhysicalDevice physicalDevice, VkQueue queue, uint32_t queueFamilyIndex, VkRenderPass pass, uint32_t subPassIndex)
 {
   VkResult err = VK_RESULT_MAX_ENUM;
+
+  assert(s_VulkanInitInfo.Device == nullptr);
+
+  // Setup Platform/Renderer backends
+  ImGui_ImplVulkan_InitInfo& init_info = s_VulkanInitInfo;
+
+  init_info = {};
 
   std::vector<VkDescriptorPoolSize> poolSize{{VK_DESCRIPTOR_TYPE_SAMPLER, 1}, {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1}};
   VkDescriptorPoolCreateInfo poolInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
@@ -38,68 +45,82 @@ void ImGui::InitVK(VkDevice device, VkPhysicalDevice physicalDevice, VkQueue que
   poolInfo.maxSets       = 2;
   poolInfo.poolSizeCount = static_cast<uint32_t>(poolSize.size());
   poolInfo.pPoolSizes    = poolSize.data();
-  vkCreateDescriptorPool(device, &poolInfo, nullptr, &g_VulkanInitInfo.DescriptorPool);
+  vkCreateDescriptorPool(device, &poolInfo, nullptr, &init_info.DescriptorPool);
 
-  // Setup Platform/Renderer backends
-  ImGui_ImplVulkan_InitInfo init_info = {};
-  init_info.Instance                  = VkInstance(666);  // <--- WRONG need argument
-  init_info.PhysicalDevice            = physicalDevice;
-  init_info.Device                    = device;
-  init_info.QueueFamily               = queueFamilyIndex;
-  init_info.Queue                     = queue;
-  init_info.PipelineCache             = VK_NULL_HANDLE;
-  init_info.DescriptorPool            = g_VulkanInitInfo.DescriptorPool;
-  init_info.RenderPass                = pass;
-  init_info.Subpass                   = subPassIndex;
-  init_info.MinImageCount             = 2;
-  init_info.ImageCount                = 3;                      // <--- WRONG need argument
-  init_info.MSAASamples               = VK_SAMPLE_COUNT_1_BIT;  // <--- need argument?
-  init_info.Allocator                 = nullptr;
-  init_info.CheckVkResultFn           = nullptr;
+  init_info.Instance        = VkInstance(666);  // <--- WRONG need argument
+  init_info.PhysicalDevice  = physicalDevice;
+  init_info.Device          = device;
+  init_info.QueueFamily     = queueFamilyIndex;
+  init_info.Queue           = queue;
+  init_info.PipelineCache   = VK_NULL_HANDLE;
+  init_info.RenderPass      = pass;
+  init_info.Subpass         = subPassIndex;
+  init_info.MinImageCount   = 2;
+  init_info.ImageCount      = 3;  // required for cyclic usage
+  init_info.MSAASamples     = VK_SAMPLE_COUNT_1_BIT;
+  init_info.Allocator       = nullptr;
+  init_info.CheckVkResultFn = nullptr;
+
   ImGui_ImplVulkan_Init(&init_info);
-  g_VulkanInitInfo = init_info;
-
-  // Upload Fonts
-  VkCommandPool           pool = VK_NULL_HANDLE;
-  VkCommandPoolCreateInfo createInfo{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
-  createInfo.queueFamilyIndex = queueFamilyIndex;
-  err                         = vkCreateCommandPool(device, &createInfo, nullptr, &pool);
-  check_vk_result(err);
-
-  VkCommandBuffer             cmd = VK_NULL_HANDLE;
-  VkCommandBufferAllocateInfo allocInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
-  allocInfo.commandPool        = pool;
-  allocInfo.level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-  allocInfo.commandBufferCount = 1;
-  err                          = vkAllocateCommandBuffers(device, &allocInfo, &cmd);
-  check_vk_result(err);
-
-  VkCommandBufferBeginInfo beginInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
-  beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-  err             = vkBeginCommandBuffer(cmd, &beginInfo);
-  check_vk_result(err);
 
   ImGui_ImplVulkan_CreateFontsTexture();
-
-  err = vkEndCommandBuffer(cmd);
-  check_vk_result(err);
-
-  VkSubmitInfo submit{VK_STRUCTURE_TYPE_SUBMIT_INFO};
-  submit.commandBufferCount = 1;
-  submit.pCommandBuffers    = &cmd;
-  err                       = vkQueueSubmit(queue, 1, &submit, VK_NULL_HANDLE);
-  check_vk_result(err);
-
-  err = vkDeviceWaitIdle(device);
-  check_vk_result(err);
-  vkFreeCommandBuffers(device, pool, 1, &cmd);
-  vkDestroyCommandPool(device, pool, nullptr);
 }
 
+void ImGui::InitVK(VkInstance                           instance,
+                   VkDevice                             device,
+                   VkPhysicalDevice                     physicalDevice,
+                   VkQueue                              queue,
+                   uint32_t                             queueFamilyIndex,
+                   const VkPipelineRenderingCreateInfo& dynamicRendering)
+{
+  VkResult err = VK_RESULT_MAX_ENUM;
+
+  assert(s_VulkanInitInfo.Device == nullptr);
+
+  // Setup Platform/Renderer backends
+  ImGui_ImplVulkan_InitInfo& init_info = s_VulkanInitInfo;
+
+  init_info = {};
+
+  std::vector<VkDescriptorPoolSize> poolSize{{VK_DESCRIPTOR_TYPE_SAMPLER, 1}, {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1}};
+  VkDescriptorPoolCreateInfo poolInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
+  poolInfo.flags         = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+  poolInfo.maxSets       = 2;
+  poolInfo.poolSizeCount = static_cast<uint32_t>(poolSize.size());
+  poolInfo.pPoolSizes    = poolSize.data();
+  vkCreateDescriptorPool(device, &poolInfo, nullptr, &init_info.DescriptorPool);
+
+
+  init_info.Instance        = instance;
+  init_info.PhysicalDevice  = physicalDevice;
+  init_info.Device          = device;
+  init_info.QueueFamily     = queueFamilyIndex;
+  init_info.Queue           = queue;
+  init_info.PipelineCache   = VK_NULL_HANDLE;
+  init_info.RenderPass      = VK_NULL_HANDLE;
+  init_info.Subpass         = 0;
+  init_info.MinImageCount   = 2;
+  init_info.ImageCount      = 3;  // required for cyclic usage
+  init_info.MSAASamples     = VK_SAMPLE_COUNT_1_BIT;
+  init_info.Allocator       = nullptr;
+  init_info.CheckVkResultFn = nullptr;
+
+  // ImGui pulls dynamic rendering functions from instance
+  assert(instance);
+  assert(dynamicRendering.pNext == nullptr);
+  init_info.UseDynamicRendering         = VK_TRUE;
+  init_info.PipelineRenderingCreateInfo = dynamicRendering;
+
+  ImGui_ImplVulkan_Init(&init_info);
+
+  ImGui_ImplVulkan_CreateFontsTexture();
+}
 
 void ImGui::ShutdownVK()
 {
-  ImGui_ImplVulkan_InitInfo* v = &g_VulkanInitInfo;
   ImGui_ImplVulkan_Shutdown();
+  ImGui_ImplVulkan_InitInfo* v = &s_VulkanInitInfo;
   vkDestroyDescriptorPool(v->Device, v->DescriptorPool, v->Allocator);
+
+  s_VulkanInitInfo = {};
 }

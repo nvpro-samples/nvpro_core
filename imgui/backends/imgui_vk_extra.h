@@ -20,7 +20,19 @@
 /// @DOC_SKIP (keyword to exclude this file from automatic README.md generation)
 
 #include <backends/imgui_impl_vulkan.h>
+
+// the usage of these functions here implies that one doesn't leverage imgui's own vulkan
+// window management.
+//
+// either use renderpass version, or dynamic rendering
+
 namespace ImGui {
-void InitVK(VkDevice device, VkPhysicalDevice physicalDevice, VkQueue queue, uint32_t queueFamilyIndex, VkRenderPass pass, int subPassIndex = 0);
+void InitVK(VkDevice device, VkPhysicalDevice physicalDevice, VkQueue queue, uint32_t queueFamilyIndex, VkRenderPass pass, uint32_t subPassIndex = 0);
+void InitVK(VkInstance                           instance,
+            VkDevice                             device,
+            VkPhysicalDevice                     physicalDevice,
+            VkQueue                              queue,
+            uint32_t                             queueFamilyIndex,
+            const VkPipelineRenderingCreateInfo& dynamicRendering);
 void ShutdownVK();
 }  // namespace ImGui

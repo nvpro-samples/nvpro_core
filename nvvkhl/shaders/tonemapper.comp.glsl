@@ -48,8 +48,9 @@ void main()
   vec4 R = texture(g_image, i_uv);
 
   if(tm.isActive == 1)
+  {
     R.xyz = applyTonemap(tm, R.xyz, i_uv);
-  R.a = 1.0F;  // No alpha, or it will blend with ImGui black viewport
+  }
 
   imageStore(g_out_image, ivec2(gl_GlobalInvocationID.xy), R);
 }
