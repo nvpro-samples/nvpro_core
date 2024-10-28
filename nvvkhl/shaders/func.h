@@ -209,5 +209,59 @@ float powerHeuristic(float a, float b)
   return t / (b * b + t);
 }
 
+/* @DOC_START
+# Function `sampleBlur`
+> Samples a texture with a Gaussian blur kernel.
+@DOC_END */
+
+#ifndef __cplusplus
+#extension GL_EXT_control_flow_attributes : require
+vec4 sampleBlur(sampler2D texture, vec2 uv, float lodLevel)
+{
+  // G(x, y) = (1 / (2 * pi * sigma^2)) * exp(-(x^2 + y^2) / (2 * sigma^2))
+  // Gaussian blur kernel normalized
+  const mat3 WEIGHTS_2D = mat3(0.0625, 0.125, 0.0625, 0.125, 0.25, 0.125, 0.0625, 0.125, 0.0625);
+
+  vec2 texelSize = 1.0 / textureSize(texture, int(lodLevel));
+
+  vec4 color = vec4(0.0);
+  [[unroll]] for(int i = 0; i < 3; i++)
+  {
+    [[unroll]] for(int j = 0; j < 3; j++)
+    {
+      vec2 offsetUV = vec2(i - 1, j - 1) * texelSize;
+      color += textureLod(texture, uv + offsetUV, lodLevel) * WEIGHTS_2D[i][j];
+    }
+  }
+  return color;
+}
+
+/* @DOC_START
+# Function `smoothHDRBlur`
+> Samples a texture with a Gaussian blur kernel, using multiple LOD levels.
+* The blur amount controls the blending between the two LOD levels.
+@DOC_END */
+vec4 smoothHDRBlur(sampler2D texture, vec2 uv, float blurAmount)
+{
+  // Calculate the maximum LOD level
+  float maxLOD = float(textureQueryLevels(texture)) - 1.0;
+
+  // Calculate two adaptive LOD levels
+  float lod0 = max(0, (maxLOD * blurAmount) - 2);
+  float lod1 = maxLOD * blurAmount;
+
+  // Sample multiple adaptive mip levels
+  vec4 color0 = sampleBlur(texture, uv, lod0);
+  vec4 color1 = sampleBlur(texture, uv, lod1);
+
+  // Blend between two mip levels, each of which depend on `blurAmount`.
+  float blurMix      = 1.0 - pow(1.0 - blurAmount, 1.0 / 1.5);
+  vec4  blendedColor = mix(color0, color1, 0.5);
+
+  return blendedColor;
+}
+
+#endif  // __cplusplus
+
 #undef OUT_TYPE
 #endif  // NVVKHL_FUNC_H

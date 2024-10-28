@@ -388,10 +388,10 @@ if __name__ == "__main__":
 
         # Name the NVVK_HAS with the first part of the group
         ext_name = group
-        if "&&" in group:
-            ext_name = group.split("&&")[0].strip()
-        elif "||" in group:
-            ext_name = group.split("||")[0].strip()
+        if "&&" in ext_name:
+            ext_name = ext_name.split("&&")[0].strip()
+        if "||" in ext_name:
+            ext_name = ext_name.split("||")[0].strip()
         if ext_name != None:
             blocks["DEFINE"] += "#define NVVK_HAS_" + remove_defined(ext_name) + "\n"
 

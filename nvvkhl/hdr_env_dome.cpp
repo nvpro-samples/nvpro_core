@@ -161,7 +161,8 @@ void HdrEnvDome::draw(const VkCommandBuffer& cmdBuf,
                       const glm::mat4&       proj,
                       const VkExtent2D&      size,
                       const float*           color,
-                      float                  rotation /*=0.f*/)
+                      float                  rotation,
+                      float                  blur)
 {
   LABEL_SCOPE_VK(cmdBuf);
 
@@ -172,6 +173,7 @@ void HdrEnvDome::draw(const VkCommandBuffer& cmdBuf,
   pc.mvp = glm::inverse(noTranslate) * glm::inverse(proj);  // This will be to have a world direction vector pointing to the pixel
   pc.multColor = glm::vec4(*color);
   pc.rotation  = rotation;
+  pc.blur      = blur;
 
   // Execution
   std::vector<VkDescriptorSet> dst_sets{m_domeSet, m_hdrEnvSet};
@@ -444,11 +446,11 @@ void HdrEnvDome::renderToCube(const VkCommandBuffer& cmdBuf,
     image_memory_barrier.image               = scratch.image;
     image_memory_barrier.subresourceRange    = range;
     image_memory_barrier.srcAccessMask       = VK_ACCESS_MEMORY_WRITE_BIT;
-    image_memory_barrier.dstAccessMask       = VK_ACCESS_MEMORY_READ_BIT;
+    image_memory_barrier.dstAccessMask       = VK_ACCESS_TRANSFER_READ_BIT;
     image_memory_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     image_memory_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    VkPipelineStageFlags src_stage_mask      = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
-    VkPipelineStageFlags dest_stage_mask     = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+    VkPipelineStageFlags src_stage_mask      = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+    VkPipelineStageFlags dest_stage_mask     = VK_PIPELINE_STAGE_TRANSFER_BIT;
     vkCmdPipelineBarrier(cmdBuf, src_stage_mask, dest_stage_mask, 0, 0, nullptr, 0, nullptr, 1, &image_memory_barrier);
   };
 
@@ -491,7 +493,7 @@ void HdrEnvDome::renderToCube(const VkCommandBuffer& cmdBuf,
                      VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy_region);
 
       // Transform scratch texture back to general
-      barrier(VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
+      barrier(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
     }
 
     // Next mipmap level

@@ -43,9 +43,9 @@ load_VK_EXTENSIONS(instance, vkGetInstanceProcAddr, device, vkGetDeviceProcAddr)
 void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstanceProcAddr, VkDevice device, PFN_vkGetDeviceProcAddr getDeviceProcAddr);
 
 /* NVVK_GENERATE_DEFINE */
-#if defined(VK_AMDX_shader_enqueue)
-#define NVVK_HAS_VK_AMDX_shader_enqueue
-#endif /* VK_AMDX_shader_enqueue */
+#if defined(VK_AMD_anti_lag)
+#define NVVK_HAS_VK_AMD_anti_lag
+#endif /* VK_AMD_anti_lag */
 #if defined(VK_AMD_buffer_marker)
 #define NVVK_HAS_VK_AMD_buffer_marker
 #endif /* VK_AMD_buffer_marker */
@@ -94,6 +94,9 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #if defined(VK_EXT_depth_bias_control)
 #define NVVK_HAS_VK_EXT_depth_bias_control
 #endif /* VK_EXT_depth_bias_control */
+#if defined(VK_EXT_depth_clamp_control)
+#define NVVK_HAS_VK_EXT_depth_clamp_control
+#endif /* VK_EXT_depth_clamp_control */
 #if defined(VK_EXT_descriptor_buffer)
 #define NVVK_HAS_VK_EXT_descriptor_buffer
 #endif /* VK_EXT_descriptor_buffer */
@@ -103,6 +106,9 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #if defined(VK_EXT_device_fault)
 #define NVVK_HAS_VK_EXT_device_fault
 #endif /* VK_EXT_device_fault */
+#if defined(VK_EXT_device_generated_commands)
+#define NVVK_HAS_VK_EXT_device_generated_commands
+#endif /* VK_EXT_device_generated_commands */
 #if defined(VK_EXT_direct_mode_display)
 #define NVVK_HAS_VK_EXT_direct_mode_display
 #endif /* VK_EXT_direct_mode_display */
@@ -184,12 +190,9 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #if defined(VK_EXT_full_screen_exclusive)
 #define NVVK_HAS_VK_EXT_full_screen_exclusive
 #endif /* VK_EXT_full_screen_exclusive */
-#if defined(VK_EXT_full_screen_exclusive) && defined(VK_KHR_device_group)
+#if defined(VK_EXT_full_screen_exclusive) && (defined(VK_KHR_device_group) || defined(VK_VERSION_1_1))
 #define NVVK_HAS_VK_EXT_full_screen_exclusive
-#endif /* VK_EXT_full_screen_exclusive && VK_KHR_device_group */
-#if defined(VK_EXT_full_screen_exclusive) && defined(VK_VERSION_1_1)
-#define NVVK_HAS_VK_EXT_full_screen_exclusive
-#endif /* VK_EXT_full_screen_exclusive && VK_VERSION_1_1 */
+#endif /* VK_EXT_full_screen_exclusive && (VK_KHR_device_group || VK_VERSION_1_1) */
 #if defined(VK_EXT_hdr_metadata)
 #define NVVK_HAS_VK_EXT_hdr_metadata
 #endif /* VK_EXT_hdr_metadata */
@@ -289,6 +292,9 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #if defined(VK_EXT_shader_object) && defined(VK_NV_coverage_reduction_mode)
 #define NVVK_HAS_VK_EXT_shader_object
 #endif /* VK_EXT_shader_object && VK_NV_coverage_reduction_mode */
+#if defined(VK_EXT_shader_object) && defined(VK_EXT_depth_clamp_control)
+#define NVVK_HAS_VK_EXT_shader_object
+#endif /* VK_EXT_shader_object && VK_EXT_depth_clamp_control */
 #if defined(VK_EXT_swapchain_maintenance1)
 #define NVVK_HAS_VK_EXT_swapchain_maintenance1
 #endif /* VK_EXT_swapchain_maintenance1 */
@@ -454,6 +460,9 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #if defined(VK_KHR_performance_query)
 #define NVVK_HAS_VK_KHR_performance_query
 #endif /* VK_KHR_performance_query */
+#if defined(VK_KHR_pipeline_binary)
+#define NVVK_HAS_VK_KHR_pipeline_binary
+#endif /* VK_KHR_pipeline_binary */
 #if defined(VK_KHR_pipeline_executable_properties)
 #define NVVK_HAS_VK_KHR_pipeline_executable_properties
 #endif /* VK_KHR_pipeline_executable_properties */
@@ -463,12 +472,9 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #if defined(VK_KHR_push_descriptor)
 #define NVVK_HAS_VK_KHR_push_descriptor
 #endif /* VK_KHR_push_descriptor */
-#if defined(VK_KHR_push_descriptor) && defined(VK_VERSION_1_1)
+#if defined(VK_KHR_push_descriptor) && (defined(VK_VERSION_1_1) || defined(VK_KHR_descriptor_update_template))
 #define NVVK_HAS_VK_KHR_push_descriptor
-#endif /* VK_KHR_push_descriptor && VK_VERSION_1_1 */
-#if defined(VK_KHR_push_descriptor) && defined(VK_KHR_descriptor_update_template)
-#define NVVK_HAS_VK_KHR_push_descriptor
-#endif /* VK_KHR_push_descriptor && VK_KHR_descriptor_update_template */
+#endif /* VK_KHR_push_descriptor && (VK_VERSION_1_1 || VK_KHR_descriptor_update_template) */
 #if defined(VK_KHR_ray_tracing_maintenance1) && defined(VK_KHR_ray_tracing_pipeline)
 #define NVVK_HAS_VK_KHR_ray_tracing_maintenance1
 #endif /* VK_KHR_ray_tracing_maintenance1 && VK_KHR_ray_tracing_pipeline */
@@ -535,9 +541,6 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #if defined(VK_NV_coverage_reduction_mode)
 #define NVVK_HAS_VK_NV_coverage_reduction_mode
 #endif /* VK_NV_coverage_reduction_mode */
-#if defined(VK_NV_cuda_kernel_launch)
-#define NVVK_HAS_VK_NV_cuda_kernel_launch
-#endif /* VK_NV_cuda_kernel_launch */
 #if defined(VK_NV_device_diagnostic_checkpoints)
 #define NVVK_HAS_VK_NV_device_diagnostic_checkpoints
 #endif /* VK_NV_device_diagnostic_checkpoints */
@@ -595,6 +598,9 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #if defined(VK_VALVE_descriptor_set_host_mapping)
 #define NVVK_HAS_VK_VALVE_descriptor_set_host_mapping
 #endif /* VK_VALVE_descriptor_set_host_mapping */
+#if defined(VK_EXT_depth_clamp_control) || defined(VK_EXT_shader_object) && defined(VK_EXT_depth_clamp_control)
+#define NVVK_HAS_VK_EXT_depth_clamp_control
+#endif /* VK_EXT_depth_clamp_control || VK_EXT_shader_object && VK_EXT_depth_clamp_control */
 #if defined(VK_EXT_extended_dynamic_state) || defined(VK_EXT_shader_object)
 #define NVVK_HAS_VK_EXT_extended_dynamic_state
 #endif /* VK_EXT_extended_dynamic_state || VK_EXT_shader_object */
@@ -652,18 +658,15 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #if defined(VK_EXT_extended_dynamic_state3) && defined(VK_NV_coverage_reduction_mode) || defined(VK_EXT_shader_object) && defined(VK_NV_coverage_reduction_mode)
 #define NVVK_HAS_VK_EXT_extended_dynamic_state3
 #endif /* VK_EXT_extended_dynamic_state3 && VK_NV_coverage_reduction_mode || VK_EXT_shader_object && VK_NV_coverage_reduction_mode */
-#if defined(VK_EXT_full_screen_exclusive) && defined(VK_KHR_device_group) || defined(VK_EXT_full_screen_exclusive) && defined(VK_VERSION_1_1)
-#define NVVK_HAS_VK_EXT_full_screen_exclusive
-#endif /* VK_EXT_full_screen_exclusive && VK_KHR_device_group || VK_EXT_full_screen_exclusive && VK_VERSION_1_1 */
 #if defined(VK_EXT_host_image_copy) || defined(VK_EXT_image_compression_control)
 #define NVVK_HAS_VK_EXT_host_image_copy
 #endif /* VK_EXT_host_image_copy || VK_EXT_image_compression_control */
 #if defined(VK_EXT_shader_object) || defined(VK_EXT_vertex_input_dynamic_state)
 #define NVVK_HAS_VK_EXT_shader_object
 #endif /* VK_EXT_shader_object || VK_EXT_vertex_input_dynamic_state */
-#if defined(VK_KHR_descriptor_update_template) && defined(VK_KHR_push_descriptor) || defined(VK_KHR_push_descriptor) && defined(VK_VERSION_1_1) || defined(VK_KHR_push_descriptor) && defined(VK_KHR_descriptor_update_template)
+#if defined(VK_KHR_descriptor_update_template) && defined(VK_KHR_push_descriptor) || defined(VK_KHR_push_descriptor) && (defined(VK_VERSION_1_1) || defined(VK_KHR_descriptor_update_template))
 #define NVVK_HAS_VK_KHR_descriptor_update_template
-#endif /* VK_KHR_descriptor_update_template && VK_KHR_push_descriptor || VK_KHR_push_descriptor && VK_VERSION_1_1 || VK_KHR_push_descriptor && VK_KHR_descriptor_update_template */
+#endif /* VK_KHR_descriptor_update_template && VK_KHR_push_descriptor || VK_KHR_push_descriptor && (VK_VERSION_1_1 || VK_KHR_descriptor_update_template) */
 #if defined(VK_KHR_device_group) && defined(VK_KHR_surface) || defined(VK_KHR_swapchain) && defined(VK_VERSION_1_1)
 #define NVVK_HAS_VK_KHR_device_group
 #endif /* VK_KHR_device_group && VK_KHR_surface || VK_KHR_swapchain && VK_VERSION_1_1 */

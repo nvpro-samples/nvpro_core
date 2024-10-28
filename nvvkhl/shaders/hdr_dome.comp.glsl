@@ -24,6 +24,7 @@
 
 #include "dh_hdr.h"
 #include "constants.h"
+#include "func.h"
 
 layout(local_size_x = WORKGROUP_SIZE, local_size_y = WORKGROUP_SIZE, local_size_z = 1) in;
 
@@ -36,22 +37,6 @@ layout(push_constant) uniform SkyDomePushConstant_
   HdrDomePushConstant pc;
 };
 
-
-vec2 getSphericalUv(vec3 v)
-{
-  float gamma = asin(-v.y);
-  float theta = atan(v.z, v.x);
-  return vec2(theta * M_1_OVER_PI * 0.5, gamma * M_1_OVER_PI) + 0.5F;
-}
-
-vec3 rotate(vec3 v, vec3 k, float theta)
-{
-  float cos_theta = cos(theta);
-  float sin_theta = sin(theta);
-
-  return (v * cos_theta) + (cross(k, v) * sin_theta) + (k * dot(k, v)) * (1.0F - cos_theta);
-}
-
 void main()
 {
   const vec2 pixel_center = vec2(gl_GlobalInvocationID.xy) + vec2(0.5);
@@ -61,7 +46,16 @@ void main()
 
   direction = rotate(direction, vec3(0.0F, 1.0F, 0.0F), -pc.rotation);
 
-  const vec2 uv    = getSphericalUv(normalize(direction.xyz));
-  const vec3 color = texture(gInHdr, uv).rgb * pc.multColor.rgb;
+  const vec2 uv = getSphericalUv(normalize(direction.xyz));
+  vec3       color;
+  if(pc.blur > 0.0F)
+  {
+    color = smoothHDRBlur(gInHdr, uv, pc.blur).rgb;
+  }
+  else
+  {
+    color = texture(gInHdr, uv).rgb;
+  }
+  color *= pc.multColor.rgb;
   imageStore(gOutHdr, ivec2(gl_GlobalInvocationID.xy), vec4(color, 1.0));
 }

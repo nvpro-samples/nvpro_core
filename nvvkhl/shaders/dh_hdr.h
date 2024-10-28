@@ -60,6 +60,7 @@ struct HdrDomePushConstant
   mat4  mvp;
   vec4  multColor;
   float rotation;
+  float blur;
 };
 
 

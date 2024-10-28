@@ -118,6 +118,11 @@ public:
           break;
         }
       }
+      std::string delimiter = " | ";
+      size_t      pos       = clean_msg.rfind(delimiter);  // Remove everything before the last " | "
+      if(pos != std::string::npos)
+        clean_msg = clean_msg.substr(pos + delimiter.length());
+
       LOGI("%s", clean_msg.c_str());  // <- This will end up in the Logger
       return VK_FALSE;                // to continue
     };

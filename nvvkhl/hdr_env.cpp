@@ -83,7 +83,7 @@ void HdrEnv::destroy()
 //--------------------------------------------------------------------------------------------------
 // Loading the HDR environment texture (HDR) and create the important accel structure
 //
-void HdrEnv::loadEnvironment(const std::string& hrdImage)
+void HdrEnv::loadEnvironment(const std::string& hrdImage, bool enableMipmaps)
 {
   nvh::ScopedTimer st(__FUNCTION__);
 
@@ -105,39 +105,41 @@ void HdrEnv::loadEnvironment(const std::string& hrdImage)
     if(pixels != nullptr)
     {
       VkDeviceSize buffer_size = width * height * 4 * sizeof(float);
-      VkExtent2D   img_size{static_cast<uint32_t>(width), static_cast<uint32_t>(height)};
+      VkExtent2D   imgSize{static_cast<uint32_t>(width), static_cast<uint32_t>(height)};
 
-      m_hdrImageSize = img_size;
+      m_hdrImageSize = imgSize;
 
-      VkSamplerCreateInfo sampler_create_info{VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
-      sampler_create_info.minFilter  = VK_FILTER_LINEAR;
-      sampler_create_info.magFilter  = VK_FILTER_LINEAR;
-      sampler_create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+      VkSamplerCreateInfo samplerInfo{
+          .sType      = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+          .magFilter  = VK_FILTER_LINEAR,
+          .minFilter  = VK_FILTER_LINEAR,
+          .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
+          .maxLod     = VK_LOD_CLAMP_NONE,
+      };
       // The map is parameterized with the U axis corresponding to the azimuthal angle, and V to the polar angle
       // Therefore, in U the sampler will use VK_SAMPLER_ADDRESS_MODE_REPEAT (default), but V needs to use
       // CLAMP_TO_EDGE to avoid having light leaking from one pole to another.
-      sampler_create_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-      VkFormat          format         = VK_FORMAT_R32G32B32A32_SFLOAT;
-      VkImageCreateInfo ic_info =
-          nvvk::makeImage2DCreateInfo(img_size, format, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT);
+      samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+      VkFormat          format = VK_FORMAT_R32G32B32A32_SFLOAT;
+      VkImageCreateInfo imageInfo =
+          nvvk::makeImage2DCreateInfo(imgSize, format, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, enableMipmaps);
 
       // We can use a different family index (1 - transfer), to allow loading in a different queue/thread than the display (0)
       VkQueue queue = nullptr;
       vkGetDeviceQueue(m_device, m_familyIndex, 0, &queue);
-
       {
         nvh::ScopedTimer st("Generating Acceleration structure");
         {
-          nvvk::ScopeCommandBuffer cmd_buf(m_device, m_familyIndex, queue);
+          nvvk::ScopeCommandBuffer cmd(m_device, m_familyIndex, queue);
 
           // Creating the importance sampling for the HDR and storing the info in the m_accelImpSmpl buffer
-          auto env_accel = createEnvironmentAccel(pixels, img_size.width, img_size.height, m_average, m_integral);
-          m_accelImpSmpl = m_alloc->createBuffer(cmd_buf, env_accel, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+          auto envAccel  = createEnvironmentAccel(pixels, imgSize.width, imgSize.height, m_average, m_integral);
+          m_accelImpSmpl = m_alloc->createBuffer(cmd, envAccel, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
           m_debug.setObjectName(m_accelImpSmpl.buffer, "HDR_accel");
 
-          nvvk::Image           image   = m_alloc->createImage(cmd_buf, buffer_size, pixels, ic_info);
-          VkImageViewCreateInfo iv_info = nvvk::makeImageViewCreateInfo(image.image, ic_info);
-          m_texHdr                      = m_alloc->createTexture(image, iv_info, sampler_create_info);
+          nvvk::Image image = m_alloc->createImage(cmd, buffer_size, pixels, imageInfo);
+          VkImageViewCreateInfo createInfo = nvvk::makeImageViewCreateInfo(image.image, imageInfo);
+          m_texHdr                         = m_alloc->createTexture(image, createInfo, samplerInfo);
           m_debug.setObjectName(m_texHdr.image, "HDR");
         }
         m_alloc->finalizeAndReleaseStaging();

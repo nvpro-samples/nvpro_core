@@ -120,8 +120,9 @@ inline MemHandle VMAMemoryAllocator::allocMemory(const MemAllocateInfo& allocInf
 #ifndef NDEBUG
   // !! VMA leaks finder!!
   // Call findLeak with the value showing in the leak report.
-  // Add : #define VMA_DEBUG_LOG(format, ...) do { printf(format, __VA_ARGS__); printf("\n"); } while(false)
+  // Add : #define VMA_DEBUG_LOG_FORMAT(format, ...) do { printf(format, __VA_ARGS__); printf("\n"); } while(false)
   //  - in the app where VMA_IMPLEMENTATION is defined, to have a leak report
+  // See for m_AllocationList.m_pName "nv_alloc: ID" and use ID number in findLeak()
   static uint64_t counter{0};
   if(counter == m_leakID)
   {
@@ -134,7 +135,7 @@ inline MemHandle VMAMemoryAllocator::allocMemory(const MemAllocateInfo& allocInf
   }
   if (result == VK_SUCCESS)
   {
-    std::string allocID = std::to_string(counter++);
+    std::string allocID = std::string("nv_alloc: ") + std::to_string(counter++);
     vmaSetAllocationName(m_vma, allocation, allocID.c_str());
   }
 #endif  // !NDEBUG

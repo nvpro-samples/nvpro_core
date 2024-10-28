@@ -992,7 +992,7 @@ void bsdfSample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat)
   {
     data.event_type = BSDF_EVENT_ABSORB;
   }
-  if(isnan(data.pdf) || isinf(data.pdf))
+  if((isnan(data.pdf) || isinf(data.pdf)) && data.event_type != BSDF_EVENT_ABSORB)
   {
     // Treat as a perfectly specular bounce; change GLOSSY to IMPULSE
     data.event_type = (data.event_type & (~BSDF_EVENT_GLOSSY)) | BSDF_EVENT_IMPULSE;

@@ -104,7 +104,6 @@ struct ApplicationCreateInfo
   bool                         useMenu{true};                // Is the application will have a menubar?
   bool                         useDockMenu{false};           // Is there an extra menubar ?
   bool                         hasUndockableViewport{true};  // Create and use a default viewport
-  std::vector<int>             ignoreDbgMessages;            // Turn off debug messages
   ImVec4                       clearColor{0.F, 0.F, 0.F, 1.F};
   std::function<void(ImGuiID)> dockSetup;  // Allow to configure the dock layout
   ImGuiConfigFlags             imguiConfigFlags =

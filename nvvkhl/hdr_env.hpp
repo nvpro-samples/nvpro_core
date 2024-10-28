@@ -49,7 +49,7 @@ public:
   ~HdrEnv() { destroy(); }
 
   void setup(const VkDevice& device, const VkPhysicalDevice& physicalDevice, uint32_t familyIndex, nvvk::ResourceAllocator* allocator);
-  void loadEnvironment(const std::string& hrdImage);
+  void loadEnvironment(const std::string& hrdImage, bool enableMipmaps = false);
   void destroy();
 
   float getIntegral() const { return m_integral; }
