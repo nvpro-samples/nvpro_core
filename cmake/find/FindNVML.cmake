@@ -64,20 +64,22 @@ if((NOT NVML_LIBRARIES) OR (NOT NVML_INCLUDE_DIRS))
     set(_TRY_INCLUDE_DIRS ${CUDA_TOOLKIT_ROOT_DIR}/include)
   else() # CMake >= 3.17.0
     find_package(CUDAToolkit)
-    # We get both the library (if it exists) and the stub library in case we want
-    # to build an NVML app without an installed driver on Linux:
-    get_target_property(_IMPORTED_NVML_LIB CUDA::nvml IMPORTED_LOCATION)
-    get_target_property(_IMPORTED_NVML_IMPLIB CUDA::nvml IMPORTED_IMPLIB)
-    unset(_TRY_LIB_DIRS)
-    if(_IMPORTED_NVML_LIB)
-      get_filename_component(_IMPORTED_NVML_LIB_DIR ${_IMPORTED_NVML_LIB} DIRECTORY)
-      list(APPEND _TRY_LIB_DIRS ${_IMPORTED_NVML_LIB_DIR})
+    if(TARGET CUDA::nvml)
+      # We get both the library (if it exists) and the stub library in case we want
+      # to build an NVML app without an installed driver on Linux:
+      get_target_property(_IMPORTED_NVML_LIB CUDA::nvml IMPORTED_LOCATION)
+      get_target_property(_IMPORTED_NVML_IMPLIB CUDA::nvml IMPORTED_IMPLIB)
+      unset(_TRY_LIB_DIRS)
+      if(_IMPORTED_NVML_LIB)
+        get_filename_component(_IMPORTED_NVML_LIB_DIR ${_IMPORTED_NVML_LIB} DIRECTORY)
+        list(APPEND _TRY_LIB_DIRS ${_IMPORTED_NVML_LIB_DIR})
+      endif()
+      if(_IMPORTED_NVML_IMPLIB)
+        get_filename_component(_IMPORTED_NVML_IMPLIB_DIR ${_IMPORTED_NVML_IMPLIB} DIRECTORY)
+        list(APPEND _TRY_LIB_DIRS ${_IMPORTED_NVML_IMPLIB_DIR})
+      endif()
+      get_target_property(_TRY_INCLUDE_DIRS CUDA::nvml INTERFACE_INCLUDE_DIRECTORIES)
     endif()
-    if(_IMPORTED_NVML_IMPLIB)
-      get_filename_component(_IMPORTED_NVML_IMPLIB_DIR ${_IMPORTED_NVML_IMPLIB} DIRECTORY)
-      list(APPEND _TRY_LIB_DIRS ${_IMPORTED_NVML_IMPLIB_DIR})
-    endif()
-    get_target_property(_TRY_INCLUDE_DIRS CUDA::nvml INTERFACE_INCLUDE_DIRECTORIES)
   endif()
 
   # Finding CUDA doesn't guarantee that NVML was installed with CUDA, since

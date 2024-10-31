@@ -124,23 +124,26 @@ if(USING_VULKANSDK)
     add_definitions(-DVK_USE_PLATFORM_XCB_KHR)
     add_definitions(-DVK_USE_PLATFORM_XLIB_KHR)
   endif(UNIX)
+  
+  # Some samples expect find_package(Python ...) to have been called already
+  find_package(Python COMPONENTS Interpreter)
 
   # The following checks if Python is available and run the script to generate the Vulkan extensions
   # using the version of Vulkan SDK installed on the system
   option(Vulkan_generate_extensions "Regenerate nvvk/extensions_vk.cpp from the currently installed Vulkan SDK version at configuration time." ON)
   set(Vulkan_EXTENSIONS_GENERATED FALSE)
   if(Vulkan_generate_extensions)
-    find_package (Python COMPONENTS Interpreter)
-    if(Python_FOUND AND (${Python_VERSION} VERSION_GREATER_EQUAL "3.0"))
+    find_package(Python3 COMPONENTS Interpreter)
+    if(Python3_FOUND)
       add_custom_command(
         OUTPUT "${GENERATED_EXTENSION_DIR}/nvvk/extensions_vk.cpp" "${GENERATED_EXTENSION_DIR}/nvvk/extensions_vk.hpp"
         DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/nvvk/extensions_vk.py"
-        COMMAND ${Python_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/nvvk/extensions_vk.py" --output-dir "${GENERATED_EXTENSION_DIR}/nvvk" --beta
+        COMMAND ${Python3_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/nvvk/extensions_vk.py" --output-dir "${GENERATED_EXTENSION_DIR}/nvvk" --beta
         COMMENT "Vulkan extension code generation with nvvk/extensions_vk.py (cmake option: Vulkan_generate_extensions)"
       )
       set(Vulkan_EXTENSIONS_GENERATED TRUE)
     else()
-      message(WARNING "Python not found. Cannot generate code with local Vulkan SDK. Falling back to packaged code.")
+      message(WARNING "Python3 not found. Cannot generate code with local Vulkan SDK. Falling back to packaged code.")
     endif()
   endif(Vulkan_generate_extensions)
 
@@ -149,12 +152,12 @@ if(USING_VULKANSDK)
     add_custom_command(
       OUTPUT "${GENERATED_EXTENSION_DIR}/nvvk/extensions_vk.cpp"
       COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/nvvk/extensions_vk.cpp.in" "${GENERATED_EXTENSION_DIR}/nvvk/extensions_vk.cpp"
-      COMMENT "Copying fallback vulkan extension code (disabled or python not found)"
+      COMMENT "Copying fallback vulkan extension code (disabled or python3 not found)"
     )
     add_custom_command(
       OUTPUT "${GENERATED_EXTENSION_DIR}/nvvk/extensions_vk.hpp"
       COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/nvvk/extensions_vk.hpp.in" "${GENERATED_EXTENSION_DIR}/nvvk/extensions_vk.hpp"
-      COMMENT "Copying fallback vulkan extension code (disabled or python not found)"
+      COMMENT "Copying fallback vulkan extension code (disabled or python3 not found)"
     )
   endif()
 else()

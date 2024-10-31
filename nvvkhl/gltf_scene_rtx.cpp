@@ -213,7 +213,7 @@ void nvvkhl::SceneRtx::cmdCreateBuildTopLevelAccelerationStructure(VkCommandBuff
     }
 
     // Need to skip the cull flag in traceray_rtx for double sided materials
-    if(mat.doubleSided == 1 || volume.thicknessFactor > 0.0F)
+    if(mat.doubleSided == 1 || volume.thicknessFactor > 0.0F || transmission.factor > 0.0F)
     {
       instanceFlags |= VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
     }

@@ -177,7 +177,6 @@ function(compile_glsl)
     # The custom command is added to the build system, check for the presence of the output
     # but also for changes done in GLSL headers 
     add_custom_command(
-         PRE_BUILD
          OUTPUT ${GLSL_OUT}
          COMMAND echo ${Vulkan_GLSLANG_VALIDATOR_EXECUTABLE} ${COMPILE_CMD}
          COMMAND ${Vulkan_GLSLANG_VALIDATOR_EXECUTABLE} ${COMPILE_CMD}

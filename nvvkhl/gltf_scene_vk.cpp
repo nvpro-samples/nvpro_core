@@ -117,6 +117,7 @@ static nvvkhl_shaders::GltfShadeMaterial getShaderMaterial(const tinygltf::Mater
   dstMat.alphaCutoff       = static_cast<float>(srcMat.alphaCutoff);
   dstMat.occlusionStrength = static_cast<float>(srcMat.occlusionTexture.strength);
   dstMat.occlusionTexture  = getTextureInfo(srcMat.occlusionTexture);
+  dstMat.doubleSided       = srcMat.doubleSided ? 1 : 0;
 
   KHR_materials_transmission transmission = tinygltf::utils::getTransmission(srcMat);
   dstMat.transmissionFactor               = transmission.factor;

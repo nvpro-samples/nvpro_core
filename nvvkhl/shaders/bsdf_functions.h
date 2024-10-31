@@ -119,8 +119,11 @@ and a V-cavity shadowing-masking function).
 vec3 absorptionCoefficient(PbrMaterial mat)
 {
   float tmp1 = mat.attenuationDistance;
-  return tmp1 <= 0.0F ? vec3(0.0F, 0.0F, 0.0F) :
-                        -vec3(log(mat.attenuationColor.x), log(mat.attenuationColor.y), log(mat.attenuationColor.z)) / tmp1;
+  if(tmp1 <= 0.0F || tmp1 >= INFINITE)
+  {
+    return vec3(0.0F, 0.0F, 0.0F);
+  }
+  return -vec3(log(mat.attenuationColor.x), log(mat.attenuationColor.y), log(mat.attenuationColor.z)) / tmp1;
 }
 
 /* @DOC_START
