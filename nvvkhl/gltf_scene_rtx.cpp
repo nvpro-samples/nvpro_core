@@ -183,6 +183,30 @@ bool nvvkhl::SceneRtx::cmdBuildBottomLevelAccelerationStructure(VkCommandBuffer 
   return m_blasBuilder->cmdCreateParallelBlas(cmd, m_blasBuildData, m_blasAccel, scratchAddresses, hintMaxBudget);
 }
 
+
+VkGeometryInstanceFlagsKHR getInstanceFlag(const tinygltf::Material& mat)
+{
+  VkGeometryInstanceFlagsKHR instanceFlags{};
+  KHR_materials_transmission transmission = tinygltf::utils::getTransmission(mat);
+  KHR_materials_volume       volume       = tinygltf::utils::getVolume(mat);
+
+  // Always opaque, no need to use anyhit (faster)
+  if((mat.alphaMode == "OPAQUE"
+      || (mat.pbrMetallicRoughness.baseColorFactor[3] == 1.0F && mat.pbrMetallicRoughness.baseColorTexture.index == -1))
+     && transmission.factor == 0)
+  {
+    instanceFlags |= VK_GEOMETRY_INSTANCE_FORCE_OPAQUE_BIT_KHR;
+  }
+
+  // Need to skip the cull flag in traceray_rtx for double sided materials
+  if(mat.doubleSided == 1 || volume.thicknessFactor > 0.0F || transmission.factor > 0.0F)
+  {
+    instanceFlags |= VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
+  }
+
+  return instanceFlags;
+}
+
 //--------------------------------------------------------------------------------------------------
 // Create the top-level acceleration structure from all the BLAS
 //
@@ -198,25 +222,8 @@ void nvvkhl::SceneRtx::cmdCreateBuildTopLevelAccelerationStructure(VkCommandBuff
   m_tlasInstances.reserve(instanceCount);
   for(const auto& object : drawObjects)
   {
-    VkGeometryInstanceFlagsKHR instanceFlags{};
-    const tinygltf::Material&  mat = materials[object.materialID];
-
-    KHR_materials_transmission transmission = tinygltf::utils::getTransmission(mat);
-    KHR_materials_volume       volume       = tinygltf::utils::getVolume(mat);
-
-    // Always opaque, no need to use anyhit (faster)
-    if((mat.alphaMode == "OPAQUE"
-        || (mat.pbrMetallicRoughness.baseColorFactor[3] == 1.0F && mat.pbrMetallicRoughness.baseColorTexture.index == -1))
-       && transmission.factor == 0)
-    {
-      instanceFlags |= VK_GEOMETRY_INSTANCE_FORCE_OPAQUE_BIT_KHR;
-    }
-
-    // Need to skip the cull flag in traceray_rtx for double sided materials
-    if(mat.doubleSided == 1 || volume.thicknessFactor > 0.0F || transmission.factor > 0.0F)
-    {
-      instanceFlags |= VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
-    }
+    const tinygltf::Material&  mat           = materials[object.materialID];
+    VkGeometryInstanceFlagsKHR instanceFlags = getInstanceFlag(mat);
 
     VkDeviceAddress blasAddress = m_blasAccel[object.renderPrimID].address;
     if(!object.visible)
@@ -273,28 +280,24 @@ void nvvkhl::SceneRtx::cmdCreateBuildTopLevelAccelerationStructure(VkCommandBuff
 
 
 // This function is called when the scene has been updated
-void nvvkhl::SceneRtx::updateTopLevelAS(VkCommandBuffer cmd, const nvh::gltf::Scene& scn)
+void nvvkhl::SceneRtx::updateTopLevelAS(VkCommandBuffer cmd, const nvh::gltf::Scene& scene)
 {
   //nvh::ScopedTimer st(__FUNCTION__);
-  const std::vector<nvh::gltf::RenderNode>& drawObjects = scn.getRenderNodes();
+  const std::vector<nvh::gltf::RenderNode>& drawObjects = scene.getRenderNodes();
+  const auto&                               materials   = scene.getModel().materials;
 
   uint32_t numVisibleElement = 0;
   // Updating all matrices
   for(size_t i = 0; i < drawObjects.size(); i++)
   {
-    auto& object                 = drawObjects[i];
-    m_tlasInstances[i].transform = nvvk::toTransformMatrixKHR(object.worldMatrix);  // Position of the instance
+    auto&                     object      = drawObjects[i];
+    const tinygltf::Material& mat         = materials[object.materialID];
+    VkDeviceAddress           blasAddress = m_blasAccel[object.renderPrimID].address;
 
-    VkDeviceAddress blasAddress = m_blasAccel[object.renderPrimID].address;
-    if(object.visible)
-    {
-      numVisibleElement++;
-      m_tlasInstances[i].accelerationStructureReference = blasAddress;  // The reference to the BLAS
-    }
-    else
-    {
-      m_tlasInstances[i].accelerationStructureReference = 0;  // Making the instance invisible
-    }
+    m_tlasInstances[i].transform = nvvk::toTransformMatrixKHR(object.worldMatrix);  // Position of the instance
+    m_tlasInstances[i].flags     = getInstanceFlag(mat);
+    m_tlasInstances[i].accelerationStructureReference = (object.visible ? blasAddress : 0);  // The reference to the BLAS
+    numVisibleElement += object.visible;
   }
 
   // Update the instance buffer

@@ -49,7 +49,7 @@ struct PbrMaterial
 
   vec3  attenuationColor;     // KHR_materials_volume
   float attenuationDistance;  //
-  float thickness;            // Replace for isThinWalled?
+  bool  isThinWalled;         // Replace for isThinWalled?
 
   float clearcoat;           // KHR_materials_clearcoat
   float clearcoatRoughness;  //
@@ -87,7 +87,7 @@ PbrMaterial defaultPbrMaterial()
 
   mat.attenuationColor    = vec3(1.0F);
   mat.attenuationDistance = 1.0F;
-  mat.thickness           = 0.0F;
+  mat.isThinWalled        = true;
 
   mat.clearcoat          = 0.0F;
   mat.clearcoatRoughness = 0.01F;

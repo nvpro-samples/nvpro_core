@@ -890,17 +890,21 @@ void nvh::gltf::Scene::parseAnimations()
       {
         channel.path = AnimationChannel::PathType::eRotation;
       }
-      if(source.target_path == "translation")
+      else if(source.target_path == "translation")
       {
         channel.path = AnimationChannel::PathType::eTranslation;
       }
-      if(source.target_path == "scale")
+      else if(source.target_path == "scale")
       {
         channel.path = AnimationChannel::PathType::eScale;
       }
-      if(source.target_path == "weights")
+      else if(source.target_path == "weights")
       {
         channel.path = AnimationChannel::PathType::eWeights;
+      }
+      else if(source.target_path == "pointer")
+      {
+        channel.path = AnimationChannel::PathType::ePointer;
       }
       channel.samplerIndex = source.sampler;
       channel.node         = source.target_node;
@@ -960,6 +964,9 @@ bool nvh::gltf::Scene::updateAnimation(uint32_t animationIndex, float deltaTime,
 
   for(auto& channel : animation.channels)
   {
+    if(channel.node < 0)
+      continue;  // Invalid node : probably using KHR_animation_pointer
+
     tinygltf::Node&   tnode   = m_model.nodes[channel.node];
     AnimationSampler& sampler = animation.samplers[channel.samplerIndex];
 
@@ -1004,6 +1011,17 @@ bool nvh::gltf::Scene::updateAnimation(uint32_t animationIndex, float deltaTime,
                 if(onceFlag)
                 {
                   LOGE("AnimationChannel::PathType::WEIGHTS not implemented");
+                  onceFlag = false;
+                }
+                break;
+              }
+            }
+            case AnimationChannel::PathType::ePointer: {
+              {
+                static bool onceFlag = true;
+                if(onceFlag)
+                {
+                  LOGE("AnimationChannel::PathType::POINTER not implemented");
                   onceFlag = false;
                 }
                 break;

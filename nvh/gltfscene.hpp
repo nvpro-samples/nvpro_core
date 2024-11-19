@@ -184,7 +184,8 @@ private:
       eTranslation,
       eRotation,
       eScale,
-      eWeights
+      eWeights,
+      ePointer
     };
     PathType path         = eTranslation;
     int      node         = -1;

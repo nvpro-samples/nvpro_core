@@ -913,7 +913,9 @@ endfunction()
 macro(_set_target_output _PROJNAME)
   set_target_properties(${_PROJNAME}
     PROPERTIES
-    ARCHIVE_OUTPUT_DIRECTORY "${OUTPUT_PATH}/$<CONFIG>/"
+    # Will use default output for .lib files not to "polute" 
+    # the root smaple binary directory with .lib or .exp files
+    #ARCHIVE_OUTPUT_DIRECTORY "${OUTPUT_PATH}/$<CONFIG>/"
     LIBRARY_OUTPUT_DIRECTORY "${OUTPUT_PATH}/$<CONFIG>/"
     RUNTIME_OUTPUT_DIRECTORY "${OUTPUT_PATH}/$<CONFIG>/"
   )

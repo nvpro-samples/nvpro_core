@@ -118,12 +118,7 @@ and a V-cavity shadowing-masking function).
 @DOC_END */
 vec3 absorptionCoefficient(PbrMaterial mat)
 {
-  float tmp1 = mat.attenuationDistance;
-  if(tmp1 <= 0.0F || tmp1 >= INFINITE)
-  {
-    return vec3(0.0F, 0.0F, 0.0F);
-  }
-  return -vec3(log(mat.attenuationColor.x), log(mat.attenuationColor.y), log(mat.attenuationColor.z)) / tmp1;
+  return -log(max(mat.attenuationColor, vec3(0.001))) / max(mat.attenuationDistance, 0.001);
 }
 
 /* @DOC_START
@@ -557,7 +552,7 @@ vec3 wavelengthToRGB(float x)
 // Evaluates the transmission lobe.
 void btdf_ggx_smith_eval(INOUT_TYPE(BsdfEvaluateData) data, PbrMaterial mat, vec3 tint)
 {
-  bool isThinWalled = (mat.thickness == 0.0f);
+  bool isThinWalled = (mat.isThinWalled);
 
   vec2 ior = vec2(mat.ior1, mat.ior2);
   if(mat.dispersion > 0.0f)
@@ -648,7 +643,7 @@ void btdf_ggx_smith_eval(INOUT_TYPE(BsdfEvaluateData) data, PbrMaterial mat, vec
 // Samples the transmission lobe.
 void btdf_ggx_smith_sample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat, vec3 tint)
 {
-  bool isThinWalled = (mat.thickness == 0.0f);
+  bool isThinWalled = (mat.isThinWalled);
 
   // When the sampling returns eventType = BSDF_EVENT_ABSORB, the path ends inside the ray generation program.
   // Make sure the returned values are valid numbers when manipulating the PRD.

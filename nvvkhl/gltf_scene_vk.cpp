@@ -102,6 +102,8 @@ inline nvvkhl_shaders::GltfTextureInfo getTextureInfo(const T& tinfo)
 
 static nvvkhl_shaders::GltfShadeMaterial getShaderMaterial(const tinygltf::Material& srcMat)
 {
+  int alphaMode = srcMat.alphaMode == "OPAQUE" ? 0 : (srcMat.alphaMode == "MASK" ? 1 : 2 /*BLEND*/);
+
   nvvkhl_shaders::GltfShadeMaterial dstMat = nvvkhl_shaders::defaultGltfMaterial();
   if(!srcMat.emissiveFactor.empty())
     dstMat.emissiveFactor = glm::make_vec3<double>(srcMat.emissiveFactor.data());
@@ -113,11 +115,10 @@ static nvvkhl_shaders::GltfShadeMaterial getShaderMaterial(const tinygltf::Mater
   dstMat.pbrMetallicFactor           = static_cast<float>(srcMat.pbrMetallicRoughness.metallicFactor);
   dstMat.pbrMetallicRoughnessTexture = getTextureInfo(srcMat.pbrMetallicRoughness.metallicRoughnessTexture);
   dstMat.pbrRoughnessFactor          = static_cast<float>(srcMat.pbrMetallicRoughness.roughnessFactor);
-  dstMat.alphaMode         = srcMat.alphaMode == "OPAQUE" ? 0 : (srcMat.alphaMode == "MASK" ? 1 : 2 /*BLEND*/);
-  dstMat.alphaCutoff       = static_cast<float>(srcMat.alphaCutoff);
-  dstMat.occlusionStrength = static_cast<float>(srcMat.occlusionTexture.strength);
-  dstMat.occlusionTexture  = getTextureInfo(srcMat.occlusionTexture);
-  dstMat.doubleSided       = srcMat.doubleSided ? 1 : 0;
+  dstMat.alphaMode                   = alphaMode;
+  dstMat.alphaCutoff                 = static_cast<float>(srcMat.alphaCutoff);
+  dstMat.occlusionStrength           = static_cast<float>(srcMat.occlusionTexture.strength);
+  dstMat.occlusionTexture            = getTextureInfo(srcMat.occlusionTexture);
 
   KHR_materials_transmission transmission = tinygltf::utils::getTransmission(srcMat);
   dstMat.transmissionFactor               = transmission.factor;
