@@ -58,9 +58,12 @@ public:
   SceneVk(VkDevice device, VkPhysicalDevice physicalDevice, nvvk::ResourceAllocator* alloc);
   virtual ~SceneVk() { destroy(); }
 
-  virtual void create(VkCommandBuffer cmd, const nvh::gltf::Scene& scn);
+  virtual void create(VkCommandBuffer cmd, const nvh::gltf::Scene& scn, bool generateMipmaps = true);
+
   void         update(VkCommandBuffer cmd, const nvh::gltf::Scene& scn);
-  void         updateRenderNodeBuffer(VkCommandBuffer cmd, const nvh::gltf::Scene& scn);
+  void         updateRenderNodesBuffer(VkCommandBuffer cmd, const nvh::gltf::Scene& scn);
+  void         updateRenderPrimitivesBuffer(VkCommandBuffer cmd, const nvh::gltf::Scene& scn);
+  void         updateRenderLightsBuffer(VkCommandBuffer cmd, const nvh::gltf::Scene& scn);
   void         updateMaterialBuffer(VkCommandBuffer cmd, const nvh::gltf::Scene& scn);
   void         updateVertexBuffers(VkCommandBuffer cmd, const nvh::gltf::Scene& scene);
   virtual void destroy();
@@ -92,13 +95,13 @@ protected:
   virtual void createMaterialBuffer(VkCommandBuffer cmd, const std::vector<tinygltf::Material>& materials);
   virtual void createRenderNodeBuffer(VkCommandBuffer cmd, const nvh::gltf::Scene& scn);
   virtual void createVertexBuffers(VkCommandBuffer cmd, const nvh::gltf::Scene& scn);
-  virtual void createTextureImages(VkCommandBuffer cmd, const tinygltf::Model& model, const std::filesystem::path& basedir);
+  virtual void createTextureImages(VkCommandBuffer cmd, const tinygltf::Model& model, const std::filesystem::path& basedir, bool generateMipmaps);
   virtual void createLightBuffer(VkCommandBuffer cmd, const nvh::gltf::Scene& scn);
 
   void findSrgbImages(const tinygltf::Model& model);
 
   virtual void loadImage(const std::filesystem::path& basedir, const tinygltf::Image& gltfImage, int imageID);
-  virtual bool createImage(const VkCommandBuffer& cmd, SceneImage& image);
+  virtual bool createImage(const VkCommandBuffer& cmd, SceneImage& image, bool generateMipmaps);
 
   //--
   VkDevice         m_device{VK_NULL_HANDLE};

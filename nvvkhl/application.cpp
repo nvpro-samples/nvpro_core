@@ -375,6 +375,11 @@ void nvvkhl::Application::run()
     // - When io.WantCaptureKeyboard is true, do not dispatch keyboard input data to your main application.
     // Generally you may always pass all inputs to dear imgui, and hide them from your application based on those two flags.
     glfwPollEvents();
+    if(glfwGetWindowAttrib(m_windowHandle, GLFW_ICONIFIED) == GLFW_TRUE)
+    {
+      ImGui_ImplGlfw_Sleep(10);  // Do nothing when minimized
+      continue;
+    }
 
     // Resize swap chain?
     if(m_swapChainRebuild || m_vsyncSet != m_vsyncWanted)
@@ -455,16 +460,11 @@ void nvvkhl::Application::run()
 
     // Rendering
     ImGui::Render();
-    ImDrawData* main_draw_data      = ImGui::GetDrawData();
-    const bool  main_is_minimized   = (main_draw_data->DisplaySize.x <= 0.0F || main_draw_data->DisplaySize.y <= 0.0F);
     wd->ClearValue.color.float32[0] = clear_color.x * clear_color.w;
     wd->ClearValue.color.float32[1] = clear_color.y * clear_color.w;
     wd->ClearValue.color.float32[2] = clear_color.z * clear_color.w;
     wd->ClearValue.color.float32[3] = clear_color.w;
-    if(!main_is_minimized)
-    {
-      frameRender();
-    }
+    frameRender();
 
     // Update and Render additional Platform Windows (floating windows)
     // See: ImGui_ImplVulkan_InitPlatformInterface()
@@ -482,10 +482,7 @@ void nvvkhl::Application::run()
     }
 
     // Present Main Platform Window
-    if(!main_is_minimized)
-    {
-      framePresent();
-    }
+    framePresent();
   }
 }
 

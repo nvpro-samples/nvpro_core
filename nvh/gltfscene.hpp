@@ -55,6 +55,7 @@ struct RenderPrimitive
   tinygltf::Primitive primitive;
   int                 vertexCount = 0;
   int                 indexCount  = 0;
+  int                 meshID      = 0;
 };
 
 struct RenderCamera
@@ -86,6 +87,35 @@ struct RenderLight
 {
   glm::mat4 worldMatrix = glm::mat4(1.0f);
   int       light       = 0;
+};
+
+// Animation data
+struct AnimationInfo
+{
+  std::string name        = "";
+  float       start       = std::numeric_limits<float>::max();
+  float       end         = std::numeric_limits<float>::min();
+  float       currentTime = 0.0f;
+  float       reset() { return currentTime = start; }
+  float       incrementTime(float deltaTime, bool loop = true)
+  {
+    currentTime += deltaTime;
+    if(loop)
+    {
+      while(currentTime > end)
+      {
+        currentTime -= (end - start);
+      }
+    }
+    else
+    {
+      if(currentTime > end)
+      {
+        currentTime = end;
+      }
+    }
+    return currentTime;
+  }
 };
 
 
@@ -132,12 +162,11 @@ public:
   bool                   valid() const { return !m_renderNodes.empty(); }
 
   // Animation Management
-  void updateRenderNodes();  // Update the render nodes matrices and materials
-  bool updateAnimations(float deltaTime);
-  bool updateAnimation(uint32_t animationIndex, float deltaTime, bool reset = false);
-  bool resetAnimations();  // Reset the animations
-  int  getNumAnimations() const { return static_cast<int>(m_animations.size()); }
-  bool hasAnimation() const { return !m_animations.empty(); }
+  void                 updateRenderNodes();  // Update the render nodes matrices and materials
+  bool                 updateAnimation(uint32_t animationIndex);
+  int                  getNumAnimations() const { return static_cast<int>(m_animations.size()); }
+  bool                 hasAnimation() const { return !m_animations.empty(); }
+  gltf::AnimationInfo& getAnimationInfo(int index) { return m_animations[index].info; }
 
   // Resource Management
   void destroy();  // Destroy the loaded resources
@@ -156,6 +185,7 @@ public:
   const std::vector<gltf::RenderPrimitive>& getRenderPrimitives() const { return m_renderPrimitives; }
   const gltf::RenderPrimitive&              getRenderPrimitive(size_t ID) const { return m_renderPrimitives[ID]; }
   size_t                                    getNumRenderPrimitives() const { return m_renderPrimitives.size(); }
+  const std::vector<uint32_t>&              getAnimatedPrimitives() const { return m_animatedPrimitives; }
 
   // Scene Management
   void           setCurrentScene(int sceneID);  // Parse the scene and create the render nodes, call when changing scene
@@ -208,9 +238,7 @@ private:
 
   struct Animation
   {
-    float                         start       = std::numeric_limits<float>::max();
-    float                         end         = std::numeric_limits<float>::min();
-    float                         currentTime = 0.0f;
+    AnimationInfo                 info;
     std::vector<AnimationSampler> samplers;
     std::vector<AnimationChannel> channels;
   };
@@ -224,7 +252,7 @@ private:
   void createSceneCamera();             // Create a camera for the scene
   void createRootIfMultipleNodes(tinygltf::Scene& scene);
 
-  int getUniqueRenderPrimitive(const tinygltf::Primitive& primitive);
+  int getUniqueRenderPrimitive(const tinygltf::Primitive& primitive, int meshID);
   int getMaterialVariantIndex(const tinygltf::Primitive& primitive, int currentVariant);
 
   bool   handleRenderNode(int nodeID, glm::mat4 worldMatrix);
@@ -243,12 +271,14 @@ private:
   std::vector<Animation>               m_animations;            // Animations
   std::vector<std::string>             m_variants;              // KHR_materials_variants
   std::unordered_map<std::string, int> m_uniquePrimitiveIndex;  // Key: primitive, Value: renderPrimID
-  int                                  m_numTriangles    = 0;   // Stat - Number of triangles
-  int                                  m_currentScene    = 0;   // Scene index
-  int                                  m_currentVariant  = 0;   // Variant index
-  int                                  m_sceneRootNode   = -1;  // Node index of the root
-  int                                  m_sceneCameraNode = -1;  // Node index of the camera
-  nvh::Bbox                            m_sceneBounds;           // Scene bounds
+  std::vector<uint32_t>                m_animatedPrimitives;    // All the primitives that are animated
+
+  int       m_numTriangles    = 0;   // Stat - Number of triangles
+  int       m_currentScene    = 0;   // Scene index
+  int       m_currentVariant  = 0;   // Variant index
+  int       m_sceneRootNode   = -1;  // Node index of the root
+  int       m_sceneCameraNode = -1;  // Node index of the camera
+  nvh::Bbox m_sceneBounds;           // Scene bounds
 };
 
 }  // namespace gltf

@@ -24,7 +24,8 @@
 > Contains structures and functions for procedural sky models.
 
 This file includes two sky models: a simple sky that is fast to compute, and
-a more complex "physical sky" model based on a model from Mental Ray,
+a more complex "physical sky" model based on a model from Mental Ray and later
+modernized in the MDL SDK starting [here](https://github.com/NVIDIA/MDL-SDK/blob/203d5140b1dee89de17b26e828c4333571878629/src/shaders/mdl/base/base.mdl#L1180)
 customized for nvpro-samples.
 @DOC_END */
 
@@ -56,6 +57,7 @@ using glm::radians;
 using glm::smoothstep;
 using glm::vec2;
 using glm::vec3;
+using glm::vec4;
 #else
 #define static
 #define inline
@@ -615,7 +617,6 @@ inline float nightBrightnessAdjustment(vec3 sunDir)
   return factor;
 }
 
-
 /* @DOC_START
 # Function `evalPhysicalSky`
 > Returns the radiance of the physical sky model in a given direction.
@@ -663,15 +664,18 @@ inline vec3 evalPhysicalSky(PhysicalSkyParameters ss, vec3 inDirection)
   // Add the sun disk and glow if enabled
   if(ss.sunDiskIntensity > 0.0f && ss.sunDiskScale > 0.0f)
   {
-    float sunAngle  = acos(dot(realDir, realSunDir));
-    float sunRadius = 0.00465f * ss.sunDiskScale * 10.0f;
-    if(sunAngle < sunRadius)
+    float sunAngle   = acos(dot(realDir, realSunDir));
+    float glowRadius = 0.00465f * ss.sunDiskScale * 10.0f;
+    if(sunAngle < glowRadius)
     {
-      vec2  scales    = calcPhysicalScale(ss.sunDiskScale, ss.sunGlowIntensity, ss.sunDiskIntensity);
-      float sunFactor = pow((1.0f - sunAngle / sunRadius) * 10.0f / 10.0f, 3.0f) * 2.0f * ss.sunGlowIntensity * scales.y
-                        + smoothstep(8.5f, 9.5f + (localHaze / 50.0f), (1.0f - sunAngle / sunRadius) * 10.0f) * 100.0f
-                              * ss.sunDiskIntensity * scales.x;
-      tint += dataSunColor * sunFactor;
+      vec2 scales = calcPhysicalScale(ss.sunDiskScale, ss.sunGlowIntensity, ss.sunDiskIntensity);
+      // A value of 0 is at the edge of the glow disk; a value of 1 is in the
+      // center of the sun.
+      float centerProximity = (1.0f - sunAngle / glowRadius);
+      float glowFactor      = pow(centerProximity, 3.0f) * 2.0f * ss.sunGlowIntensity * scales.y;
+      float diskFactor =
+          smoothstep(0.85f, 0.95f + (localHaze / 500.0f), centerProximity) * 100.0f * ss.sunDiskIntensity * scales.x;
+      tint += dataSunColor * (glowFactor + diskFactor);
     }
   }
   outColor = tint * rgbScale;
@@ -711,6 +715,50 @@ inline vec3 evalPhysicalSky(PhysicalSkyParameters ss, vec3 inDirection)
   return result;
 }
 
+// Uniformly samples a spherical cap: the part of the surface of a sphere
+// where z ranges from z_min to 1. If randomSample.y is sampled in the closed
+// interval [0,1], this samples z in [z_min, 1] and a closed cap will be sampled;
+// if randomSample.y is sampled in the half-open interval [0,1), then z is in
+// (z_min, 1] and an open cap will be sampled.
+inline vec3 sampleSphericalCap(float z_min, vec2 xi)
+{
+  float z   = mix(1.F, z_min, xi.y);
+  float r   = sqrt(max(0.F, 1.F - z * z));
+  float phi = 2.0f * M_PIf * xi.x;
+  float x   = r * cos(phi);
+  float y   = r * sin(phi);
+  return vec3(x, y, z);
+}
+
+// Probability that samplePhysicalSky samples the sun.
+// If the sun is too small, we never sample it.
+inline float physicalSkySunProbability(PhysicalSkyParameters ss)
+{
+  float sunElevation = ss.sunDirection.z;
+  return (ss.sunDiskScale > 1e-5f) ? clamp(ss.sunDiskIntensity * sunElevation * 0.5f + 0.5f, 0.1f, 0.9f) : 0.0f;
+}
+
+/* @DOC_START
+# Function `samplePhysicalSkyPDF`
+> Returns the probability that `samplePhysicalSky` samples a certain direction.
+@DOC_END */
+inline float samplePhysicalSkyPDF(PhysicalSkyParameters ss, vec3 inDirection)
+{
+  const float sunAngularRadius = 0.00465f * ss.sunDiskScale;
+  // If we choose the sky, this is the probability of choosing a given direction:
+  const float skyPdf = 1.0f / (2.0f * M_PIf);
+  // This factor of 1.5f is because of the lower bound on the sun's
+  // smoothstep when computing `diskFactor` in `evalPhysicalSky`.
+  const float sunSampleAngularRadius = 1.5f * sunAngularRadius;
+  // Use first-degree Taylor series expansion around 0 for better precision
+  const float sunSampleSolidAngle = (sunSampleAngularRadius < 0.001f) ?
+                                        M_PIf * sunSampleAngularRadius * sunSampleAngularRadius :
+                                        2.0f * M_PIf * (1.0f - cos(sunSampleAngularRadius));
+  // If we choose the sun, this is the probability of choosing a given direction:
+  const float sunPdf = (dot(inDirection, ss.sunDirection) >= cos(sunSampleAngularRadius)) ? 1.0f / sunSampleSolidAngle : 0.0f;
+  return mix(skyPdf, sunPdf, physicalSkySunProbability(ss));
+}
+
 /* @DOC_START
 # Function `samplePhysicalSky`
 > Samples the physical sky model using two random values, returning a `SkySamplingResult`.
@@ -719,71 +767,42 @@ inline SkySamplingResult samplePhysicalSky(PhysicalSkyParameters ss, vec2 random
 {
   SkySamplingResult result;
 
-  // Constants
-  const float epsilon          = 1e-5f;
-  const float sunAngularRadius = max(0.00465f * ss.sunDiskScale, epsilon);
-  // Use first-degree Taylor series expansion around 0 for better precision
-  const float sunSolidAngle = (sunAngularRadius < 0.001f) ? M_PIf * sunAngularRadius * sunAngularRadius :
-                                                            2.0f * M_PIf * (1.0f - cos(sunAngularRadius));
-
-  // Approximation for sun probability
-  float sunElevation = ss.sunDirection.z;
-  float sunProb = (ss.sunDiskScale > epsilon) ? clamp(ss.sunDiskIntensity * sunElevation * 0.5f + 0.5f, 0.1f, 0.9f) : 0.0f;
-
-  // Improved MIS weighting
-  float misWeight;
-
   // Decide whether to sample sun or sky
-  if(randomSample.x < sunProb)
+  float sunProb   = physicalSkySunProbability(ss);
+  float z_min     = 0.0f;  // Minimum z-value of the spherical cap we'll sample
+  bool  sampleSun = randomSample.x < sunProb;
+  if(sampleSun)
   {
-    // Sample the sun
-    float theta = sunAngularRadius * sqrt(randomSample.y);
-    float phi   = 2.0f * M_PIf * fract(randomSample.x / sunProb);
+    // Adjust the range of the random value so we can use it again:
+    randomSample.x = randomSample.x / sunProb;
+    // Sample the sun by doing uniform spherical cap sampling around the +z
+    // axis, then rotating the +z axis so that it points towards the sun.
+    const float sunSampleAngularRadius = 1.5f * 0.00465f * ss.sunDiskScale;
+    z_min                              = cos(sunSampleAngularRadius);
+  }
+  else
+  {
+    // Adjust the range of the random value so we can use it again:
+    randomSample.x = (randomSample.x - sunProb) / (1.0f - sunProb);
+  }
 
-    vec3  sunLocalDir;
-    float sinTheta = sin(theta);
-    sunLocalDir.x  = sinTheta * cos(phi);
-    sunLocalDir.y  = sinTheta * sin(phi);
-    sunLocalDir.z  = cos(theta);
+  result.direction = sampleSphericalCap(z_min, randomSample);
 
-    // Transform sun_local_dir to world space
+  if(sampleSun)
+  {
+    // Transform the sun from +z to ss.sunDirection
     vec3 up    = vec3(0, 0, 1);
     vec3 right = normalize(cross(up, ss.sunDirection));
     up         = cross(ss.sunDirection, right);
 
-    result.direction = sunLocalDir.x * right + sunLocalDir.y * up + sunLocalDir.z * ss.sunDirection;
-
-    result.pdf = sunProb / sunSolidAngle;
-    // MIS weight calculation
-    float skyPdf = (1.0f - sunProb) * max(result.direction.z, 0.001f) / M_PIf;
-    misWeight    = result.pdf / (result.pdf + skyPdf);
-  }
-  else
-  {
-    // Sample the sky using cosine-weighted hemisphere sampling
-    float z        = sqrt(randomSample.y);
-    float phi      = 2.0f * M_PIf * fract((randomSample.x - sunProb) / (1.0f - sunProb));
-    float sqrtTerm = sqrt(1.0f - z * z);
-    float x        = cos(phi) * sqrtTerm;
-    float y        = sin(phi) * sqrtTerm;
-
-    result.direction = vec3(x, y, z);
-
-    // Ensure the sampled direction is above the horizon
-    if(result.direction.z < 0.001f)
-    {
-      result.direction.z = 0.001f;
-      result.direction   = normalize(result.direction);
-    }
-
-    result.pdf = (1.0f - sunProb) * result.direction.z / M_PIf;
-    // MIS weight calculation
-    float sunPdf = (dot(result.direction, ss.sunDirection) > cos(sunAngularRadius)) ? sunProb / sunSolidAngle : 0.0f;
-    misWeight    = result.pdf / (result.pdf + sunPdf);
+    result.direction = result.direction.x * right  //
+                       + result.direction.y * up   //
+                       + result.direction.z * ss.sunDirection;
   }
 
   // Evaluate the sky model
-  result.radiance = evalPhysicalSky(ss, result.direction) * misWeight;
+  result.radiance = evalPhysicalSky(ss, result.direction);
+  result.pdf      = samplePhysicalSkyPDF(ss, result.direction);
   return result;
 }
 

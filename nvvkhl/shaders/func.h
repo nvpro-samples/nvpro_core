@@ -193,7 +193,7 @@ inline vec3 cosineSampleHemisphere(float r1, float r2)
   vec3  dir;
   dir.x = r * cos(phi);
   dir.y = r * sin(phi);
-  dir.z = sqrt(max(0.F, 1.F - dir.x * dir.x - dir.y * dir.y));
+  dir.z = sqrt(1.F - r1);
   return dir;
 }
 

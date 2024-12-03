@@ -59,6 +59,8 @@ public:
   // Update the instance buffer and build the TLAS (animation)
   void updateTopLevelAS(VkCommandBuffer cmd, const nvh::gltf::Scene& scene);
 
+  void updateBottomLevelAS(VkCommandBuffer cmd, const nvh::gltf::Scene& scene);
+
   // Return the constructed acceleration structure
   VkAccelerationStructureKHR tlas();
 

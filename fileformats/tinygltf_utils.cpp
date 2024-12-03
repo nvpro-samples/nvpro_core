@@ -359,6 +359,41 @@ void tinygltf::utils::setNodeVisibility(tinygltf::Node& node, const KHR_node_vis
   tinygltf::utils::setValue(ext, "visible", visibility.visible);
 }
 
+KHR_materials_pbrSpecularGlossiness tinygltf::utils::getPbrSpecularGlossiness(const tinygltf::Material& tmat)
+{
+  KHR_materials_pbrSpecularGlossiness gmat;
+  if(tinygltf::utils::hasElementName(tmat.extensions, KHR_MATERIALS_PBR_SPECULAR_GLOSSINESS_EXTENSION_NAME))
+  {
+    const tinygltf::Value& ext =
+        tinygltf::utils::getElementValue(tmat.extensions, KHR_MATERIALS_PBR_SPECULAR_GLOSSINESS_EXTENSION_NAME);
+    tinygltf::utils::getArrayValue(ext, "diffuseFactor", gmat.diffuseFactor);
+    tinygltf::utils::getValue(ext, "diffuseTexture", gmat.diffuseTexture);
+    tinygltf::utils::getArrayValue(ext, "specularFactor", gmat.specularFactor);
+    tinygltf::utils::getValue(ext, "glossinessFactor", gmat.glossinessFactor);
+    tinygltf::utils::getValue(ext, "specularGlossinessTexture", gmat.specularGlossinessTexture);
+  }
+  return gmat;
+}
+
+void tinygltf::utils::setPbrSpecularGlossiness(tinygltf::Material& tmat, const KHR_materials_pbrSpecularGlossiness& pbr)
+{
+  if(!tinygltf::utils::hasElementName(tmat.extensions, KHR_MATERIALS_PBR_SPECULAR_GLOSSINESS_EXTENSION_NAME))
+  {
+    tmat.extensions[KHR_MATERIALS_PBR_SPECULAR_GLOSSINESS_EXTENSION_NAME] = tinygltf::Value(tinygltf::Value::Object());
+  }
+
+  tinygltf::Value& ext = tmat.extensions[KHR_MATERIALS_PBR_SPECULAR_GLOSSINESS_EXTENSION_NAME];
+  tinygltf::utils::setArrayValue(ext, "diffuseFactor", 4, glm::value_ptr(pbr.diffuseFactor));
+  tinygltf::utils::setArrayValue(ext, "specularFactor", 3, glm::value_ptr(pbr.specularFactor));
+  tinygltf::utils::setValue(ext, "glossinessFactor", pbr.glossinessFactor);
+  tinygltf::utils::setValue(ext, "diffuseTexture", pbr.diffuseTexture);
+  tinygltf::utils::setValue(ext, "specularGlossinessTexture", pbr.specularGlossinessTexture);
+}
+
+//-------------------------------------------------------------------------------------------------
+//
+//
+
 tinygltf::Value tinygltf::utils::convertToTinygltfValue(int numElements, const float* elements)
 {
   tinygltf::Value::Array result;

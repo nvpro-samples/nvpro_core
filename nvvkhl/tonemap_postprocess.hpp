@@ -57,8 +57,12 @@ namespace nvvkhl {
 
 struct TonemapperPostProcess
 {
+  TonemapperPostProcess(){};
   TonemapperPostProcess(VkDevice device, nvvk::ResourceAllocator* alloc);
   ~TonemapperPostProcess();
+
+  void init(VkDevice device, nvvk::ResourceAllocator* alloc);
+  void deinit();
 
   void createGraphicPipeline(VkFormat colorFormat, VkFormat depthFormat);
   void createComputePipeline();
@@ -84,17 +88,17 @@ private:
   std::unique_ptr<nvvk::DebugUtil> m_dutil;
 
 
-  std::unique_ptr<nvvk::DescriptorSetContainer> m_dsetGraphics;  // Holding the descriptor set information
-  std::unique_ptr<nvvk::DescriptorSetContainer> m_dsetCompute;   // Holding the descriptor set information
+  nvvk::DescriptorSetContainer m_dsetGraphics;  // Holding the descriptor set information
+  nvvk::DescriptorSetContainer m_dsetCompute;   // Holding the descriptor set information
 
   VkPipeline                 m_graphicsPipeline{VK_NULL_HANDLE};  // The graphic pipeline to render
   VkPipeline                 m_computePipeline{VK_NULL_HANDLE};   // The graphic pipeline to render
   nvvkhl_shaders::Tonemapper m_settings;
 
   // To use VK_KHR_push_descriptor
-  std::unique_ptr<VkDescriptorImageInfo> m_iimage;
-  std::unique_ptr<VkDescriptorImageInfo> m_oimage;
-  std::vector<VkWriteDescriptorSet>      m_writes;
+  VkDescriptorImageInfo             m_iimage;
+  VkDescriptorImageInfo             m_oimage;
+  std::vector<VkWriteDescriptorSet> m_writes;
 
   enum class TmMode
   {

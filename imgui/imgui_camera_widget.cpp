@@ -265,8 +265,19 @@ void CurrentCameraTab(nvh::CameraManipulator& cameraM, nvh::CameraManipulator::C
   changed |= ImGui::IsItemDeactivatedAfterEdit();
   PE::InputFloat3("Center", &camera.ctr.x, "%.5f", 0, "Center of camera interest");
   changed |= ImGui::IsItemDeactivatedAfterEdit();
-  changed |= PE::entry(
-      "Y is UP", [&] { return ImGui::Checkbox("##Y", &y_is_up); }, "Is Y pointing up or Z?");
+  PE::InputFloat3("Up", &camera.up.x, "%.5f", 0, "Up vector interest");
+  changed |= ImGui::IsItemDeactivatedAfterEdit();
+  if(PE::entry(
+         "Y is UP", [&] { return ImGui::Checkbox("##Y", &y_is_up); }, "Is Y pointing up or Z?"))
+  {
+    camera.up = y_is_up ? glm::vec3(0, 1, 0) : glm::vec3(0, 0, 1);
+    changed   = true;
+  }
+  if(glm::length(camera.up) < 0.0001f)
+  {
+    camera.up = y_is_up ? glm::vec3(0, 1, 0) : glm::vec3(0, 0, 1);
+    changed   = true;
+  }
   if(PE::SliderFloat("FOV", &camera.fov, 1.F, 179.F, "%.1f deg", ImGuiSliderFlags_Logarithmic, "Field of view in degrees"))
   {
     instantSet = true;
@@ -283,8 +294,6 @@ void CurrentCameraTab(nvh::CameraManipulator& cameraM, nvh::CameraManipulator::C
     PE::treePop();
     cameraM.setClipPlanes(clip);
   }
-
-  camera.up = y_is_up ? glm::vec3(0, 1, 0) : glm::vec3(0, 0, 1);
 
   if(cameraM.isAnimated())
   {

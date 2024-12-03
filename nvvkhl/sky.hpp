@@ -24,8 +24,6 @@
 #include <cstdint>  // so uint32_t is available for device_host.h below
 
 #include "shaders/dh_sky.h"
-#include "imgui/imgui_helper.h"
-#include "nvvk/debug_util_vk.hpp"
 #include "nvvk/resourceallocator_vk.hpp"
 #include "shaders/dh_lighting.h"
 #include "vulkan/vulkan_core.h"
@@ -54,13 +52,13 @@ public:
   virtual void draw(const VkCommandBuffer& cmd, const glm::mat4& view, const glm::mat4& proj, const VkExtent2D& size);
   virtual void destroy();
 
-  virtual void           createBuffer()       = 0;
-  virtual VkShaderModule createShaderModule() = 0;
-
   VkDescriptorSetLayout getDescriptorSetLayout() const { return m_skyDLayout; };
   VkDescriptorSet       getDescriptorSet() const { return m_skyDSet; };
 
 protected:
+  virtual void           createBuffer()       = 0;
+  virtual VkShaderModule createShaderModule() = 0;
+
   // Resources
   VkDevice                 m_device{VK_NULL_HANDLE};
   nvvk::ResourceAllocator* m_alloc{nullptr};
@@ -90,18 +88,18 @@ The `draw` method is responsible for rendering the sky dome for the rasterizer. 
 class SimpleSkyDome : public SkyBase
 {
 public:
-  SimpleSkyDome() = default;
+  SimpleSkyDome();
 
-  void createBuffer() override;
-
-  void           updateParameterBuffer(VkCommandBuffer cmd) const;
-  bool           onUI();
-  VkShaderModule createShaderModule() override;
+  void updateParameterBuffer(VkCommandBuffer cmd) const;
+  bool onUI();
 
   nvvkhl_shaders::Light                getSun() const;
   nvvkhl_shaders::SimpleSkyParameters& skyParams() { return m_skyParams; }
 
 protected:
+  void           createBuffer() override;
+  VkShaderModule createShaderModule() override;
+
   nvvkhl_shaders::SimpleSkyParameters m_skyParams{};
 };
 
@@ -120,10 +118,7 @@ The `draw` method is responsible for rendering the sky dome for the rasterizer. 
 class PhysicalSkyDome : public SkyBase
 {
 public:
-  PhysicalSkyDome() { m_skyParams = nvvkhl_shaders::initPhysicalSkyParameters(); }
-
-  void           createBuffer() override;
-  VkShaderModule createShaderModule() override;
+  PhysicalSkyDome();
 
   void                  updateParameterBuffer(VkCommandBuffer cmd) const;
   bool                  onUI();
@@ -132,6 +127,9 @@ public:
   nvvkhl_shaders::PhysicalSkyParameters& skyParams() { return m_skyParams; }
 
 protected:
+  void           createBuffer() override;
+  VkShaderModule createShaderModule() override;
+
   nvvkhl_shaders::PhysicalSkyParameters m_skyParams{};
 };
 

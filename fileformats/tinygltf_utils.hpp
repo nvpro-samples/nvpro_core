@@ -185,6 +185,17 @@ struct KHR_node_visibility
   bool visible = true;
 };
 
+#define KHR_MATERIALS_PBR_SPECULAR_GLOSSINESS_EXTENSION_NAME "KHR_materials_pbrSpecularGlossiness"
+struct KHR_materials_pbrSpecularGlossiness
+{
+  glm::vec4             diffuseFactor             = glm::vec4(1.0f);
+  glm::vec3             specularFactor            = glm::vec3(1.0f);
+  float                 glossinessFactor          = 1.0f;
+  tinygltf::TextureInfo diffuseTexture            = {};
+  tinygltf::TextureInfo specularGlossinessTexture = {};
+};
+
+
 namespace tinygltf {
 
 namespace utils {
@@ -905,6 +916,8 @@ KHR_materials_iridescence getIridescence(const tinygltf::Material& tmat);
 void                      setIridescence(tinygltf::Material& tmat, const KHR_materials_iridescence& iridescence);
 KHR_materials_dispersion  getDispersion(const tinygltf::Material& tmat);
 void                      setDispersion(tinygltf::Material& tmat, const KHR_materials_dispersion& dispersion);
+KHR_materials_pbrSpecularGlossiness getPbrSpecularGlossiness(const tinygltf::Material& tmat);
+void setPbrSpecularGlossiness(tinygltf::Material& tmat, const KHR_materials_pbrSpecularGlossiness& dispersion);
 
 
 template <typename T>

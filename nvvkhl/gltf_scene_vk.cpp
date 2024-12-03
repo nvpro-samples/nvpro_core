@@ -22,6 +22,7 @@
 #include <inttypes.h>
 #include <mutex>
 #include <sstream>
+
 #include "stb_image.h"
 
 #include "fileformats/nv_dds.h"
@@ -55,7 +56,7 @@ nvvkhl::SceneVk::SceneVk(VkDevice device, VkPhysicalDevice physicalDevice, nvvk:
 //--------------------------------------------------------------------------------------------------
 // Create all Vulkan resources to hold a nvh::gltf::Scene
 //
-void nvvkhl::SceneVk::create(VkCommandBuffer cmd, const nvh::gltf::Scene& scn)
+void nvvkhl::SceneVk::create(VkCommandBuffer cmd, const nvh::gltf::Scene& scn, bool generateMipmaps)
 {
   nvh::ScopedTimer st(__FUNCTION__);
   destroy();  // Make sure not to leave allocated buffers
@@ -65,7 +66,7 @@ void nvvkhl::SceneVk::create(VkCommandBuffer cmd, const nvh::gltf::Scene& scn)
   createMaterialBuffer(cmd, scn.getModel().materials);
   createRenderNodeBuffer(cmd, scn);
   createVertexBuffers(cmd, scn);
-  createTextureImages(cmd, scn.getModel(), basedir);
+  createTextureImages(cmd, scn.getModel(), basedir, generateMipmaps);
   createLightBuffer(cmd, scn);
 
   // Buffer references
@@ -80,11 +81,11 @@ void nvvkhl::SceneVk::create(VkCommandBuffer cmd, const nvh::gltf::Scene& scn)
   m_dutil->DBG_NAME(m_bSceneDesc.buffer);
 }
 
-
 void nvvkhl::SceneVk::update(VkCommandBuffer cmd, const nvh::gltf::Scene& scn)
 {
   updateMaterialBuffer(cmd, scn);
-  updateRenderNodeBuffer(cmd, scn);
+  updateRenderNodesBuffer(cmd, scn);
+  updateRenderPrimitivesBuffer(cmd, scn);
 }
 
 template <typename T>
@@ -174,6 +175,18 @@ static nvvkhl_shaders::GltfShadeMaterial getShaderMaterial(const tinygltf::Mater
   KHR_materials_dispersion dispersion = tinygltf::utils::getDispersion(srcMat);
   dstMat.dispersion                   = dispersion.dispersion;
 
+  KHR_materials_pbrSpecularGlossiness pbr = tinygltf::utils::getPbrSpecularGlossiness(srcMat);
+  dstMat.usePbrSpecularGlossiness =
+      tinygltf::utils::hasElementName(srcMat.extensions, KHR_MATERIALS_PBR_SPECULAR_GLOSSINESS_EXTENSION_NAME);
+  if(dstMat.usePbrSpecularGlossiness)
+  {
+    dstMat.pbrDiffuseFactor             = pbr.diffuseFactor;
+    dstMat.pbrSpecularFactor            = pbr.specularFactor;
+    dstMat.pbrGlossinessFactor          = pbr.glossinessFactor;
+    dstMat.pbrDiffuseTexture            = getTextureInfo(pbr.diffuseTexture);
+    dstMat.pbrSpecularGlossinessTexture = getTextureInfo(pbr.specularGlossinessTexture);
+  }
+
   return dstMat;
 }
 
@@ -213,6 +226,43 @@ void nvvkhl::SceneVk::updateMaterialBuffer(VkCommandBuffer cmd, const nvh::gltf:
 }
 
 
+// Function to blend positions of a primitive with morph targets
+std::vector<glm::vec3> getBlendedPositions(const tinygltf::Accessor&  baseAccessor,
+                                           const glm::vec3*           basePositionData,
+                                           const tinygltf::Primitive& primitive,
+                                           const tinygltf::Mesh&      mesh,
+                                           const tinygltf::Model&     model)
+{
+  // Prepare for blending positions
+  std::vector<glm::vec3> blendedPositions(baseAccessor.count);
+  std::copy(basePositionData, basePositionData + baseAccessor.count, blendedPositions.begin());
+
+  // Blend the positions with the morph targets
+  for(size_t targetIndex = 0; targetIndex < primitive.targets.size(); ++targetIndex)
+  {
+    // Retrieve the weight for the current morph target
+    float weight = float(mesh.weights[targetIndex]);
+    if(weight == 0.0f)
+      continue;  // Skip this morph target if its weight is zero
+
+    // Get the morph target attribute (e.g., POSITION)
+    if(primitive.targets[targetIndex].find("POSITION") != primitive.targets[targetIndex].end())
+    {
+      const tinygltf::Accessor&   morphAccessor   = model.accessors[primitive.targets[targetIndex].at("POSITION")];
+      const tinygltf::BufferView& morphView       = model.bufferViews[morphAccessor.bufferView];
+      const glm::vec3*            morphTargetData = reinterpret_cast<const glm::vec3*>(
+          &(model.buffers[morphView.buffer].data[morphAccessor.byteOffset + morphView.byteOffset]));
+
+      // Apply the morph target offset in parallel, scaled by the corresponding weight
+      uint32_t numThreads = std::min((uint32_t)blendedPositions.size(), std::thread::hardware_concurrency());
+      nvh::parallel_batches(
+          blendedPositions.size(), [&](uint64_t v) { blendedPositions[v] += weight * morphTargetData[v]; }, numThreads);
+    }
+  }
+
+  return blendedPositions;
+}
+
 //--------------------------------------------------------------------------------------------------
 // Array of instance information
 // - Use by the vertex shader to retrieve the position of the instance
@@ -234,24 +284,32 @@ void nvvkhl::SceneVk::createRenderNodeBuffer(VkCommandBuffer cmd, const nvh::glt
   m_dutil->DBG_NAME(m_bRenderNode.buffer);
 }
 
-void nvvkhl::SceneVk::updateRenderNodeBuffer(VkCommandBuffer cmd, const nvh::gltf::Scene& scn)
+//--------------------------------------------------------------------------------------------------
+// Update the buffer of all render nodes (transform, material, primitive)
+void nvvkhl::SceneVk::updateRenderNodesBuffer(VkCommandBuffer cmd, const nvh::gltf::Scene& scn)
 {
   // nvh::ScopedTimer st(__FUNCTION__);
 
-  std::vector<nvvkhl_shaders::RenderNode> inst_info;
-  inst_info.reserve(scn.getRenderNodes().size());
-  for(const auto& obj : scn.getRenderNodes())
+  std::vector<nvvkhl_shaders::RenderNode> nodesInfo;
+  nodesInfo.reserve(scn.getRenderNodes().size());
+  for(const nvh::gltf::RenderNode& obj : scn.getRenderNodes())
   {
     nvvkhl_shaders::RenderNode info{};
     info.objectToWorld = obj.worldMatrix;
     info.worldToObject = glm::inverse(obj.worldMatrix);
     info.materialID    = obj.materialID;
     info.renderPrimID  = obj.renderPrimID;
-    inst_info.emplace_back(info);
+    nodesInfo.emplace_back(info);
   }
   m_alloc->getStaging()->cmdToBuffer(cmd, m_bRenderNode.buffer, 0,
-                                     inst_info.size() * sizeof(nvvkhl_shaders::RenderNode), inst_info.data());
+                                     nodesInfo.size() * sizeof(nvvkhl_shaders::RenderNode), nodesInfo.data());
+}
 
+//--------------------------------------------------------------------------------------------------
+// Update the buffer of all lights
+// - If the light data was changes, the buffer needs to be updated
+void nvvkhl::SceneVk::updateRenderLightsBuffer(VkCommandBuffer cmd, const nvh::gltf::Scene& scn)
+{
   std::vector<nvvkhl_shaders::Light> shaderLights = getShaderLights(scn.getRenderLights(), scn.getModel().lights);
   if(shaderLights.size() > 0)
   {
@@ -260,13 +318,42 @@ void nvvkhl::SceneVk::updateRenderNodeBuffer(VkCommandBuffer cmd, const nvh::glt
   }
 }
 
+//--------------------------------------------------------------------------------------------------
+// Update the buffer of all primitives that have morph targets
+//
+void nvvkhl::SceneVk::updateRenderPrimitivesBuffer(VkCommandBuffer cmd, const nvh::gltf::Scene& scn)
+{
+  for(int renderPrimID : scn.getAnimatedPrimitives())
+  {
+    const nvh::gltf::RenderPrimitive& renderPrimitive = scn.getRenderPrimitive(renderPrimID);
+    const tinygltf::Primitive&        primitive       = renderPrimitive.primitive;
+    const tinygltf::Mesh&             mesh            = scn.getModel().meshes[renderPrimitive.meshID];
+
+    if(!primitive.targets.empty() && !mesh.weights.empty())
+    {
+      const tinygltf::Model&      model              = scn.getModel();
+      const tinygltf::Accessor&   positionAccessor   = model.accessors[primitive.attributes.at("POSITION")];
+      const tinygltf::BufferView& positionBufferView = model.bufferViews[positionAccessor.bufferView];
+      const glm::vec3*            positionData       = reinterpret_cast<const glm::vec3*>(
+          &(model.buffers[positionBufferView.buffer].data[positionAccessor.byteOffset + positionBufferView.byteOffset]));
+
+      // Get blended position
+      std::vector<glm::vec3> blendedPositions = getBlendedPositions(positionAccessor, positionData, primitive, mesh, model);
+
+      // Update buffer
+      VertexBuffers& vertexBuffers = m_vertexBuffers[renderPrimID];
+      m_alloc->getStaging()->cmdToBuffer(cmd, vertexBuffers.position.buffer, 0,
+                                         sizeof(glm::vec3) * positionAccessor.count, blendedPositions.data());
+    }
+  }
+}
 
 // Function to create attribute buffers in Vulkan only if the attribute is present
 template <typename T>
-void createAttributeBuffer(const std::string&         attributeName,  // Name of the attribute: POSITION, NORMAL, ...
+void createAttributeBuffer(VkCommandBuffer            cmd,            // Command buffer to record the copy
+                           const std::string&         attributeName,  // Name of the attribute: POSITION, NORMAL, ...
                            const tinygltf::Model&     model,          // GLTF model
                            const tinygltf::Primitive& primitive,      // GLTF primitive
-                           VkCommandBuffer            cmd,            // Command buffer to record the copy
                            nvvk::ResourceAllocator*   alloc,          // Allocator to create the buffer
                            int                        usageFlag,      // Usage of the buffer
                            nvvk::Buffer&              attributeBuffer)             // Buffer to be created
@@ -290,6 +377,44 @@ void createAttributeBuffer(const std::string&         attributeName,  // Name of
       tinygltf::utils::getAccessorData(model, accessor, tempData);
       attributeBuffer = alloc->createBuffer(cmd, tempData, usageFlag);
     }
+  }
+}
+
+void createBlendedPositionBuffer(VkCommandBuffer            cmd,        // Command buffer to record the copy
+                                 const tinygltf::Model&     model,      // GLTF model
+                                 const tinygltf::Primitive& primitive,  // GLTF primitive
+                                 const tinygltf::Mesh&      mesh,       // GLTF mesh containing weights
+                                 nvvk::ResourceAllocator*   alloc,      // Allocator to create buffer
+                                 int                        usageFlag,  // Usage of the buffer
+                                 nvvk::Buffer&              blendedBuffer)           // Output buffer
+{
+  const std::string baseAttributeName = "POSITION";
+
+  usageFlag |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+
+  // Step 1: Retrieve the base position attribute
+  if(primitive.attributes.find("POSITION") == primitive.attributes.end())
+  {
+    throw std::runtime_error("Base position attribute not found!");
+  }
+
+  const tinygltf::Accessor&   baseAccessor = model.accessors[primitive.attributes.at("POSITION")];
+  const tinygltf::BufferView& baseView     = model.bufferViews[baseAccessor.bufferView];
+  const glm::vec3*            basePositionData =
+      reinterpret_cast<const glm::vec3*>(&(model.buffers[baseView.buffer].data[baseAccessor.byteOffset + baseView.byteOffset]));
+
+
+  // Check if there are morph targets to blend
+  if(!primitive.targets.empty() && !mesh.weights.empty())
+  {
+    std::vector<glm::vec3> blendedPositions = getBlendedPositions(baseAccessor, basePositionData, primitive, mesh, model);
+
+    // Step 4: Create a Vulkan buffer for the blended positions
+    blendedBuffer = alloc->createBuffer(cmd, blendedPositions, usageFlag);
+  }
+  else
+  {
+    blendedBuffer = alloc->createBuffer(cmd, sizeof(glm::vec3) * baseAccessor.count, basePositionData, usageFlag);
   }
 }
 
@@ -355,14 +480,15 @@ void nvvkhl::SceneVk::createVertexBuffers(VkCommandBuffer cmd, const nvh::gltf::
   for(size_t primID = 0; primID < scene.getNumRenderPrimitives(); primID++)
   {
     const tinygltf::Primitive& primitive     = scene.getRenderPrimitive(primID).primitive;
+    const tinygltf::Mesh&      mesh          = model.meshes[scene.getRenderPrimitive(primID).meshID];
     VertexBuffers&             vertexBuffers = m_vertexBuffers[primID];
 
-    createAttributeBuffer<glm::vec3>("POSITION", model, primitive, cmd, m_alloc,
-                                     usageFlag | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, vertexBuffers.position);
-    createAttributeBuffer<glm::vec3>("NORMAL", model, primitive, cmd, m_alloc, usageFlag, vertexBuffers.normal);
-    createAttributeBuffer<glm::vec2>("TEXCOORD_0", model, primitive, cmd, m_alloc, usageFlag, vertexBuffers.texCoord0);
-    createAttributeBuffer<glm::vec2>("TEXCOORD_1", model, primitive, cmd, m_alloc, usageFlag, vertexBuffers.texCoord1);
-    createAttributeBuffer<glm::vec4>("TANGENT", model, primitive, cmd, m_alloc, usageFlag, vertexBuffers.tangent);
+    createBlendedPositionBuffer(cmd, model, primitive, mesh, m_alloc, usageFlag, vertexBuffers.position);
+
+    createAttributeBuffer<glm::vec3>(cmd, "NORMAL", model, primitive, m_alloc, usageFlag, vertexBuffers.normal);
+    createAttributeBuffer<glm::vec2>(cmd, "TEXCOORD_0", model, primitive, m_alloc, usageFlag, vertexBuffers.texCoord0);
+    createAttributeBuffer<glm::vec2>(cmd, "TEXCOORD_1", model, primitive, m_alloc, usageFlag, vertexBuffers.texCoord1);
+    createAttributeBuffer<glm::vec4>(cmd, "TANGENT", model, primitive, m_alloc, usageFlag, vertexBuffers.tangent);
 
     if(tinygltf::utils::hasElementName(primitive.attributes, "COLOR_0"))
     {
@@ -547,7 +673,7 @@ static VkSamplerCreateInfo getSampler(const tinygltf::Model& model, int index)
 //--------------------------------------------------------------------------------------------------------------
 // This is creating all images stored in textures
 //
-void nvvkhl::SceneVk::createTextureImages(VkCommandBuffer cmd, const tinygltf::Model& model, const std::filesystem::path& basedir)
+void nvvkhl::SceneVk::createTextureImages(VkCommandBuffer cmd, const tinygltf::Model& model, const std::filesystem::path& basedir, bool generateMipmaps)
 {
   nvh::ScopedTimer st(std::string(__FUNCTION__) + "\n");
 
@@ -604,7 +730,7 @@ void nvvkhl::SceneVk::createTextureImages(VkCommandBuffer cmd, const tinygltf::M
   // Create Vulkan images
   for(size_t i = 0; i < m_images.size(); i++)
   {
-    if(!createImage(cmd, m_images[i]))
+    if(!createImage(cmd, m_images[i], generateMipmaps))
     {
       addDefaultImage((uint32_t)i, {255, 0, 255, 255});  // Image not present or incorrectly loaded (image.empty)
     }
@@ -866,7 +992,7 @@ void nvvkhl::SceneVk::loadImage(const std::filesystem::path& basedir, const tiny
   }
 }
 
-bool nvvkhl::SceneVk::createImage(const VkCommandBuffer& cmd, SceneImage& image)
+bool nvvkhl::SceneVk::createImage(const VkCommandBuffer& cmd, SceneImage& image, bool generateMipmaps)
 {
   if(image.size.width == 0 || image.size.height == 0)
     return false;
@@ -887,7 +1013,7 @@ bool nvvkhl::SceneVk::createImage(const VkCommandBuffer& cmd, SceneImage& image)
   {
     image_create_info.mipLevels = static_cast<uint32_t>(image.mipData.size());
   }
-  else if(can_generate_mipmaps)
+  else if(can_generate_mipmaps && generateMipmaps)
   {
     // Compute the number of mipmaps levels
     image_create_info.mipLevels = nvvk::mipLevels(img_size);
@@ -898,7 +1024,7 @@ bool nvvkhl::SceneVk::createImage(const VkCommandBuffer& cmd, SceneImage& image)
   VkDeviceSize buffer_size  = image.mipData[0].size();
   nvvk::Image  result_image = m_alloc->createImage(cmd, buffer_size, image.mipData[0].data(), image_create_info);
 
-  if(image.mipData.size() == 1 && can_generate_mipmaps)
+  if(image.mipData.size() == 1 && (can_generate_mipmaps && generateMipmaps))
   {
     nvvk::cmdGenerateMipmaps(cmd, result_image.image, format, img_size, image_create_info.mipLevels);
   }

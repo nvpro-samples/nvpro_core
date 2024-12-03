@@ -89,52 +89,60 @@ struct GltfTextureInfo
 
 struct GltfShadeMaterial
 {
-  vec4  pbrBaseColorFactor;           // offset 0 - 16 bytes    - glTF Core
-  vec3  emissiveFactor;               // offset 16 - 12 bytes
-  float normalTextureScale;           // offset 28 - 4 bytes
-  float pbrRoughnessFactor;           // offset 32 - 4 bytes
-  float pbrMetallicFactor;            // offset 36 - 4 bytes
-  int   alphaMode;                    // offset 40 - 4 bytes
-  float alphaCutoff;                  // offset 44 - 4 bytes
-  float transmissionFactor;           // offset 48 - 4 bytes    - KHR_materials_transmission
-  float ior;                          // offset 52 - 4 bytes    - KHR_materials_ior
-  vec3  attenuationColor;             // offset 56 - 12 bytes   - KHR_materials_volume
-  float thicknessFactor;              // offset 68 - 4 bytes
-  float attenuationDistance;          // offset 72 - 4 bytes
-  float clearcoatFactor;              // offset 76 - 4 bytes    - KHR_materials_clearcoat
-  float clearcoatRoughness;           // offset 80 - 4 bytes
-  vec3  specularColorFactor;          // offset 84 - 12 bytes   - KHR_materials_specular
-  float specularFactor;               // offset 96 - 4 bytes
-  int   unlit;                        // offset 100 - 4 bytes   - KHR_materials_unlit
-  float iridescenceFactor;            // offset 104 - 4 bytes   - KHR_materials_iridescence
+  vec4  pbrBaseColorFactor;           // offset 0   - 16 bytes    - glTF Core
+  vec3  emissiveFactor;               // offset 16  - 12 bytes
+  float normalTextureScale;           // offset 28  - 4 bytes
+  float pbrRoughnessFactor;           // offset 32  - 4 bytes
+  float pbrMetallicFactor;            // offset 36  - 4 bytes
+  int   alphaMode;                    // offset 40  - 4 bytes
+  float alphaCutoff;                  // offset 44  - 4 bytes
+  float transmissionFactor;           // offset 48  - 4 bytes    - KHR_materials_transmission
+  float ior;                          // offset 52  - 4 bytes    - KHR_materials_ior
+  vec3  attenuationColor;             // offset 56  - 12 bytes   - KHR_materials_volume
+  float thicknessFactor;              // offset 68  - 4 bytes
+  float attenuationDistance;          // offset 72  - 4 bytes
+  float clearcoatFactor;              // offset 76  - 4 bytes    - KHR_materials_clearcoat
+  float clearcoatRoughness;           // offset 80  - 4 bytes
+  vec3  specularColorFactor;          // offset 84  - 12 bytes   - KHR_materials_specular
+  float specularFactor;               // offset 96  - 4 bytes
+  int   unlit;                        // offset 100 - 4 bytes    - KHR_materials_unlit
+  float iridescenceFactor;            // offset 104 - 4 bytes    - KHR_materials_iridescence
   float iridescenceThicknessMaximum;  // offset 108 - 4 bytes
   float iridescenceThicknessMinimum;  // offset 112 - 4 bytes
   float iridescenceIor;               // offset 116 - 4 bytes
-  float anisotropyStrength;           // offset 120 - 4 bytes   - KHR_materials_anisotropy
+  float anisotropyStrength;           // offset 120 - 4 bytes    - KHR_materials_anisotropy
   vec2  anisotropyRotation;           // offset 124 - 8 bytes
-  float sheenRoughnessFactor;         // offset 132 - 4 bytes   - KHR_materials_sheen
+  float sheenRoughnessFactor;         // offset 132 - 4 bytes    - KHR_materials_sheen
   vec3  sheenColorFactor;             // offset 136 - 12 bytes
   float occlusionStrength;            // offset 148 - 4 bytes
-  float dispersion;                   // offset 152 - 4 bytes   - KHR_materials_dispersion
+  float dispersion;                   // offset 152 - 4 bytes    - KHR_materials_dispersion
+  vec4  pbrDiffuseFactor;             // offset 156 - 16 bytes   - KHR_materials_pbrSpecularGlossiness
+  vec3  pbrSpecularFactor;            // offset 172 - 12 bytes
+  int   usePbrSpecularGlossiness;     // offset 184 - 4 bytes
+  float pbrGlossinessFactor;          // offset 188 - 4 bytes
+  int   pad;                          // offset 192 - 4 bytes (padding for alignment)
+
   // Texture infos (32 bytes each)
-  GltfTextureInfo pbrBaseColorTexture;          // offset 156 - 32 bytes
-  GltfTextureInfo normalTexture;                // offset 188 - 32 bytes
-  GltfTextureInfo pbrMetallicRoughnessTexture;  // offset 220 - 32 bytes
-  GltfTextureInfo emissiveTexture;              // offset 252 - 32 bytes
-  GltfTextureInfo transmissionTexture;          // offset 284 - 32 bytes
-  GltfTextureInfo thicknessTexture;             // offset 316 - 32 bytes
-  GltfTextureInfo clearcoatTexture;             // offset 348 - 32 bytes
-  GltfTextureInfo clearcoatRoughnessTexture;    // offset 380 - 32 bytes
-  GltfTextureInfo clearcoatNormalTexture;       // offset 412 - 32 bytes
-  GltfTextureInfo specularTexture;              // offset 444 - 32 bytes
-  GltfTextureInfo specularColorTexture;         // offset 476 - 32 bytes
-  GltfTextureInfo iridescenceTexture;           // offset 508 - 32 bytes
-  GltfTextureInfo iridescenceThicknessTexture;  // offset 540 - 32 bytes
-  GltfTextureInfo anisotropyTexture;            // offset 572 - 32 bytes
-  GltfTextureInfo sheenColorTexture;            // offset 604 - 32 bytes
-  GltfTextureInfo sheenRoughnessTexture;        // offset 636 - 32 bytes
-  GltfTextureInfo occlusionTexture;             // offset 668 - 32 bytes
-};                                              // Total size: 700 bytes
+  GltfTextureInfo pbrBaseColorTexture;
+  GltfTextureInfo normalTexture;
+  GltfTextureInfo pbrMetallicRoughnessTexture;
+  GltfTextureInfo emissiveTexture;
+  GltfTextureInfo transmissionTexture;
+  GltfTextureInfo thicknessTexture;
+  GltfTextureInfo clearcoatTexture;
+  GltfTextureInfo clearcoatRoughnessTexture;
+  GltfTextureInfo clearcoatNormalTexture;
+  GltfTextureInfo specularTexture;
+  GltfTextureInfo specularColorTexture;
+  GltfTextureInfo iridescenceTexture;
+  GltfTextureInfo iridescenceThicknessTexture;
+  GltfTextureInfo anisotropyTexture;
+  GltfTextureInfo sheenColorTexture;
+  GltfTextureInfo sheenRoughnessTexture;
+  GltfTextureInfo occlusionTexture;
+  GltfTextureInfo pbrDiffuseTexture;
+  GltfTextureInfo pbrSpecularGlossinessTexture;
+};  // Total size: 804 bytes
 
 INLINE GltfTextureInfo defaultGltfTextureInfo()
 {
@@ -174,23 +182,30 @@ INLINE GltfShadeMaterial defaultGltfMaterial()
   m.sheenRoughnessFactor        = 0;
   m.sheenColorFactor            = vec3(0, 0, 0);
   m.dispersion                  = 0;
+  m.usePbrSpecularGlossiness    = 0;
+  m.pbrDiffuseFactor            = vec4(1);
+  m.pbrSpecularFactor           = vec3(1);
+  m.pbrGlossinessFactor         = 1;
 
-  m.pbrBaseColorTexture         = defaultGltfTextureInfo();
-  m.normalTexture               = defaultGltfTextureInfo();
-  m.pbrMetallicRoughnessTexture = defaultGltfTextureInfo();
-  m.emissiveTexture             = defaultGltfTextureInfo();
-  m.transmissionTexture         = defaultGltfTextureInfo();
-  m.thicknessTexture            = defaultGltfTextureInfo();
-  m.clearcoatTexture            = defaultGltfTextureInfo();
-  m.clearcoatRoughnessTexture   = defaultGltfTextureInfo();
-  m.clearcoatNormalTexture      = defaultGltfTextureInfo();
-  m.specularTexture             = defaultGltfTextureInfo();
-  m.specularColorTexture        = defaultGltfTextureInfo();
-  m.iridescenceTexture          = defaultGltfTextureInfo();
-  m.iridescenceThicknessTexture = defaultGltfTextureInfo();
-  m.anisotropyTexture           = defaultGltfTextureInfo();
-  m.sheenColorTexture           = defaultGltfTextureInfo();
-  m.sheenRoughnessTexture       = defaultGltfTextureInfo();
+  m.pbrBaseColorTexture          = defaultGltfTextureInfo();
+  m.normalTexture                = defaultGltfTextureInfo();
+  m.pbrMetallicRoughnessTexture  = defaultGltfTextureInfo();
+  m.emissiveTexture              = defaultGltfTextureInfo();
+  m.transmissionTexture          = defaultGltfTextureInfo();
+  m.thicknessTexture             = defaultGltfTextureInfo();
+  m.clearcoatTexture             = defaultGltfTextureInfo();
+  m.clearcoatRoughnessTexture    = defaultGltfTextureInfo();
+  m.clearcoatNormalTexture       = defaultGltfTextureInfo();
+  m.specularTexture              = defaultGltfTextureInfo();
+  m.specularColorTexture         = defaultGltfTextureInfo();
+  m.iridescenceTexture           = defaultGltfTextureInfo();
+  m.iridescenceThicknessTexture  = defaultGltfTextureInfo();
+  m.anisotropyTexture            = defaultGltfTextureInfo();
+  m.sheenColorTexture            = defaultGltfTextureInfo();
+  m.sheenRoughnessTexture        = defaultGltfTextureInfo();
+  m.pbrDiffuseTexture            = defaultGltfTextureInfo();
+  m.pbrSpecularGlossinessTexture = defaultGltfTextureInfo();
+
 
   return m;
 }

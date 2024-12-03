@@ -281,7 +281,7 @@ INLINE vec3 applyTonemap(Tonemapper tm, vec3 color, vec2 uv)
   }
   // contrast and clamp
   c = clamp(mix(vec3(0.5F), c, vec3(tm.contrast)), vec3(0.F), vec3(1.F));
-  // brighness
+  // brightness
   c = pow(c, vec3(1.0F / tm.brightness));
   // saturation
   vec3 i = vec3(dot(c, vec3(0.299F, 0.587F, 0.114F)));

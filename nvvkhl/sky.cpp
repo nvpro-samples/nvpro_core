@@ -27,10 +27,15 @@
 #include "nvvk/resourceallocator_vk.hpp"
 
 #include <glm/gtc/constants.hpp>
+
 using namespace glm;
 #include "sky.hpp"
 
 #include "nvvkhl/shaders/dh_comp.h"
+#include "nvvkhl/shaders/dh_sky.h"
+
+#include "imgui/imgui_helper.h"
+
 #include "_autogen/sky.comp.glsl.h"
 #include "_autogen/sky_physical.comp.glsl.h"
 
@@ -169,8 +174,15 @@ void memoryBarrier(VkCommandBuffer cmd)
   VkMemoryBarrier mb{VK_STRUCTURE_TYPE_MEMORY_BARRIER};
   mb.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT | VK_ACCESS_MEMORY_READ_BIT;
   mb.dstAccessMask = VK_ACCESS_MEMORY_WRITE_BIT | VK_ACCESS_MEMORY_READ_BIT;
-  vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-                       VK_PIPELINE_STAGE_TRANSFER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 1, &mb, 0, nullptr, 0, nullptr);
+  vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR,
+                       VK_PIPELINE_STAGE_TRANSFER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR,
+                       0, 1, &mb, 0, nullptr, 0, nullptr);
+}
+
+
+SimpleSkyDome::SimpleSkyDome()
+    : m_skyParams(nvvkhl_shaders::initSimpleSkyParameters())
+{
 }
 
 void SimpleSkyDome::updateParameterBuffer(VkCommandBuffer cmd) const
@@ -178,6 +190,13 @@ void SimpleSkyDome::updateParameterBuffer(VkCommandBuffer cmd) const
   vkCmdUpdateBuffer(cmd, m_skyInfoBuf.buffer, 0, sizeof(nvvkhl_shaders::SimpleSkyParameters), &m_skyParams);
   memoryBarrier(cmd);  // Make sure the buffer is available when using it
 }
+
+
+PhysicalSkyDome::PhysicalSkyDome()
+    : m_skyParams(nvvkhl_shaders::initPhysicalSkyParameters())
+{
+}
+
 
 void PhysicalSkyDome::updateParameterBuffer(VkCommandBuffer cmd) const
 {

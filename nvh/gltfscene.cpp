@@ -33,6 +33,7 @@
 #include <glm/gtx/norm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include "timesampler.hpp"
+#include <unordered_set>
 
 // List of supported extensions
 static const std::set<std::string> supportedExtensions = {
@@ -55,6 +56,7 @@ static const std::set<std::string> supportedExtensions = {
     "EXT_mesh_gpu_instancing",
     "NV_attributes_iray",
     "MSFT_texture_dds",
+    "KHR_materials_pbrSpecularGlossiness",
 #ifdef USE_DRACO
     "KHR_draco_mesh_compression",
 #endif
@@ -273,6 +275,7 @@ void nvh::gltf::Scene::parseScene()
   parseVariants();
   parseAnimations();
 
+
   // Update the visibility of the render nodes
   uint32_t renderNodeID = 0;
   for(const int sceneNode : m_model.scenes[m_currentScene].nodes)
@@ -299,7 +302,7 @@ void nvh::gltf::Scene::updateVisibility(int nodeID, bool visible, uint32_t& rend
   if(node.mesh >= 0)
   {
     // If the node has a mesh, update the visibility of all its primitives
-    tinygltf::Mesh mesh = m_model.meshes[node.mesh];
+    const tinygltf::Mesh& mesh = m_model.meshes[node.mesh];
     for(size_t j = 0; j < mesh.primitives.size(); j++)
       m_renderNodes[renderNodeID++].visible = visible;
   }
@@ -461,7 +464,7 @@ void nvh::gltf::Scene::destroy()
 
 
 // Get the unique index of a primitive, and add it to the list if it is not already there
-int nvh::gltf::Scene::getUniqueRenderPrimitive(const tinygltf::Primitive& primitive)
+int nvh::gltf::Scene::getUniqueRenderPrimitive(const tinygltf::Primitive& primitive, int meshID)
 {
   const std::string& key = tinygltf::utils::generatePrimitiveKey(primitive);
 
@@ -475,6 +478,7 @@ int nvh::gltf::Scene::getUniqueRenderPrimitive(const tinygltf::Primitive& primit
     renderPrim.primitive   = primitive;
     renderPrim.vertexCount = int(tinygltf::utils::getVertexCount(m_model, primitive));
     renderPrim.indexCount  = int(tinygltf::utils::getIndexCount(m_model, primitive));
+    renderPrim.meshID      = meshID;
     m_renderPrimitives.push_back(renderPrim);
   }
 
@@ -640,7 +644,7 @@ bool nvh::gltf::Scene::handleRenderNode(int nodeID, glm::mat4 worldMatrix)
   for(size_t primID = 0; primID < mesh.primitives.size(); primID++)
   {
     const tinygltf::Primitive& primitive    = mesh.primitives[primID];
-    int                        rprimID      = getUniqueRenderPrimitive(primitive);
+    int                        rprimID      = getUniqueRenderPrimitive(primitive, node.mesh);
     int                        numTriangles = m_renderPrimitives[rprimID].indexCount / 3;
 
     nvh::gltf::RenderNode renderNode;
@@ -786,6 +790,11 @@ void nvh::gltf::Scene::parseAnimations()
   for(tinygltf::Animation& anim : m_model.animations)
   {
     Animation animation;
+    animation.info.name = anim.name;
+    if(animation.info.name.empty())
+    {
+      animation.info.name = "Animation" + std::to_string(m_animations.size());
+    }
 
     // Samplers
     for(auto& samp : anim.samplers)
@@ -820,13 +829,13 @@ void nvh::gltf::Scene::parseAnimations()
         // Protect against invalid values
         for(auto input : sampler.inputs)
         {
-          if(input < animation.start)
+          if(input < animation.info.start)
           {
-            animation.start = input;
+            animation.info.start = input;
           }
-          if(input > animation.end)
+          if(input > animation.info.end)
           {
-            animation.end = input;
+            animation.info.end = input;
           }
         }
       }
@@ -912,59 +921,37 @@ void nvh::gltf::Scene::parseAnimations()
       animation.channels.push_back(channel);
     }
 
+    animation.info.reset();
     m_animations.push_back(animation);
   }
-}
 
-bool nvh::gltf::Scene::updateAnimations(float deltaTime)
-{
-  bool animated = false;
-  for(size_t i = 0; i < m_animations.size(); i++)
+  // Find all animated primitives
+  m_animatedPrimitives.clear();
+  for(size_t renderPrimID = 0; renderPrimID < getRenderPrimitives().size(); renderPrimID++)
   {
-    animated |= updateAnimation(uint32_t(i), deltaTime, false);
+    const auto&                renderPrimitive = getRenderPrimitive(renderPrimID);
+    const tinygltf::Primitive& primitive       = renderPrimitive.primitive;
+    const tinygltf::Mesh&      mesh            = getModel().meshes[renderPrimitive.meshID];
+
+    if(!primitive.targets.empty() && !mesh.weights.empty())
+    {
+      m_animatedPrimitives.push_back(uint32_t(renderPrimID));
+    }
   }
-  if(animated)
-    updateRenderNodes();
-  return animated;
 }
-
-
-bool nvh::gltf::Scene::resetAnimations()
-{
-  bool animated = false;
-  for(size_t i = 0; i < m_animations.size(); i++)
-  {
-    animated |= updateAnimation(uint32_t(i), 0, true);
-  }
-  if(animated)
-    updateRenderNodes();
-  return animated;
-}
-
 
 // Update a specific animation
-bool nvh::gltf::Scene::updateAnimation(uint32_t animationIndex, float deltaTime, bool reset)
+bool nvh::gltf::Scene::updateAnimation(uint32_t animationIndex)
 {
   bool animated = false;
 
   Animation& animation = m_animations[animationIndex];
 
-  animation.currentTime += deltaTime;
-  if(animation.currentTime > animation.end)
-  {
-    animation.currentTime -= animation.end;
-  }
-
-  if(reset)
-  {
-    animation.currentTime = animation.start;
-  }
-
-  float time = animation.currentTime;
+  float time = animation.info.currentTime;
 
   for(auto& channel : animation.channels)
   {
-    if(channel.node < 0)
+    if(channel.node < 0 || channel.node >= m_model.nodes.size())
       continue;  // Invalid node : probably using KHR_animation_pointer
 
     tinygltf::Node&   tnode   = m_model.nodes[channel.node];
@@ -972,15 +959,14 @@ bool nvh::gltf::Scene::updateAnimation(uint32_t animationIndex, float deltaTime,
 
     for(auto i = 0; i < int(sampler.inputs.size()) - 1; i++)
     {
-      // With reset, use the first keyframe
-      if(reset)
-        time = sampler.inputs[0];
+      float inputStart = sampler.inputs[i];
+      float inputEnd   = sampler.inputs[i + 1];
 
-      if(sampler.inputs[i] <= time && time <= sampler.inputs[i + 1])
+      if(inputStart <= time && time <= inputEnd)
       {
-        float keyDelta = sampler.inputs[i + 1] - sampler.inputs[i];
-        float t        = (time - sampler.inputs[i]) / keyDelta;
-        //t       = std::clamp(t, 0.0f, 1.0f);
+        float keyDelta = inputEnd - inputStart;
+        float t        = (time - inputStart) / keyDelta;
+        t              = std::clamp(t, 0.0f, 1.0f);  // Ensures interpolation stays within the valid range.
 
         animated = true;
 
@@ -1007,22 +993,35 @@ bool nvh::gltf::Scene::updateAnimation(uint32_t animationIndex, float deltaTime,
             }
             case AnimationChannel::PathType::eWeights: {
               {
-                static bool onceFlag = true;
-                if(onceFlag)
+
+                // Retrieve the mesh from the node
+                if(tnode.mesh >= 0)
                 {
-                  LOGE("AnimationChannel::PathType::WEIGHTS not implemented");
-                  onceFlag = false;
+                  tinygltf::Mesh& mesh = m_model.meshes[tnode.mesh];
+
+                  // Make sure the weights vector is resized to match the number of morph targets
+                  if(mesh.weights.size() != sampler.outputsFloat[i].size())
+                  {
+                    mesh.weights.resize(sampler.outputsFloat[i].size());
+                  }
+
+                  // Interpolating between weights for morph targets
+                  for(size_t j = 0; j < mesh.weights.size(); j++)
+                  {
+                    float weight1   = sampler.outputsFloat[i][j];
+                    float weight2   = sampler.outputsFloat[i + 1][j];
+                    mesh.weights[j] = glm::mix(weight1, weight2, t);
+                  }
                 }
                 break;
               }
             }
             case AnimationChannel::PathType::ePointer: {
               {
-                static bool onceFlag = true;
-                if(onceFlag)
+                static std::unordered_set<int> warnedAnimations;
+                if(warnedAnimations.insert(animationIndex).second)
                 {
-                  LOGE("AnimationChannel::PathType::POINTER not implemented");
-                  onceFlag = false;
+                  LOGE("AnimationChannel::PathType::POINTER not implemented for animation %d", animationIndex);
                 }
                 break;
               }

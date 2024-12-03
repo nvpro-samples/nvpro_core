@@ -190,10 +190,31 @@ VkGeometryInstanceFlagsKHR getInstanceFlag(const tinygltf::Material& mat)
   KHR_materials_transmission transmission = tinygltf::utils::getTransmission(mat);
   KHR_materials_volume       volume       = tinygltf::utils::getVolume(mat);
 
+  // Check if the material is opaque, if so, we can skip the anyhit
+  bool isOpaque = false;
+  if(transmission.factor == 0.0f)
+  {
+    if(mat.alphaMode == "OPAQUE")
+    {
+      isOpaque = true;
+    }
+    else
+    {
+      // For blend and mask, check if the texture is opaque
+      if(tinygltf::utils::hasElementName(mat.extensions, KHR_MATERIALS_PBR_SPECULAR_GLOSSINESS_EXTENSION_NAME))
+      {
+        KHR_materials_pbrSpecularGlossiness pbr = tinygltf::utils::getPbrSpecularGlossiness(mat);
+        isOpaque                                = (pbr.diffuseFactor[3] == 1.0F && pbr.diffuseTexture.index == -1);
+      }
+      else
+      {  // Metallic-Roughness
+        isOpaque = (mat.pbrMetallicRoughness.baseColorFactor[3] == 1.0F && mat.pbrMetallicRoughness.baseColorTexture.index == -1);
+      }
+    }
+  }
+
   // Always opaque, no need to use anyhit (faster)
-  if((mat.alphaMode == "OPAQUE"
-      || (mat.pbrMetallicRoughness.baseColorFactor[3] == 1.0F && mat.pbrMetallicRoughness.baseColorTexture.index == -1))
-     && transmission.factor == 0)
+  if(isOpaque)
   {
     instanceFlags |= VK_GEOMETRY_INSTANCE_FORCE_OPAQUE_BIT_KHR;
   }
@@ -328,6 +349,14 @@ void nvvkhl::SceneRtx::updateTopLevelAS(VkCommandBuffer cmd, const nvh::gltf::Sc
 
   // Make sure to have the TLAS ready before using it
   nvvk::accelerationStructureBarrier(cmd, VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR, VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR);
+}
+
+void nvvkhl::SceneRtx::updateBottomLevelAS(VkCommandBuffer cmd, const nvh::gltf::Scene& scene)
+{
+  for(auto& primID : scene.getAnimatedPrimitives())
+  {
+    m_blasBuildData[primID].cmdUpdateAccelerationStructure(cmd, m_blasAccel[primID].accel, m_blasScratchBuffer.address);
+  }
 }
 
 
