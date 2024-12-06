@@ -1195,7 +1195,7 @@ void imguiElementShowButtons(std::vector<T>& elements, std::vector<T>& elementsC
 
     ImGui::BeginDisabled(!elements[elementIndex].isInspected);
 
-    ImGui::PushID(elementIndex);
+    ImGui::PushID(int(elementIndex));
     if(imguiButton(elements[elementIndex].isAllocated ? elements[elementIndex].name.c_str() : "",
                    elements[elementIndex].name, true, elements[elementIndex].show, false, false, LARGE_SQUARE_BUTTON_SIZE))
     {

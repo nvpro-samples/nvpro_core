@@ -203,7 +203,7 @@ inline vec3 cosineSampleHemisphere(float r1, float r2)
 
 See equation 9.13 of https://graphics.stanford.edu/papers/veach_thesis/thesis.pdf.
 @DOC_END */
-float powerHeuristic(float a, float b)
+inline float powerHeuristic(float a, float b)
 {
   const float t = a * a;
   return t / (b * b + t);

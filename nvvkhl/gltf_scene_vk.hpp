@@ -92,11 +92,8 @@ protected:
     std::vector<std::vector<uint8_t>> mipData;
   };
 
-  virtual void createMaterialBuffer(VkCommandBuffer cmd, const std::vector<tinygltf::Material>& materials);
-  virtual void createRenderNodeBuffer(VkCommandBuffer cmd, const nvh::gltf::Scene& scn);
   virtual void createVertexBuffers(VkCommandBuffer cmd, const nvh::gltf::Scene& scn);
   virtual void createTextureImages(VkCommandBuffer cmd, const tinygltf::Model& model, const std::filesystem::path& basedir, bool generateMipmaps);
-  virtual void createLightBuffer(VkCommandBuffer cmd, const nvh::gltf::Scene& scn);
 
   void findSrgbImages(const tinygltf::Model& model);
 

@@ -126,7 +126,7 @@ This value is ad-hoc; it could probably be lowered without issue.
 > From the incoming `material` and `mesh` info, return a `PbrMaterial` struct
 > for the BSDF system.
 @DOC_END */
-PbrMaterial evaluateMaterial(in GltfShadeMaterial material, MeshState mesh)
+PbrMaterial evaluateMaterial(in GltfShadeMaterial material, MeshState state)
 {
   // Material Evaluated
   PbrMaterial pbrMat;
@@ -138,7 +138,7 @@ PbrMaterial evaluateMaterial(in GltfShadeMaterial material, MeshState mesh)
     vec4 baseColor = material.pbrBaseColorFactor;
     if(isTexturePresent(material.pbrBaseColorTexture))
     {
-      baseColor *= getTexture(material.pbrBaseColorTexture, mesh.tc);
+      baseColor *= getTexture(material.pbrBaseColorTexture, state.tc);
     }
     pbrMat.baseColor = baseColor.rgb;
     pbrMat.opacity   = baseColor.a;
@@ -149,7 +149,7 @@ PbrMaterial evaluateMaterial(in GltfShadeMaterial material, MeshState mesh)
     if(isTexturePresent(material.pbrMetallicRoughnessTexture))
     {
       // Roughness is stored in the 'g' channel, metallic is stored in the 'b' channel.
-      vec4 metallicRoughnessSample = getTexture(material.pbrMetallicRoughnessTexture, mesh.tc);
+      vec4 metallicRoughnessSample = getTexture(material.pbrMetallicRoughnessTexture, state.tc);
       roughness *= metallicRoughnessSample.g;
       metallic *= metallicRoughnessSample.b;
     }
@@ -166,12 +166,12 @@ PbrMaterial evaluateMaterial(in GltfShadeMaterial material, MeshState mesh)
 
     if(isTexturePresent(material.pbrDiffuseTexture))
     {
-      diffuse *= getTexture(material.pbrDiffuseTexture, mesh.tc);
+      diffuse *= getTexture(material.pbrDiffuseTexture, state.tc);
     }
 
     if(isTexturePresent(material.pbrSpecularGlossinessTexture))
     {
-      vec4 specularGlossinessSample = getTexture(material.pbrSpecularGlossinessTexture, mesh.tc);
+      vec4 specularGlossinessSample = getTexture(material.pbrSpecularGlossinessTexture, state.tc);
       specular *= specularGlossinessSample.rgb;
       glossiness *= specularGlossinessSample.a;
     }
@@ -184,23 +184,23 @@ PbrMaterial evaluateMaterial(in GltfShadeMaterial material, MeshState mesh)
   pbrMat.occlusion = material.occlusionStrength;
   if(isTexturePresent(material.occlusionTexture))
   {
-    float occlusion  = getTexture(material.occlusionTexture, mesh.tc).r;
+    float occlusion  = getTexture(material.occlusionTexture, state.tc).r;
     pbrMat.occlusion = 1.0 + pbrMat.occlusion * (occlusion - 1.0);
   }
 
   // Normal Map
-  pbrMat.N                = mesh.N;
-  pbrMat.T                = mesh.T;
-  pbrMat.B                = mesh.B;
-  pbrMat.Ng               = mesh.Ng;
+  pbrMat.N                = state.N;
+  pbrMat.T                = state.T;
+  pbrMat.B                = state.B;
+  pbrMat.Ng               = state.Ng;
   bool needsTangentUpdate = false;
 
   if(isTexturePresent(material.normalTexture))
   {
-    mat3 tbn           = mat3(mesh.T, mesh.B, mesh.N);
-    vec3 normal_vector = getTexture(material.normalTexture, mesh.tc).xyz;
+    vec3 normal_vector = getTexture(material.normalTexture, state.tc).xyz;
     normal_vector      = normal_vector * 2.0F - 1.0F;
     normal_vector *= vec3(material.normalTextureScale, material.normalTextureScale, 1.0F);
+    mat3 tbn = mat3(state.T, state.B, state.N);
     pbrMat.N = normalize(tbn * normal_vector);
 
     // Mark that we need to update T and B due to normal perturbation
@@ -211,7 +211,7 @@ PbrMaterial evaluateMaterial(in GltfShadeMaterial material, MeshState mesh)
   pbrMat.emissive = material.emissiveFactor;
   if(isTexturePresent(material.emissiveTexture))
   {
-    pbrMat.emissive *= getTexture(material.emissiveTexture, mesh.tc).rgb;
+    pbrMat.emissive *= getTexture(material.emissiveTexture, state.tc).rgb;
   }
   pbrMat.emissive = max(vec3(0.0F), pbrMat.emissive);
 
@@ -220,20 +220,20 @@ PbrMaterial evaluateMaterial(in GltfShadeMaterial material, MeshState mesh)
   pbrMat.specularColor = material.specularColorFactor;
   if(isTexturePresent(material.specularColorTexture))
   {
-    pbrMat.specularColor *= getTexture(material.specularColorTexture, mesh.tc).rgb;
+    pbrMat.specularColor *= getTexture(material.specularColorTexture, state.tc).rgb;
   }
 
   // KHR_materials_specular
   pbrMat.specular = material.specularFactor;
   if(isTexturePresent(material.specularTexture))
   {
-    pbrMat.specular *= getTexture(material.specularTexture, mesh.tc).a;
+    pbrMat.specular *= getTexture(material.specularTexture, state.tc).a;
   }
 
   // Dielectric Specular
-  float ior1 = 1.0F;                                   // IOR of the current medium (e.g., air)
-  float ior2 = material.ior;                           // IOR of the material
-  if(mesh.isInside && (material.thicknessFactor > 0))  // If the material is thin-walled, we don't need to consider the inside IOR.
+  float ior1 = 1.0F;                                    // IOR of the current medium (e.g., air)
+  float ior2 = material.ior;                            // IOR of the material
+  if(state.isInside && (material.thicknessFactor > 0))  // If the material is thin-walled, we don't need to consider the inside IOR.
   {
     ior1 = material.ior;
     ior2 = 1.0F;
@@ -246,7 +246,7 @@ PbrMaterial evaluateMaterial(in GltfShadeMaterial material, MeshState mesh)
   pbrMat.transmission = material.transmissionFactor;
   if(isTexturePresent(material.transmissionTexture))
   {
-    pbrMat.transmission *= getTexture(material.transmissionTexture, mesh.tc).r;
+    pbrMat.transmission *= getTexture(material.transmissionTexture, state.tc).r;
   }
 
   // KHR_materials_volume
@@ -260,16 +260,16 @@ PbrMaterial evaluateMaterial(in GltfShadeMaterial material, MeshState mesh)
   pbrMat.Nc                 = pbrMat.N;
   if(isTexturePresent(material.clearcoatTexture))
   {
-    pbrMat.clearcoat *= getTexture(material.clearcoatTexture, mesh.tc).r;
+    pbrMat.clearcoat *= getTexture(material.clearcoatTexture, state.tc).r;
   }
   if(isTexturePresent(material.clearcoatRoughnessTexture))
   {
-    pbrMat.clearcoatRoughness *= getTexture(material.clearcoatRoughnessTexture, mesh.tc).g;
+    pbrMat.clearcoatRoughness *= getTexture(material.clearcoatRoughnessTexture, state.tc).g;
   }
   if(isTexturePresent(material.clearcoatNormalTexture))
   {
     mat3 tbn           = mat3(pbrMat.T, pbrMat.B, pbrMat.Nc);
-    vec3 normal_vector = getTexture(material.clearcoatNormalTexture, mesh.tc).xyz;
+    vec3 normal_vector = getTexture(material.clearcoatNormalTexture, state.tc).xyz;
     normal_vector      = normal_vector * 2.0F - 1.0F;
     pbrMat.Nc          = normalize(tbn * normal_vector);
   }
@@ -281,11 +281,11 @@ PbrMaterial evaluateMaterial(in GltfShadeMaterial material, MeshState mesh)
   pbrMat.iridescenceIor      = material.iridescenceIor;
   if(isTexturePresent(material.iridescenceTexture))
   {
-    iridescence *= getTexture(material.iridescenceTexture, mesh.tc).x;
+    iridescence *= getTexture(material.iridescenceTexture, state.tc).x;
   }
   if(isTexturePresent(material.iridescenceThicknessTexture))
   {
-    const float t        = getTexture(material.iridescenceThicknessTexture, mesh.tc).y;
+    const float t        = getTexture(material.iridescenceThicknessTexture, state.tc).y;
     iridescenceThickness = mix(material.iridescenceThicknessMinimum, material.iridescenceThicknessMaximum, t);
   }
   pbrMat.iridescence = (iridescenceThickness > 0.0f) ? iridescence : 0.0f;  // No iridescence when the thickness is zero.
@@ -300,7 +300,7 @@ PbrMaterial evaluateMaterial(in GltfShadeMaterial material, MeshState mesh)
     vec2 anisotropyDirection = vec2(1.0f, 0.0f);  // By default the anisotropy strength is along the tangent.
     if(isTexturePresent(material.anisotropyTexture))
     {
-      const vec4 anisotropyTex = getTexture(material.anisotropyTexture, mesh.tc);
+      const vec4 anisotropyTex = getTexture(material.anisotropyTexture, state.tc);
 
       // .xy encodes the direction in (tangent, bitangent) space. Remap from [0, 1] to [-1, 1].
       anisotropyDirection = normalize(vec2(anisotropyTex) * 2.0f - 1.0f);
@@ -329,7 +329,7 @@ PbrMaterial evaluateMaterial(in GltfShadeMaterial material, MeshState mesh)
   {
     // Ensure T, B, and N are orthonormal
     pbrMat.B            = cross(pbrMat.N, pbrMat.T);
-    float bitangentSign = sign(dot(mesh.B, pbrMat.B));
+    float bitangentSign = sign(dot(state.B, pbrMat.B));
     pbrMat.B            = pbrMat.B * bitangentSign;
     pbrMat.T            = cross(pbrMat.B, pbrMat.N) * bitangentSign;
   }
@@ -338,13 +338,13 @@ PbrMaterial evaluateMaterial(in GltfShadeMaterial material, MeshState mesh)
   pbrMat.sheenColor = material.sheenColorFactor;
   if(isTexturePresent(material.sheenColorTexture))
   {
-    pbrMat.sheenColor *= vec3(getTexture(material.sheenColorTexture, mesh.tc));  // sRGB
+    pbrMat.sheenColor *= vec3(getTexture(material.sheenColorTexture, state.tc));  // sRGB
   }
 
   pbrMat.sheenRoughness = material.sheenRoughnessFactor;
   if(isTexturePresent(material.sheenRoughnessTexture))
   {
-    pbrMat.sheenRoughness *= getTexture(material.sheenRoughnessTexture, mesh.tc).w;
+    pbrMat.sheenRoughness *= getTexture(material.sheenRoughnessTexture, state.tc).w;
   }
   pbrMat.sheenRoughness = max(MICROFACET_MIN_ROUGHNESS, pbrMat.sheenRoughness);
 

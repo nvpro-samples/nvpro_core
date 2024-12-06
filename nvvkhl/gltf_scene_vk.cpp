@@ -42,6 +42,14 @@
 std::vector<nvvkhl_shaders::Light> getShaderLights(const std::vector<nvh::gltf::RenderLight>& rlights,
                                                    const std::vector<tinygltf::Light>&        gltfLights);
 
+// Common buffer creation usage flags
+static auto s_bufferUsageFlag =
+    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT           // Buffer read/write access within shaders, without size limitation
+    | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT  // The buffer can be referred to using its address instead of a binding
+    | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR  // Usage as a data source for acceleration structure builds
+    | VK_BUFFER_USAGE_TRANSFER_DST_BIT                                      // Buffer can be copied into
+    | VK_BUFFER_USAGE_TRANSFER_SRC_BIT;  // Buffer can be copied from (e.g. for inspection)
+
 //-------------------------------------------------------------------------------------------------
 //
 //
@@ -63,11 +71,11 @@ void nvvkhl::SceneVk::create(VkCommandBuffer cmd, const nvh::gltf::Scene& scn, b
 
   namespace fs     = std::filesystem;
   fs::path basedir = fs::path(scn.getFilename()).parent_path();
-  createMaterialBuffer(cmd, scn.getModel().materials);
-  createRenderNodeBuffer(cmd, scn);
+  updateMaterialBuffer(cmd, scn);
+  updateRenderNodesBuffer(cmd, scn);
   createVertexBuffers(cmd, scn);
   createTextureImages(cmd, scn.getModel(), basedir, generateMipmaps);
-  createLightBuffer(cmd, scn);
+  updateRenderLightsBuffer(cmd, scn);
 
   // Buffer references
   nvvkhl_shaders::SceneDescription scene_desc{};
@@ -193,26 +201,11 @@ static nvvkhl_shaders::GltfShadeMaterial getShaderMaterial(const tinygltf::Mater
 //--------------------------------------------------------------------------------------------------
 // Create a buffer of all materials, with only the elements we need
 //
-void nvvkhl::SceneVk::createMaterialBuffer(VkCommandBuffer cmd, const std::vector<tinygltf::Material>& materials)
+void nvvkhl::SceneVk::updateMaterialBuffer(VkCommandBuffer cmd, const nvh::gltf::Scene& scn)
 {
   nvh::ScopedTimer st(__FUNCTION__);
 
   using namespace tinygltf;
-
-  std::vector<nvvkhl_shaders::GltfShadeMaterial> shade_materials;
-  shade_materials.reserve(materials.size());
-  for(const auto& srcMat : materials)
-  {
-    shade_materials.emplace_back(getShaderMaterial(srcMat));
-  }
-
-  m_bMaterial = m_alloc->createBuffer(cmd, shade_materials,
-                                      VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);
-  m_dutil->DBG_NAME(m_bMaterial.buffer);
-}
-
-void nvvkhl::SceneVk::updateMaterialBuffer(VkCommandBuffer cmd, const nvh::gltf::Scene& scn)
-{
   const std::vector<tinygltf::Material>& materials = scn.getModel().materials;
 
   std::vector<nvvkhl_shaders::GltfShadeMaterial> shade_materials;
@@ -221,10 +214,19 @@ void nvvkhl::SceneVk::updateMaterialBuffer(VkCommandBuffer cmd, const nvh::gltf:
   {
     shade_materials.emplace_back(getShaderMaterial(srcMat));
   }
-  m_alloc->getStaging()->cmdToBuffer(cmd, m_bMaterial.buffer, 0, shade_materials.size() * sizeof(nvvkhl_shaders::GltfShadeMaterial),
-                                     shade_materials.data());
-}
 
+  if(m_bMaterial.buffer == VK_NULL_HANDLE)
+  {
+    m_bMaterial = m_alloc->createBuffer(cmd, shade_materials,
+                                        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);
+    m_dutil->DBG_NAME(m_bMaterial.buffer);
+  }
+  else
+  {
+    m_alloc->getStaging()->cmdToBuffer(cmd, m_bMaterial.buffer, 0, shade_materials.size() * sizeof(nvvkhl_shaders::GltfShadeMaterial),
+                                       shade_materials.data());
+  }
+}
 
 // Function to blend positions of a primitive with morph targets
 std::vector<glm::vec3> getBlendedPositions(const tinygltf::Accessor&  baseAccessor,
@@ -246,15 +248,15 @@ std::vector<glm::vec3> getBlendedPositions(const tinygltf::Accessor&  baseAccess
       continue;  // Skip this morph target if its weight is zero
 
     // Get the morph target attribute (e.g., POSITION)
-    if(primitive.targets[targetIndex].find("POSITION") != primitive.targets[targetIndex].end())
+    const auto& findResult = primitive.targets[targetIndex].find("POSITION");
+    if(findResult != primitive.targets[targetIndex].end())
     {
-      const tinygltf::Accessor&   morphAccessor   = model.accessors[primitive.targets[targetIndex].at("POSITION")];
-      const tinygltf::BufferView& morphView       = model.bufferViews[morphAccessor.bufferView];
-      const glm::vec3*            morphTargetData = reinterpret_cast<const glm::vec3*>(
-          &(model.buffers[morphView.buffer].data[morphAccessor.byteOffset + morphView.byteOffset]));
+      const tinygltf::Accessor& morphAccessor = model.accessors[findResult->second];
+      std::vector<glm::vec3>    tempStorage;
+      const std::span<const glm::vec3> morphTargetData = tinygltf::utils::getAccessorData2(model, morphAccessor, tempStorage);
 
       // Apply the morph target offset in parallel, scaled by the corresponding weight
-      uint32_t numThreads = std::min((uint32_t)blendedPositions.size(), std::thread::hardware_concurrency());
+      uint32_t numThreads = std::thread::hardware_concurrency();
       nvh::parallel_batches(
           blendedPositions.size(), [&](uint64_t v) { blendedPositions[v] += weight * morphTargetData[v]; }, numThreads);
     }
@@ -266,7 +268,7 @@ std::vector<glm::vec3> getBlendedPositions(const tinygltf::Accessor&  baseAccess
 //--------------------------------------------------------------------------------------------------
 // Array of instance information
 // - Use by the vertex shader to retrieve the position of the instance
-void nvvkhl::SceneVk::createRenderNodeBuffer(VkCommandBuffer cmd, const nvh::gltf::Scene& scn)
+void nvvkhl::SceneVk::updateRenderNodesBuffer(VkCommandBuffer cmd, const nvh::gltf::Scene& scn)
 {
   nvh::ScopedTimer st(__FUNCTION__);
 
@@ -280,40 +282,38 @@ void nvvkhl::SceneVk::createRenderNodeBuffer(VkCommandBuffer cmd, const nvh::glt
     info.renderPrimID  = obj.renderPrimID;
     inst_info.emplace_back(info);
   }
-  m_bRenderNode = m_alloc->createBuffer(cmd, inst_info, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);
-  m_dutil->DBG_NAME(m_bRenderNode.buffer);
-}
-
-//--------------------------------------------------------------------------------------------------
-// Update the buffer of all render nodes (transform, material, primitive)
-void nvvkhl::SceneVk::updateRenderNodesBuffer(VkCommandBuffer cmd, const nvh::gltf::Scene& scn)
-{
-  // nvh::ScopedTimer st(__FUNCTION__);
-
-  std::vector<nvvkhl_shaders::RenderNode> nodesInfo;
-  nodesInfo.reserve(scn.getRenderNodes().size());
-  for(const nvh::gltf::RenderNode& obj : scn.getRenderNodes())
+  if(m_bRenderNode.buffer == VK_NULL_HANDLE)
   {
-    nvvkhl_shaders::RenderNode info{};
-    info.objectToWorld = obj.worldMatrix;
-    info.worldToObject = glm::inverse(obj.worldMatrix);
-    info.materialID    = obj.materialID;
-    info.renderPrimID  = obj.renderPrimID;
-    nodesInfo.emplace_back(info);
+    m_bRenderNode = m_alloc->createBuffer(cmd, inst_info, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);
+    m_dutil->DBG_NAME(m_bRenderNode.buffer);
   }
-  m_alloc->getStaging()->cmdToBuffer(cmd, m_bRenderNode.buffer, 0,
-                                     nodesInfo.size() * sizeof(nvvkhl_shaders::RenderNode), nodesInfo.data());
+  else
+  {
+    m_alloc->getStaging()->cmdToBuffer(cmd, m_bRenderNode.buffer, 0,
+                                       inst_info.size() * sizeof(nvvkhl_shaders::RenderNode), inst_info.data());
+  }
 }
+
 
 //--------------------------------------------------------------------------------------------------
 // Update the buffer of all lights
 // - If the light data was changes, the buffer needs to be updated
 void nvvkhl::SceneVk::updateRenderLightsBuffer(VkCommandBuffer cmd, const nvh::gltf::Scene& scn)
 {
-  std::vector<nvvkhl_shaders::Light> shaderLights = getShaderLights(scn.getRenderLights(), scn.getModel().lights);
-  if(shaderLights.size() > 0)
+  const std::vector<nvh::gltf::RenderLight>& rlights = scn.getRenderLights();
+  if(rlights.empty())
+    return;
+
+  std::vector<nvvkhl_shaders::Light> shaderLights = getShaderLights(rlights, scn.getModel().lights);
+
+  if(m_bLights.buffer == VK_NULL_HANDLE)
   {
-    m_alloc->getStaging()->cmdToBuffer(cmd, m_bLights.buffer, 0, shaderLights.size() * sizeof(nvvkhl_shaders::Light),
+    m_bLights = m_alloc->createBuffer(cmd, shaderLights, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);
+    m_dutil->setObjectName(m_bLights.buffer, "Lights");
+  }
+  else
+  {
+    m_alloc->getStaging()->cmdToBuffer(cmd, m_bLights.buffer, 0, sizeof(nvvkhl_shaders::Light) * shaderLights.size(),
                                        shaderLights.data());
   }
 }
@@ -325,59 +325,52 @@ void nvvkhl::SceneVk::updateRenderPrimitivesBuffer(VkCommandBuffer cmd, const nv
 {
   for(int renderPrimID : scn.getAnimatedPrimitives())
   {
-    const nvh::gltf::RenderPrimitive& renderPrimitive = scn.getRenderPrimitive(renderPrimID);
-    const tinygltf::Primitive&        primitive       = renderPrimitive.primitive;
-    const tinygltf::Mesh&             mesh            = scn.getModel().meshes[renderPrimitive.meshID];
+    const nvh::gltf::RenderPrimitive& renderPrimitive  = scn.getRenderPrimitive(renderPrimID);
+    const tinygltf::Primitive&        primitive        = *renderPrimitive.pPrimitive;
+    const tinygltf::Mesh&             mesh             = scn.getModel().meshes[renderPrimitive.meshID];
+    const tinygltf::Model&            model            = scn.getModel();
+    const tinygltf::Accessor&         positionAccessor = model.accessors[primitive.attributes.at("POSITION")];
+    std::vector<glm::vec3>            tempStorage;
+    const std::span<const glm::vec3> positionData = tinygltf::utils::getAccessorData2(model, positionAccessor, tempStorage);
 
-    if(!primitive.targets.empty() && !mesh.weights.empty())
-    {
-      const tinygltf::Model&      model              = scn.getModel();
-      const tinygltf::Accessor&   positionAccessor   = model.accessors[primitive.attributes.at("POSITION")];
-      const tinygltf::BufferView& positionBufferView = model.bufferViews[positionAccessor.bufferView];
-      const glm::vec3*            positionData       = reinterpret_cast<const glm::vec3*>(
-          &(model.buffers[positionBufferView.buffer].data[positionAccessor.byteOffset + positionBufferView.byteOffset]));
+    // Get blended position
+    std::vector<glm::vec3> blendedPositions = getBlendedPositions(positionAccessor, positionData.data(), primitive, mesh, model);
 
-      // Get blended position
-      std::vector<glm::vec3> blendedPositions = getBlendedPositions(positionAccessor, positionData, primitive, mesh, model);
-
-      // Update buffer
-      VertexBuffers& vertexBuffers = m_vertexBuffers[renderPrimID];
-      m_alloc->getStaging()->cmdToBuffer(cmd, vertexBuffers.position.buffer, 0,
-                                         sizeof(glm::vec3) * positionAccessor.count, blendedPositions.data());
-    }
+    // Update buffer
+    VertexBuffers& vertexBuffers = m_vertexBuffers[renderPrimID];
+    m_alloc->getStaging()->cmdToBuffer(cmd, vertexBuffers.position.buffer, 0,
+                                       sizeof(glm::vec3) * positionAccessor.count, blendedPositions.data());
   }
 }
 
 // Function to create attribute buffers in Vulkan only if the attribute is present
+// Return true if a buffer was created, false if the buffer was updated
 template <typename T>
-void createAttributeBuffer(VkCommandBuffer            cmd,            // Command buffer to record the copy
+bool updateAttributeBuffer(VkCommandBuffer            cmd,            // Command buffer to record the copy
                            const std::string&         attributeName,  // Name of the attribute: POSITION, NORMAL, ...
                            const tinygltf::Model&     model,          // GLTF model
                            const tinygltf::Primitive& primitive,      // GLTF primitive
                            nvvk::ResourceAllocator*   alloc,          // Allocator to create the buffer
-                           int                        usageFlag,      // Usage of the buffer
                            nvvk::Buffer&              attributeBuffer)             // Buffer to be created
 {
-  if(primitive.attributes.find(attributeName) != primitive.attributes.end())
+  const auto& findResult = primitive.attributes.find(attributeName);
+  if(findResult != primitive.attributes.end())
   {
-    const tinygltf::Accessor&   accessor = model.accessors[primitive.attributes.at(attributeName)];
-    const tinygltf::BufferView& view     = model.bufferViews[accessor.bufferView];
+    const tinygltf::Accessor& accessor = model.accessors[findResult->second];
+    std::vector<T>            tempStorage;
+    const std::span<const T>  data = tinygltf::utils::getAccessorData2(model, accessor, tempStorage);
 
-    // The most common case is that the buffer is directly readable as T
-    if((view.byteStride == 0 || view.byteStride == sizeof(T)) && !accessor.sparse.isSparse)
+    if(attributeBuffer.buffer == VK_NULL_HANDLE)
     {
-      const float* bufferData =
-          reinterpret_cast<const float*>(&(model.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
-      attributeBuffer = alloc->createBuffer(cmd, sizeof(T) * accessor.count, bufferData, usageFlag);
+      attributeBuffer = alloc->createBuffer(cmd, data.size_bytes(), data.data(), s_bufferUsageFlag);
+      return true;
     }
     else
     {
-      // Get accessor data will make a copy of the data, the way we need it
-      std::vector<T> tempData;
-      tinygltf::utils::getAccessorData(model, accessor, tempData);
-      attributeBuffer = alloc->createBuffer(cmd, tempData, usageFlag);
+      alloc->getStaging()->cmdToBuffer(cmd, attributeBuffer.buffer, 0, data.size_bytes(), data.data());
     }
   }
+  return false;
 }
 
 void createBlendedPositionBuffer(VkCommandBuffer            cmd,        // Command buffer to record the copy
@@ -385,68 +378,24 @@ void createBlendedPositionBuffer(VkCommandBuffer            cmd,        // Comma
                                  const tinygltf::Primitive& primitive,  // GLTF primitive
                                  const tinygltf::Mesh&      mesh,       // GLTF mesh containing weights
                                  nvvk::ResourceAllocator*   alloc,      // Allocator to create buffer
-                                 int                        usageFlag,  // Usage of the buffer
                                  nvvk::Buffer&              blendedBuffer)           // Output buffer
 {
-  const std::string baseAttributeName = "POSITION";
+  auto usageFlag = s_bufferUsageFlag | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;  // Used for vertex input
 
-  usageFlag |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-
-  // Step 1: Retrieve the base position attribute
-  if(primitive.attributes.find("POSITION") == primitive.attributes.end())
-  {
-    throw std::runtime_error("Base position attribute not found!");
-  }
-
-  const tinygltf::Accessor&   baseAccessor = model.accessors[primitive.attributes.at("POSITION")];
-  const tinygltf::BufferView& baseView     = model.bufferViews[baseAccessor.bufferView];
-  const glm::vec3*            basePositionData =
-      reinterpret_cast<const glm::vec3*>(&(model.buffers[baseView.buffer].data[baseAccessor.byteOffset + baseView.byteOffset]));
-
+  const tinygltf::Accessor& baseAccessor = model.accessors[primitive.attributes.at("POSITION")];
+  std::vector<glm::vec3>    tempStorage;
+  const std::span<const glm::vec3> basePositionData = tinygltf::utils::getAccessorData2(model, baseAccessor, tempStorage);
 
   // Check if there are morph targets to blend
   if(!primitive.targets.empty() && !mesh.weights.empty())
   {
-    std::vector<glm::vec3> blendedPositions = getBlendedPositions(baseAccessor, basePositionData, primitive, mesh, model);
+    std::vector<glm::vec3> blendedPositions = getBlendedPositions(baseAccessor, basePositionData.data(), primitive, mesh, model);
 
-    // Step 4: Create a Vulkan buffer for the blended positions
     blendedBuffer = alloc->createBuffer(cmd, blendedPositions, usageFlag);
   }
   else
   {
-    blendedBuffer = alloc->createBuffer(cmd, sizeof(glm::vec3) * baseAccessor.count, basePositionData, usageFlag);
-  }
-}
-
-
-// Function to update attribute buffers in Vulkan only if the attribute is present
-template <typename T>
-void updateAttributeBuffer(const std::string&         attributeName,  // Name of the attribute: POSITION, NORMAL, ...
-                           const tinygltf::Model&     model,          // GLTF model
-                           const tinygltf::Primitive& primitive,      // GLTF primitive
-                           VkCommandBuffer            cmd,            // Command buffer to record the copy
-                           nvvk::ResourceAllocator*   alloc,          // Allocator to create the buffer
-                           nvvk::Buffer&              attributeBuffer)             // Buffer to be created
-{
-  if(primitive.attributes.find(attributeName) != primitive.attributes.end())
-  {
-    const tinygltf::Accessor&   accessor = model.accessors[primitive.attributes.at(attributeName)];
-    const tinygltf::BufferView& view     = model.bufferViews[accessor.bufferView];
-
-    // The most common case is that the buffer is directly readable as T
-    if((view.byteStride == 0 || view.byteStride == sizeof(T)) && !accessor.sparse.isSparse)
-    {
-      const float* bufferData =
-          reinterpret_cast<const float*>(&(model.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
-      alloc->getStaging()->cmdToBuffer(cmd, attributeBuffer.buffer, 0, sizeof(T) * accessor.count, bufferData);
-    }
-    else
-    {
-      // Get accessor data will make a copy of the data, the way we need it
-      std::vector<T> tempData;
-      tinygltf::utils::getAccessorData(model, accessor, tempData);
-      alloc->getStaging()->cmdToBuffer(cmd, attributeBuffer.buffer, 0, sizeof(T) * accessor.count, tempData.data());
-    }
+    blendedBuffer = alloc->createBuffer(cmd, basePositionData.size_bytes(), basePositionData.data(), usageFlag);
   }
 }
 
@@ -465,12 +414,6 @@ void nvvkhl::SceneVk::createVertexBuffers(VkCommandBuffer cmd, const nvh::gltf::
 
   std::vector<nvvkhl_shaders::RenderPrimitive> renderPrim;  // The array of all primitive information
 
-  auto usageFlag = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT  // Buffer read/write access within shaders, without size limitation
-                   | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT  // The buffer can be referred to using its address instead of a binding
-                   | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR  // Usage as a data source for acceleration structure builds
-                   | VK_BUFFER_USAGE_TRANSFER_DST_BIT                                      // Buffer can be copied into
-                   | VK_BUFFER_USAGE_TRANSFER_SRC_BIT;  // Buffer can be copied from (e.g. for inspection)
-
 
   size_t numUniquePrimitive = scene.getNumRenderPrimitives();
   m_bIndices.resize(numUniquePrimitive);
@@ -479,16 +422,16 @@ void nvvkhl::SceneVk::createVertexBuffers(VkCommandBuffer cmd, const nvh::gltf::
 
   for(size_t primID = 0; primID < scene.getNumRenderPrimitives(); primID++)
   {
-    const tinygltf::Primitive& primitive     = scene.getRenderPrimitive(primID).primitive;
+    const tinygltf::Primitive& primitive     = *scene.getRenderPrimitive(primID).pPrimitive;
     const tinygltf::Mesh&      mesh          = model.meshes[scene.getRenderPrimitive(primID).meshID];
     VertexBuffers&             vertexBuffers = m_vertexBuffers[primID];
 
-    createBlendedPositionBuffer(cmd, model, primitive, mesh, m_alloc, usageFlag, vertexBuffers.position);
+    createBlendedPositionBuffer(cmd, model, primitive, mesh, m_alloc, vertexBuffers.position);
 
-    createAttributeBuffer<glm::vec3>(cmd, "NORMAL", model, primitive, m_alloc, usageFlag, vertexBuffers.normal);
-    createAttributeBuffer<glm::vec2>(cmd, "TEXCOORD_0", model, primitive, m_alloc, usageFlag, vertexBuffers.texCoord0);
-    createAttributeBuffer<glm::vec2>(cmd, "TEXCOORD_1", model, primitive, m_alloc, usageFlag, vertexBuffers.texCoord1);
-    createAttributeBuffer<glm::vec4>(cmd, "TANGENT", model, primitive, m_alloc, usageFlag, vertexBuffers.tangent);
+    updateAttributeBuffer<glm::vec3>(cmd, "NORMAL", model, primitive, m_alloc, vertexBuffers.normal);
+    updateAttributeBuffer<glm::vec2>(cmd, "TEXCOORD_0", model, primitive, m_alloc, vertexBuffers.texCoord0);
+    updateAttributeBuffer<glm::vec2>(cmd, "TEXCOORD_1", model, primitive, m_alloc, vertexBuffers.texCoord1);
+    updateAttributeBuffer<glm::vec4>(cmd, "TANGENT", model, primitive, m_alloc, vertexBuffers.tangent);
 
     if(tinygltf::utils::hasElementName(primitive.attributes, "COLOR_0"))
     {
@@ -518,7 +461,7 @@ void nvvkhl::SceneVk::createVertexBuffers(VkCommandBuffer cmd, const nvh::gltf::
         assert(!"Unknown color type");
       }
 
-      vertexBuffers.color = m_alloc->createBuffer(cmd, tempIntData, usageFlag);
+      vertexBuffers.color = m_alloc->createBuffer(cmd, tempIntData, s_bufferUsageFlag);
     }
 
     // Debug name
@@ -540,35 +483,9 @@ void nvvkhl::SceneVk::createVertexBuffers(VkCommandBuffer cmd, const nvh::gltf::
     std::vector<uint32_t> indexBuffer;
     if(primitive.indices > -1)
     {
-      const tinygltf::Accessor&   accessor   = model.accessors[primitive.indices];
-      const tinygltf::BufferView& bufferView = model.bufferViews[accessor.bufferView];
-      const tinygltf::Buffer&     buffer     = model.buffers[bufferView.buffer];
-      assert(accessor.sparse.isSparse == false);
-      indexBuffer.resize(accessor.count);
-      switch(accessor.componentType)
-      {
-        case TINYGLTF_PARAMETER_TYPE_UNSIGNED_INT: {
-          const uint32_t* buf = reinterpret_cast<const uint32_t*>(&buffer.data[accessor.byteOffset + bufferView.byteOffset]);
-          std::memcpy(indexBuffer.data(), buf, accessor.count * sizeof(uint32_t));
-          break;
-        }
-        case TINYGLTF_PARAMETER_TYPE_UNSIGNED_SHORT: {
-          const uint16_t* buf = reinterpret_cast<const uint16_t*>(&buffer.data[accessor.byteOffset + bufferView.byteOffset]);
-          for(size_t index = 0; index < accessor.count; index++)
-          {
-            indexBuffer[index] = buf[index];
-          }
-          break;
-        }
-        case TINYGLTF_PARAMETER_TYPE_UNSIGNED_BYTE: {
-          const uint8_t* buf = reinterpret_cast<const uint8_t*>(&buffer.data[accessor.byteOffset + bufferView.byteOffset]);
-          for(size_t index = 0; index < accessor.count; index++)
-          {
-            indexBuffer[index] = buf[index];
-          }
-          break;
-        }
-      }
+      const tinygltf::Accessor& accessor      = model.accessors[primitive.indices];
+      bool                      copySucceeded = tinygltf::utils::getAccessorData(model, accessor, indexBuffer);
+      assert(copySucceeded);
     }
     else
     {  // Primitive without indices, creating them
@@ -581,7 +498,7 @@ void nvvkhl::SceneVk::createVertexBuffers(VkCommandBuffer cmd, const nvh::gltf::
 
     // Creating the buffer for the indices
     nvvk::Buffer& i_buffer = m_bIndices[primID];
-    i_buffer               = m_alloc->createBuffer(cmd, indexBuffer, usageFlag | VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+    i_buffer = m_alloc->createBuffer(cmd, indexBuffer, s_bufferUsageFlag | VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
     m_dutil->DBG_NAME_IDX(i_buffer.buffer, primID);
 
     // Filling the primitive information
@@ -598,7 +515,7 @@ void nvvkhl::SceneVk::createVertexBuffers(VkCommandBuffer cmd, const nvh::gltf::
   }
 
   // Creating the buffer of all primitive information
-  m_bRenderPrim = m_alloc->createBuffer(cmd, renderPrim, usageFlag);
+  m_bRenderPrim = m_alloc->createBuffer(cmd, renderPrim, s_bufferUsageFlag);
   m_dutil->DBG_NAME(m_bRenderPrim.buffer);
 
   // Barrier to make sure the data is in the GPU
@@ -616,13 +533,29 @@ void nvvkhl::SceneVk::updateVertexBuffers(VkCommandBuffer cmd, const nvh::gltf::
 
   for(size_t primID = 0; primID < scene.getNumRenderPrimitives(); primID++)
   {
-    const tinygltf::Primitive& primitive     = scene.getRenderPrimitive(primID).primitive;
+    const tinygltf::Primitive& primitive     = *scene.getRenderPrimitive(primID).pPrimitive;
     VertexBuffers&             vertexBuffers = m_vertexBuffers[primID];
-    updateAttributeBuffer<glm::vec3>("POSITION", model, primitive, cmd, m_alloc, vertexBuffers.position);
-    updateAttributeBuffer<glm::vec3>("NORMAL", model, primitive, cmd, m_alloc, vertexBuffers.normal);
-    updateAttributeBuffer<glm::vec2>("TEXCOORD_0", model, primitive, cmd, m_alloc, vertexBuffers.texCoord0);
-    updateAttributeBuffer<glm::vec2>("TEXCOORD_1", model, primitive, cmd, m_alloc, vertexBuffers.texCoord1);
-    updateAttributeBuffer<glm::vec4>("TANGENT", model, primitive, cmd, m_alloc, vertexBuffers.tangent);
+    bool                       newBuffer     = false;
+    updateAttributeBuffer<glm::vec3>(cmd, "POSITION", model, primitive, m_alloc, vertexBuffers.position);
+    newBuffer |= updateAttributeBuffer<glm::vec3>(cmd, "NORMAL", model, primitive, m_alloc, vertexBuffers.normal);
+    newBuffer |= updateAttributeBuffer<glm::vec2>(cmd, "TEXCOORD_0", model, primitive, m_alloc, vertexBuffers.texCoord0);
+    newBuffer |= updateAttributeBuffer<glm::vec2>(cmd, "TEXCOORD_1", model, primitive, m_alloc, vertexBuffers.texCoord1);
+    newBuffer |= updateAttributeBuffer<glm::vec4>(cmd, "TANGENT", model, primitive, m_alloc, vertexBuffers.tangent);
+
+    // A buffer was created (most likely tangent buffer), we need to update the RenderPrimitive buffer
+    if(newBuffer)
+    {
+      nvvkhl_shaders::RenderPrimitive renderPrim{};  // The array of all primitive information
+      renderPrim.indexAddress                  = m_bIndices[primID].address;
+      renderPrim.vertexBuffer.positionAddress  = vertexBuffers.position.address;
+      renderPrim.vertexBuffer.normalAddress    = vertexBuffers.normal.address;
+      renderPrim.vertexBuffer.tangentAddress   = vertexBuffers.tangent.address;
+      renderPrim.vertexBuffer.texCoord0Address = vertexBuffers.texCoord0.address;
+      renderPrim.vertexBuffer.texCoord1Address = vertexBuffers.texCoord1.address;
+      renderPrim.vertexBuffer.colorAddress     = vertexBuffers.color.address;
+      m_alloc->getStaging()->cmdToBuffer(cmd, m_bRenderPrim.buffer, sizeof(nvvkhl_shaders::RenderPrimitive) * primID,
+                                         sizeof(nvvkhl_shaders::RenderPrimitive), &renderPrim);
+    }
   }
 }
 
@@ -1068,18 +1001,6 @@ bool nvvkhl::SceneVk::createImage(const VkCommandBuffer& cmd, SceneImage& image,
   image = {result_image, image_create_info, image.srgb, image.imgName};
 
   return true;
-}
-
-void nvvkhl::SceneVk::createLightBuffer(VkCommandBuffer cmd, const nvh::gltf::Scene& scn)
-{
-  const std::vector<nvh::gltf::RenderLight>& rlights = scn.getRenderLights();
-  if(rlights.empty())
-    return;
-
-  std::vector<nvvkhl_shaders::Light> shaderLights = getShaderLights(rlights, scn.getModel().lights);
-
-  m_bLights = m_alloc->createBuffer(cmd, shaderLights, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);
-  m_dutil->setObjectName(m_bLights.buffer, "Lights");
 }
 
 std::vector<nvvkhl_shaders::Light> getShaderLights(const std::vector<nvh::gltf::RenderLight>& renderlights,

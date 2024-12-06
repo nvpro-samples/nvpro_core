@@ -464,7 +464,6 @@ Returns:
 @DOC_END */
 size_t getIndexCount(const tinygltf::Model& model, const tinygltf::Primitive& primitive);
 
-
 /* @DOC_START
 ## Function `hasElementName<MapType>`
 > Check if the map has the specified element.
@@ -510,10 +509,9 @@ std::span<const glm::vec3> positions = tinygltf::utils::getBufferDataSpan<glm::v
 ```
 @DOC_END */
 template <typename T>
-std::span<const T> getBufferDataSpan(const tinygltf::Model& model, int accessorIndex)
+std::span<const T> getBufferDataSpan(const tinygltf::Model& model, const tinygltf::Accessor& accessor)
 {
-  const tinygltf::Accessor&   accessor = model.accessors[accessorIndex];
-  const tinygltf::BufferView& view     = model.bufferViews[accessor.bufferView];
+  const tinygltf::BufferView& view = model.bufferViews[accessor.bufferView];
   assert(view.byteStride == 0 || view.byteStride == sizeof(T));  // Not supporting stride
                                                                  // Add assertions based on the type
   if constexpr(std::is_same<T, glm::vec2>::value)
@@ -555,6 +553,12 @@ std::span<const T> getBufferDataSpan(const tinygltf::Model& model, int accessorI
 
   const T* bufferData = reinterpret_cast<const T*>(&model.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]);
   return std::span<const T>(bufferData, accessor.count);
+}
+
+template <typename T>
+std::span<const T> getBufferDataSpan(const tinygltf::Model& model, int accessorIndex)
+{
+  return getBufferDataSpan<T>(model, model.accessors[accessorIndex]);
 }
 
 
@@ -758,10 +762,10 @@ void copyAccessorData(std::vector<T>&           outData,
 
 /* @DOC_START
 ## Function `getAccessorData<T>`
-> Appends all the values of `accessor` to `attribVec`.
+> Appends all the values of `accessor` to `attribVec`, with conversion to type `T`.
 
 Returns `false` if the accessor is invalid.
-`T` must be `glm::vec2`, `glm::vec3`, or `glm::vec4`.
+`T` must be `uint32_t`, `glm::vec2`, `glm::vec3`, or `glm::vec4`.
 @DOC_END */
 template <typename T>
 inline bool getAccessorData(const tinygltf::Model& tmodel, const tinygltf::Accessor& accessor, std::vector<T>& attribVec)
@@ -772,22 +776,30 @@ inline bool getAccessorData(const tinygltf::Model& tmodel, const tinygltf::Acces
   const size_t oldNumElements = attribVec.size();
   attribVec.resize(oldNumElements + nbElems);
 
+  // Are we copying to a uint32_t type or to a vector of floats?
+  constexpr bool toU32             = std::is_same_v<T, uint32_t>;
+  constexpr int  gltfComponentType = (toU32 ? TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT : TINYGLTF_COMPONENT_TYPE_FLOAT);
+  using ScalarType                 = std::conditional_t<toU32, uint32_t, float>;
+  // 1, 2, 3, 4 for scalar, VEC2, VEC3, VEC4
+  constexpr int nbComponents = sizeof(T) / sizeof(ScalarType);
+  // This depends on how TINYGLTF_TYPE_VEC{n} == n.
+  constexpr int gltfTyoe = (toU32 ? TINYGLTF_TYPE_SCALAR : static_cast<int>(nbComponents));
+  if(accessor.type != gltfTyoe)
+  {
+    return false;  // Invalid
+  }
+
   // Copying the attributes
-  if(accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT)
+  if(accessor.componentType == gltfComponentType)
   {
     copyAccessorData<T>(attribVec, oldNumElements, tmodel, accessor, 0, accessor.count);
   }
   else
   {
-    // The component is smaller than float and need to be converted
+    // The component is smaller than 32 bits and needs to be converted
     const auto&          bufView    = tmodel.bufferViews[accessor.bufferView];
     const auto&          buffer     = tmodel.buffers[bufView.buffer];
     const unsigned char* bufferByte = &buffer.data[accessor.byteOffset + bufView.byteOffset];
-
-    // 2, 3, 4 for VEC2, VEC3, VEC4
-    const int nbComponents = tinygltf::GetNumComponentsInType(accessor.type);
-    if(nbComponents == -1)
-      return false;  // Invalid
 
     // Stride per element
     const size_t byteStride = accessor.ByteStride(bufView);
@@ -806,36 +818,47 @@ inline bool getAccessorData(const tinygltf::Model& tmodel, const tinygltf::Acces
 
       for(int c = 0; c < nbComponents; c++)
       {
+        ScalarType v{};
+
         switch(accessor.componentType)
         {
           case TINYGLTF_COMPONENT_TYPE_BYTE:
-            vecValue[c] = float(*(reinterpret_cast<const char*>(pElement) + c));
-            if(accessor.normalized)
+            v = static_cast<ScalarType>(*(reinterpret_cast<const char*>(pElement) + c));
+            if(!toU32 && accessor.normalized)
             {
-              vecValue[c] = std::max(vecValue[c] / 127.f, -1.f);
+              v = std::max(v / 127.f, -1.f);
             }
             break;
           case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
-            vecValue[c] = float(*(reinterpret_cast<const unsigned char*>(pElement) + c));
-            if(accessor.normalized)
+            v = static_cast<ScalarType>(*(reinterpret_cast<const unsigned char*>(pElement) + c));
+            if(!toU32 && accessor.normalized)
             {
-              vecValue[c] = vecValue[c] / 255.f;
+              v = v / 255.f;
             }
             break;
           case TINYGLTF_COMPONENT_TYPE_SHORT:
-            vecValue[c] = float(*(reinterpret_cast<const short*>(pElement) + c));
-            if(accessor.normalized)
+            v = static_cast<ScalarType>(*(reinterpret_cast<const short*>(pElement) + c));
+            if(!toU32 && accessor.normalized)
             {
-              vecValue[c] = std::max(vecValue[c] / 32767.f, -1.f);
+              v = std::max(v / 32767.f, -1.f);
             }
             break;
           case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
-            vecValue[c] = float(*(reinterpret_cast<const unsigned short*>(pElement) + c));
-            if(accessor.normalized)
+            v = static_cast<ScalarType>(*(reinterpret_cast<const unsigned short*>(pElement) + c));
+            if(!toU32 && accessor.normalized)
             {
-              vecValue[c] = vecValue[c] / 65535.f;
+              v = v / 65535.f;
             }
             break;
+        }
+
+        if constexpr(nbComponents == 1)
+        {
+          vecValue = v;
+        }
+        else
+        {
+          vecValue[c] = v;
         }
       }
 
@@ -851,6 +874,42 @@ inline bool getAccessorData(const tinygltf::Model& tmodel, const tinygltf::Acces
   }
 
   return true;
+}
+
+/* @DOC_START
+## Function `getAccessorData2<T>`
+> Returns a span with all the values of `accessor`.
+
+This is like `getAccessorData<T>`, except it has a fast path if it can use the
+buffer's data directly.
+
+If the values needed conversion, re-packing, or had a sparse accessor, uses
+the provided std::vector for storage. This vector must remain alive as long as
+the pointer is in use.
+
+Returns a span with nullptr data and 0 length if the accessor is invalid.
+`T` must be `glm::vec2`, `glm::vec3`, or `glm::vec4`.
+@DOC_END */
+template <typename T>
+inline std::span<const T> getAccessorData2(const tinygltf::Model& tmodel, const tinygltf::Accessor& accessor, std::vector<T>& storage)
+{
+  const auto& bufferView = tmodel.bufferViews[accessor.bufferView];
+  // Fast path: Can we return a pointer to the buffer directly?
+  if((accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT)              // Must not require conversion
+     && (bufferView.byteStride == 0 || bufferView.byteStride == sizeof(T))  // Must not require re-packing
+     && !accessor.sparse.isSparse)                                          // Must not be sparse
+  {
+    return getBufferDataSpan<T>(tmodel, accessor);
+  }
+  else
+  {
+    const bool ok = getAccessorData<T>(tmodel, accessor, storage);
+    if(!ok)
+    {
+      return {};
+    }
+    return std::span<const T>(storage.data(), storage.size());
+  }
 }
 
 
@@ -954,6 +1013,42 @@ node B would not be visible due to node A.
 @DOC_END */
 KHR_node_visibility getNodeVisibility(const tinygltf::Node& node);
 void                setNodeVisibility(tinygltf::Node& node, const KHR_node_visibility& visibility);
+
+
+/* @DOC_START
+## Function `getIndex`
+  Return the index of the vertex in the buffer
+@DOC_END */
+int32_t getIndex(const tinygltf::Model& model, const tinygltf::Primitive& primitive, const int32_t offset);
+
+/* @DOC_START
+## Function `getAttributeData`
+ Return the data of the attribute: position, normal, ...
+@DOC_END */
+template <typename T>
+inline static T* getAttributeData(tinygltf::Model& model, const tinygltf::Primitive& primitive, const int32_t vertexIndex, int32_t accessorIndex)
+{
+  const tinygltf::Accessor&   accessor   = model.accessors[accessorIndex];
+  const tinygltf::BufferView& bufferView = model.bufferViews[accessor.bufferView];
+  tinygltf::Buffer&           buffer     = model.buffers[bufferView.buffer];
+
+  uint8_t*     data   = buffer.data.data() + bufferView.byteOffset + accessor.byteOffset;
+  const size_t stride = accessor.ByteStride(bufferView);
+  return reinterpret_cast<T*>(data + vertexIndex * stride);
+}
+
+/* @DOC_START
+## Function `createTangentAttribute`
+ Create a tangent attribute for the primitive
+@DOC_END */
+void createTangentAttribute(tinygltf::Model& model, tinygltf::Primitive& primitive);
+
+/* @DOC_START
+## Function `simpleCreateTangents`
+Compute tangents based on the texture coordinates, using also position and normal attributes
+@DOC_END */
+void simpleCreateTangents(tinygltf::Model& model, tinygltf::Primitive& primitive);
+
 
 }  // namespace utils
 

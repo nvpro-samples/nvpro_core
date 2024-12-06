@@ -20,6 +20,11 @@
 
 #include "tinygltf_utils.hpp"
 
+#include <glm/gtx/norm.hpp>
+
+#include "nvh/nvprint.hpp"
+#include "nvvkhl/shaders/func.h"
+
 
 KHR_materials_displacement tinygltf::utils::getDisplacement(const tinygltf::Material& tmat)
 {
@@ -545,4 +550,142 @@ int tinygltf::utils::getTextureImageIndex(const tinygltf::Texture& texture)
   }
 
   return source_image;
+}
+
+// Returning the index value of the primitive
+int32_t tinygltf::utils::getIndex(const tinygltf::Model& model, const tinygltf::Primitive& primitive, const int32_t offset)
+{
+  const tinygltf::Accessor&   accessor   = model.accessors[primitive.indices];
+  const tinygltf::BufferView& bufferView = model.bufferViews[accessor.bufferView];
+  const tinygltf::Buffer&     buffer     = model.buffers[bufferView.buffer];
+  const uint8_t*              data       = buffer.data.data() + bufferView.byteOffset + accessor.byteOffset;
+  const size_t                stride     = accessor.ByteStride(bufferView);
+
+  assert(accessor.sparse.isSparse == false);
+  switch(accessor.componentType)
+  {
+    case TINYGLTF_PARAMETER_TYPE_UNSIGNED_INT: {
+      return *reinterpret_cast<const uint32_t*>(data + offset * stride);
+    }
+    case TINYGLTF_PARAMETER_TYPE_UNSIGNED_SHORT: {
+      return *reinterpret_cast<const uint16_t*>(data + offset * stride);
+    }
+    case TINYGLTF_PARAMETER_TYPE_UNSIGNED_BYTE: {
+      return *reinterpret_cast<const uint8_t*>(data + offset * stride);
+    }
+  }
+  return 0;
+}
+
+// Creating missing tangent attribute
+// This is to be set when a material has normalmap, but no tangents.
+void tinygltf::utils::createTangentAttribute(tinygltf::Model& model, tinygltf::Primitive& primitive)
+{
+  // Already have tangents
+  if(primitive.attributes.find("TANGENT") != primitive.attributes.end())
+  {
+    return;
+  }
+
+  // Create a new TANGENT attribute
+  tinygltf::Accessor tangentAccessor;
+  tangentAccessor.componentType = TINYGLTF_COMPONENT_TYPE_FLOAT;
+  tangentAccessor.type          = TINYGLTF_TYPE_VEC4;
+  tangentAccessor.count         = tinygltf::utils::getVertexCount(model, primitive);
+
+  tinygltf::BufferView tangentBufferView;
+  tangentBufferView.buffer     = 0;  // Assume using the first buffer
+  tangentBufferView.byteOffset = model.buffers[0].data.size();
+  tangentBufferView.byteLength = tangentAccessor.count * 4 * sizeof(float);
+
+  model.buffers[0].data.resize(tangentBufferView.byteOffset + tangentBufferView.byteLength, 0);
+
+  tangentAccessor.bufferView = static_cast<int32_t>(model.bufferViews.size());
+  model.bufferViews.push_back(tangentBufferView);
+
+  primitive.attributes["TANGENT"] = static_cast<int32_t>(model.accessors.size());
+  model.accessors.push_back(tangentAccessor);
+}
+
+
+// Current implementation
+// http://foundationsofgameenginedev.com/FGED2-sample.pdf
+void tinygltf::utils::simpleCreateTangents(tinygltf::Model& model, tinygltf::Primitive& primitive)
+{
+  const int32_t indexCount = static_cast<int32_t>(tinygltf::utils::getIndexCount(model, primitive));
+
+  int32_t numFaces = indexCount / 3;
+
+  int32_t posAccessorIndex = primitive.attributes.at("POSITION");
+  int32_t nrmAccessorIndex = primitive.attributes.at("NORMAL");
+  int32_t uvAccessorIndex  = primitive.attributes.at("TEXCOORD_0");
+  int32_t tanAccessorIndex = primitive.attributes.at("TANGENT");
+  if(posAccessorIndex < 0 || nrmAccessorIndex < 0 || uvAccessorIndex < 0 || tanAccessorIndex < 0)
+  {
+    LOGE("Missing attributes for tangent computation\n");
+    return;
+  }
+
+  for(int32_t i = 0; i < numFaces; i++)
+  {
+    // local index
+    int32_t i0 = tinygltf::utils::getIndex(model, primitive, i * 3 + 0);
+    int32_t i1 = tinygltf::utils::getIndex(model, primitive, i * 3 + 1);
+    int32_t i2 = tinygltf::utils::getIndex(model, primitive, i * 3 + 2);
+
+    const glm::vec3& p0  = *tinygltf::utils::getAttributeData<glm::vec3>(model, primitive, i0, posAccessorIndex);
+    const glm::vec3& p1  = *tinygltf::utils::getAttributeData<glm::vec3>(model, primitive, i1, posAccessorIndex);
+    const glm::vec3& p2  = *tinygltf::utils::getAttributeData<glm::vec3>(model, primitive, i2, posAccessorIndex);
+    const glm::vec2& uv0 = *tinygltf::utils::getAttributeData<glm::vec2>(model, primitive, i0, uvAccessorIndex);
+    const glm::vec2& uv1 = *tinygltf::utils::getAttributeData<glm::vec2>(model, primitive, i1, uvAccessorIndex);
+    const glm::vec2& uv2 = *tinygltf::utils::getAttributeData<glm::vec2>(model, primitive, i2, uvAccessorIndex);
+    glm::vec4& t0 = *tinygltf::utils::getAttributeData<glm::vec4>(model, primitive, i0, tanAccessorIndex);  // tangent
+    glm::vec4& t1 = *tinygltf::utils::getAttributeData<glm::vec4>(model, primitive, i1, tanAccessorIndex);  // tangent
+    glm::vec4& t2 = *tinygltf::utils::getAttributeData<glm::vec4>(model, primitive, i2, tanAccessorIndex);  // tangent
+
+    glm::vec3 edge1 = p1 - p0;
+    glm::vec3 edge2 = p2 - p0;
+
+    glm::vec2 deltaUV1 = uv1 - uv0;
+    glm::vec2 deltaUV2 = uv2 - uv0;
+
+    float f = 1.0F;
+    float a = deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y;
+    if(fabs(a) > 0.0F)  // Catch degenerated UV
+    {
+      f = 1.0f / a;
+    }
+
+    glm::vec3 tangent   = f * (deltaUV2.y * edge1 - deltaUV1.y * edge2);
+    glm::vec3 bitangent = f * (deltaUV2.x * edge1 - deltaUV1.x * edge2);
+
+    // Bitangent direction can be inferred from the cross product
+    const glm::vec3& n0 = *tinygltf::utils::getAttributeData<glm::vec3>(model, primitive, i0, nrmAccessorIndex);
+
+    // Handedness calculation:
+    float handedness = (glm::dot(glm::cross(tangent, bitangent), n0) > 0.0F) ? 1.0F : -1.0F;
+
+    t0 = glm::vec4(tangent + glm::vec3(t0), handedness);
+    t1 = glm::vec4(tangent + glm::vec3(t1), handedness);
+    t2 = glm::vec4(tangent + glm::vec3(t2), handedness);
+  }
+
+  int32_t numVertices = static_cast<int32_t>(tinygltf::utils::getVertexCount(model, primitive));
+
+  // Orthonormalize each tangent and apply the handedness.
+  for(int32_t i = 0; i < numVertices; i++)
+  {
+    glm::vec4&       t0 = *tinygltf::utils::getAttributeData<glm::vec4>(model, primitive, i, tanAccessorIndex);
+    const glm::vec3& n0 = *tinygltf::utils::getAttributeData<glm::vec3>(model, primitive, i, nrmAccessorIndex);
+
+    // Gram-Schmidt orthogonalize
+    glm::vec3 ot0 = glm::normalize(glm::vec3(t0) - (glm::dot(n0, glm::vec3(t0)) * n0));
+
+    // In case the tangent is invalid
+    if(glm::length2(ot0) < 0.1F || glm::any(glm::isnan(ot0)))
+      ot0 = glm::vec3(makeFastTangent(n0));
+
+    float handedness = t0.w;
+    t0               = glm::vec4(ot0, handedness);
+  }
 }

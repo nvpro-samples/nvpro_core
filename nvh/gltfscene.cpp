@@ -17,23 +17,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <execution>
 #include <filesystem>
+#include <glm/gtx/norm.hpp>
+#include <unordered_set>
 
 #include "gltfscene.hpp"
-#include "boundingbox.hpp"
-#include "nvprint.hpp"
-#include <iostream>
-#include <numeric>
-#include <limits>
-#include <set>
-#include <sstream>
-#include <thread>
 #include "parallel_work.hpp"
-
-#include <glm/gtx/norm.hpp>
-#include <glm/gtc/type_ptr.hpp>
 #include "timesampler.hpp"
-#include <unordered_set>
 
 // List of supported extensions
 static const std::set<std::string> supportedExtensions = {
@@ -274,7 +265,7 @@ void nvh::gltf::Scene::parseScene()
   // Parse various scene components
   parseVariants();
   parseAnimations();
-
+  createMissingTangents();
 
   // Update the visibility of the render nodes
   uint32_t renderNodeID = 0;
@@ -464,7 +455,7 @@ void nvh::gltf::Scene::destroy()
 
 
 // Get the unique index of a primitive, and add it to the list if it is not already there
-int nvh::gltf::Scene::getUniqueRenderPrimitive(const tinygltf::Primitive& primitive, int meshID)
+int nvh::gltf::Scene::getUniqueRenderPrimitive(tinygltf::Primitive& primitive, int meshID)
 {
   const std::string& key = tinygltf::utils::generatePrimitiveKey(primitive);
 
@@ -475,7 +466,7 @@ int nvh::gltf::Scene::getUniqueRenderPrimitive(const tinygltf::Primitive& primit
   if(inserted)
   {
     gltf::RenderPrimitive renderPrim;
-    renderPrim.primitive   = primitive;
+    renderPrim.pPrimitive  = &primitive;
     renderPrim.vertexCount = int(tinygltf::utils::getVertexCount(m_model, primitive));
     renderPrim.indexCount  = int(tinygltf::utils::getIndexCount(m_model, primitive));
     renderPrim.meshID      = meshID;
@@ -610,7 +601,7 @@ nvh::Bbox nvh::gltf::Scene::getSceneBounds()
     glm::vec3 maxValues = {0.f, 0.f, 0.f};
 
     const gltf::RenderPrimitive& rprim    = m_renderPrimitives[rnode.renderPrimID];
-    const tinygltf::Accessor&    accessor = m_model.accessors[rprim.primitive.attributes.at("POSITION")];
+    const tinygltf::Accessor&    accessor = m_model.accessors[rprim.pPrimitive->attributes.at("POSITION")];
     if(!accessor.minValues.empty())
       minValues = glm::vec3(accessor.minValues[0], accessor.minValues[1], accessor.minValues[2]);
     if(!accessor.maxValues.empty())
@@ -640,12 +631,12 @@ nvh::Bbox nvh::gltf::Scene::getSceneBounds()
 bool nvh::gltf::Scene::handleRenderNode(int nodeID, glm::mat4 worldMatrix)
 {
   const tinygltf::Node& node = m_model.nodes[nodeID];
-  const tinygltf::Mesh& mesh = m_model.meshes[node.mesh];
+  tinygltf::Mesh&       mesh = m_model.meshes[node.mesh];
   for(size_t primID = 0; primID < mesh.primitives.size(); primID++)
   {
-    const tinygltf::Primitive& primitive    = mesh.primitives[primID];
-    int                        rprimID      = getUniqueRenderPrimitive(primitive, node.mesh);
-    int                        numTriangles = m_renderPrimitives[rprimID].indexCount / 3;
+    tinygltf::Primitive& primitive    = mesh.primitives[primID];
+    int                  rprimID      = getUniqueRenderPrimitive(primitive, node.mesh);
+    int                  numTriangles = m_renderPrimitives[rprimID].indexCount / 3;
 
     nvh::gltf::RenderNode renderNode;
     renderNode.worldMatrix  = worldMatrix;
@@ -699,6 +690,37 @@ size_t nvh::gltf::Scene::handleGpuInstancing(const tinygltf::Value& attributes, 
   }
   return numInstances;
 }
+
+//-------------------------------------------------------------------------------------------------
+// Add tangents on primitives that have normal maps but no tangents
+void nvh::gltf::Scene::createMissingTangents()
+{
+  std::vector<int> missTangentPrimitives;
+
+  for(const auto& renderNode : m_renderNodes)
+  {
+    // Check for missing tangents if the primitive has normalmap
+    if(m_model.materials[renderNode.materialID].normalTexture.index >= 0)
+    {
+      int                  renderPrimID = renderNode.renderPrimID;
+      tinygltf::Primitive& primitive    = *m_renderPrimitives[renderPrimID].pPrimitive;
+
+      if(primitive.attributes.find("TANGENT") == primitive.attributes.end())
+      {
+        LOGW("Render Primitive %d has a normal map but no tangents. Generating tangents.\n", renderPrimID);
+        tinygltf::utils::createTangentAttribute(m_model, primitive);
+        missTangentPrimitives.push_back(renderPrimID);  // Will generate the tangents later
+      }
+    }
+  }
+
+  // Generate the tangents in parallel
+  std::for_each(std::execution::par_unseq, missTangentPrimitives.begin(), missTangentPrimitives.end(), [&](int primID) {
+    tinygltf::Primitive& primitive = *m_renderPrimitives[primID].pPrimitive;
+    tinygltf::utils::simpleCreateTangents(m_model, primitive);
+  });
+}
+
 
 //-------------------------------------------------------------------------------------------------
 // Find which nodes are solid or translucent, helps for raster rendering
@@ -929,11 +951,11 @@ void nvh::gltf::Scene::parseAnimations()
   m_animatedPrimitives.clear();
   for(size_t renderPrimID = 0; renderPrimID < getRenderPrimitives().size(); renderPrimID++)
   {
-    const auto&                renderPrimitive = getRenderPrimitive(renderPrimID);
-    const tinygltf::Primitive& primitive       = renderPrimitive.primitive;
-    const tinygltf::Mesh&      mesh            = getModel().meshes[renderPrimitive.meshID];
+    const auto&           renderPrimitive = getRenderPrimitive(renderPrimID);
+    tinygltf::Primitive*  pPrimitive      = renderPrimitive.pPrimitive;
+    const tinygltf::Mesh& mesh            = getModel().meshes[renderPrimitive.meshID];
 
-    if(!primitive.targets.empty() && !mesh.weights.empty())
+    if(!pPrimitive->targets.empty() && !mesh.weights.empty())
     {
       m_animatedPrimitives.push_back(uint32_t(renderPrimID));
     }

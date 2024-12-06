@@ -52,10 +52,10 @@ struct RenderNode
 // The RenderPrimitive is a unique primitive in the scene
 struct RenderPrimitive
 {
-  tinygltf::Primitive primitive;
-  int                 vertexCount = 0;
-  int                 indexCount  = 0;
-  int                 meshID      = 0;
+  tinygltf::Primitive* pPrimitive  = nullptr;
+  int                  vertexCount = 0;
+  int                  indexCount  = 0;
+  int                  meshID      = 0;
 };
 
 struct RenderCamera
@@ -252,7 +252,7 @@ private:
   void createSceneCamera();             // Create a camera for the scene
   void createRootIfMultipleNodes(tinygltf::Scene& scene);
 
-  int getUniqueRenderPrimitive(const tinygltf::Primitive& primitive, int meshID);
+  int getUniqueRenderPrimitive(tinygltf::Primitive& primitive, int meshID);
   int getMaterialVariantIndex(const tinygltf::Primitive& primitive, int currentVariant);
 
   bool   handleRenderNode(int nodeID, glm::mat4 worldMatrix);
@@ -260,7 +260,7 @@ private:
   bool   handleCameraTraversal(int nodeID, const glm::mat4& worldMatrix);
   bool   handleLightTraversal(int nodeID, const glm::mat4& worldMatrix);
   void   updateVisibility(int nodeID, bool visible, uint32_t& renderNodeID);
-
+  void   createMissingTangents();
 
   tinygltf::Model                      m_model;                 // The glTF model
   std::string                          m_filename;              // Filename of the glTF
