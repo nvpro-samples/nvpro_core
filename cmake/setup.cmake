@@ -1054,6 +1054,7 @@ macro(_process_shared_cmake_code)
   )
    
   if(UNIX)
+    LIST(APPEND PLATFORM_LIBRARIES "tbb")
     LIST(APPEND PLATFORM_LIBRARIES "Xxf86vm")
 
 	#Work around some obscure bug where samples would crash in std::filesystem::~path() when
