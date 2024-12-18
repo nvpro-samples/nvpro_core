@@ -188,6 +188,14 @@ public:
   virtual VkDevice         getDevice() const         = 0;
   virtual VkPhysicalDevice getPhysicalDevice() const = 0;
 
+  // Query the maximum size of single allocations supported by this allocator.
+  virtual VkDeviceSize getMaximumAllocationSize() const;
+
+  // Query the maximum size of a single allocation on this physical device. This may be higher than the maximum
+  // size of allocations supported by the allocator (getMaximumAllocationSize() )
+  VkDeviceSize getDeviceMaximumAllocationSize() const;
+
+
   // Make sure the dtor is virtual
   virtual ~MemAllocator() = default;
 };

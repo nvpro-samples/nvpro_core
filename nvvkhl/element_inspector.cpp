@@ -2237,7 +2237,7 @@ void ElementInspectorInternal::imGuiBuffer(InspectedBuffer& buf,
         std::atomic_bool isTimeout{false};
         nvh::parallel_batches(
             buf.viewMax - buf.viewMin + 1,
-            [&](uint64_t i, uint32_t threadIdx) {
+            [&](uint64_t i) {
               if(timeoutTimer.elapsed() > 1000.f * m_settings.filterTimeoutInSeconds)
               {
 

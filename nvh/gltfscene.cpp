@@ -715,8 +715,8 @@ void nvh::gltf::Scene::createMissingTangents()
   }
 
   // Generate the tangents in parallel
-  std::for_each(std::execution::par_unseq, missTangentPrimitives.begin(), missTangentPrimitives.end(), [&](int primID) {
-    tinygltf::Primitive& primitive = *m_renderPrimitives[primID].pPrimitive;
+  nvh::parallel_batches<1>(missTangentPrimitives.size(), [&](uint64_t primID) {
+    tinygltf::Primitive& primitive = *m_renderPrimitives[missTangentPrimitives[primID]].pPrimitive;
     tinygltf::utils::simpleCreateTangents(m_model, primitive);
   });
 }
@@ -838,15 +838,12 @@ void nvh::gltf::Scene::parseAnimations()
 
       // Read sampler input time values
       {
-        const tinygltf::Accessor&   accessor   = m_model.accessors[samp.input];
-        const tinygltf::BufferView& bufferView = m_model.bufferViews[accessor.bufferView];
-        const tinygltf::Buffer&     buffer     = m_model.buffers[bufferView.buffer];
-
-        assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
-
-        sampler.inputs.resize(accessor.count);
-        std::memcpy(sampler.inputs.data(), &buffer.data[accessor.byteOffset + bufferView.byteOffset],
-                    accessor.count * sizeof(float));
+        const tinygltf::Accessor& accessor = m_model.accessors[samp.input];
+        if(!tinygltf::utils::getAccessorData<float>(m_model, accessor, sampler.inputs))
+        {
+          LOGE("Invalid data type for animation input");
+          continue;
+        }
 
         // Protect against invalid values
         for(auto input : sampler.inputs)
@@ -864,35 +861,36 @@ void nvh::gltf::Scene::parseAnimations()
 
       // Read sampler output T/R/S values
       {
-        const tinygltf::Accessor&   accessor   = m_model.accessors[samp.output];
-        const tinygltf::BufferView& bufferView = m_model.bufferViews[accessor.bufferView];
-        const tinygltf::Buffer&     buffer     = m_model.buffers[bufferView.buffer];
-        const uint8_t*              dataPtr8   = &buffer.data[accessor.byteOffset + bufferView.byteOffset];
-
-        assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
+        const tinygltf::Accessor& accessor = m_model.accessors[samp.output];
 
         switch(accessor.type)
         {
           case TINYGLTF_TYPE_VEC3: {
-            const glm::vec3* dataPtr = reinterpret_cast<const glm::vec3*>(dataPtr8);
-            for(size_t index = 0; index < accessor.count; index++)
+            if(accessor.bufferView > -1)
             {
-              sampler.outputsVec4.push_back(glm::vec4(*dataPtr++, 0.0f));
+              tinygltf::utils::getAccessorData(m_model, accessor, sampler.outputsVec3);
             }
+            else
+              sampler.outputsVec3.resize(accessor.count);
             break;
           }
           case TINYGLTF_TYPE_VEC4: {
-            const glm::vec4* dataPtr = reinterpret_cast<const glm::vec4*>(dataPtr8);
-            for(size_t index = 0; index < accessor.count; index++)
+            if(accessor.bufferView > -1)
             {
-              sampler.outputsVec4.push_back(*dataPtr++);
+              tinygltf::utils::getAccessorData(m_model, accessor, sampler.outputsVec4);
             }
+            else
+              sampler.outputsVec4.resize(accessor.count);
             break;
           }
           case TINYGLTF_TYPE_SCALAR: {
+            // This is for `i` vector of `n` elements
             sampler.outputsFloat.resize(sampler.inputs.size());
-            size_t       elemPerKey = accessor.count / sampler.inputs.size();
-            const float* dataPtr    = reinterpret_cast<const float*>(dataPtr8);
+            size_t                 elemPerKey = accessor.count / sampler.inputs.size();
+            std::vector<float>     outputsFloat;
+            std::span<const float> val     = tinygltf::utils::getAccessorData2(m_model, accessor, outputsFloat);
+            const float*           dataPtr = val.data();
+
             for(size_t i = 0; i < sampler.inputs.size(); i++)
             {
               for(int j = 0; j < elemPerKey; j++)
@@ -951,170 +949,238 @@ void nvh::gltf::Scene::parseAnimations()
   m_animatedPrimitives.clear();
   for(size_t renderPrimID = 0; renderPrimID < getRenderPrimitives().size(); renderPrimID++)
   {
-    const auto&           renderPrimitive = getRenderPrimitive(renderPrimID);
-    tinygltf::Primitive*  pPrimitive      = renderPrimitive.pPrimitive;
-    const tinygltf::Mesh& mesh            = getModel().meshes[renderPrimitive.meshID];
+    const auto&                renderPrimitive = getRenderPrimitive(renderPrimID);
+    const tinygltf::Primitive& primitive       = *renderPrimitive.pPrimitive;
+    const tinygltf::Mesh&      mesh            = getModel().meshes[renderPrimitive.meshID];
 
-    if(!pPrimitive->targets.empty() && !mesh.weights.empty())
+    if(!primitive.targets.empty() && !mesh.weights.empty())
     {
       m_animatedPrimitives.push_back(uint32_t(renderPrimID));
     }
   }
 }
 
-// Update a specific animation
+//--------------------------------------------------------------------------------------------------
+// Update the animation (index)
+// The value of the animation is updated based on the current time
+// - Node transformations are updated
+// - Morph target weights are updated
 bool nvh::gltf::Scene::updateAnimation(uint32_t animationIndex)
 {
-  bool animated = false;
-
+  bool       animated  = false;
   Animation& animation = m_animations[animationIndex];
-
-  float time = animation.info.currentTime;
+  float      time      = animation.info.currentTime;
 
   for(auto& channel : animation.channels)
   {
-    if(channel.node < 0 || channel.node >= m_model.nodes.size())
-      continue;  // Invalid node : probably using KHR_animation_pointer
+    if(channel.node < 0 || channel.node >= m_model.nodes.size())  // Invalid node
+      continue;
 
-    tinygltf::Node&   tnode   = m_model.nodes[channel.node];
-    AnimationSampler& sampler = animation.samplers[channel.samplerIndex];
+    tinygltf::Node&   gltfNode = m_model.nodes[channel.node];
+    AnimationSampler& sampler  = animation.samplers[channel.samplerIndex];
 
-    for(auto i = 0; i < int(sampler.inputs.size()) - 1; i++)
+    if(channel.path == AnimationChannel::PathType::ePointer)
     {
-      float inputStart = sampler.inputs[i];
-      float inputEnd   = sampler.inputs[i + 1];
-
-      if(inputStart <= time && time <= inputEnd)
+      static std::unordered_set<int> warnedAnimations;
+      if(warnedAnimations.insert(animationIndex).second)
       {
-        float keyDelta = inputEnd - inputStart;
-        float t        = (time - inputStart) / keyDelta;
-        t              = std::clamp(t, 0.0f, 1.0f);  // Ensures interpolation stays within the valid range.
+        LOGE("AnimationChannel::PathType::POINTER not implemented for animation %d", animationIndex);
+      }
+      continue;
+    }
 
-        animated = true;
+    animated |= processAnimationChannel(gltfNode, sampler, channel, time, animationIndex);
+  }
 
-        if(sampler.interpolation == AnimationSampler::InterpolationType::eLinear)
-        {
-          switch(channel.path)
-          {
-            case AnimationChannel::PathType::eRotation: {
-              const glm::quat q1 = glm::make_quat(glm::value_ptr(sampler.outputsVec4[i]));
-              const glm::quat q2 = glm::make_quat(glm::value_ptr(sampler.outputsVec4[i + 1]));
-              glm::quat       q  = glm::normalize(glm::slerp(q1, q2, t));
-              tnode.rotation     = {q.x, q.y, q.z, q.w};
-              break;
-            }
-            case AnimationChannel::PathType::eTranslation: {
-              glm::vec3 trans   = glm::mix(sampler.outputsVec4[i], sampler.outputsVec4[i + 1], t);
-              tnode.translation = {trans.x, trans.y, trans.z};
-              break;
-            }
-            case AnimationChannel::PathType::eScale: {
-              glm::vec3 s = glm::mix(sampler.outputsVec4[i], sampler.outputsVec4[i + 1], t);
-              tnode.scale = {s.x, s.y, s.z};
-              break;
-            }
-            case AnimationChannel::PathType::eWeights: {
-              {
+  return animated;
+}
 
-                // Retrieve the mesh from the node
-                if(tnode.mesh >= 0)
-                {
-                  tinygltf::Mesh& mesh = m_model.meshes[tnode.mesh];
+//--------------------------------------------------------------------------------------------------
+// Process the animation channel
+// - Interpolates the keyframes
+// - Updates the node transformation
+// - Updates the morph target weights
+bool nvh::gltf::Scene::processAnimationChannel(tinygltf::Node&         gltfNode,
+                                               AnimationSampler&       sampler,
+                                               const AnimationChannel& channel,
+                                               float                   time,
+                                               uint32_t                animationIndex)
+{
+  std::unordered_set<int> warnedAnimations;
 
-                  // Make sure the weights vector is resized to match the number of morph targets
-                  if(mesh.weights.size() != sampler.outputsFloat[i].size())
-                  {
-                    mesh.weights.resize(sampler.outputsFloat[i].size());
-                  }
+  bool animated = false;
 
-                  // Interpolating between weights for morph targets
-                  for(size_t j = 0; j < mesh.weights.size(); j++)
-                  {
-                    float weight1   = sampler.outputsFloat[i][j];
-                    float weight2   = sampler.outputsFloat[i + 1][j];
-                    mesh.weights[j] = glm::mix(weight1, weight2, t);
-                  }
-                }
-                break;
-              }
-            }
-            case AnimationChannel::PathType::ePointer: {
-              {
-                static std::unordered_set<int> warnedAnimations;
-                if(warnedAnimations.insert(animationIndex).second)
-                {
-                  LOGE("AnimationChannel::PathType::POINTER not implemented for animation %d", animationIndex);
-                }
-                break;
-              }
-            }
-          }
-        }
-        else if(sampler.interpolation == AnimationSampler::InterpolationType::eStep)
-        {
-          switch(channel.path)
-          {
-            case AnimationChannel::PathType::eRotation: {
-              glm::quat q    = glm::quat(sampler.outputsVec4[i]);
-              tnode.rotation = {q.x, q.y, q.z, q.w};
-              break;
-            }
-            case AnimationChannel::PathType::eTranslation: {
-              glm::vec3 t       = glm::vec3(sampler.outputsVec4[i]);
-              tnode.translation = {t.x, t.y, t.z};
-              break;
-            }
-            case AnimationChannel::PathType::eScale: {
-              glm::vec3 s = glm::vec3(sampler.outputsVec4[i]);
-              tnode.scale = {s.x, s.y, s.z};
-              break;
-            }
-          }
-        }
-        else if(sampler.interpolation == AnimationSampler::InterpolationType::eCubicSpline)
-        {
-          int prevIndex = i * 3;
-          int nextIndex = (i + 1) * 3;
-          int A         = 0;
-          int V         = 1;
-          int B         = 2;
+  for(size_t i = 0; i < sampler.inputs.size() - 1; i++)
+  {
+    float inputStart = sampler.inputs[i];
+    float inputEnd   = sampler.inputs[i + 1];
 
-          float tSq = t * t;
-          float tCb = tSq * t;
-          float tD  = keyDelta;
+    if(inputStart <= time && time <= inputEnd)
+    {
+      float t  = calculateInterpolationFactor(inputStart, inputEnd, time);
+      animated = true;
 
-          const glm::vec4 v0 = sampler.outputsVec4[prevIndex + V];
-          const glm::vec4 a  = sampler.outputsVec4[nextIndex + A];
-          const glm::vec4 b  = sampler.outputsVec4[prevIndex + B];
-          const glm::vec4 v1 = sampler.outputsVec4[nextIndex + V];
-
-          // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#interpolation-cubic
-          glm::vec4 result = ((2 * tCb - 3 * tSq + 1) * v0) + (tD * (tCb - 2 * tSq + t) * b)
-                             + ((-2 * tCb + 3 * tSq) * v1) + (tD * (tCb - tSq) * a);
-
-          switch(channel.path)
-          {
-            case AnimationChannel::PathType::eRotation: {
-              glm::quat quatResult = glm::make_quat(glm::value_ptr(result));
-              quatResult           = glm::normalize(quatResult);
-              tnode.rotation       = {quatResult.x, quatResult.y, quatResult.z, quatResult.w};
-              break;
-            }
-            case AnimationChannel::PathType::eTranslation: {
-              tnode.translation = {result.x, result.y, result.z};
-              break;
-            }
-            case AnimationChannel::PathType::eScale: {
-              tnode.scale = {result.x, result.y, result.z};
-              break;
-            }
-          }
+      switch(sampler.interpolation)
+      {
+        case AnimationSampler::InterpolationType::eLinear:
+          handleLinearInterpolation(gltfNode, sampler, channel, t, i);
+          break;
+        case AnimationSampler::InterpolationType::eStep:
+          handleStepInterpolation(gltfNode, sampler, channel, i);
+          break;
+        case AnimationSampler::InterpolationType::eCubicSpline: {
+          float keyDelta = inputEnd - inputStart;
+          handleCubicSplineInterpolation(gltfNode, sampler, channel, t, keyDelta, i);
+          break;
         }
       }
     }
   }
 
   return animated;
+}
+
+//--------------------------------------------------------------------------------------------------
+// Calculate the interpolation factor: [0..1] between two keyframes
+float nvh::gltf::Scene::calculateInterpolationFactor(float inputStart, float inputEnd, float time)
+{
+  float keyDelta = inputEnd - inputStart;
+  return std::clamp((time - inputStart) / keyDelta, 0.0f, 1.0f);
+}
+
+//--------------------------------------------------------------------------------------------------
+// Interpolates the keyframes linearly
+void nvh::gltf::Scene::handleLinearInterpolation(tinygltf::Node&         gltfNode,
+                                                 AnimationSampler&       sampler,
+                                                 const AnimationChannel& channel,
+                                                 float                   t,
+                                                 size_t                  index)
+{
+  switch(channel.path)
+  {
+    case AnimationChannel::PathType::eRotation: {
+      const glm::quat q1 = glm::make_quat(glm::value_ptr(sampler.outputsVec4[index]));
+      const glm::quat q2 = glm::make_quat(glm::value_ptr(sampler.outputsVec4[index + 1]));
+      glm::quat       q  = glm::normalize(glm::slerp(q1, q2, t));
+      gltfNode.rotation  = {q.x, q.y, q.z, q.w};
+      break;
+    }
+    case AnimationChannel::PathType::eTranslation: {
+      glm::vec3 trans      = glm::mix(sampler.outputsVec3[index], sampler.outputsVec3[index + 1], t);
+      gltfNode.translation = {trans.x, trans.y, trans.z};
+      break;
+    }
+    case AnimationChannel::PathType::eScale: {
+      glm::vec3 s    = glm::mix(sampler.outputsVec3[index], sampler.outputsVec3[index + 1], t);
+      gltfNode.scale = {s.x, s.y, s.z};
+      break;
+    }
+    case AnimationChannel::PathType::eWeights: {
+      {
+        // Retrieve the mesh from the node
+        if(gltfNode.mesh >= 0)
+        {
+          tinygltf::Mesh& mesh = m_model.meshes[gltfNode.mesh];
+
+          // Make sure the weights vector is resized to match the number of morph targets
+          if(mesh.weights.size() != sampler.outputsFloat[index].size())
+          {
+            mesh.weights.resize(sampler.outputsFloat[index].size());
+          }
+
+          // Interpolating between weights for morph targets
+          for(size_t j = 0; j < mesh.weights.size(); j++)
+          {
+            float weight1   = sampler.outputsFloat[index][j];
+            float weight2   = sampler.outputsFloat[index + 1][j];
+            mesh.weights[j] = glm::mix(weight1, weight2, t);
+          }
+        }
+        break;
+      }
+    }
+  }
+}
+
+//--------------------------------------------------------------------------------------------------
+// Interpolates the keyframes with a step interpolation
+void nvh::gltf::Scene::handleStepInterpolation(tinygltf::Node& gltfNode, AnimationSampler& sampler, const AnimationChannel& channel, size_t index)
+{
+  switch(channel.path)
+  {
+    case AnimationChannel::PathType::eRotation: {
+      glm::quat q       = glm::quat(sampler.outputsVec4[index]);
+      gltfNode.rotation = {q.x, q.y, q.z, q.w};
+      break;
+    }
+    case AnimationChannel::PathType::eTranslation: {
+      glm::vec3 t          = glm::vec3(sampler.outputsVec3[index]);
+      gltfNode.translation = {t.x, t.y, t.z};
+      break;
+    }
+    case AnimationChannel::PathType::eScale: {
+      glm::vec3 s    = glm::vec3(sampler.outputsVec3[index]);
+      gltfNode.scale = {s.x, s.y, s.z};
+      break;
+    }
+  }
+}
+
+//--------------------------------------------------------------------------------------------------
+// Interpolates the keyframes with a cubic spline interpolation
+void nvh::gltf::Scene::handleCubicSplineInterpolation(tinygltf::Node&         gltfNode,
+                                                      AnimationSampler&       sampler,
+                                                      const AnimationChannel& channel,
+                                                      float                   t,
+                                                      float                   keyDelta,
+                                                      size_t                  index)
+{
+  int prevIndex = index * 3;
+  int nextIndex = (index + 1) * 3;
+  int A         = 0;
+  int V         = 1;
+  int B         = 2;
+
+  float tSq = t * t;
+  float tCb = tSq * t;
+  float tD  = keyDelta;
+
+  if(channel.path == AnimationChannel::PathType::eRotation)
+  {
+
+    const glm::vec4& v0 = sampler.outputsVec4[prevIndex + V];
+    const glm::vec4& a  = sampler.outputsVec4[nextIndex + A];
+    const glm::vec4& b  = sampler.outputsVec4[prevIndex + B];
+    const glm::vec4& v1 = sampler.outputsVec4[nextIndex + V];
+
+    // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#interpolation-cubic
+    glm::vec4 result = ((2 * tCb - 3 * tSq + 1) * v0) + (tD * (tCb - 2 * tSq + t) * b) + ((-2 * tCb + 3 * tSq) * v1)
+                       + (tD * (tCb - tSq) * a);
+
+    glm::quat quatResult = glm::make_quat(glm::value_ptr(result));
+    quatResult           = glm::normalize(quatResult);
+    gltfNode.rotation    = {quatResult.x, quatResult.y, quatResult.z, quatResult.w};
+  }
+  else
+  {
+    const glm::vec3& v0 = sampler.outputsVec3[prevIndex + V];
+    const glm::vec3& a  = sampler.outputsVec3[nextIndex + A];
+    const glm::vec3& b  = sampler.outputsVec3[prevIndex + B];
+    const glm::vec3& v1 = sampler.outputsVec3[nextIndex + V];
+
+    // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#interpolation-cubic
+    glm::vec3 result = ((2 * tCb - 3 * tSq + 1) * v0) + (tD * (tCb - 2 * tSq + t) * b) + ((-2 * tCb + 3 * tSq) * v1)
+                       + (tD * (tCb - tSq) * a);
+
+    if(channel.path == AnimationChannel::PathType::eTranslation)
+    {
+      gltfNode.translation = {result.x, result.y, result.z};
+    }
+    else if(channel.path == AnimationChannel::PathType::eScale)
+    {
+      gltfNode.scale = {result.x, result.y, result.z};
+    }
+  }
 }
 
 // Parse the variants of the materials

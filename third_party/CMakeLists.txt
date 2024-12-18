@@ -248,4 +248,8 @@ if (TARGET dxh)
   LIST(APPEND THIRDPARTY_LIBRARIES dxh)
 endif()
 
+# thread_pool
+add_library(thread_pool INTERFACE)
+target_include_directories(thread_pool INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/thread_pool/include)
+
 set(THIRDPARTY_LIBRARIES "${THIRDPARTY_LIBRARIES}" PARENT_SCOPE)

@@ -270,7 +270,7 @@ std::vector<glm::vec3> getBlendedPositions(const tinygltf::Accessor&  baseAccess
 // - Use by the vertex shader to retrieve the position of the instance
 void nvvkhl::SceneVk::updateRenderNodesBuffer(VkCommandBuffer cmd, const nvh::gltf::Scene& scn)
 {
-  nvh::ScopedTimer st(__FUNCTION__);
+  // nvh::ScopedTimer st(__FUNCTION__);
 
   std::vector<nvvkhl_shaders::RenderNode> inst_info;
   for(const auto& obj : scn.getRenderNodes())

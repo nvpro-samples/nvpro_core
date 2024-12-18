@@ -173,6 +173,163 @@ Buffer ResourceAllocator::createBuffer(const VkCommandBuffer& cmdBuf,
   return resultBuffer;
 }
 
+
+//--------------------------------------------------------------------------------------------------
+// Basic large buffer creation
+nvvk::LargeBuffer ResourceAllocator::createLargeBuffer(VkQueue                     queue,
+                                                       const VkBufferCreateInfo&   info_,
+                                                       const VkMemoryPropertyFlags memProperties_,
+                                                       VkDeviceSize                maxChunkSize)
+{
+  VkBufferCreateInfo createInfo = info_;
+  createInfo.flags |= VK_BUFFER_CREATE_SPARSE_BINDING_BIT | VK_BUFFER_CREATE_SPARSE_RESIDENCY_BIT;
+
+  LargeBuffer resultBuffer;
+  // Create Buffer (can be overloaded)
+  CreateBufferEx(createInfo, &resultBuffer.buffer);
+
+  // Find memory requirements
+  VkMemoryRequirements2           memReqs{VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2};
+  VkMemoryDedicatedRequirements   dedicatedRegs{VK_STRUCTURE_TYPE_MEMORY_DEDICATED_REQUIREMENTS};
+  VkBufferMemoryRequirementsInfo2 bufferReqs{VK_STRUCTURE_TYPE_BUFFER_MEMORY_REQUIREMENTS_INFO_2};
+
+  memReqs.pNext     = &dedicatedRegs;
+  bufferReqs.buffer = resultBuffer.buffer;
+
+  vkGetBufferMemoryRequirements2(m_device, &bufferReqs, &memReqs);
+
+  uint32_t chunkCount = uint32_t((createInfo.size + maxChunkSize - 1ull) / maxChunkSize);
+
+  std::vector<VkSparseMemoryBind> binds(chunkCount);
+  resultBuffer.memHandle.resize(chunkCount);
+
+  // If the requested allocation requires more than one chunk, use sparse binding
+  if(chunkCount > 1)
+  {
+    for(uint32_t i = 0; i < chunkCount; i++)
+    {
+      // Build up allocation info
+      VkMemoryRequirements reqs = memReqs.memoryRequirements;
+      reqs.size                 = std::min(maxChunkSize, createInfo.size - i * maxChunkSize);
+
+      size_t pageSize = 1ull << 16;
+
+      reqs.size = (reqs.size + pageSize - 1) & ~(pageSize - 1);  // round up to page size
+
+      MemAllocateInfo allocInfo(reqs, memProperties_, false);
+
+
+      if(createInfo.usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT)
+      {
+        allocInfo.setAllocationFlags(VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT);
+      }
+      if(dedicatedRegs.requiresDedicatedAllocation)
+      {
+        allocInfo.setDedicatedBuffer(resultBuffer.buffer);
+      }
+
+      // Allocate memory
+      resultBuffer.memHandle[i] = AllocateMemory(allocInfo);
+      if(resultBuffer.memHandle[i])
+      {
+        const auto memInfo = m_memAlloc->getMemoryInfo(resultBuffer.memHandle[i]);
+
+        binds[i].resourceOffset = i * maxChunkSize;
+        binds[i].size           = reqs.size;
+        binds[i].memory         = memInfo.memory;
+        binds[i].memoryOffset   = memInfo.offset;
+      }
+      else
+      {
+        for(uint32_t j = 0; j < i; j++)
+        {
+          m_memAlloc->freeMemory(resultBuffer.memHandle[j]);
+        }
+        vkDestroyBuffer(m_device, resultBuffer.buffer, nullptr);
+        return {};
+      }
+    }
+    VkSparseBufferMemoryBindInfo sparseBufferMemoryBindInfo{};
+    sparseBufferMemoryBindInfo.buffer    = resultBuffer.buffer;
+    sparseBufferMemoryBindInfo.bindCount = uint32_t(binds.size());
+    sparseBufferMemoryBindInfo.pBinds    = binds.data();
+
+    VkBindSparseInfo bindSparseInfo{VK_STRUCTURE_TYPE_BIND_SPARSE_INFO};
+    bindSparseInfo.bufferBindCount = 1;
+    bindSparseInfo.pBufferBinds    = &sparseBufferMemoryBindInfo;
+
+    VkResult result = vkQueueBindSparse(queue, 1, &bindSparseInfo, VK_NULL_HANDLE);
+
+    vkQueueWaitIdle(queue);
+  }
+  else
+  {
+    nvvk::Buffer buffer;
+    buffer = createBuffer(createInfo, memProperties_);
+
+    resultBuffer.address      = buffer.address;
+    resultBuffer.buffer       = buffer.buffer;
+    resultBuffer.memHandle[0] = buffer.memHandle;
+  }
+  // Get the device address if requested
+  if(createInfo.usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT)
+  {
+    VkBufferDeviceAddressInfo info = {VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO};
+    info.buffer                    = resultBuffer.buffer;
+    if(vkGetBufferDeviceAddress != NULL)
+      resultBuffer.address = vkGetBufferDeviceAddress(m_device, &info);
+    else if(vkGetBufferDeviceAddressKHR != NULL)
+      resultBuffer.address = vkGetBufferDeviceAddressKHR(m_device, &info);
+  }
+
+  return resultBuffer;
+}
+
+nvvk::LargeBuffer ResourceAllocator::createLargeBuffer(VkQueue                     queue,
+                                                       VkDeviceSize                size_,
+                                                       VkBufferUsageFlags          usage_,
+                                                       const VkMemoryPropertyFlags memUsage_,
+                                                       VkDeviceSize                maxChunkSize)
+{
+  VkBufferCreateInfo info{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+  info.size  = size_;
+  info.usage = usage_ | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+
+  return createLargeBuffer(queue, info, memUsage_, maxChunkSize);
+}
+
+
+//--------------------------------------------------------------------------------------------------
+// Simple buffer creation with data uploaded through staging manager
+// implicitly sets VK_BUFFER_USAGE_TRANSFER_DST_BIT
+nvvk::LargeBuffer ResourceAllocator::createLargeBuffer(VkQueue                queue,
+                                                       const VkCommandBuffer& cmdBuf,
+                                                       const VkDeviceSize&    size_,
+                                                       const void*            data_,
+                                                       VkBufferUsageFlags     usage_,
+                                                       VkMemoryPropertyFlags  memProps,
+                                                       VkDeviceSize           maxChunkSize)
+{
+
+  VkBufferCreateInfo createInfoR{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+  createInfoR.size         = size_;
+  createInfoR.usage        = usage_ | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+  LargeBuffer resultBuffer = createLargeBuffer(queue, createInfoR, memProps);
+
+  if(data_)
+  {
+    for(size_t i = 0; i < resultBuffer.memHandle.size(); i++)
+    {
+      VkDeviceSize offset = i * maxChunkSize;
+      VkDeviceSize size   = std::min(maxChunkSize, size_ - offset);
+      m_staging->cmdToBuffer(cmdBuf, resultBuffer.buffer, offset, size, static_cast<const char*>(data_) + offset);
+    }
+  }
+
+  return resultBuffer;
+}
+
+
 Image ResourceAllocator::createImage(const VkImageCreateInfo& info_, const VkMemoryPropertyFlags memUsage_)
 {
   Image resultImage;
@@ -440,8 +597,18 @@ void ResourceAllocator::destroy(Buffer& b_)
 {
   vkDestroyBuffer(m_device, b_.buffer, nullptr);
   m_memAlloc->freeMemory(b_.memHandle);
-
   b_ = Buffer();
+}
+
+void ResourceAllocator::destroy(LargeBuffer& b_)
+{
+  vkDestroyBuffer(m_device, b_.buffer, nullptr);
+  for(auto& mem : b_.memHandle)
+  {
+    m_memAlloc->freeMemory(mem);
+  }
+
+  b_ = LargeBuffer();
 }
 
 void ResourceAllocator::destroy(Image& i_)
@@ -591,6 +758,7 @@ void ResourceAllocator::destroy(AccelNV& a_)
 AccelKHR ResourceAllocator::createAcceleration(const VkAccelerationStructureCreateInfoKHR& accel_)
 {
   AccelKHR resultAccel;
+
   // Allocating the buffer to hold the acceleration structure
   resultAccel.buffer = createBuffer(accel_.size, VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR
                                                      | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);

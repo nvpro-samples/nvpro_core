@@ -66,6 +66,8 @@ public:
   // Utility function
   AllocationID getAllocationID(MemHandle memHandle) const { return m_dma->getAllocationID(memHandle); }
 
+  virtual VkDeviceSize getMaximumAllocationSize() const override { return m_dma->getMaximumAllocationSize(); }
+
 private:
   nvvk::DeviceMemoryAllocator* m_dma;
 };

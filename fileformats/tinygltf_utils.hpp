@@ -778,13 +778,14 @@ inline bool getAccessorData(const tinygltf::Model& tmodel, const tinygltf::Acces
 
   // Are we copying to a uint32_t type or to a vector of floats?
   constexpr bool toU32             = std::is_same_v<T, uint32_t>;
+  constexpr bool toFloat           = std::is_same_v<T, float>;
   constexpr int  gltfComponentType = (toU32 ? TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT : TINYGLTF_COMPONENT_TYPE_FLOAT);
   using ScalarType                 = std::conditional_t<toU32, uint32_t, float>;
   // 1, 2, 3, 4 for scalar, VEC2, VEC3, VEC4
   constexpr int nbComponents = sizeof(T) / sizeof(ScalarType);
   // This depends on how TINYGLTF_TYPE_VEC{n} == n.
-  constexpr int gltfTyoe = (toU32 ? TINYGLTF_TYPE_SCALAR : static_cast<int>(nbComponents));
-  if(accessor.type != gltfTyoe)
+  constexpr int gltfType = ((toU32 || toFloat) ? TINYGLTF_TYPE_SCALAR : static_cast<int>(nbComponents));
+  if(accessor.type != gltfType)
   {
     return false;  // Invalid
   }

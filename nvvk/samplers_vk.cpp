@@ -160,12 +160,15 @@ VkSamplerCreateInfo makeSamplerCreateInfo(VkFilter             magFilter,
   samplerInfo.addressModeU            = addressModeU;
   samplerInfo.addressModeV            = addressModeV;
   samplerInfo.addressModeW            = addressModeW;
+  samplerInfo.mipLodBias              = mipLodBias;
   samplerInfo.anisotropyEnable        = anisotropyEnable;
   samplerInfo.maxAnisotropy           = maxAnisotropy;
-  samplerInfo.borderColor             = borderColor;
-  samplerInfo.unnormalizedCoordinates = unnormalizedCoordinates;
   samplerInfo.compareEnable           = compareEnable;
   samplerInfo.compareOp               = compareOp;
+  samplerInfo.minLod                  = minLod;
+  samplerInfo.maxLod                  = maxLod;
+  samplerInfo.borderColor             = borderColor;
+  samplerInfo.unnormalizedCoordinates = unnormalizedCoordinates;
   return samplerInfo;
 }
 

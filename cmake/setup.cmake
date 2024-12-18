@@ -1056,16 +1056,16 @@ macro(_process_shared_cmake_code)
   if(UNIX)
     LIST(APPEND PLATFORM_LIBRARIES "Xxf86vm")
 
-	#Work around some obscure bug where samples would crash in std::filesystem::~path() when
-	#multiple GCC versions are installed. Details under:
-	#https://stackoverflow.com/questions/63902528/program-crashes-when-filesystempath-is-destroyed
-	#
-	#When the GCC version is less than 9, explicitly link against libstdc++fs to
-	#prevent accidentally picking up GCC9's implementation and thus create an ABI
-	#incompatibility that results in crashes
-	if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0)
-		 LIST(APPEND PLATFORM_LIBRARIES stdc++fs)
-	endif()
+    #Work around some obscure bug where samples would crash in std::filesystem::~path() when
+    #multiple GCC versions are installed. Details under:
+    #https://stackoverflow.com/questions/63902528/program-crashes-when-filesystempath-is-destroyed
+    #
+    #When the GCC version is less than 9, explicitly link against libstdc++fs to
+    #prevent accidentally picking up GCC9's implementation and thus create an ABI
+    #incompatibility that results in crashes
+    if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0)
+      LIST(APPEND PLATFORM_LIBRARIES stdc++fs)
+    endif()
   endif()
 endmacro(_process_shared_cmake_code)
 

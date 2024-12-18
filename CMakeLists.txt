@@ -316,6 +316,19 @@ if(USING_BASISU)
   target_link_libraries(nvpro_core basisu)
 endif()
 
+# Libstdc++ and libc++'s std::execution::par use TBB.
+if(UNIX)
+  find_package(TBB)
+  if(TBB_FOUND)
+    target_link_libraries(nvpro_core TBB::tbb)
+  else()
+    message(FATAL_ERROR "Could not find TBB. Try installing the TBB development \
+library using your package manager: `sudo apt install libtbb-dev` on Ubuntu, \
+`sudo dnf install tbb-devel` on Fedora, `sudo pacman -S onetbb` on Arch, or on \
+NixOS, add `tbb` to your environment.")
+  endif()
+endif()
+
 target_link_libraries(nvpro_core
   ${PLATFORM_LIBRARIES} 
   glfw 
@@ -323,6 +336,7 @@ target_link_libraries(nvpro_core
   implot
   fmt
   glm
+  thread_pool
   ${THIRDPARTY_LIBRARIES}
  )
 

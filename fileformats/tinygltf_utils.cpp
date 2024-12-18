@@ -480,6 +480,7 @@ std::string tinygltf::utils::generatePrimitiveKey(const tinygltf::Primitive& pri
   {
     o << kv.first << ":" << kv.second << " ";
   }
+  o << "indices:" << primitive.indices;
   return o.str();
 }
 
@@ -612,19 +613,27 @@ void tinygltf::utils::createTangentAttribute(tinygltf::Model& model, tinygltf::P
 // http://foundationsofgameenginedev.com/FGED2-sample.pdf
 void tinygltf::utils::simpleCreateTangents(tinygltf::Model& model, tinygltf::Primitive& primitive)
 {
-  const int32_t indexCount = static_cast<int32_t>(tinygltf::utils::getIndexCount(model, primitive));
+  const int32_t indexCount  = static_cast<int32_t>(tinygltf::utils::getIndexCount(model, primitive));
+  int32_t       numVertices = static_cast<int32_t>(tinygltf::utils::getVertexCount(model, primitive));
+  int32_t       numFaces    = indexCount / 3;
 
-  int32_t numFaces = indexCount / 3;
+  auto posIt = primitive.attributes.find("POSITION");
+  auto nrmIt = primitive.attributes.find("NORMAL");
+  auto uvIt  = primitive.attributes.find("TEXCOORD_0");
+  auto tanIt = primitive.attributes.find("TANGENT");
 
-  int32_t posAccessorIndex = primitive.attributes.at("POSITION");
-  int32_t nrmAccessorIndex = primitive.attributes.at("NORMAL");
-  int32_t uvAccessorIndex  = primitive.attributes.at("TEXCOORD_0");
-  int32_t tanAccessorIndex = primitive.attributes.at("TANGENT");
-  if(posAccessorIndex < 0 || nrmAccessorIndex < 0 || uvAccessorIndex < 0 || tanAccessorIndex < 0)
+  int32_t posAccessorIndex = posIt->second;
+  int32_t tanAccessorIndex = tanIt->second;
+  bool    hasUV            = uvIt != primitive.attributes.end();
+  bool    hasNormal        = nrmIt != primitive.attributes.end();
+
+  // In case the normal is missing, we will compute it
+  std::vector<glm::vec3> geoNormal;
+  if(!hasNormal)
   {
-    LOGE("Missing attributes for tangent computation\n");
-    return;
+    geoNormal.resize(numVertices);
   }
+
 
   for(int32_t i = 0; i < numFaces; i++)
   {
@@ -633,50 +642,77 @@ void tinygltf::utils::simpleCreateTangents(tinygltf::Model& model, tinygltf::Pri
     int32_t i1 = tinygltf::utils::getIndex(model, primitive, i * 3 + 1);
     int32_t i2 = tinygltf::utils::getIndex(model, primitive, i * 3 + 2);
 
-    const glm::vec3& p0  = *tinygltf::utils::getAttributeData<glm::vec3>(model, primitive, i0, posAccessorIndex);
-    const glm::vec3& p1  = *tinygltf::utils::getAttributeData<glm::vec3>(model, primitive, i1, posAccessorIndex);
-    const glm::vec3& p2  = *tinygltf::utils::getAttributeData<glm::vec3>(model, primitive, i2, posAccessorIndex);
-    const glm::vec2& uv0 = *tinygltf::utils::getAttributeData<glm::vec2>(model, primitive, i0, uvAccessorIndex);
-    const glm::vec2& uv1 = *tinygltf::utils::getAttributeData<glm::vec2>(model, primitive, i1, uvAccessorIndex);
-    const glm::vec2& uv2 = *tinygltf::utils::getAttributeData<glm::vec2>(model, primitive, i2, uvAccessorIndex);
+    const glm::vec3& p0 = *tinygltf::utils::getAttributeData<glm::vec3>(model, primitive, i0, posAccessorIndex);
+    const glm::vec3& p1 = *tinygltf::utils::getAttributeData<glm::vec3>(model, primitive, i1, posAccessorIndex);
+    const glm::vec3& p2 = *tinygltf::utils::getAttributeData<glm::vec3>(model, primitive, i2, posAccessorIndex);
     glm::vec4& t0 = *tinygltf::utils::getAttributeData<glm::vec4>(model, primitive, i0, tanAccessorIndex);  // tangent
     glm::vec4& t1 = *tinygltf::utils::getAttributeData<glm::vec4>(model, primitive, i1, tanAccessorIndex);  // tangent
     glm::vec4& t2 = *tinygltf::utils::getAttributeData<glm::vec4>(model, primitive, i2, tanAccessorIndex);  // tangent
 
-    glm::vec3 edge1 = p1 - p0;
-    glm::vec3 edge2 = p2 - p0;
-
-    glm::vec2 deltaUV1 = uv1 - uv0;
-    glm::vec2 deltaUV2 = uv2 - uv0;
-
-    float f = 1.0F;
-    float a = deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y;
-    if(fabs(a) > 0.0F)  // Catch degenerated UV
+    // Find the normal or create it
+    glm::vec3 n0;
+    if(hasNormal)
     {
-      f = 1.0f / a;
+      n0 = *tinygltf::utils::getAttributeData<glm::vec3>(model, primitive, i0, nrmIt->second);
+    }
+    else
+    {
+      geoNormal[i0] = geoNormal[i1] = geoNormal[i2] = glm::normalize(glm::cross(p1 - p0, p2 - p0));
+      n0                                            = geoNormal[i0];
     }
 
-    glm::vec3 tangent   = f * (deltaUV2.y * edge1 - deltaUV1.y * edge2);
-    glm::vec3 bitangent = f * (deltaUV2.x * edge1 - deltaUV1.x * edge2);
+    if(hasUV)
+    {
+      int32_t          uvAccessorIndex = uvIt->second;
+      const glm::vec2& uv0 = *tinygltf::utils::getAttributeData<glm::vec2>(model, primitive, i0, uvAccessorIndex);
+      const glm::vec2& uv1 = *tinygltf::utils::getAttributeData<glm::vec2>(model, primitive, i1, uvAccessorIndex);
+      const glm::vec2& uv2 = *tinygltf::utils::getAttributeData<glm::vec2>(model, primitive, i2, uvAccessorIndex);
 
-    // Bitangent direction can be inferred from the cross product
-    const glm::vec3& n0 = *tinygltf::utils::getAttributeData<glm::vec3>(model, primitive, i0, nrmAccessorIndex);
+      glm::vec3 edge1 = p1 - p0;
+      glm::vec3 edge2 = p2 - p0;
 
-    // Handedness calculation:
-    float handedness = (glm::dot(glm::cross(tangent, bitangent), n0) > 0.0F) ? 1.0F : -1.0F;
+      glm::vec2 deltaUV1 = uv1 - uv0;
+      glm::vec2 deltaUV2 = uv2 - uv0;
 
-    t0 = glm::vec4(tangent + glm::vec3(t0), handedness);
-    t1 = glm::vec4(tangent + glm::vec3(t1), handedness);
-    t2 = glm::vec4(tangent + glm::vec3(t2), handedness);
+      float f = 1.0F;
+      float a = deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y;
+      if(fabs(a) > 0.0F)  // Catch degenerated UV
+      {
+        f = 1.0f / a;
+      }
+
+      glm::vec3 tangent   = f * (deltaUV2.y * edge1 - deltaUV1.y * edge2);
+      glm::vec3 bitangent = f * (deltaUV2.x * edge1 - deltaUV1.x * edge2);
+
+      // Handedness calculation:
+      float handedness = (glm::dot(glm::cross(tangent, bitangent), n0) > 0.0F) ? 1.0F : -1.0F;
+
+      t0 = glm::vec4(tangent + glm::vec3(t0), handedness);
+      t1 = glm::vec4(tangent + glm::vec3(t1), handedness);
+      t2 = glm::vec4(tangent + glm::vec3(t2), handedness);
+    }
+    else
+    {
+      // No UVs, we will use the geometric normal to calculate the tangent
+      t0 = t1 = t2 = makeFastTangent(n0);
+    }
   }
 
-  int32_t numVertices = static_cast<int32_t>(tinygltf::utils::getVertexCount(model, primitive));
 
-  // Orthonormalize each tangent and apply the handedness.
+  // Ortho-normalize each tangent and apply the handedness.
   for(int32_t i = 0; i < numVertices; i++)
   {
-    glm::vec4&       t0 = *tinygltf::utils::getAttributeData<glm::vec4>(model, primitive, i, tanAccessorIndex);
-    const glm::vec3& n0 = *tinygltf::utils::getAttributeData<glm::vec3>(model, primitive, i, nrmAccessorIndex);
+    glm::vec4& t0 = *tinygltf::utils::getAttributeData<glm::vec4>(model, primitive, i, tanAccessorIndex);
+    glm::vec3  n0;
+    if(hasNormal)
+    {
+      int32_t nrmAccessorIndex = nrmIt->second;
+      n0 = *tinygltf::utils::getAttributeData<const glm::vec3>(model, primitive, i, nrmAccessorIndex);
+    }
+    else
+    {
+      n0 = geoNormal[i];
+    }
 
     // Gram-Schmidt orthogonalize
     glm::vec3 ot0 = glm::normalize(glm::vec3(t0) - (glm::dot(n0, glm::vec3(t0)) * n0));

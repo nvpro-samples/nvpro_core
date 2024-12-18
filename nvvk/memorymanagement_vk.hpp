@@ -209,6 +209,8 @@ public:
   // get total amount of active blocks / VkDeviceMemory allocations
   uint32_t getActiveBlockCount() const { return m_activeBlockCount; }
 
+  virtual VkDeviceSize getMaximumAllocationSize() const override;
+
   // dump detailed stats via nvprintfLevel(LOGLEVEL_INFO
   void nvprintReport() const;
 

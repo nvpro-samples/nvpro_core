@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2023, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2019-2024, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2019-2023, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2019-2024, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -196,6 +196,20 @@ bool fillBakedAllocateInfo(const VkPhysicalDeviceMemoryProperties& physMemProps,
   }
 
   return true;
+}
+
+VkDeviceSize MemAllocator::getDeviceMaximumAllocationSize() const
+{
+  VkPhysicalDeviceProperties2            prop2{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
+  VkPhysicalDeviceMaintenance3Properties vkProp{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_3_PROPERTIES};
+  prop2.pNext = &vkProp;
+  vkGetPhysicalDeviceProperties2(getPhysicalDevice(), &prop2);
+  return vkProp.maxMemoryAllocationSize;
+}
+
+VkDeviceSize MemAllocator::getMaximumAllocationSize() const
+{
+  return getDeviceMaximumAllocationSize();
 }
 
 }  // namespace nvvk

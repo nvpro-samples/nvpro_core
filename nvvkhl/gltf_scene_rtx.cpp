@@ -191,27 +191,7 @@ VkGeometryInstanceFlagsKHR getInstanceFlag(const tinygltf::Material& mat)
   KHR_materials_volume       volume       = tinygltf::utils::getVolume(mat);
 
   // Check if the material is opaque, if so, we can skip the anyhit
-  bool isOpaque = false;
-  if(transmission.factor == 0.0f)
-  {
-    if(mat.alphaMode == "OPAQUE")
-    {
-      isOpaque = true;
-    }
-    else
-    {
-      // For blend and mask, check if the texture is opaque
-      if(tinygltf::utils::hasElementName(mat.extensions, KHR_MATERIALS_PBR_SPECULAR_GLOSSINESS_EXTENSION_NAME))
-      {
-        KHR_materials_pbrSpecularGlossiness pbr = tinygltf::utils::getPbrSpecularGlossiness(mat);
-        isOpaque                                = (pbr.diffuseFactor[3] == 1.0F && pbr.diffuseTexture.index == -1);
-      }
-      else
-      {  // Metallic-Roughness
-        isOpaque = (mat.pbrMetallicRoughness.baseColorFactor[3] == 1.0F && mat.pbrMetallicRoughness.baseColorTexture.index == -1);
-      }
-    }
-  }
+  bool isOpaque = ((transmission.factor == 0.0f) && (mat.alphaMode == "OPAQUE"));
 
   // Always opaque, no need to use anyhit (faster)
   if(isOpaque)

@@ -136,10 +136,6 @@ public:
       addEntries(m_node.child, 0, m_data->numLastSections, 0);
     }
 
-    bool copyToClipboard = ImGui::SmallButton("Copy");
-    if(copyToClipboard)
-      ImGui::LogToClipboard();
-
     if(ImGui::BeginTabBar("Profiler Tabs"))
     {
       if(ImGui::BeginTabItem("Table"))
@@ -159,10 +155,6 @@ public:
       }
       ImGui::EndTabBar();
     }
-
-
-    if(copyToClipboard)
-      ImGui::LogFinish();
 
     ImGui::End();
   }

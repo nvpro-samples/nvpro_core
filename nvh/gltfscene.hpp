@@ -102,10 +102,14 @@ struct AnimationInfo
     currentTime += deltaTime;
     if(loop)
     {
-      while(currentTime > end)
-      {
-        currentTime -= (end - start);
-      }
+      float duration = end - start;
+      // Wrap currentTime around using modulo arithmetic
+      float wrapped = std::fmod(currentTime - start, duration);
+      // fmod can return negative values if (currentTime - start) < 0, so fix that.
+      if(wrapped < 0.0f)
+        wrapped += duration;
+
+      currentTime = start + wrapped;
     }
     else
     {
@@ -232,6 +236,7 @@ private:
     };
     InterpolationType               interpolation = eLinear;
     std::vector<float>              inputs;
+    std::vector<glm::vec3>          outputsVec3;
     std::vector<glm::vec4>          outputsVec4;
     std::vector<std::vector<float>> outputsFloat;
   };
@@ -261,6 +266,16 @@ private:
   bool   handleLightTraversal(int nodeID, const glm::mat4& worldMatrix);
   void   updateVisibility(int nodeID, bool visible, uint32_t& renderNodeID);
   void   createMissingTangents();
+  bool processAnimationChannel(tinygltf::Node& gltfNode, AnimationSampler& sampler, const AnimationChannel& channel, float time, uint32_t animationIndex);
+  float calculateInterpolationFactor(float inputStart, float inputEnd, float time);
+  void handleLinearInterpolation(tinygltf::Node& gltfNode, AnimationSampler& sampler, const AnimationChannel& channel, float t, size_t index);
+  void handleStepInterpolation(tinygltf::Node& gltfNode, AnimationSampler& sampler, const AnimationChannel& channel, size_t index);
+  void handleCubicSplineInterpolation(tinygltf::Node&         gltfNode,
+                                      AnimationSampler&       sampler,
+                                      const AnimationChannel& channel,
+                                      float                   t,
+                                      float                   keyDelta,
+                                      size_t                  index);
 
   tinygltf::Model                      m_model;                 // The glTF model
   std::string                          m_filename;              // Filename of the glTF

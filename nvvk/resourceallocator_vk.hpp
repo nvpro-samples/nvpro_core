@@ -143,15 +143,31 @@ it is possible to use a ResourceAllocator per thread.
 
  @DOC_END */
 
+// Default size of the memory chunks used by large buffer allocations
+#define NVVK_DEFAULT_LARGE_BUFFER_CHUNK_SIZE (2ull * 1024ull * 1024ull * 1024ull)
+
 namespace nvvk {
 
 // Objects
 struct Buffer
 {
   VkBuffer        buffer = VK_NULL_HANDLE;
-  MemHandle       memHandle{nullptr};
+  MemHandle       memHandle{};
   VkDeviceAddress address{0};
 };
+
+// Large buffers are used for buffers larger than the
+// maximum size for a single allocation. Internally a large buffer
+// is a sparse buffer where all pages are allocated.
+// If the requested size is smaller than a single page, a single
+// allocation is made and the behavior is the same as a nvvk::Buffer
+struct LargeBuffer
+{
+  VkBuffer               buffer = VK_NULL_HANDLE;
+  std::vector<MemHandle> memHandle{};
+  VkDeviceAddress        address{0};
+};
+
 
 struct Image
 {
@@ -264,6 +280,52 @@ public:
 
 
   //--------------------------------------------------------------------------------------------------
+  // Basic large buffer creation
+  // If the requested size is < maxChunkSize, a single allocation is made and the behavior is the same as a nvvk::Buffer
+  nvvk::LargeBuffer createLargeBuffer(VkQueue                     queue,
+                                      const VkBufferCreateInfo&   info_,
+                                      const VkMemoryPropertyFlags memProperties_ = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                                      VkDeviceSize                maxChunkSize = NVVK_DEFAULT_LARGE_BUFFER_CHUNK_SIZE);
+
+  //--------------------------------------------------------------------------------------------------
+  // Simple buffer creation
+  // implicitly sets VK_BUFFER_USAGE_TRANSFER_DST_BIT
+  // If the requested size is < maxChunkSize, a single allocation is made and the behavior is the same as a nvvk::Buffer
+  nvvk::LargeBuffer createLargeBuffer(VkQueue                     queue,
+                                      VkDeviceSize                size_,
+                                      VkBufferUsageFlags          usage_,
+                                      const VkMemoryPropertyFlags memUsage_    = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                                      VkDeviceSize                maxChunkSize = NVVK_DEFAULT_LARGE_BUFFER_CHUNK_SIZE);
+
+  //--------------------------------------------------------------------------------------------------
+  // Simple buffer creation with data uploaded through staging manager
+  // implicitly sets VK_BUFFER_USAGE_TRANSFER_DST_BIT
+  // If the requested size is < maxChunkSize, a single allocation is made and the behavior is the same as a nvvk::Buffer
+  nvvk::LargeBuffer createLargeBuffer(VkQueue                queue,
+                                      const VkCommandBuffer& cmdBuf,
+                                      const VkDeviceSize&    size_,
+                                      const void*            data_,
+                                      VkBufferUsageFlags     usage_,
+                                      VkMemoryPropertyFlags  memProps     = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                                      VkDeviceSize           maxChunkSize = NVVK_DEFAULT_LARGE_BUFFER_CHUNK_SIZE);
+
+  //--------------------------------------------------------------------------------------------------
+  // Simple buffer creation with data uploaded through staging manager
+  // implicitly sets VK_BUFFER_USAGE_TRANSFER_DST_BIT
+  // If the requested size is < maxChunkSize, a single allocation is made and the behavior is the same as a nvvk::Buffer
+  template <typename T>
+  nvvk::LargeBuffer createLargeBuffer(VkQueue                queue,
+                                      const VkCommandBuffer& cmdBuf,
+                                      const std::vector<T>&  data_,
+                                      VkBufferUsageFlags     usage_,
+                                      VkMemoryPropertyFlags  memProps_    = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                                      VkDeviceSize           maxChunkSize = NVVK_DEFAULT_LARGE_BUFFER_CHUNK_SIZE)
+  {
+    return createLargeBuffer(queue, cmdBuf, sizeof(T) * data_.size(), data_.data(), usage_, memProps_);
+  }
+
+
+  //--------------------------------------------------------------------------------------------------
   // Basic image creation
   nvvk::Image createImage(const VkImageCreateInfo& info_, const VkMemoryPropertyFlags memUsage_ = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
@@ -312,6 +374,8 @@ public:
   //--------------------------------------------------------------------------------------------------
   // Create the acceleration structure
   //
+  // If a queue is provided and the requested buffer size is higher than the size supported for a single allocation, createAcceleration will create a large buffer comprising several
+  // allocations, each of size maxChunkSize at most.
   nvvk::AccelKHR createAcceleration(const VkAccelerationStructureCreateInfoKHR& accel_);
 
   //--------------------------------------------------------------------------------------------------
@@ -334,6 +398,7 @@ public:
   // Destroy
   //
   void destroy(nvvk::Buffer& b_);
+  void destroy(nvvk::LargeBuffer& b_);
   void destroy(nvvk::Image& i_);
   void destroy(nvvk::AccelNV& a_);
   void destroy(nvvk::AccelKHR& a_);
