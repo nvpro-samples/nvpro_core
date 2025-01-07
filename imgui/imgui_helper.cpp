@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2024, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2018-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2018-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2018-2025, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -938,6 +938,11 @@ bool InputInt(const char* label, int* v, int step, int step_fast, ImGuiInputText
   return entry(
       label, [&] { return ImGui::InputInt("##hidden", v, step, step_fast, flags); }, tooltip);
 }
+bool InputIntClamped(const char* label, int* v, int min, int max, int step, int step_fast, ImGuiInputTextFlags flags, const std::string& tooltip)
+{
+  return entry(
+      label, [&] { return Clamped(ImGui::InputInt("##hidden", v, step, step_fast, flags), v, min, max); }, tooltip);
+}
 bool InputInt2(const char* label, int v[2], ImGuiInputTextFlags flags, const std::string& tooltip)
 {
   return entry(
@@ -996,12 +1001,23 @@ bool ColorButton(const char* label, const ImVec4& col, ImGuiColorEditFlags flags
   return entry(
       label, [&] { return ImGui::ColorButton("##hidden", col, flags, size); }, tooltip);
 }
-void Text(const char* label, const std::string& text)
+bool Text(const char* label, const std::string& text)
 {
-  entry(label, [&] {
+  return entry(label, [&] {
     ImGui::Text("%s", text.c_str());
     return false;  // dummy, no change
   });
+}
+bool Text(const char* label, const char* fmt, ...)
+{
+  va_list args;
+  va_start(args, fmt);
+  bool res = entry(label, [&] {
+    ImGui::TextV(fmt, args);
+    return false;  // dummy, no change
+  });
+  va_end(args);
+  return res;
 }
 
 }  // namespace PropertyEditor

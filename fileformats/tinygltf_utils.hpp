@@ -428,7 +428,8 @@ void traverseSceneGraph(const tinygltf::Model&                            model,
                         const glm::mat4&                                  parentMat,
                         const std::function<bool(int, const glm::mat4&)>& fctCam   = nullptr,
                         const std::function<bool(int, const glm::mat4&)>& fctLight = nullptr,
-                        const std::function<bool(int, const glm::mat4&)>& fctMesh  = nullptr);
+                        const std::function<bool(int, const glm::mat4&)>& fctMesh  = nullptr,
+                        const std::function<bool(int, const glm::mat4&)>& anyNode  = nullptr);
 
 
 /* @DOC_START

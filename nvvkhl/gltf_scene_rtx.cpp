@@ -333,12 +333,17 @@ void nvvkhl::SceneRtx::updateTopLevelAS(VkCommandBuffer cmd, const nvh::gltf::Sc
 
 void nvvkhl::SceneRtx::updateBottomLevelAS(VkCommandBuffer cmd, const nvh::gltf::Scene& scene)
 {
-  for(auto& primID : scene.getAnimatedPrimitives())
+  // #TODO - Check that primID aren't duplicated
+  for(auto& primID : scene.getMorphPrimitives())
   {
     m_blasBuildData[primID].cmdUpdateAccelerationStructure(cmd, m_blasAccel[primID].accel, m_blasScratchBuffer.address);
   }
+  for(auto& skinNode : scene.getSkinNodes())  // Update the BLAS
+  {
+    int primID = scene.getRenderNodes()[skinNode].renderPrimID;
+    m_blasBuildData[primID].cmdUpdateAccelerationStructure(cmd, m_blasAccel[primID].accel, m_blasScratchBuffer.address);
+  }
 }
-
 
 void nvvkhl::SceneRtx::cmdCompactBlas(VkCommandBuffer cmd)
 {

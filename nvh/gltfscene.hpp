@@ -44,8 +44,8 @@ struct RenderNode
   glm::mat4 worldMatrix  = glm::mat4(1.0f);
   int       materialID   = 0;   // Reference to the material
   int       renderPrimID = -1;  // Reference to the unique primitive
-  int       primID       = -1;  // Reference to the tinygltf::Primitive
   int       refNodeID    = -1;  // Reference to the tinygltf::Node
+  int       skinID       = -1;  // Reference to the skin, if the node is skinned, -1 if not skinned
   bool      visible      = true;
 };
 
@@ -189,13 +189,15 @@ public:
   const std::vector<gltf::RenderPrimitive>& getRenderPrimitives() const { return m_renderPrimitives; }
   const gltf::RenderPrimitive&              getRenderPrimitive(size_t ID) const { return m_renderPrimitives[ID]; }
   size_t                                    getNumRenderPrimitives() const { return m_renderPrimitives.size(); }
-  const std::vector<uint32_t>&              getAnimatedPrimitives() const { return m_animatedPrimitives; }
+  const std::vector<uint32_t>&              getMorphPrimitives() const { return m_morphPrimitives; }
+  const std::vector<uint32_t>&              getSkinNodes() const { return m_skinNodes; }
 
   // Scene Management
   void           setCurrentScene(int sceneID);  // Parse the scene and create the render nodes, call when changing scene
   int            getCurrentScene() const { return m_currentScene; }
   tinygltf::Node getSceneRootNode() const;
   void           setSceneRootNode(const tinygltf::Node& node);
+  const std::vector<glm::mat4>& getNodesWorldMatrices() const { return m_nodesWorldMatrices; }
 
   // Variant Management
   void                            setCurrentVariant(int variant);  // Set the variant to be used
@@ -286,7 +288,9 @@ private:
   std::vector<Animation>               m_animations;            // Animations
   std::vector<std::string>             m_variants;              // KHR_materials_variants
   std::unordered_map<std::string, int> m_uniquePrimitiveIndex;  // Key: primitive, Value: renderPrimID
-  std::vector<uint32_t>                m_animatedPrimitives;    // All the primitives that are animated
+  std::vector<uint32_t>                m_morphPrimitives;       // All the primitives that are animated
+  std::vector<uint32_t>                m_skinNodes;             // All the primitives that are animated
+  std::vector<glm::mat4>               m_nodesWorldMatrices;
 
   int       m_numTriangles    = 0;   // Stat - Number of triangles
   int       m_currentScene    = 0;   // Scene index

@@ -19,7 +19,7 @@
 
 #include "gltf_scene_vk.hpp"
 
-#include <inttypes.h>
+#include <cinttypes>
 #include <mutex>
 #include <sstream>
 
@@ -36,6 +36,7 @@
 #include "nvvk/images_vk.hpp"
 #include "shaders/dh_scn_desc.h"
 #include "shaders/dh_lighting.h"
+
 
 //--------------------------------------------------------------------------------------------------
 // Forward declaration
@@ -76,6 +77,9 @@ void nvvkhl::SceneVk::create(VkCommandBuffer cmd, const nvh::gltf::Scene& scn, b
   createVertexBuffers(cmd, scn);
   createTextureImages(cmd, scn.getModel(), basedir, generateMipmaps);
   updateRenderLightsBuffer(cmd, scn);
+
+  // Update the buffers for morph and skinning
+  updateRenderPrimitivesBuffer(cmd, scn);
 
   // Buffer references
   nvvkhl_shaders::SceneDescription scene_desc{};
@@ -256,13 +260,44 @@ std::vector<glm::vec3> getBlendedPositions(const tinygltf::Accessor&  baseAccess
       const std::span<const glm::vec3> morphTargetData = tinygltf::utils::getAccessorData2(model, morphAccessor, tempStorage);
 
       // Apply the morph target offset in parallel, scaled by the corresponding weight
-      uint32_t numThreads = std::thread::hardware_concurrency();
-      nvh::parallel_batches(
-          blendedPositions.size(), [&](uint64_t v) { blendedPositions[v] += weight * morphTargetData[v]; }, numThreads);
+      nvh::parallel_batches(blendedPositions.size(),
+                            [&](uint64_t v) { blendedPositions[v] += weight * morphTargetData[v]; });
     }
   }
 
   return blendedPositions;
+}
+
+// Function to calculate skinned positions for a primitive
+std::vector<glm::vec3> getSkinnedPositions(const std::span<const glm::vec3>&  basePositionData,
+                                           const std::span<const glm::vec4>&  weights,
+                                           const std::span<const glm::ivec4>& joints,
+                                           const std::vector<glm::mat4>&      jointMatrices)
+{
+  size_t vertexCount = weights.size();
+
+  // Prepare the output skinned positions
+  std::vector<glm::vec3> skinnedPositions(vertexCount);
+
+  // Apply skinning using multi-threading
+  nvh::parallel_batches<2048>(weights.size(), [&](uint64_t v) {
+    glm::vec3 skinnedPosition(0.0f);
+
+    // Skinning: blend the position based on joint weights and transforms
+    for(int i = 0; i < 4; ++i)
+    {
+      const float& jointWeight = weights[v][i];
+      if(jointWeight > 0.0f)
+      {
+        const int& jointIndex = joints[v][i];
+        skinnedPosition += jointWeight * glm::vec3(jointMatrices[jointIndex] * glm::vec4(basePositionData[v], 1.0f));
+      }
+    }
+
+    skinnedPositions[v] = skinnedPosition;
+  });
+
+  return skinnedPositions;
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -323,12 +358,14 @@ void nvvkhl::SceneVk::updateRenderLightsBuffer(VkCommandBuffer cmd, const nvh::g
 //
 void nvvkhl::SceneVk::updateRenderPrimitivesBuffer(VkCommandBuffer cmd, const nvh::gltf::Scene& scn)
 {
-  for(int renderPrimID : scn.getAnimatedPrimitives())
+  const tinygltf::Model& model = scn.getModel();
+
+  // ** Morph **
+  for(int renderPrimID : scn.getMorphPrimitives())
   {
     const nvh::gltf::RenderPrimitive& renderPrimitive  = scn.getRenderPrimitive(renderPrimID);
     const tinygltf::Primitive&        primitive        = *renderPrimitive.pPrimitive;
-    const tinygltf::Mesh&             mesh             = scn.getModel().meshes[renderPrimitive.meshID];
-    const tinygltf::Model&            model            = scn.getModel();
+    const tinygltf::Mesh&             mesh             = model.meshes[renderPrimitive.meshID];
     const tinygltf::Accessor&         positionAccessor = model.accessors[primitive.attributes.at("POSITION")];
     std::vector<glm::vec3>            tempStorage;
     const std::span<const glm::vec3> positionData = tinygltf::utils::getAccessorData2(model, positionAccessor, tempStorage);
@@ -341,17 +378,72 @@ void nvvkhl::SceneVk::updateRenderPrimitivesBuffer(VkCommandBuffer cmd, const nv
     m_alloc->getStaging()->cmdToBuffer(cmd, vertexBuffers.position.buffer, 0,
                                        sizeof(glm::vec3) * positionAccessor.count, blendedPositions.data());
   }
+
+  // ** Skin **
+  const std::vector<nvh::gltf::RenderNode>& renderNodes = scn.getRenderNodes();
+  for(int skinNodeID : scn.getSkinNodes())
+  {
+    const nvh::gltf::RenderNode& skinNode  = renderNodes[skinNodeID];
+    const tinygltf::Skin&        skin      = model.skins[skinNode.skinID];
+    const tinygltf::Primitive&   primitive = *scn.getRenderPrimitive(skinNode.renderPrimID).pPrimitive;
+
+    int32_t                numJoints = int32_t(skin.joints.size());
+    std::vector<glm::mat4> inverseBindMatrices(numJoints, glm::mat4(1));
+    std::vector<glm::mat4> jointMatrices(numJoints, glm::mat4(1));
+
+    if(skin.inverseBindMatrices > -1)
+    {
+      std::span<const glm::mat4> ibm = tinygltf::utils::getBufferDataSpan<glm::mat4>(model, skin.inverseBindMatrices);
+      for(int i = 0; i < numJoints; i++)
+      {
+        inverseBindMatrices[i] = ibm[i];
+      }
+    }
+
+    // Calculate joint matrices
+    const std::vector<glm::mat4>& nodeMatrices = scn.getNodesWorldMatrices();
+    glm::mat4 invNode = glm::inverse(nodeMatrices[skinNode.refNodeID]);  // Removing current node transform as it will be applied by the shaders
+    for(int i = 0; i < numJoints; ++i)
+    {
+      int jointNodeID = skin.joints[i];
+      jointMatrices[i] = invNode * nodeMatrices[jointNodeID] * inverseBindMatrices[i];  // World matrix of the joint's node
+    }
+
+    // Getting the weights of all positions/joint
+    std::vector<glm::vec4>     tempWeightStorage;
+    std::span<const glm::vec4> weights =
+        tinygltf::utils::getAccessorData2(model, model.accessors[primitive.attributes.at("WEIGHTS_0")], tempWeightStorage);
+
+    // Getting the joint that each position is using
+    std::vector<glm::ivec4>     tempJointStorage;
+    std::span<const glm::ivec4> joints =
+        tinygltf::utils::getAccessorData2(model, model.accessors[primitive.attributes.at("JOINTS_0")], tempJointStorage);
+
+    // Original vertex positions
+    std::vector<glm::vec3>           tempPosStorage;
+    const std::span<const glm::vec3> basePositionData =
+        tinygltf::utils::getAccessorData2(model, model.accessors[primitive.attributes.at("POSITION")], tempPosStorage);
+
+    // Get skinned positions
+    std::vector<glm::vec3> skinnedPositions = getSkinnedPositions(basePositionData, weights, joints, jointMatrices);
+
+    // Update buffer
+    VertexBuffers& vertexBuffers = m_vertexBuffers[skinNode.renderPrimID];
+    m_alloc->getStaging()->cmdToBuffer(cmd, vertexBuffers.position.buffer, 0,
+                                       sizeof(glm::vec3) * skinnedPositions.size(), skinnedPositions.data());
+  }
 }
 
 // Function to create attribute buffers in Vulkan only if the attribute is present
 // Return true if a buffer was created, false if the buffer was updated
 template <typename T>
-bool updateAttributeBuffer(VkCommandBuffer            cmd,            // Command buffer to record the copy
-                           const std::string&         attributeName,  // Name of the attribute: POSITION, NORMAL, ...
-                           const tinygltf::Model&     model,          // GLTF model
-                           const tinygltf::Primitive& primitive,      // GLTF primitive
-                           nvvk::ResourceAllocator*   alloc,          // Allocator to create the buffer
-                           nvvk::Buffer&              attributeBuffer)             // Buffer to be created
+bool updateAttributeBuffer(VkCommandBuffer            cmd,              // Command buffer to record the copy
+                           const std::string&         attributeName,    // Name of the attribute: POSITION, NORMAL, ...
+                           const tinygltf::Model&     model,            // GLTF model
+                           const tinygltf::Primitive& primitive,        // GLTF primitive
+                           nvvk::ResourceAllocator*   alloc,            // Allocator to create the buffer
+                           nvvk::Buffer&              attributeBuffer,  // Buffer to be created
+                           VkBufferUsageFlags         extraUsageFlag = 0)       // Usage flag for the buffer
 {
   const auto& findResult = primitive.attributes.find(attributeName);
   if(findResult != primitive.attributes.end())
@@ -362,7 +454,8 @@ bool updateAttributeBuffer(VkCommandBuffer            cmd,            // Command
 
     if(attributeBuffer.buffer == VK_NULL_HANDLE)
     {
-      attributeBuffer = alloc->createBuffer(cmd, data.size_bytes(), data.data(), s_bufferUsageFlag);
+      VkBufferUsageFlags bufferUsageFlag = s_bufferUsageFlag | extraUsageFlag;  // Used for vertex input
+      attributeBuffer                    = alloc->createBuffer(cmd, data.size_bytes(), data.data(), bufferUsageFlag);
       return true;
     }
     else
@@ -373,33 +466,6 @@ bool updateAttributeBuffer(VkCommandBuffer            cmd,            // Command
   return false;
 }
 
-void createBlendedPositionBuffer(VkCommandBuffer            cmd,        // Command buffer to record the copy
-                                 const tinygltf::Model&     model,      // GLTF model
-                                 const tinygltf::Primitive& primitive,  // GLTF primitive
-                                 const tinygltf::Mesh&      mesh,       // GLTF mesh containing weights
-                                 nvvk::ResourceAllocator*   alloc,      // Allocator to create buffer
-                                 nvvk::Buffer&              blendedBuffer)           // Output buffer
-{
-  auto usageFlag = s_bufferUsageFlag | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;  // Used for vertex input
-
-  const tinygltf::Accessor& baseAccessor = model.accessors[primitive.attributes.at("POSITION")];
-  std::vector<glm::vec3>    tempStorage;
-  const std::span<const glm::vec3> basePositionData = tinygltf::utils::getAccessorData2(model, baseAccessor, tempStorage);
-
-  // Check if there are morph targets to blend
-  if(!primitive.targets.empty() && !mesh.weights.empty())
-  {
-    std::vector<glm::vec3> blendedPositions = getBlendedPositions(baseAccessor, basePositionData.data(), primitive, mesh, model);
-
-    blendedBuffer = alloc->createBuffer(cmd, blendedPositions, usageFlag);
-  }
-  else
-  {
-    blendedBuffer = alloc->createBuffer(cmd, basePositionData.size_bytes(), basePositionData.data(), usageFlag);
-  }
-}
-
-
 //--------------------------------------------------------------------------------------------------
 // Creating information per primitive
 // - Create a buffer of Vertex and Index for each primitive
@@ -409,11 +475,9 @@ void nvvkhl::SceneVk::createVertexBuffers(VkCommandBuffer cmd, const nvh::gltf::
 {
   nvh::ScopedTimer st(__FUNCTION__);
 
-  //const auto& gltfScene = scene.scene();
   const auto& model = scene.getModel();
 
   std::vector<nvvkhl_shaders::RenderPrimitive> renderPrim;  // The array of all primitive information
-
 
   size_t numUniquePrimitive = scene.getNumRenderPrimitives();
   m_bIndices.resize(numUniquePrimitive);
@@ -426,8 +490,8 @@ void nvvkhl::SceneVk::createVertexBuffers(VkCommandBuffer cmd, const nvh::gltf::
     const tinygltf::Mesh&      mesh          = model.meshes[scene.getRenderPrimitive(primID).meshID];
     VertexBuffers&             vertexBuffers = m_vertexBuffers[primID];
 
-    createBlendedPositionBuffer(cmd, model, primitive, mesh, m_alloc, vertexBuffers.position);
-
+    updateAttributeBuffer<glm::vec3>(cmd, "POSITION", model, primitive, m_alloc, vertexBuffers.position,
+                                     VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
     updateAttributeBuffer<glm::vec3>(cmd, "NORMAL", model, primitive, m_alloc, vertexBuffers.normal);
     updateAttributeBuffer<glm::vec2>(cmd, "TEXCOORD_0", model, primitive, m_alloc, vertexBuffers.texCoord0);
     updateAttributeBuffer<glm::vec2>(cmd, "TEXCOORD_1", model, primitive, m_alloc, vertexBuffers.texCoord1);
@@ -659,6 +723,7 @@ void nvvkhl::SceneVk::createTextureImages(VkCommandBuffer cmd, const tinygltf::M
         loadImage(basedir, image, static_cast<int>(i));
       },
       num_threads);
+
 
   // Create Vulkan images
   for(size_t i = 0; i < m_images.size(); i++)

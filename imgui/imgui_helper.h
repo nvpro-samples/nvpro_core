@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2024, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2018-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2018-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2018-2025, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -1288,6 +1288,7 @@ bool InputFloat2(const char* label, float v[2], const char* format = "%.3f", ImG
 bool InputFloat3(const char* label, float v[3], const char* format = "%.3f", ImGuiInputTextFlags flags = 0, const std::string& tooltip = {});
 bool InputFloat4(const char* label, float v[4], const char* format = "%.3f", ImGuiInputTextFlags flags = 0, const std::string& tooltip = {});
 bool InputInt(const char* label, int* v, int step = 1, int step_fast = 100, ImGuiInputTextFlags flags = 0, const std::string& tooltip = {});
+bool InputIntClamped(const char* label, int* v, int min, int max, int step = 1, int step_fast = 100, ImGuiInputTextFlags flags = 0, const std::string& tooltip = {});
 bool InputInt2(const char* label, int v[2], ImGuiInputTextFlags flags = 0, const std::string& tooltip = {});
 bool InputInt3(const char* label, int v[3], ImGuiInputTextFlags flags = 0, const std::string& tooltip = {});
 bool InputInt4(const char* label, int v[4], ImGuiInputTextFlags flags = 0, const std::string& tooltip = {});
@@ -1298,7 +1299,8 @@ bool ColorEdit4(const char* label, float col[4], ImGuiColorEditFlags flags = 0, 
 bool ColorPicker3(const char* label, float col[3], ImGuiColorEditFlags flags = 0, const std::string& tooltip = {});
 bool ColorPicker4(const char* label, float col[4], ImGuiColorEditFlags flags = 0, const std::string& tooltip = {});
 bool ColorButton(const char* label, const ImVec4& col, ImGuiColorEditFlags flags = 0, const ImVec2& size = ImVec2(0, 0), const std::string& tooltip = {});
-void Text(const char* label, const std::string& text);
+bool Text(const char* label, const std::string& text);
+bool Text(const char* label, const char* fmt, ...);
 }  // namespace PropertyEditor
 }  // namespace ImGui
 

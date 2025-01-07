@@ -261,7 +261,6 @@ void nvh::gltf::Scene::parseScene()
     createSceneCamera();
   }
 
-
   // Parse various scene components
   parseVariants();
   parseAnimations();
@@ -274,6 +273,9 @@ void nvh::gltf::Scene::parseScene()
     bool visible = tinygltf::utils::getNodeVisibility(m_model.nodes[sceneNode]).visible;
     updateVisibility(sceneNode, visible, renderNodeID);
   }
+
+  // We are updating the scene to the first state, animation, skinning, morph, ..
+  updateRenderNodes();
 }
 
 
@@ -387,19 +389,22 @@ void nvh::gltf::Scene::updateRenderNodes()
   //assert(scene.nodes.size() == 1 && "Only one top node per scene is supported");
   assert(m_sceneRootNode > -1 && "No root node in the scene");
 
+  m_nodesWorldMatrices.resize(m_model.nodes.size());
+
   uint32_t renderNodeID = 0;  // Index of the render node
   for(auto& sceneNode : scene.nodes)
   {
     tinygltf::utils::traverseSceneGraph(
-        m_model, sceneNode, glm::mat4(1), nullptr,
+        m_model, sceneNode, glm::mat4(1),  //
+        nullptr,                           // Camera fct
+        // Dealing with lights
         [&](int nodeID, const glm::mat4& mat) {
-          // Dealing with lights
           tinygltf::Node& tnode             = m_model.nodes[nodeID];
           m_lights[tnode.light].worldMatrix = mat;
           return false;  // Continue traversal
         },
+        // Dealing with Nodes and Variant Materials
         [&](int nodeID, const glm::mat4& mat) {
-          // Dealing with Nodes and Variant Materials
           tinygltf::Node&       tnode = m_model.nodes[nodeID];
           const tinygltf::Mesh& mesh  = m_model.meshes[tnode.mesh];
           for(size_t j = 0; j < mesh.primitives.size(); j++)
@@ -411,6 +416,10 @@ void nvh::gltf::Scene::updateRenderNodes()
             renderNodeID++;
           }
           return false;  // Continue traversal
+        },
+        [&](int nodeID, const glm::mat4& mat) {
+          m_nodesWorldMatrices[nodeID] = mat;
+          return false;
         });
   }
 
@@ -642,8 +651,8 @@ bool nvh::gltf::Scene::handleRenderNode(int nodeID, glm::mat4 worldMatrix)
     renderNode.worldMatrix  = worldMatrix;
     renderNode.materialID   = getMaterialVariantIndex(primitive, m_currentVariant);
     renderNode.renderPrimID = rprimID;
-    renderNode.primID       = static_cast<int>(primID);
     renderNode.refNodeID    = nodeID;
+    renderNode.skinID       = node.skin;
 
     if(tinygltf::utils::hasElementName(node.extensions, EXT_MESH_GPU_INSTANCING_EXTENSION_NAME))
     {
@@ -945,8 +954,8 @@ void nvh::gltf::Scene::parseAnimations()
     m_animations.push_back(animation);
   }
 
-  // Find all animated primitives
-  m_animatedPrimitives.clear();
+  // Find all animated primitives (morph)
+  m_morphPrimitives.clear();
   for(size_t renderPrimID = 0; renderPrimID < getRenderPrimitives().size(); renderPrimID++)
   {
     const auto&                renderPrimitive = getRenderPrimitive(renderPrimID);
@@ -955,7 +964,16 @@ void nvh::gltf::Scene::parseAnimations()
 
     if(!primitive.targets.empty() && !mesh.weights.empty())
     {
-      m_animatedPrimitives.push_back(uint32_t(renderPrimID));
+      m_morphPrimitives.push_back(uint32_t(renderPrimID));
+    }
+  }
+  // Skin animated
+  m_skinNodes.clear();
+  for(size_t renderNodeID = 0; renderNodeID < m_renderNodes.size(); renderNodeID++)
+  {
+    if(m_renderNodes[renderNodeID].skinID > -1)
+    {
+      m_skinNodes.push_back(uint32_t(renderNodeID));
     }
   }
 }

@@ -24,6 +24,7 @@
 
 #include "nvh/nvprint.hpp"
 #include "nvvkhl/shaders/func.h"
+#include "nvh/parallel_work.hpp"
 
 
 KHR_materials_displacement tinygltf::utils::getDisplacement(const tinygltf::Material& tmat)
@@ -489,7 +490,8 @@ void tinygltf::utils::traverseSceneGraph(const tinygltf::Model&                 
                                          const glm::mat4&                                  parentMat,
                                          const std::function<bool(int, const glm::mat4&)>& fctCam /*= nullptr*/,
                                          const std::function<bool(int, const glm::mat4&)>& fctLight /*= nullptr*/,
-                                         const std::function<bool(int, const glm::mat4&)>& fctMesh /*= nullptr*/)
+                                         const std::function<bool(int, const glm::mat4&)>& fctMesh /*= nullptr*/,
+                                         const std::function<bool(int, const glm::mat4&)>& anyNode)
 {
   const auto& node     = model.nodes[nodeID];
   glm::mat4   worldMat = parentMat * tinygltf::utils::getNodeMatrix(node);
@@ -506,10 +508,14 @@ void tinygltf::utils::traverseSceneGraph(const tinygltf::Model&                 
   {
     return;
   }
+  if(anyNode)
+  {
+    anyNode(nodeID, worldMat);
+  }
 
   for(const auto& child : node.children)
   {
-    traverseSceneGraph(model, child, worldMat, fctCam, fctLight, fctMesh);
+    traverseSceneGraph(model, child, worldMat, fctCam, fctLight, fctMesh, anyNode);
   }
 }
 
@@ -700,8 +706,7 @@ void tinygltf::utils::simpleCreateTangents(tinygltf::Model& model, tinygltf::Pri
 
 
   // Ortho-normalize each tangent and apply the handedness.
-  for(int32_t i = 0; i < numVertices; i++)
-  {
+  nvh::parallel_batches(uint64_t(numVertices), [&](int64_t i) {
     glm::vec4& t0 = *tinygltf::utils::getAttributeData<glm::vec4>(model, primitive, i, tanAccessorIndex);
     glm::vec3  n0;
     if(hasNormal)
@@ -723,5 +728,5 @@ void tinygltf::utils::simpleCreateTangents(tinygltf::Model& model, tinygltf::Pri
 
     float handedness = t0.w;
     t0               = glm::vec4(ot0, handedness);
-  }
+  });
 }
