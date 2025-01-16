@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2024-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -179,6 +179,7 @@ struct KHR_materials_dispersion
   float dispersion = 0.0f;
 };
 
+// https://github.com/KhronosGroup/glTF/pull/2410
 #define KHR_NODE_VISIBILITY_EXTENSION_NAME "KHR_node_visibility"
 struct KHR_node_visibility
 {
@@ -193,6 +194,17 @@ struct KHR_materials_pbrSpecularGlossiness
   float                 glossinessFactor          = 1.0f;
   tinygltf::TextureInfo diffuseTexture            = {};
   tinygltf::TextureInfo specularGlossinessTexture = {};
+};
+
+
+// https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_materials_diffuse_transmission
+#define KHR_MATERIALS_DIFFUSE_TRANSMISSION_EXTENSION_NAME "KHR_materials_diffuse_transmission"
+struct KHR_materials_diffuse_transmission
+{
+  float                 diffuseTransmissionFactor       = 0.0f;
+  tinygltf::TextureInfo diffuseTransmissionTexture      = {};
+  glm::vec3             diffuseTransmissionColor        = {1.0f, 1.0f, 1.0f};
+  tinygltf::TextureInfo diffuseTransmissionColorTexture = {};
 };
 
 
@@ -979,7 +991,8 @@ KHR_materials_dispersion  getDispersion(const tinygltf::Material& tmat);
 void                      setDispersion(tinygltf::Material& tmat, const KHR_materials_dispersion& dispersion);
 KHR_materials_pbrSpecularGlossiness getPbrSpecularGlossiness(const tinygltf::Material& tmat);
 void setPbrSpecularGlossiness(tinygltf::Material& tmat, const KHR_materials_pbrSpecularGlossiness& dispersion);
-
+KHR_materials_diffuse_transmission getDiffuseTransmission(const tinygltf::Material& tmat);
+void setDiffuseTransmission(tinygltf::Material& tmat, const KHR_materials_diffuse_transmission& diffuseTransmission);
 
 template <typename T>
 inline KHR_texture_transform getTextureTransform(const T& tinfo)

@@ -1,6 +1,6 @@
 
 /*
- * Copyright (c) 2024, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2024-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2014-2024 NVIDIA CORPORATION
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2025 NVIDIA CORPORATION
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -400,6 +400,36 @@ void tinygltf::utils::setPbrSpecularGlossiness(tinygltf::Material& tmat, const K
 //
 //
 
+
+KHR_materials_diffuse_transmission tinygltf::utils::getDiffuseTransmission(const tinygltf::Material& tmat)
+{
+  KHR_materials_diffuse_transmission gmat;
+  if(tinygltf::utils::hasElementName(tmat.extensions, KHR_MATERIALS_DIFFUSE_TRANSMISSION_EXTENSION_NAME))
+  {
+    const tinygltf::Value& ext =
+        tinygltf::utils::getElementValue(tmat.extensions, KHR_MATERIALS_DIFFUSE_TRANSMISSION_EXTENSION_NAME);
+    tinygltf::utils::getValue(ext, "diffuseTransmissionFactor", gmat.diffuseTransmissionFactor);
+    tinygltf::utils::getValue(ext, "diffuseTransmissionTexture", gmat.diffuseTransmissionTexture);
+    tinygltf::utils::getArrayValue(ext, "diffuseTransmissionColor", gmat.diffuseTransmissionColor);
+    tinygltf::utils::getValue(ext, "diffuseTransmissionColorTexture", gmat.diffuseTransmissionColorTexture);
+  }
+  return gmat;
+}
+
+void tinygltf::utils::setDiffuseTransmission(tinygltf::Material& tmat, const KHR_materials_diffuse_transmission& diffuseTransmission)
+{
+  if(!tinygltf::utils::hasElementName(tmat.extensions, KHR_MATERIALS_DIFFUSE_TRANSMISSION_EXTENSION_NAME))
+  {
+    tmat.extensions[KHR_MATERIALS_DIFFUSE_TRANSMISSION_EXTENSION_NAME] = tinygltf::Value(tinygltf::Value::Object());
+  }
+
+  tinygltf::Value& ext = tmat.extensions[KHR_MATERIALS_DIFFUSE_TRANSMISSION_EXTENSION_NAME];
+  tinygltf::utils::setValue(ext, "diffuseTransmissionFactor", diffuseTransmission.diffuseTransmissionFactor);
+  tinygltf::utils::setValue(ext, "diffuseTransmissionTexture", diffuseTransmission.diffuseTransmissionTexture);
+  tinygltf::utils::setArrayValue(ext, "diffuseTransmissionColor", 3, glm::value_ptr(diffuseTransmission.diffuseTransmissionColor));
+  tinygltf::utils::setValue(ext, "diffuseTransmissionColorTexture", diffuseTransmission.diffuseTransmissionColorTexture);
+}
+
 tinygltf::Value tinygltf::utils::convertToTinygltfValue(int numElements, const float* elements)
 {
   tinygltf::Value::Array result;
@@ -619,9 +649,9 @@ void tinygltf::utils::createTangentAttribute(tinygltf::Model& model, tinygltf::P
 // http://foundationsofgameenginedev.com/FGED2-sample.pdf
 void tinygltf::utils::simpleCreateTangents(tinygltf::Model& model, tinygltf::Primitive& primitive)
 {
-  const int32_t indexCount  = static_cast<int32_t>(tinygltf::utils::getIndexCount(model, primitive));
-  int32_t       numVertices = static_cast<int32_t>(tinygltf::utils::getVertexCount(model, primitive));
-  int32_t       numFaces    = indexCount / 3;
+  const size_t  indexCount  = tinygltf::utils::getIndexCount(model, primitive);
+  const size_t  numVertices = tinygltf::utils::getVertexCount(model, primitive);
+  const int32_t numFaces    = static_cast<int32_t>(indexCount / 3);
 
   auto posIt = primitive.attributes.find("POSITION");
   auto nrmIt = primitive.attributes.find("NORMAL");
@@ -706,13 +736,14 @@ void tinygltf::utils::simpleCreateTangents(tinygltf::Model& model, tinygltf::Pri
 
 
   // Ortho-normalize each tangent and apply the handedness.
-  nvh::parallel_batches(uint64_t(numVertices), [&](int64_t i) {
-    glm::vec4& t0 = *tinygltf::utils::getAttributeData<glm::vec4>(model, primitive, i, tanAccessorIndex);
-    glm::vec3  n0;
+  nvh::parallel_batches(numVertices, [&](uint64_t i) {
+    const uint32_t vertex = static_cast<uint32_t>(i);
+    glm::vec4&     t0     = *tinygltf::utils::getAttributeData<glm::vec4>(model, primitive, vertex, tanAccessorIndex);
+    glm::vec3      n0;
     if(hasNormal)
     {
       int32_t nrmAccessorIndex = nrmIt->second;
-      n0 = *tinygltf::utils::getAttributeData<const glm::vec3>(model, primitive, i, nrmAccessorIndex);
+      n0 = *tinygltf::utils::getAttributeData<const glm::vec3>(model, primitive, vertex, nrmAccessorIndex);
     }
     else
     {

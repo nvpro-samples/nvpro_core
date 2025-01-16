@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -39,8 +39,8 @@ struct PbrMaterial
   vec3 Ng;  // geometric normal
 
 
-  float ior1;  // index of refraction : current medium (i.e. air)
-  float ior2;  // index of refraction : the other side (i.e. glass)
+  float ior1;        // index of refraction : current medium (i.e. air)
+  float ior2;        // index of refraction : the other side (i.e. glass)
   float dispersion;  // KHR_materials_specular
 
   float specular;       // weight of the dielectric specular layer
@@ -61,6 +61,9 @@ struct PbrMaterial
 
   vec3  sheenColor;
   float sheenRoughness;
+
+  float diffuseTransmissionFactor;
+  vec3  diffuseTransmissionColor;
 };
 
 PbrMaterial defaultPbrMaterial()
@@ -77,8 +80,8 @@ PbrMaterial defaultPbrMaterial()
   mat.T  = vec3(1.0F, 0.0F, 0.0F);
   mat.B  = vec3(0.0F, 1.0F, 0.0F);
 
-  mat.ior1 = 1.0F;
-  mat.ior2 = 1.5F;
+  mat.ior1       = 1.0F;
+  mat.ior2       = 1.5F;
   mat.dispersion = 0.0F;
 
   mat.specular      = 1.0F;
@@ -100,6 +103,9 @@ PbrMaterial defaultPbrMaterial()
   mat.sheenColor     = vec3(0.0F);
   mat.sheenRoughness = 0.0F;
   mat.occlusion      = 1.0F;
+
+  mat.diffuseTransmissionFactor = 0.0F;
+  mat.diffuseTransmissionColor  = vec3(1.0F);
 
   return mat;
 }

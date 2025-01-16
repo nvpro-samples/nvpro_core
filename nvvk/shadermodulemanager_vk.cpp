@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2023, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2019-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2019-2023, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -223,10 +223,7 @@ bool ShaderModuleManager::setupShaderModule(ShaderModule& module)
     definition.filetype = m_filetype;
   }
 
-  std::string combinedPrepend = m_prepend;
-  std::string combinedFilenames;
-  combinedPrepend += definition.prepend;
-  combinedFilenames += definition.filename;
+  size_t prependHash = 0;
 
   if(definition.filetype == FILETYPE_SPIRV)
   {
@@ -235,10 +232,10 @@ bool ShaderModuleManager::setupShaderModule(ShaderModule& module)
   }
   else
   {
-    std::string prepend = m_usedSetupIF->getTypeDefine(definition.type);
+    std::string prepend = m_usedSetupIF->getTypeDefine(definition.type) + m_prepend + definition.prepend;
+    prependHash         = std::hash<std::string>{}(prepend);
 
-    definition.content =
-        manualInclude(definition.filename, definition.filenameFound, prepend + m_prepend + definition.prepend, false);
+    definition.content = manualInclude(definition.filename, definition.filenameFound, prepend, false);
   }
 
   if(definition.content.empty())
@@ -302,8 +299,17 @@ bool ShaderModuleManager::setupShaderModule(ShaderModule& module)
       shadercIncludeBridge.setAsIncluder(options);
 
       // Note: need filenameFound, not filename, so that relative includes work.
+      std::string filenameUsed = definition.filenameFound;
+
+      // We are also changing the filename because the string of the file we provide via definition.content is actually
+      // not matching the real file perfectly due to the fact that we applied a "prepended" string (see `definition.content = manualInclude`
+      // further up). Some debugging tools (nsight...) are thrown off when content doesn't match perfectly, therefore we give our virtual
+      // file (that has the prepend) a slightly different name.
+      // Because we insert line markers in our prepended content string, the original file is still found.
+      filenameUsed += ShaderFileManager::format(".nvvk_prepend_%llu", prependHash);
+
       result = shaderc_compile_into_spv(s_shadercCompiler, definition.content.c_str(), definition.content.size(),
-                                        shaderkind, definition.filenameFound.c_str(), "main", options);
+                                        shaderkind, filenameUsed.c_str(), "main", options);
 
       if(!result)
       {

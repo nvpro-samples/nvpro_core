@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2019-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2014-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -48,6 +48,7 @@ static const std::set<std::string> supportedExtensions = {
     "NV_attributes_iray",
     "MSFT_texture_dds",
     "KHR_materials_pbrSpecularGlossiness",
+    "KHR_materials_diffuse_transmission",
 #ifdef USE_DRACO
     "KHR_draco_mesh_compression",
 #endif
@@ -1153,27 +1154,34 @@ void nvh::gltf::Scene::handleCubicSplineInterpolation(tinygltf::Node&         gl
                                                       float                   keyDelta,
                                                       size_t                  index)
 {
-  int prevIndex = index * 3;
-  int nextIndex = (index + 1) * 3;
-  int A         = 0;
-  int V         = 1;
-  int B         = 2;
+  // Implements the logic in
+  // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#interpolation-cubic
+  // for quaternions (first case) and other values (second case).
 
-  float tSq = t * t;
-  float tCb = tSq * t;
-  float tD  = keyDelta;
+  const size_t prevIndex = index * 3;
+  const size_t nextIndex = (index + 1) * 3;
+  const size_t A         = 0;  // Offset for the in-tangent
+  const size_t V         = 1;  // Offset for the value
+  const size_t B         = 2;  // Offset for the out-tangent
+
+  const float tSq = t * t;
+  const float tCb = tSq * t;
+  const float tD  = keyDelta;
+
+  // Compute each of the coefficient terms in the specification
+  const float cV1 = -2 * tCb + 3 * tSq;        // -2 t^3 + 3 t^2
+  const float cV0 = 1 - cV1;                   //  2 t^3 - 3 t^2 + 1
+  const float cA  = tD * (tCb - tSq);          // t_d (t^3 - t^2)
+  const float cB  = tD * (tCb - 2 * tSq + t);  // t_d (t^3 - 2 t^2 + t)
 
   if(channel.path == AnimationChannel::PathType::eRotation)
   {
+    const glm::vec4& v0 = sampler.outputsVec4[prevIndex + V];  // v_k
+    const glm::vec4& a  = sampler.outputsVec4[nextIndex + A];  // a_{k+1}
+    const glm::vec4& b  = sampler.outputsVec4[prevIndex + B];  // b_k
+    const glm::vec4& v1 = sampler.outputsVec4[nextIndex + V];  // v_{k+1}
 
-    const glm::vec4& v0 = sampler.outputsVec4[prevIndex + V];
-    const glm::vec4& a  = sampler.outputsVec4[nextIndex + A];
-    const glm::vec4& b  = sampler.outputsVec4[prevIndex + B];
-    const glm::vec4& v1 = sampler.outputsVec4[nextIndex + V];
-
-    // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#interpolation-cubic
-    glm::vec4 result = ((2 * tCb - 3 * tSq + 1) * v0) + (tD * (tCb - 2 * tSq + t) * b) + ((-2 * tCb + 3 * tSq) * v1)
-                       + (tD * (tCb - tSq) * a);
+    glm::vec4 result = cV0 * v0 + cB * b + cV1 * v1 + cA * a;
 
     glm::quat quatResult = glm::make_quat(glm::value_ptr(result));
     quatResult           = glm::normalize(quatResult);
@@ -1181,14 +1189,12 @@ void nvh::gltf::Scene::handleCubicSplineInterpolation(tinygltf::Node&         gl
   }
   else
   {
-    const glm::vec3& v0 = sampler.outputsVec3[prevIndex + V];
-    const glm::vec3& a  = sampler.outputsVec3[nextIndex + A];
-    const glm::vec3& b  = sampler.outputsVec3[prevIndex + B];
-    const glm::vec3& v1 = sampler.outputsVec3[nextIndex + V];
+    const glm::vec3& v0 = sampler.outputsVec3[prevIndex + V];  // v_k
+    const glm::vec3& a  = sampler.outputsVec3[nextIndex + A];  // a_{k+1}
+    const glm::vec3& b  = sampler.outputsVec3[prevIndex + B];  // b_k
+    const glm::vec3& v1 = sampler.outputsVec3[nextIndex + V];  // v_{k+1}
 
-    // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#interpolation-cubic
-    glm::vec3 result = ((2 * tCb - 3 * tSq + 1) * v0) + (tD * (tCb - 2 * tSq + t) * b) + ((-2 * tCb + 3 * tSq) * v1)
-                       + (tD * (tCb - tSq) * a);
+    glm::vec3 result = cV0 * v0 + cB * b + cV1 * v1 + cA * a;
 
     if(channel.path == AnimationChannel::PathType::eTranslation)
     {

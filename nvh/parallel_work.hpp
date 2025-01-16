@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,7 +41,7 @@ batches_indexed: fn (uint64_t itemIndex, uint32_t threadIndex)
 
 ranges:          fn (uint64_t itemBegin, uint64_t itemEnd, uint32_t threadIndex)
                  callback does loop: for (uint64_t itemIndex = itemBegin; itemIndex < itemEnd; itemIndex++)
-                 uses at most get_thread_pool().thread_count() threads
+                 uses at most get_thread_pool().get_thread_count() threads
 ```
 
 `BATCHSIZE` will also be used as the threshold for when to switch from

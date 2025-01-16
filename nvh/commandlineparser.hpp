@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2014-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,220 +13,98 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2014-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2014-2025, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
-#include <iostream>
-#include <string>
+
+#include <glm/glm.hpp>
 #include <variant>
+#include <functional>
+#include <unordered_map>
+#include <string>
 #include <vector>
-#include <algorithm>
-#include <iomanip>
-#include <sstream>
 
-#include "nvprint.hpp"
-
-
-static constexpr int MAX_LINE_WIDTH = 60;
 
 namespace nvh {
 /* @DOC_START
 Command line parser.
 ```cpp
- std::string inFilename = "";
- bool printHelp = false;
- CommandLineParser args("Test Parser");
- args.addArgument({"-f", "--filename"}, &inFilename, "Input filename");
- args.addArgument({"-h", "--help"}, &printHelp, "Print Help");
- bool result = args.parse(argc, argv);
+    std::string            inFilename{};
+    bool                   printHelp = false;
+    glm::ivec2             winSize   = {1280, 720};
+    int8_t                 color[3];
+    nvh::CommandLineParser cli("Test Parser");
+    cli.addArgument({"-f", "--filename"}, &inFilename, "Input filename");
+    cli.addArgument({"--winSize"}, &winSize, "Size of window",
+                    [&]() { glfwSetWindowSize(nullptr, winSize[0], winSize[1]); });
+    cli.addArgument({"--callback"}, 1, "Callback with one argument",
+                    [&inFilename](std::vector<std::string> const& args) { inFilename = args[0]; });
+    cli.addArgument({"--color"}, 3, "Clear color ", [&color](std::vector<std::string> const& args) {
+      std::stringstream(args[0]) >> color[0];
+      std::stringstream(args[1]) >> color[1];
+      std::stringstream(args[2]) >> color[2];
+    });
+    cli.addFilename(".gltf", &inFilename, "Input filename with extension");
+    bool result = cli.parse(argc, argv);
 ```
 @DOC_END */
 class CommandLineParser
 {
 public:
+  using CallbackArgs = std::function<void(std::vector<std::string> const&)>;
+  using Callback     = std::function<void(void)>;
+
   // These are the possible variables the options may point to. Bool and
   // std::string are handled in a special way, all other values are parsed
   // with a std::stringstream. This std::variant can be easily extended if
   // the stream operator>> is overloaded. If not, you have to add a special
   // case to the parse() method.
-  using Value = std::variant<int32_t*, uint32_t*, double*, float*, bool*, std::string*>;
+  using Value =
+      std::variant<int8_t*, uint8_t*, int32_t*, uint32_t*, double*, float*, bool*, std::string*, glm::ivec2*, glm::uvec2*>;
 
   // The description is printed as part of the help message.
-  CommandLineParser(const std::string& description)
-      : m_description(description)
-  {
-  }
+  CommandLineParser(const std::string& description);
 
-  void addArgument(std::vector<std::string> const& flags, Value const& value, std::string const& help)
-  {
-    m_arguments.emplace_back(Argument{flags, value, help});
-  }
+  void addArgument(std::vector<std::string> const& flags, Value const& value, std::string const& help = "", Callback callback = nullptr);
+  void addArgument(std::vector<std::string> const& flags, int numArgsToAdvance, std::string const& help, CallbackArgs callback);
+  void addFilename(const std::string& extension, std::string* filename, const std::string& help);
 
   // Prints the description given to the constructor and the help for each option.
-  void printHelp(std::ostream& os = std::cout) const
-  {
-    // Print the general description.
-    os << m_description << std::endl;
+  void printHelp() const;
 
-    // Find the argument with the longest combined flag length (in order to align the help messages).
-    uint32_t maxFlagLength = 0;
-    for(auto const& argument : m_arguments)
-    {
-      uint32_t flagLength = 0;
-      for(auto const& flag : argument.m_flags)
-      {
-        // Plus comma and space.
-        flagLength += static_cast<uint32_t>(flag.size()) + 2;
-      }
-
-      maxFlagLength = std::max(maxFlagLength, flagLength);
-    }
-
-    // Now print each argument.
-    for(auto const& argument : m_arguments)
-    {
-      std::string flags;
-      for(auto const& flag : argument.m_flags)
-      {
-        flags += flag + ", ";
-      }
-
-      // Remove last comma and space and add padding according to the longest flags in order to align the help messages.
-      std::stringstream sstr;
-      sstr << std::left << std::setw(maxFlagLength) << flags.substr(0, flags.size() - 2);
-
-      // Print the help for each argument. This is a bit more involved since we do line wrapping for long descriptions.
-      size_t spacePos  = 0;
-      size_t lineWidth = 0;
-      while(spacePos != std::string::npos)
-      {
-        size_t nextspacePos = argument.m_help.find_first_of(' ', spacePos + 1);
-        sstr << argument.m_help.substr(spacePos, nextspacePos - spacePos);
-        lineWidth += nextspacePos - spacePos;
-        spacePos = nextspacePos;
-
-        if(lineWidth > MAX_LINE_WIDTH)
-        {
-          os << sstr.str() << std::endl;
-          sstr = std::stringstream();
-          sstr << std::left << std::setw(maxFlagLength - 1) << " ";
-          lineWidth = 0;
-        }
-      }
-    }
-  }
-
+  void setVerbose(bool verbose) { m_verbose = verbose; }
 
   // The command line arguments are traversed from start to end. That means,
   // if an option is set multiple times, the last will be the one which is
   // finally used. This call will throw a std::runtime_error if a value is
   // missing for a given option. Unknown flags will cause a warning on
   // std::cerr.
-  bool parse(int argc, char* argv[])
-  {
-    bool result = true;
+  bool parse(int argc, char* argv[]);
 
-    // Skip the first argument (name of the program).
-    int i = 1;
-    while(i < argc)
-    {
-      // First we have to identify whether the value is separated by a space or a '='.
-      std::string flag(argv[i]);
-      std::string value;
-      bool        valueIsSeparate = false;
-
-      // If there is an '=' in the flag, the part after the '=' is actually
-      // the value.
-      size_t equalPos = flag.find('=');
-      if(equalPos != std::string::npos)
-      {
-        value = flag.substr(equalPos + 1);
-        flag  = flag.substr(0, equalPos);
-      }
-      // Else the following argument is the value.
-      else if(i + 1 < argc)
-      {
-        value           = argv[i + 1];
-        valueIsSeparate = true;
-      }
-
-      // Search for an argument with the provided flag.
-      bool foundArgument = false;
-
-      for(auto const& argument : m_arguments)
-      {
-        if(std::find(argument.m_flags.begin(), argument.m_flags.end(), flag) != std::end(argument.m_flags))
-        {
-
-          foundArgument = true;
-
-          // In the case of booleans, the value is not needed.
-          if(std::holds_alternative<bool*>(argument.m_value))
-          {
-            if(!value.empty() && value != "true" && value != "false")
-            {
-              valueIsSeparate = false;  // No value
-            }
-            *std::get<bool*>(argument.m_value) = (value != "false");
-          }
-          // In all other cases there must be a value.
-          else if(value.empty())
-          {
-            LOGE("Failed to parse command line arguments. Missing value for argument %s\n", flag.c_str());
-            return false;
-          }
-          // For a std::string, we take the entire value.
-          else if(std::holds_alternative<std::string*>(argument.m_value))
-          {
-            *std::get<std::string*>(argument.m_value) = value;
-          }
-          // In all other cases we use a std::stringstream to convert the value.
-          else
-          {
-            std::visit(
-                [&value](auto&& arg) {
-                  std::stringstream sstr(value);
-                  sstr >> *arg;
-                },
-                argument.m_value);
-          }
-
-          break;
-        }
-      }
-
-      // Print a warning if there was an unknown argument.
-      if(!foundArgument)
-      {
-        std::cerr << "Ignoring unknown command line argument \"" << flag << "\"." << std::endl;
-        result = false;
-      }
-
-      // Advance to the next flag.
-      ++i;
-
-      // If the value was separated, we have to advance our index once more.
-      if(foundArgument && valueIsSeparate)
-      {
-        ++i;
-      }
-    }
-
-    return result;
-  }
 
 private:
   struct Argument
   {
-    std::vector<std::string> m_flags;
-    Value                    m_value;
-    std::string              m_help;
+    std::vector<std::string> flags{};
+    Value                    value{};
+    std::string              help{};
+    CallbackArgs             callbackArgs     = nullptr;
+    Callback                 callback         = nullptr;
+    int                      numArgsToAdvance = 0;
+    std::string              filenameExt{};       // Extension for filename arguments (e.g., ".gltf")
+    bool                     isFilename = false;  // True if this is a filename handler
   };
 
-  std::string           m_description;
-  std::vector<Argument> m_arguments;
+  template <typename T>
+  int  parseVariantValue(T* arg, char* argv[], int i, int argc);
+  void executeCallback(Argument& argument, char* argv[], int& i, int argc);
+
+  std::string                             m_description;
+  std::vector<Argument>                   m_arguments;
+  std::unordered_map<std::string, size_t> m_flagMap;
+  bool                                    m_verbose = false;
 };
 
 }  // namespace nvh

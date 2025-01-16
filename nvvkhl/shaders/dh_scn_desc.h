@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -120,7 +120,9 @@ struct GltfShadeMaterial
   vec3  pbrSpecularFactor;            // offset 172 - 12 bytes
   int   usePbrSpecularGlossiness;     // offset 184 - 4 bytes
   float pbrGlossinessFactor;          // offset 188 - 4 bytes
-  int   pad;                          // offset 192 - 4 bytes (padding for alignment)
+  vec3  diffuseTransmissionColor;     // offset 192 - 12 bytes   - KHR_materials_diffuse_transmission
+  float diffuseTransmissionFactor;    // offset 204 - 4 bytes
+  int   pad;                          // offset 208 - 4 bytes (padding for alignment)
 
   // Texture infos (32 bytes each)
   GltfTextureInfo pbrBaseColorTexture;
@@ -142,7 +144,9 @@ struct GltfShadeMaterial
   GltfTextureInfo occlusionTexture;
   GltfTextureInfo pbrDiffuseTexture;
   GltfTextureInfo pbrSpecularGlossinessTexture;
-};  // Total size: 804 bytes
+  GltfTextureInfo diffuseTransmissionTexture;       //
+  GltfTextureInfo diffuseTransmissionColorTexture;  //
+};                                                  // Total size: 884 bytes
 
 INLINE GltfTextureInfo defaultGltfTextureInfo()
 {

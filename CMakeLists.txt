@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.5...3.25)
 #####################################################################################
 # offer the choice of having nvpro_core as a sub-folder... good for packaging a sample
 #

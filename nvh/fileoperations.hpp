@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2024, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2019-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2019-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -24,6 +24,24 @@
 #include <fstream>
 #include <sstream>
 #include <vector>
+#include <filesystem>
+
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifdef APIENTRY
+#undef APIENTRY
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX  // Prevent windows.h from defining min and max macros
+#endif
+#include <windows.h>
+#include <debugapi.h>
+#else
+#include <unistd.h>
+#include <limits.h>
+#endif
 
 #include "nvprint.hpp"
 
@@ -171,11 +189,24 @@ inline std::string getFilePath(const char* filename)
 }
 
 // Return true if the filename ends with ending. i.e. ".png"
-inline bool endsWith(std::string const& value, std::string const& ending)
+inline bool endsWith(const std::string& str, const std::string& suffix)
 {
-  if(ending.size() > value.size())
-    return false;
-  return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
+  return str.size() >= suffix.size() && str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
+}
+
+// Returns the path of the executable. ex: c:\temp\myapp.exe
+inline std::filesystem::path getExecutablePath()
+{
+#ifdef _WIN32
+  char buffer[MAX_PATH];
+  GetModuleFileNameA(NULL, buffer, MAX_PATH);
+  std::string fullPath(buffer);
+#else
+  char        buffer[PATH_MAX];
+  ssize_t     count = readlink("/proc/self/exe", buffer, PATH_MAX);
+  std::string fullPath(buffer, (count > 0) ? count : 0);
+#endif
+  return std::filesystem::path(fullPath);
 }
 
 }  // namespace nvh

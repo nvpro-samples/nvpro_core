@@ -141,7 +141,11 @@ void SkyBase::draw(const VkCommandBuffer& cmd, const glm::mat4& view, const glm:
 
   // Information to the compute shader
   nvvkhl_shaders::SkyPushConstant pc{};
-  pc.mvp = glm::inverse(view) * glm::inverse(proj);  // This will be to have a world direction vector pointing to the pixel
+
+  // Remove translation from view
+  glm::mat4 viewNoTrans = view;
+  viewNoTrans[3]        = {0.0f, 0.0f, 0.0f, 1.0f};
+  pc.mvp = glm::inverse(proj * viewNoTrans);  // This will be to have a world direction vector pointing to the pixel
 
   // Execution
   std::vector<VkDescriptorSet> dst_sets = {m_skyDSet};

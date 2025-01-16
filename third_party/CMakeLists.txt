@@ -183,11 +183,11 @@ if (USING_BASISU)
     # Make targets linking with basisu compile with NVP_SUPPORTS_BASISU
     target_compile_definitions(basisu INTERFACE NVP_SUPPORTS_BASISU)
     # Turn off some transcoding formats we don't use to reduce code size by about
-    # 500 KB.
+    # 500 KB. We require BC4 (DXT5A), BC5, BC7, and ASTC (in case a user sets
+    # device_supports_astc).
     target_compile_definitions(basisu PRIVATE
       BASISD_SUPPORT_ATC=0
       BASISD_SUPPORT_DXT1=0
-      BASISD_SUPPORT_DXT5A=0
       BASISD_SUPPORT_ETC2_EAC_A8=0
       BASISD_SUPPORT_ETC2_EAC_RG11=0
       BASISD_SUPPORT_FXT1=0

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -186,12 +186,14 @@ bool nvvkhl::SceneRtx::cmdBuildBottomLevelAccelerationStructure(VkCommandBuffer 
 
 VkGeometryInstanceFlagsKHR getInstanceFlag(const tinygltf::Material& mat)
 {
-  VkGeometryInstanceFlagsKHR instanceFlags{};
-  KHR_materials_transmission transmission = tinygltf::utils::getTransmission(mat);
-  KHR_materials_volume       volume       = tinygltf::utils::getVolume(mat);
+  VkGeometryInstanceFlagsKHR         instanceFlags{};
+  KHR_materials_transmission         transmission        = tinygltf::utils::getTransmission(mat);
+  KHR_materials_volume               volume              = tinygltf::utils::getVolume(mat);
+  KHR_materials_diffuse_transmission diffuseTransmission = tinygltf::utils::getDiffuseTransmission(mat);
 
   // Check if the material is opaque, if so, we can skip the anyhit
-  bool isOpaque = ((transmission.factor == 0.0f) && (mat.alphaMode == "OPAQUE"));
+  bool isOpaque = ((transmission.factor == 0.0f) && (mat.alphaMode == "OPAQUE")
+                   && (diffuseTransmission.diffuseTransmissionFactor == 0.0F));
 
   // Always opaque, no need to use anyhit (faster)
   if(isOpaque)

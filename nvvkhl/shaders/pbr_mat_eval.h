@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -350,6 +350,18 @@ PbrMaterial evaluateMaterial(in GltfShadeMaterial material, MeshState state)
 
   // KHR_materials_dispersion
   pbrMat.dispersion = material.dispersion;
+
+  // KHR_materials_diffuse_transmission
+  pbrMat.diffuseTransmissionFactor = material.diffuseTransmissionFactor;
+  if(isTexturePresent(material.diffuseTransmissionTexture))
+  {
+    pbrMat.diffuseTransmissionFactor *= getTexture(material.diffuseTransmissionTexture, state.tc).a;
+  }
+  pbrMat.diffuseTransmissionColor = material.diffuseTransmissionColor;
+  if(isTexturePresent(material.diffuseTransmissionColorTexture))
+  {
+    pbrMat.diffuseTransmissionColor = getTexture(material.diffuseTransmissionColorTexture, state.tc).rgb;
+  }
 
   return pbrMat;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2024, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2019-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2019-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -131,7 +131,8 @@ vec3 absorptionCoefficient(PbrMaterial mat)
 #define LOBE_METAL_REFLECTION 3
 #define LOBE_SHEEN_REFLECTION 4
 #define LOBE_CLEARCOAT_REFLECTION 5
-#define LOBE_COUNT 6
+#define LOBE_DIFFUSE_TRANSMISSION 6
+#define LOBE_COUNT 7
 
 // The Fresnel factor depends on the cosine between the view vector k1 and the
 // half vector, H = normalize(k1 + k2). But during sampling, we don't have k2
@@ -216,6 +217,7 @@ ARRAY_TYPE(float, LOBE_COUNT, ) computeLobeWeights(PbrMaterial mat, float VdotN,
   weightLobe[LOBE_METAL_REFLECTION]      = 0;
   weightLobe[LOBE_SPECULAR_REFLECTION]   = 0;
   weightLobe[LOBE_SPECULAR_TRANSMISSION] = 0;
+  weightLobe[LOBE_DIFFUSE_TRANSMISSION]  = 0;
   weightLobe[LOBE_DIFFUSE_REFLECTION]    = 0;
 
   float weightBase = 1.0F;
@@ -233,7 +235,10 @@ ARRAY_TYPE(float, LOBE_COUNT, ) computeLobeWeights(PbrMaterial mat, float VdotN,
   weightBase *= 1.0f - frDielectric;
 
   weightLobe[LOBE_SPECULAR_TRANSMISSION] = weightBase * mat.transmission;  // BTDF dielectric specular transmission (GGX-Smith)
-  weightLobe[LOBE_DIFFUSE_REFLECTION] = weightBase * (1.0f - mat.transmission);  // BRDF diffuse dielectric reflection (Lambert).
+
+  float remainingWeight                 = weightBase * (1.0f - mat.transmission);
+  weightLobe[LOBE_DIFFUSE_TRANSMISSION] = remainingWeight * mat.diffuseTransmissionFactor;
+  weightLobe[LOBE_DIFFUSE_REFLECTION]   = remainingWeight * (1.0f - mat.diffuseTransmissionFactor);
 
   return weightLobe;
 }
@@ -301,6 +306,39 @@ void brdf_diffuse_sample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat)
 {
   brdf_diffuse_sample(data, mat, mat.baseColor);
 }
+
+void brdf_diffuse_transmission_eval(INOUT_TYPE(BsdfEvaluateData) data, PbrMaterial mat, vec3 tint)
+{
+  // If the incoming light direction is on the same side as the surface normal,
+  // there is no diffuse transmission to evaluate. Absorb light in this case.
+  if(dot(data.k2, -mat.Ng) <= 0.0f)
+  {
+    return;  // absorb
+  }
+
+  data.pdf = max(0.0f, dot(data.k2, -mat.N) * M_1_PI);
+
+  // For a white Lambert material, the bxdf components match the evaluation pdf. (See MDL_renderer.)
+  data.bsdf_diffuse = tint * data.pdf * mat.diffuseTransmissionColor;
+}
+
+void brdf_diffuse_transmission_sample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat, vec3 tint)
+{
+  // Sample a direction on the opposite hemisphere (relative to -mat.N).
+  vec3 sampledDir = cosineSampleHemisphere(data.xi.x, data.xi.y);
+  data.k2         = mat.T * sampledDir.x + mat.B * sampledDir.y - mat.N * sampledDir.z;  // Flip the normal
+  data.k2         = normalize(data.k2);
+
+  // Compute the PDF for this direction.
+  data.pdf = max(0.0f, dot(data.k2, -mat.N) * M_1_PI);
+
+  // Ensure energy conservation by considering the diffuse transmission tint.
+  data.bsdf_over_pdf = tint * mat.diffuseTransmissionColor;
+
+  // Determine the event type based on the direction relative to the geometric normal.
+  data.event_type = (dot(data.k2, -mat.Ng) > 0.0f) ? BSDF_EVENT_DIFFUSE_TRANSMISSION : BSDF_EVENT_ABSORB;
+}
+
 
 // Evaluates a reflective lobe with a GGX NDF and an uncorrelated Smith
 // scattering-masking function.
@@ -897,6 +935,10 @@ void bsdfEvaluate(INOUT_TYPE(BsdfEvaluateData) data, PbrMaterial mat)
   {
     brdf_diffuse_eval(data, mat, tint);
   }
+  else if(lobe == LOBE_DIFFUSE_TRANSMISSION)
+  {
+    brdf_diffuse_transmission_eval(data, mat, tint);
+  }
   else if(lobe == LOBE_SPECULAR_REFLECTION)
   {
     brdf_ggx_smith_eval(data, mat, LOBE_SPECULAR_REFLECTION, mat.specularColor);
@@ -957,6 +999,10 @@ void bsdfSample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat)
   {
     brdf_diffuse_sample(data, mat, tint);
   }
+  else if(lobe == LOBE_DIFFUSE_TRANSMISSION)
+  {
+    brdf_diffuse_transmission_sample(data, mat, tint);
+  }
   else if(lobe == LOBE_SPECULAR_REFLECTION)
   {
     brdf_ggx_smith_sample(data, mat, LOBE_SPECULAR_REFLECTION, mat.specularColor);
@@ -994,7 +1040,7 @@ void bsdfSample(INOUT_TYPE(BsdfSampleData) data, PbrMaterial mat)
   {
     // Treat as a perfectly specular bounce; change GLOSSY to IMPULSE
     data.event_type = (data.event_type & (~BSDF_EVENT_GLOSSY)) | BSDF_EVENT_IMPULSE;
-    data.pdf = DIRAC;
+    data.pdf        = DIRAC;
   }
 }
 
