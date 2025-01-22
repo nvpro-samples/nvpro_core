@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2024, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2019-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2019-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -182,30 +182,32 @@ nvvk::LargeBuffer ResourceAllocator::createLargeBuffer(VkQueue                  
                                                        VkDeviceSize                maxChunkSize)
 {
   VkBufferCreateInfo createInfo = info_;
-  createInfo.flags |= VK_BUFFER_CREATE_SPARSE_BINDING_BIT | VK_BUFFER_CREATE_SPARSE_RESIDENCY_BIT;
-
-  LargeBuffer resultBuffer;
-  // Create Buffer (can be overloaded)
-  CreateBufferEx(createInfo, &resultBuffer.buffer);
-
-  // Find memory requirements
-  VkMemoryRequirements2           memReqs{VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2};
-  VkMemoryDedicatedRequirements   dedicatedRegs{VK_STRUCTURE_TYPE_MEMORY_DEDICATED_REQUIREMENTS};
-  VkBufferMemoryRequirementsInfo2 bufferReqs{VK_STRUCTURE_TYPE_BUFFER_MEMORY_REQUIREMENTS_INFO_2};
-
-  memReqs.pNext     = &dedicatedRegs;
-  bufferReqs.buffer = resultBuffer.buffer;
-
-  vkGetBufferMemoryRequirements2(m_device, &bufferReqs, &memReqs);
 
   uint32_t chunkCount = uint32_t((createInfo.size + maxChunkSize - 1ull) / maxChunkSize);
 
-  std::vector<VkSparseMemoryBind> binds(chunkCount);
+  LargeBuffer resultBuffer;
   resultBuffer.memHandle.resize(chunkCount);
 
   // If the requested allocation requires more than one chunk, use sparse binding
   if(chunkCount > 1)
   {
+    createInfo.flags |= VK_BUFFER_CREATE_SPARSE_BINDING_BIT | VK_BUFFER_CREATE_SPARSE_RESIDENCY_BIT;
+
+    // Create Buffer (can be overloaded)
+    CreateBufferEx(createInfo, &resultBuffer.buffer);
+
+    // Find memory requirements
+    VkMemoryRequirements2           memReqs{VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2};
+    VkMemoryDedicatedRequirements   dedicatedRegs{VK_STRUCTURE_TYPE_MEMORY_DEDICATED_REQUIREMENTS};
+    VkBufferMemoryRequirementsInfo2 bufferReqs{VK_STRUCTURE_TYPE_BUFFER_MEMORY_REQUIREMENTS_INFO_2};
+
+    memReqs.pNext     = &dedicatedRegs;
+    bufferReqs.buffer = resultBuffer.buffer;
+
+    vkGetBufferMemoryRequirements2(m_device, &bufferReqs, &memReqs);
+
+    std::vector<VkSparseMemoryBind> binds(chunkCount);
+
     for(uint32_t i = 0; i < chunkCount; i++)
     {
       // Build up allocation info

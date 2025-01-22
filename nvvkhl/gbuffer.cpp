@@ -25,6 +25,7 @@
 #include "nvvk/images_vk.hpp"
 #include "nvvk/debug_util_vk.hpp"
 #include "nvvk/commands_vk.hpp"
+#include "nvvk/error_vk.hpp"
 
 nvvkhl::GBuffer::GBuffer(VkDevice device, nvvk::ResourceAllocator* alloc)
     : m_device(device)
@@ -82,13 +83,13 @@ void nvvkhl::GBuffer::create(const VkExtent2D& size, std::vector<VkFormat> color
     }
     {  // Image color view
       VkImageViewCreateInfo info = nvvk::makeImage2DViewCreateInfo(m_res.gBufferColor[c].image, m_colorFormat[c]);
-      vkCreateImageView(m_device, &info, nullptr, &m_res.descriptor[c].imageView);
+      NVVK_CHECK(vkCreateImageView(m_device, &info, nullptr, &m_res.descriptor[c].imageView));
       dutil.setObjectName(m_res.descriptor[c].imageView, "G-Color" + std::to_string(c));
     }
     {  // UI Image color view
       VkImageViewCreateInfo info = nvvk::makeImage2DViewCreateInfo(m_res.gBufferColor[c].image, m_colorFormat[c]);
       info.components.a          = VK_COMPONENT_SWIZZLE_ONE;
-      vkCreateImageView(m_device, &info, nullptr, &m_res.uiImageViews[c]);
+      NVVK_CHECK(vkCreateImageView(m_device, &info, nullptr, &m_res.uiImageViews[c]));
       dutil.setObjectName(m_res.uiImageViews[c], "UI G-Color" + std::to_string(c));
     }
 
@@ -113,7 +114,7 @@ void nvvkhl::GBuffer::create(const VkExtent2D& size, std::vector<VkFormat> color
   {  // Image depth view
     VkImageViewCreateInfo info = nvvk::makeImage2DViewCreateInfo(m_res.gBufferDepth.image, m_depthFormat);
     info.subresourceRange      = {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1};
-    vkCreateImageView(m_device, &info, nullptr, &m_res.depthView);
+    NVVK_CHECK(vkCreateImageView(m_device, &info, nullptr, &m_res.depthView));
     dutil.setObjectName(m_res.depthView, "G-Depth");
   }
 

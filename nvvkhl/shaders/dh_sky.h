@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -164,8 +164,6 @@ inline SimpleSkyParameters initSimpleSkyParameters()
 @DOC_END  */
 inline vec3 evalSimpleSky(SimpleSkyParameters params, vec3 direction)
 {
-  float angularSizeOfPixel = 0.0F;
-
   vec3 skyColor     = params.skyColor * params.brightness;
   vec3 horizonColor = params.horizonColor * params.brightness;
   vec3 groundColor  = params.groundColor * params.brightness;
@@ -179,15 +177,11 @@ inline vec3 evalSimpleSky(SimpleSkyParameters params, vec3 direction)
   // Sun
   float angleToLight    = acos(clamp(dot(direction, params.directionToLight), 0.0F, 1.0F));
   float halfAngularSize = params.angularSizeOfLight * 0.5F;
-  float lightIntensity =
-      clamp(1.0F - smoothstep(halfAngularSize - angularSizeOfPixel * 2.0F, halfAngularSize + angularSizeOfPixel * 2.0F, angleToLight),
-            0.0F, 1.0F);
-  lightIntensity = pow(lightIntensity, 4.0F);
   float glowInput =
       clamp(2.0F * (1.0F - smoothstep(halfAngularSize - params.glowSize, halfAngularSize + params.glowSize, angleToLight)),
             0.0F, 1.0F);
   float glowIntensity = params.glowIntensity * pow(glowInput, params.glowSharpness);
-  vec3  sunLight      = max(lightIntensity, glowIntensity) * params.lightRadiance;
+  vec3  sunLight      = glowIntensity * params.lightRadiance;
 
   return environment + sunLight;
 }

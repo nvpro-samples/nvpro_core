@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2018-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -103,8 +103,7 @@ void cmdBegin(VkCommandBuffer cmd, VkCommandBufferUsageFlags flags)
   VkCommandBufferBeginInfo beginInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
   beginInfo.flags = flags;
 
-  VkResult res = vkBeginCommandBuffer(cmd, &beginInfo);
-  assert(res == VK_SUCCESS);
+  NVVK_CHECK(vkBeginCommandBuffer(cmd, &beginInfo));
 }
 
 
@@ -117,7 +116,7 @@ void CommandPool::init(VkDevice device, uint32_t familyIndex, VkCommandPoolCreat
   VkCommandPoolCreateInfo info = {VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
   info.flags                   = flags;
   info.queueFamilyIndex        = familyIndex;
-  vkCreateCommandPool(m_device, &info, nullptr, &m_commandPool);
+  NVVK_CHECK(vkCreateCommandPool(m_device, &info, nullptr, &m_commandPool));
   if(defaultQueue)
   {
     m_queue = defaultQueue;
@@ -149,7 +148,7 @@ VkCommandBuffer CommandPool::createCommandBuffer(VkCommandBufferLevel level /*= 
   allocInfo.commandBufferCount          = 1;
 
   VkCommandBuffer cmd;
-  vkAllocateCommandBuffers(m_device, &allocInfo, &cmd);
+  NVVK_CHECK(vkAllocateCommandBuffers(m_device, &allocInfo, &cmd));
 
   if(begin)
   {
@@ -158,7 +157,7 @@ VkCommandBuffer CommandPool::createCommandBuffer(VkCommandBufferLevel level /*= 
     beginInfo.flags                    = flags;
     beginInfo.pInheritanceInfo         = pInheritanceInfo;
 
-    vkBeginCommandBuffer(cmd, &beginInfo);
+    NVVK_CHECK(vkBeginCommandBuffer(cmd, &beginInfo));
   }
 
   return cmd;
@@ -173,11 +172,7 @@ void CommandPool::destroy(size_t count, const VkCommandBuffer* cmds)
 void CommandPool::submitAndWait(size_t count, const VkCommandBuffer* cmds, VkQueue queue)
 {
   submit(count, cmds, queue);
-  VkResult result = vkQueueWaitIdle(queue);
-  if(nvvk::checkResult(result, __FILE__, __LINE__))
-  {
-    exit(-1);
-  }
+  NVVK_CHECK(vkQueueWaitIdle(queue));
   vkFreeCommandBuffers(m_device, m_commandPool, (uint32_t)count, cmds);
 }
 
@@ -185,13 +180,13 @@ void CommandPool::submit(size_t count, const VkCommandBuffer* cmds, VkQueue queu
 {
   for(size_t i = 0; i < count; i++)
   {
-    vkEndCommandBuffer(cmds[i]);
+    NVVK_CHECK(vkEndCommandBuffer(cmds[i]));
   }
 
   VkSubmitInfo submit       = {VK_STRUCTURE_TYPE_SUBMIT_INFO};
   submit.pCommandBuffers    = cmds;
   submit.commandBufferCount = (uint32_t)count;
-  vkQueueSubmit(queue, 1, &submit, fence);
+  NVVK_CHECK(vkQueueSubmit(queue, 1, &submit, fence));
 }
 
 void CommandPool::submit(size_t count, const VkCommandBuffer* cmds, VkFence fence)
