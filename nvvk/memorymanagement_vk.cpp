@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2024, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2019-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2019-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -645,7 +645,7 @@ AllocationID DeviceMemoryAllocator::allocInternal(const VkMemoryRequirements&   
     // make block free
     m_freeBlockIndex = block.id.instantiate(m_freeBlockIndex);
 
-    if(result == VK_ERROR_OUT_OF_DEVICE_MEMORY
+    if(m_allowDowngrade && result == VK_ERROR_OUT_OF_DEVICE_MEMORY
        && ((memProps == VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) || (memProps == 0 && preferDevice)))
     {
       // downgrade memory property to zero and/or not preferDevice

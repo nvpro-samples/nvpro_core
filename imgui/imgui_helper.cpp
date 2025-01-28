@@ -704,13 +704,11 @@ bool entry(const std::string& property_name, const std::function<bool()>& conten
   ImGui::TableNextColumn();
   ImGui::AlignTextToFramePadding();
   ImGui::Text("%s", property_name.c_str());
-  if(!tooltip.empty())
-    ImGuiH::tooltip(tooltip.c_str(), false, 0);
+  if(!tooltip.empty() && ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal | ImGuiHoveredFlags_NoSharedDelay))
+    ImGui::SetTooltip("%s", tooltip.c_str());
   ImGui::TableNextColumn();
   ImGui::SetNextItemWidth(-FLT_MIN);
   bool result = content_fct();
-  if(!tooltip.empty())
-    ImGuiH::tooltip(tooltip.c_str());
   ImGui::PopID();
   return result;  // returning if the widget changed
 }

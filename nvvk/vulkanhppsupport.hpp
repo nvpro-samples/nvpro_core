@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2024 NVIDIA CORPORATION & AFFILIATES.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2025 NVIDIA CORPORATION & AFFILIATES.
  * SPDX-License-Identifier: Apache-2.0
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -31,8 +31,8 @@
 #include <vulkan/vulkan.hpp>
 
 namespace nvvk {
-bool checkResult(vk::Result result, const char* message);
-bool checkResult(vk::Result result, const char* file, int32_t line);
+void checkResult(vk::Result result, const char* message);
+void checkResult(vk::Result result, const char* file, int32_t line);
 }  // namespace nvvk
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

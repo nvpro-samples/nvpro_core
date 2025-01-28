@@ -772,32 +772,54 @@ void copyAccessorData(std::vector<T>&           outData,
   copyAccessorData<T>(outData.data(), outData.size(), outFirstElement, tmodel, accessor, accessorFirstElement, numElementsToCopy);
 }
 
+// ScalarTypeGetter<T> returns the type of a single element (scalar) of T if
+// T is a GLM vector, or T itself otherwise.
+// We use this template specialization trick here, because T::value_type can
+// only be constructed if T is a GLM vector.
+template <typename T, bool isVector = std::is_class_v<T>>
+struct ScalarTypeGetter
+{
+  using type = T::value_type;
+};
+
+template <typename T>
+struct ScalarTypeGetter<T, false>
+{
+  using type = T;
+};
 
 /* @DOC_START
 ## Function `getAccessorData<T>`
 > Appends all the values of `accessor` to `attribVec`, with conversion to type `T`.
 
 Returns `false` if the accessor is invalid.
-`T` must be `uint32_t`, `glm::vec2`, `glm::vec3`, or `glm::vec4`.
+`T` must be one of the following types:
+* Float vectors:            `float`,    `glm::vec2`,  `glm::vec3`,  or `glm::vec4`.
+* Unsigned integer vectors: `uint32_t`, `glm::uvec2`, `glm::uvec3`, or `glm::uvec4`.
+* Signed integer vectors:   `int32_t`,  `glm::ivec2`, `glm::ivec3`, or `glm::ivec4`.
+
 @DOC_END */
 template <typename T>
 inline bool getAccessorData(const tinygltf::Model& tmodel, const tinygltf::Accessor& accessor, std::vector<T>& attribVec)
 {
   // Retrieving the data of the accessor
-  const auto nbElems = accessor.count;
+  const size_t nbElems = accessor.count;
 
   const size_t oldNumElements = attribVec.size();
   attribVec.resize(oldNumElements + nbElems);
 
-  // Are we copying to a uint32_t type or to a vector of floats?
-  constexpr bool toU32             = std::is_same_v<T, uint32_t>;
-  constexpr bool toFloat           = std::is_same_v<T, float>;
-  constexpr int  gltfComponentType = (toU32 ? TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT : TINYGLTF_COMPONENT_TYPE_FLOAT);
-  using ScalarType                 = std::conditional_t<toU32, uint32_t, float>;
+  // The following block of code figures out how to access T.
+  using ScalarType                 = ScalarTypeGetter<T>::type;
+  constexpr bool toFloat           = std::is_same_v<ScalarType, float>;
+  constexpr int  gltfComponentType = (toFloat ? TINYGLTF_COMPONENT_TYPE_FLOAT :  //
+                                         (std::is_same_v<ScalarType, uint32_t> ? TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT :  //
+                                              TINYGLTF_COMPONENT_TYPE_INT));
   // 1, 2, 3, 4 for scalar, VEC2, VEC3, VEC4
   constexpr int nbComponents = sizeof(T) / sizeof(ScalarType);
   // This depends on how TINYGLTF_TYPE_VEC{n} == n.
-  constexpr int gltfType = ((toU32 || toFloat) ? TINYGLTF_TYPE_SCALAR : static_cast<int>(nbComponents));
+  constexpr int gltfType = ((nbComponents == 1) ? TINYGLTF_TYPE_SCALAR : static_cast<int>(nbComponents));
+
+  // Make sure the input and output have the same number of components
   if(accessor.type != gltfType)
   {
     return false;  // Invalid
@@ -838,30 +860,42 @@ inline bool getAccessorData(const tinygltf::Model& tmodel, const tinygltf::Acces
         {
           case TINYGLTF_COMPONENT_TYPE_BYTE:
             v = static_cast<ScalarType>(*(reinterpret_cast<const char*>(pElement) + c));
-            if(!toU32 && accessor.normalized)
+            if constexpr(toFloat)
             {
-              v = std::max(v / 127.f, -1.f);
+              if(accessor.normalized)
+              {
+                v = std::max(v / 127.f, -1.f);
+              }
             }
             break;
           case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
             v = static_cast<ScalarType>(*(reinterpret_cast<const unsigned char*>(pElement) + c));
-            if(!toU32 && accessor.normalized)
+            if constexpr(toFloat)
             {
-              v = v / 255.f;
+              if(accessor.normalized)
+              {
+                v = v / 255.f;
+              }
             }
             break;
           case TINYGLTF_COMPONENT_TYPE_SHORT:
             v = static_cast<ScalarType>(*(reinterpret_cast<const short*>(pElement) + c));
-            if(!toU32 && accessor.normalized)
+            if constexpr(toFloat)
             {
-              v = std::max(v / 32767.f, -1.f);
+              if(accessor.normalized)
+              {
+                v = std::max(v / 32767.f, -1.f);
+              }
             }
             break;
           case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
             v = static_cast<ScalarType>(*(reinterpret_cast<const unsigned short*>(pElement) + c));
-            if(!toU32 && accessor.normalized)
+            if constexpr(toFloat)
             {
-              v = v / 65535.f;
+              if(accessor.normalized)
+              {
+                v = v / 65535.f;
+              }
             }
             break;
         }
@@ -902,14 +936,22 @@ the provided std::vector for storage. This vector must remain alive as long as
 the pointer is in use.
 
 Returns a span with nullptr data and 0 length if the accessor is invalid.
-`T` must be `glm::vec2`, `glm::vec3`, or `glm::vec4`.
+
+`T` must be one of the following types:
+* Float vectors:            `float`,    `glm::vec2`,  `glm::vec3`,  or `glm::vec4`.
+* Unsigned integer vectors: `uint32_t`, `glm::uvec2`, `glm::uvec3`, or `glm::uvec4`.
+* Signed integer vectors:   `int32_t`,  `glm::ivec2`, `glm::ivec3`, or `glm::ivec4`.
 @DOC_END */
 template <typename T>
 inline std::span<const T> getAccessorData2(const tinygltf::Model& tmodel, const tinygltf::Accessor& accessor, std::vector<T>& storage)
 {
   const auto& bufferView = tmodel.bufferViews[accessor.bufferView];
   // Fast path: Can we return a pointer to the buffer directly?
-  if((accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT)              // Must not require conversion
+  using ScalarType                = ScalarTypeGetter<T>::type;
+  constexpr int gltfComponentType = (std::is_same_v<ScalarType, float> ? TINYGLTF_COMPONENT_TYPE_FLOAT :  //
+                                         (std::is_same_v<ScalarType, uint32_t> ? TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT :  //
+                                              TINYGLTF_COMPONENT_TYPE_INT));
+  if((accessor.componentType == gltfComponentType)                          // Must not require conversion
      && (bufferView.byteStride == 0 || bufferView.byteStride == sizeof(T))  // Must not require re-packing
      && !accessor.sparse.isSparse)                                          // Must not be sparse
   {

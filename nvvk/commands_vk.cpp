@@ -247,11 +247,7 @@ void RingFences::setCycleAndWait(uint32_t cycle)
   if(entry.active)
   {
     // ensure the cycle we will use now has completed
-    VkResult result = vkWaitForFences(m_device, 1, &entry.fence, VK_TRUE, ~0ULL);
-    if(nvvk::checkResult(result, __FILE__, __LINE__))
-    {
-      exit(-1);
-    }
+    NVVK_CHECK(vkWaitForFences(m_device, 1, &entry.fence, VK_TRUE, ~0ULL));
     entry.active = false;
   }
   vkResetFences(m_device, 1, &entry.fence);
@@ -441,11 +437,7 @@ VkResult BatchSubmission::execute(VkFence fence /*= nullptr*/, uint32_t deviceMa
 
 void BatchSubmission::waitIdle() const
 {
-  VkResult result = vkQueueWaitIdle(m_queue);
-  if(nvvk::checkResult(result, __FILE__, __LINE__))
-  {
-    exit(-1);
-  }
+  NVVK_CHECK(vkQueueWaitIdle(m_queue));
 }
 
 }  // namespace nvvk

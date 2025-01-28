@@ -218,11 +218,6 @@ if (NOT TARGET vma AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/vma)
   set(VMA_DIR ${CMAKE_CURRENT_SOURCE_DIR}/vma/include)
   target_sources(vma INTERFACE ${VMA_DIR}/vk_mem_alloc.h)
   target_include_directories(vma INTERFACE ${VMA_DIR})
-  # Although nvpro_core requires at least Vulkan 1.3.x, we tell VMA to only
-  # link with core extension symbols from Vulkan 1.2.x. This avoids
-  # "undefined symbol" errors at load-time on Linux when running projects
-  # using nvpro_core on systems with earlier versions of libvulkan.so.
-  target_compile_definitions(vma INTERFACE VMA_VULKAN_VERSION=1002000)
 endif()
 if (TARGET vma)
   LIST(APPEND THIRDPARTY_LIBRARIES vma)

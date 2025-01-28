@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2024, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2019-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2019-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -196,6 +196,11 @@ public:
 
   // requires VK_EXT_memory_priority, default is false
   void setPrioritySupported(bool state) { m_supportsPriority = state; }
+
+  // demotes DEVICE_LOCAL to `0` bit, which allows driver to either use device or sysmem based on availability,
+  // default is true for backwards compatibility, however may cause instability
+  // FIXME should  use `VK_EXT_pageable_device_local_memory` in future, which allows oversubscribing DEVICE_LOCAL heap
+  void setAllowDowngrade(bool state) { m_allowDowngrade = state; }
 
   // frees all blocks independent of individual allocations
   // use only if you know the lifetime of all resources from this allocator.
@@ -491,6 +496,7 @@ protected:
   VkBufferUsageFlags m_defaultBufferUsageFlags  = 0;
   bool               m_forceDedicatedAllocation = false;
   bool               m_supportsPriority         = false;
+  bool               m_allowDowngrade           = true;
   // heuristic that doesn't immediately free the first memory block of a specific memorytype
   bool m_keepFirst = true;
 

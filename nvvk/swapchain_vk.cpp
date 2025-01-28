@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2024, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2019-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2019-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -81,22 +81,15 @@ VkExtent2D SwapChain::update(int width, int height, bool vsync)
   VkResult       err;
   VkSwapchainKHR oldSwapchain = m_swapchain;
 
-  err = waitIdle();
-  if(nvvk::checkResult(err, __FILE__, __LINE__))
-  {
-    exit(-1);
-  }
+  NVVK_CHECK(waitIdle());
   // Check the surface capabilities and formats
   VkSurfaceCapabilitiesKHR surfCapabilities;
-  err = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_physicalDevice, m_surface, &surfCapabilities);
-  assert(!err);
+  NVVK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_physicalDevice, m_surface, &surfCapabilities));
 
   uint32_t presentModeCount;
-  err = vkGetPhysicalDeviceSurfacePresentModesKHR(m_physicalDevice, m_surface, &presentModeCount, nullptr);
-  assert(!err);
+  NVVK_CHECK(vkGetPhysicalDeviceSurfacePresentModesKHR(m_physicalDevice, m_surface, &presentModeCount, nullptr));
   std::vector<VkPresentModeKHR> presentModes(presentModeCount);
-  err = vkGetPhysicalDeviceSurfacePresentModesKHR(m_physicalDevice, m_surface, &presentModeCount, presentModes.data());
-  assert(!err);
+  NVVK_CHECK(vkGetPhysicalDeviceSurfacePresentModesKHR(m_physicalDevice, m_surface, &presentModeCount, presentModes.data()));
 
   VkExtent2D swapchainExtent;
   // width and height are either both -1, or both not -1.
@@ -293,11 +286,7 @@ void SwapChain::deinitResources()
   if(!m_device)
     return;
 
-  VkResult result = waitIdle();
-  if(nvvk::checkResult(result, __FILE__, __LINE__))
-  {
-    exit(-1);
-  }
+  NVVK_CHECK(waitIdle());
 
   for(auto it : m_entries)
   {

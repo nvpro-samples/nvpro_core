@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,14 +20,14 @@
 #include "memorymanagement_vk.hpp"
 
 namespace nvvk {
-bool checkResult(vk::Result result, const char* message)
+void checkResult(vk::Result result, const char* message)
 {
-  return nvvk::checkResult(VkResult(result), message);
+  nvvk::checkResult(VkResult(result), message);
 }
 
-bool checkResult(vk::Result result, const char* file, int32_t line)
+void checkResult(vk::Result result, const char* file, int32_t line)
 {
-  return nvvk::checkResult((VkResult)result, file, line);
+  nvvk::checkResult((VkResult)result, file, line);
 }
 }  // namespace nvvk
 

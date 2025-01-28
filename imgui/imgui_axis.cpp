@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2014-2022 NVIDIA CORPORATION
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -146,8 +146,7 @@ struct AxisGeom
     }
 
     // Draw the line
-    draw_list->AddLine(ImVec2(vertex[0].x, vertex[0].y), ImVec2(vertex.back().x, vertex.back().y), col,
-                       1.0F * ImGui::GetWindowDpiScale());
+    draw_list->AddLine(ImVec2(vertex[0].x, vertex[0].y), ImVec2(vertex.back().x, vertex.back().y), col, ImGui::GetIO().FontGlobalScale);
   }
 };
 
@@ -162,7 +161,7 @@ void ImGuiH::Axis(ImVec2 pos, const glm::mat4& modelView, float size /*= 20.f*/)
     ImU32                  c{0};
   };
 
-  size *= ImGui::GetWindowDpiScale();
+  size *= ImGui::GetIO().FontGlobalScale;
 
   std::array<Arrow, 3> arrow;
   arrow[0].v = a.transform(a.red, pos, modelView, size);

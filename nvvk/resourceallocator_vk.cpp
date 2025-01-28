@@ -24,6 +24,8 @@
 #include "error_vk.hpp"
 #include "images_vk.hpp"
 
+#include <vulkan/vk_enum_string_helper.h>
+
 namespace nvvk {
 
 ResourceAllocator::ResourceAllocator(VkDevice           device,
@@ -484,9 +486,10 @@ SparseImage ResourceAllocator::createSparseImage(VkImageCreateInfo info_, const 
   std::array<VkImage, SparseImage::s_sparseImageCount> images;
   for(size_t i = 0; i < images.size(); i++)
   {
-    if(NVVK_CHECK(vkCreateImage(m_device, &info_, nullptr, &images[i])))
+    VkResult result = vkCreateImage(m_device, &info_, nullptr, &images[i]);
+    if(result < 0)
     {
-      LOGE("Could not create requested image\n");
+      LOGE("Could not create requested image; VkResult %s\n", string_VkResult(result));
       return {};
     }
   }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2024, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2019-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2019-2022, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -80,11 +80,7 @@ void ProfilerVK::resize()
     // FIXME we may loose results this way
     // not exactly efficient, but when timers changed a lot, we have a slow frame anyway
     // cleaner would be allocating more pools
-    VkResult result = vkDeviceWaitIdle(m_device);
-    if(nvvk::checkResult(result, __FILE__, __LINE__))
-    {
-      exit(-1);
-    }
+    NVVK_CHECK(vkDeviceWaitIdle(m_device));
     vkDestroyQueryPool(m_device, m_queryPool, nullptr);
   }
 

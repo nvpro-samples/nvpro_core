@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2014-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,12 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2014-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2014-2025, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 
 #include "nvprint.hpp"
+#include "fileoperations.hpp"
 
 #include <limits.h>
 #include <mutex>
@@ -39,7 +40,7 @@ enum class TriState
   eTrue
 };
 
-static std::string       s_logFileName = "log_nvprosample.txt";
+static std::string       s_logFileName;
 static std::vector<char> s_strBuffer;  // Persistent allocation for formatted text.
 #ifdef _WIN32
 static std::vector<wchar_t> s_wideStrBuffer;  // Persistent allocation for UTF-16 text.
@@ -255,6 +256,28 @@ void nvprintLevel(int level, const char* msg) noexcept
   {
     if(s_bLogReady == false)
     {
+
+      // Set a default log file name if none was set.
+      if(s_logFileName.empty())
+      {
+        try
+        {
+          std::filesystem::path       exePath = nvh::getExecutablePath();
+          const std::filesystem::path pathLog = exePath.parent_path() / ("log_" + exePath.stem().string() + ".txt");
+          s_logFileName                       = pathLog.string();
+        }
+        catch(const std::exception& e)
+        {
+#ifdef WIN32
+          OutputDebugStringW(L"Could not allocate space for the default log file name.\n");
+          printDebugString(e.what());
+          // maybe even increase level to LOGLEVEL_ERROR?
+#endif
+          return;
+        }
+      }
+
+
       s_fd        = fopen(s_logFileName.c_str(), "wt");
       s_bLogReady = true;
     }

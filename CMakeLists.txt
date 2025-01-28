@@ -180,6 +180,8 @@ if(USING_IMGUI)
       imgui/imgui_icon.h
       imgui/imgui_orient.cpp  
       imgui/imgui_orient.h
+      imgui/imgui_handler.cpp  
+      imgui/imgui_handler.h
       ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp
       ${IMGUI_DIR}/backends/imgui_impl_glfw.h
       )

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2014-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,39 +13,50 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2014-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2014-2025, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
-
+#include <vulkan/vulkan.h>
 #include <functional>
 #include <memory>
-#include <vulkan/vulkan.h>
-
+#include <string>
 #include <glm/glm.hpp>
-#include "nvvk/context_vk.hpp"
 
 #include "imgui.h"
+#include "app_swapchain_vk.hpp"
+#include "imgui/imgui_handler.h"
+
 
 /* @DOC_START
-# class nvvkhl::Application
-
-The Application is basically a small modification of the ImGui example for Vulkan.
-Because we support multiple viewports, duplicating the code would be not necessary 
-and the code is very well explained. 
+# class nvapp::Application
 
 To use the application, 
-* Fill the ApplicationCreateInfo with all the information, including the Vulkan creation information (nvvk::ContextCreateInfo).
-* Attach elements to the application, such as rendering, camera, etc.
+* Fill the ApplicationCreateInfo with all the information, 
+
+Example:
+````cpp
+    nvapp::ApplicationCreateInfo appInfo;
+    appInfo.name           = "Minimal Test";
+    appInfo.width          = 800;
+    appInfo.height         = 600;
+    appInfo.vSync          = false;
+    appInfo.instance       = vkContext.getInstance();
+    appInfo.physicalDevice = vkContext.getPhysicalDevice();
+    appInfo.device         = vkContext.getDevice();
+    appInfo.queues         = vkContext.getQueueInfos();
+ ```
+
+* Attach elements to the application, the main rendering, and others like, camera, etc.
 * Call run() to start the application.
 *
-* The application will create the window, the Vulkan context, and the ImGui context.
+* The application will create the window and the ImGui context.
 
 Worth notice
 * ::init() : will create the GLFW window, call nvvk::context for the creation of the 
               Vulkan context, initialize ImGui , create the surface and window (::setupVulkanWindow)  
-* ::shutdown() : the oposite of init
+* ::shutdown() : the opposite of init
 * ::run() : while running, render the frame and present the frame. Check for resize, minimize window 
               and other changes. In the loop, it will call some functions for each 'element' that is connected.
               onUIRender, onUIMenu, onRender. See IApplication for details.
@@ -75,44 +86,76 @@ frame with the command buffer.
 Note: order of Elements can be important if one depends on the other. For example, the ElementCamera should
       be added before the rendering sample, such that its matrices are updated before pulled by the renderer.
 
+
+## Docking
+
+The layout can be customized by providing a function to the ApplicationCreateInfo.
+
+Example:
+````
+    // Setting up the layout of the application
+    appInfo.dockSetup = [](ImGuiID viewportID) {
+      ImGuiID settingID = ImGui::DockBuilderSplitNode(viewportID, ImGuiDir_Right, 0.2F, nullptr, &viewportID);
+      ImGui::DockBuilderDockWindow("Settings", settingID);
+    };
+````
+
+
+
 @DOC_END */
 
-// Forward declarations
-struct GLFWwindow;
-struct ImGui_ImplVulkanH_Window;
 
 namespace nvvkhl {
 // Forward declarations
-struct ContextCreateInfo;
-class Context;
-struct IAppElement;
+class Application;
 
-struct ApplicationQueue
+
+//-------------------------------------------------------------------------------------------------
+// Interface for application elements
+struct IAppElement
 {
-  uint32_t familyIndex = ~0U;
-  uint32_t queueIndex  = ~0U;
-  VkQueue  queue       = VK_NULL_HANDLE;
+  // Interface
+  virtual void                onAttach(Application* app) {}                 // Called once at start
+  virtual void                onDetach() {}                                 // Called before destroying the application
+  [[deprecated]] virtual void onResize(uint32_t width, uint32_t height) {}  // Called when the viewport size is changing
+  virtual void                onResize(VkCommandBuffer cmd, const VkExtent2D& size)
+  {
+    onResize(size.width, size.height);  // (LEGACY) need to be removed
+  }  // Called when the viewport size is changing
+  virtual void onUIRender() {}                      // Called for anything related to UI
+  virtual void onUIMenu() {}                        // This is the menubar to create
+  virtual void onRender(VkCommandBuffer cmd) {}     // For anything to render within a frame
+  virtual void onFileDrop(const char* filename) {}  // For when a file is dragged on top of the window
+  virtual void onLastHeadlessFrame() {};            // Called at the end of the last frame in headless mode
+
+  virtual ~IAppElement() = default;
 };
 
-// Information for creating the application
+// Application creation info
 struct ApplicationCreateInfo
 {
-  std::string                  name{"Vulkan App"};           // Name of the GLFW
-  int32_t                      width{-1};                    // Width of the Window
-  int32_t                      height{-1};                   // Height of the window
-  bool                         vSync{true};                  // Is V-Sync on by default?
-  bool                         useMenu{true};                // Is the application will have a menubar?
-  bool                         useDockMenu{false};           // Is there an extra menubar ?
-  bool                         hasUndockableViewport{true};  // Create and use a default viewport
-  ImVec4                       clearColor{0.F, 0.F, 0.F, 1.F};
-  std::function<void(ImGuiID)> dockSetup;  // Allow to configure the dock layout
-  ImGuiConfigFlags             imguiConfigFlags =
-      ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_DockingEnable | ImGuiConfigFlags_ViewportsEnable;
-  // External Vulkan context
-  VkInstance                    instance{VK_NULL_HANDLE};
-  VkDevice                      device{VK_NULL_HANDLE};
-  VkPhysicalDevice              physicalDevice{VK_NULL_HANDLE};
-  std::vector<ApplicationQueue> queues{};
+  // General
+  std::string name{"Vulkan_App"};  // Application name
+
+  // Vulkan
+  VkInstance                     instance{VK_NULL_HANDLE};        // Vulkan instance
+  VkDevice                       device{VK_NULL_HANDLE};          // Logical device
+  VkPhysicalDevice               physicalDevice{VK_NULL_HANDLE};  // Physical device
+  std::vector<nvvkhl::QueueInfo> queues;                          // Queue family and properties (0: Graphics)
+
+  // GLFW
+  glm::uvec2 windowSize{0, 0};  // Window size (width, height) or Viewport size (headless)
+  bool       vSync{true};       // Enable V-Sync by default
+
+  // UI
+  bool                         useMenu{true};                 // Include a menubar
+  bool                         hasUndockableViewport{false};  // Allow floating windows
+  std::function<void(ImGuiID)> dockSetup;                     // Dock layout setup
+  ImGuiConfigFlags             imguiConfigFlags{ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_DockingEnable};
+
+  // Headless
+  bool     headless{false};        // Run without a window
+  uint32_t headlessFrameCount{1};  // Frames to render in headless mode
 };
 
 
@@ -127,18 +170,15 @@ public:
   void close();  // Stopping the application
 
   // Adding engines
-  template <typename T>
-  void addElement();
   void addElement(const std::shared_ptr<IAppElement>& layer);
 
   // Safely freeing up resources
-  static void submitResourceFree(std::function<void()>&& func);
+  void submitResourceFree(std::function<void()>&& func);
 
   // Utilities
-  void setViewport(const VkCommandBuffer& cmd);  // Set viewport and scissor the the size of the viewport
-  bool isVsync() const;                          // Return true if V-Sync is on
-  void setVsync(bool v);                         // Set V-Sync on or off
-  void setViewportClearColor(ImVec4 col) { m_clearColor = col; }
+  bool isVsync() const { return m_vsyncWanted; }  // Return true if V-Sync is on
+  void setVsync(bool v);                          // Set V-Sync on or off
+  bool isHeadless() const { return m_headless; }  // Return true if headless
 
   // Following three functions affect the preparation of the current frame's submit info.
   // Content is appended to vectors that are reset every frame
@@ -147,40 +187,72 @@ public:
   // these command buffers are enqueued before the command buffer that is provided `onRender(cmd)`
   void prependCommandBuffer(const VkCommandBufferSubmitInfoKHR& cmd);
 
-  VkCommandBuffer createTempCmdBuffer();
+  // Set viewport and scissor the the size of the viewport
+  void setViewport(const VkCommandBuffer& cmd);
+
+  // Utility to create a temporary command buffer
+  VkCommandBuffer createTempCmdBuffer() const;
   void            submitAndWaitTempCmdBuffer(VkCommandBuffer cmd);
 
   // Getters
-  inline VkCommandPool getCommandPool() const { return m_cmdPool; }  // Return command pool to create command buffers
-  inline GLFWwindow*   getWindowHandle() { return m_windowHandle; }  // Return the handle of the Window
-  inline const VkExtent2D& getViewportSize() { return m_viewportSize; }  // Return the size of the rendering viewport
-  inline const VkExtent2D& getWindowSize() { return m_windowSize; }      // Return the size of the window
-  inline VkDevice          getDevice() const { return m_device; }
-  inline VkInstance        getInstance() const { return m_instance; }
-  inline VkPhysicalDevice  getPhysicalDevice() const { return m_physicalDevice; }
-  inline const ApplicationQueue& getQueue(uint32_t index) const { return m_queues[index]; }
-  inline const uint32_t          getFrameCycleIndex() const { return m_currentFrameIndex; }
-  inline const uint32_t          getFrameCycleSize() const { return uint32_t(m_resourceFreeQueue.size()); }
+  inline VkInstance               getInstance() const { return m_instance; }
+  inline VkPhysicalDevice         getPhysicalDevice() const { return m_physicalDevice; }
+  inline VkDevice                 getDevice() const { return m_device; }
+  inline const nvvkhl::QueueInfo& getQueue(uint32_t index) const { return m_queues[index]; }
+  inline VkCommandPool            getCommandPool() const { return m_transientCmdPool; }
+  inline const VkDescriptorPool   getDescriptorPool() const { return m_descriptorPool; }
+  inline const VkExtent2D&        getViewportSize() const { return m_viewportSize; }
+  inline const VkExtent2D&        getWindowSize() const { return m_windowSize; }
+  inline GLFWwindow*              getWindowHandle() const { return m_windowHandle; }
+  inline const uint32_t           getFrameCycleIndex() const { return m_frameRingCurrent; }
+  inline const uint32_t           getFrameCycleSize() const { return uint32_t(m_frameData.size()); }
 
+  // Simulate the Drag&Drop of a file
   void onFileDrop(const char* filename);
-  void screenShot(const std::string& filename, int quality = 100);  // Delay the screen shot to the end of the frame
+
+
+  void screenShot(const std::string& filename, int quality = 90);  // Delay the screen shot to the end of the frame
+
+  // Utility functions
+  void saveImageToFile(VkImage srcImage, VkExtent2D imageSize, const std::string& filename, int quality = 90);
+  //
+  // Utility to save the image to a file, useful for headless mode
+  void imageToRgba8Linear(VkCommandBuffer  cmd,
+                          VkDevice         device,
+                          VkPhysicalDevice physicalDevice,
+                          VkImage          srcImage,
+                          VkExtent2D       size,
+                          VkImage&         dstImage,
+                          VkDeviceMemory&  dstImageMemory);
+  void saveImageToFile(VkDevice           device,
+                       VkImage            linearImage,
+                       VkDeviceMemory     imageMemory,
+                       VkExtent2D         imageSize,
+                       const std::string& filename,
+                       int                quality = 90);
+
 
 private:
-  void init(ApplicationCreateInfo& info);
-  void shutdown();
-  void frameRender();
-  void framePresent();
-  void setupVulkanWindow(VkSurfaceKHR surface, int width, int height);
-  void createDock() const;
-  void setPresentMode(VkPhysicalDevice physicalDevice, ImGui_ImplVulkanH_Window* wd);
-  void createDescriptorPool();
-  void saveScreenShot(const std::string& filename, int quality);  // Immediately save the frame
+  void            init(ApplicationCreateInfo& info);
+  void            initGlfw(ApplicationCreateInfo& info);
+  void            shutdown();
+  void            createTransientCommandPool();
+  void            createFrameSubmission(uint32_t numFrames);
+  void            initImGui(ImGuiConfigFlags configFlags);
+  void            createDescriptorPool();
+  void            onViewportSizeChange(VkExtent2D size);
+  void            headlessRun();
+  VkCommandBuffer beginFrame();
+  void            drawFrame(VkCommandBuffer cmd);
+  void            endFrame(VkCommandBuffer cmd);
+  void            presentFrame();
+  void            beginDynamicRenderingToSwapchain(VkCommandBuffer cmd) const;
+  void            endDynamicRenderingToSwapchain(VkCommandBuffer cmd);
+  void            saveScreenShot(const std::string& filename, int quality);  // Immediately save the frame
+  void            resetFreeQueue(uint32_t size);
 
-  void resetFreeQueue(uint32_t size);
+  std::vector<std::shared_ptr<IAppElement>> m_elements;  // List of application elements to be called
 
-  std::vector<std::shared_ptr<IAppElement>> m_elements;
-
-  bool        m_running{false};               // Is currently running
   bool        m_useMenubar{true};             // Will use a menubar
   bool        m_useDockMenubar{false};        // Will use an extra menubar
   bool        m_vsyncWanted{true};            // Wanting swapchain with vsync
@@ -189,98 +261,55 @@ private:
   bool        m_swapChainRebuild{false};      // Need to rebuild swapchain?
   bool        m_hasUndockableViewport{true};  // Using a default viewport
   std::string m_iniFilename;                  // Holds on .ini name
-  ImVec4      m_clearColor{0.0F, 0.0F, 0.0F, 1.0F};
 
   // Vulkan resources
-  VkInstance                    m_instance{VK_NULL_HANDLE};
-  VkDevice                      m_device{VK_NULL_HANDLE};
-  VkPhysicalDevice              m_physicalDevice{VK_NULL_HANDLE};
-  std::vector<ApplicationQueue> m_queues{};
+  VkInstance                     m_instance{VK_NULL_HANDLE};
+  VkPhysicalDevice               m_physicalDevice{VK_NULL_HANDLE};
+  VkDevice                       m_device{VK_NULL_HANDLE};
+  std::vector<nvvkhl::QueueInfo> m_queues{};            // All queues, first one should be a graphics queue
+  VkSurfaceKHR                   m_surface{};           // The window surface
+  VkCommandPool                  m_transientCmdPool{};  // The command pool
+  VkDescriptorPool               m_descriptorPool{};    // Application descriptor pool
 
-  VkCommandPool          m_cmdPool{VK_NULL_HANDLE};         //
-  VkPipelineCache        m_pipelineCache{VK_NULL_HANDLE};   // Cache for pipeline/shaders
-  VkDescriptorPool       m_descriptorPool{VK_NULL_HANDLE};  //
-  GLFWwindow*            m_windowHandle{nullptr};           // GLFW Window
-  VkExtent2D             m_viewportSize{0, 0};              // Size of the viewport
-  VkExtent2D             m_windowSize{0, 0};                // Size of the window
-  VkAllocationCallbacks* m_allocator{nullptr};
+  // Frame resources and synchronization (Swapchain, Command buffers, Semaphores, Fences)
+  AppSwapchain m_swapchain;
+  struct FrameData
+  {
+    VkCommandPool   cmdPool{};      // Command pool for recording commands for this frame
+    VkCommandBuffer cmdBuffer{};    // Command buffer containing the frame's rendering commands
+    uint64_t        frameNumber{};  // Timeline value for synchronization (increases each frame)
+  };
+  std::vector<FrameData> m_frameData{};    // Collection of per-frame resources to support multiple frames in flight
+  VkSemaphore m_frameTimelineSemaphore{};  // Timeline semaphore used to synchronize CPU submission with GPU completion
+  uint32_t m_frameRingCurrent{0};  // Current frame index in the ring buffer (cycles through available frames) : static for resource free queue
 
+  // Fine control over the frame submission
   std::vector<VkSemaphoreSubmitInfoKHR>     m_waitSemaphores;    // Possible extra frame wait semaphores
   std::vector<VkSemaphoreSubmitInfoKHR>     m_signalSemaphores;  // Possible extra frame signal semaphores
   std::vector<VkCommandBufferSubmitInfoKHR> m_commandBuffers;    // Possible extra frame command buffers
 
-  std::unique_ptr<ImGui_ImplVulkanH_Window> m_mainWindowData;
+
+  GLFWwindow* m_windowHandle{nullptr};  // GLFW Window
+  VkExtent2D  m_viewportSize{0, 0};     // Size of the viewport
+  VkExtent2D  m_windowSize{0, 0};       // Size of the window
 
   //--
-  static uint32_t                                        m_currentFrameIndex;  // (eg. 0, 1, 2, 0, 1, 2)
-  static std::vector<std::vector<std::function<void()>>> m_resourceFreeQueue;  // Queue of functions to free resources
+  std::vector<std::vector<std::function<void()>>> m_resourceFreeQueue;  // Queue of functions to free resources
 
   //--
-  std::function<void(ImGuiID)> m_dockSetup;
+  std::function<void(ImGuiID)> m_dockSetup;  // Function to setup the docking
 
+  bool        m_headless{false};
+  uint32_t    m_headlessFrameCount{1};
   bool        m_screenShotRequested = false;
-  std::string m_screenShotFilename  = "";
-  int         m_screenShotQuality   = 100;
+  int         m_screenShotFrame     = 0;
+  std::string m_screenShotFilename;
+
+  // Use for persist the data
+  ImGuiH::SettingsHandler m_settingsHandler;
+  glm::ivec2              m_winPos{};
+  glm::ivec2              m_winSize{};
 };
 
-template <typename T>
-void Application::addElement()
-{
-  static_assert(std::is_base_of<IAppElement, T>::value, "Type is not subclass of IApplication");
-  m_elements.emplace_back(std::make_shared<T>())->onAttach(this);
-}
-
-
-/*
-*  Interface for application elements
-*/
-struct IAppElement
-{
-  // Interface
-  virtual void onAttach(Application* app) {}                 // Called once at start
-  virtual void onDetach() {}                                 // Called before destroying the application
-  virtual void onResize(uint32_t width, uint32_t height) {}  // Called when the viewport size is changing
-  virtual void onUIRender() {}                               // Called for anything related to UI
-  virtual void onUIMenu() {}                                 // This is the menubar to create
-  virtual void onRender(VkCommandBuffer cmd) {}              // For anything to render within a frame
-  virtual void onFileDrop(const char* filename) {}           // For when a file is dragged on top of the window
-
-  virtual ~IAppElement() = default;
-};
-
-
-inline void addSurfaceExtensions(std::vector<const char*>& instanceExtensions)
-{
-  instanceExtensions.emplace_back(VK_KHR_SURFACE_EXTENSION_NAME);
-#if defined(VK_USE_PLATFORM_WIN32_KHR)
-  instanceExtensions.emplace_back(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
-#endif
-#if defined(VK_USE_PLATFORM_XCB_KHR)
-  instanceExtensions.emplace_back(VK_KHR_XCB_SURFACE_EXTENSION_NAME);
-#endif
-#if defined(VK_USE_PLATFORM_XLIB_KHR)
-  instanceExtensions.emplace_back(VK_KHR_XLIB_SURFACE_EXTENSION_NAME);
-#endif
-#if defined(VK_USE_PLATFORM_WAYLAND_KHR)
-  instanceExtensions.emplace_back(VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME);
-#endif
-#if defined(VK_USE_PLATFORM_ANDROID_KHR)
-  instanceExtensions.emplace_back(VK_KHR_ANDROID_SURFACE_EXTENSION_NAME);
-#endif
-#if defined(VK_USE_PLATFORM_IOS_MVK)
-  instanceExtensions.emplace_back(VK_MVK_IOS_SURFACE_EXTENSION_NAME);
-#endif
-#if defined(VK_USE_PLATFORM_MACOS_MVK)
-  instanceExtensions.emplace_back(VK_MVK_MACOS_SURFACE_EXTENSION_NAME);
-#endif
-}
-
-inline void addSurfaceExtensions(std::vector<nvvk::ContextCreateInfo::Entry>& instanceExtensions)
-{
-  std::vector<const char*> extensions;
-  addSurfaceExtensions(extensions);
-  for(auto& ext : extensions)
-    instanceExtensions.emplace_back(ext);
-}
 
 }  // namespace nvvkhl

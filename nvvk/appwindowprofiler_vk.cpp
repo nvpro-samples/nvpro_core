@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2023, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2014-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2014-2023, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2014-2025, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -95,11 +95,7 @@ void AppWindowProfilerVK::contextInit()
 
 void AppWindowProfilerVK::contextDeinit()
 {
-  VkResult result = vkDeviceWaitIdle(m_context.m_device);
-  if(nvvk::checkResult(result, __FILE__, __LINE__))
-  {
-    exit(-1);
-  }
+  NVVK_CHECK(vkDeviceWaitIdle(m_context.m_device));
   m_profilerVK.deinit();
   m_swapChain.deinit();
   vkDestroySurfaceKHR(m_context.m_instance, m_surface, nullptr);
@@ -108,11 +104,7 @@ void AppWindowProfilerVK::contextDeinit()
 
 void AppWindowProfilerVK::contextSync()
 {
-  VkResult result = vkDeviceWaitIdle(m_context.m_device);
-  if(nvvk::checkResult(result, __FILE__, __LINE__))
-  {
-    exit(-1);
-  }
+  NVVK_CHECK(vkDeviceWaitIdle(m_context.m_device));
 }
 
 void AppWindowProfilerVK::swapResize(int width, int height)

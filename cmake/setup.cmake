@@ -1,5 +1,5 @@
 #*****************************************************************************
-# Copyright 2020-2024 NVIDIA Corporation. All rights reserved.
+# Copyright 2020-2025 NVIDIA Corporation. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -125,10 +125,12 @@ macro(_add_project_definitions name)
   # for the actual CONFIG based directories (Release, RelWithDebInfo etc.)
   file(RELATIVE_PATH TO_CURRENT_SOURCE_DIR "${OUTPUT_PATH}/config" "${CMAKE_CURRENT_SOURCE_DIR}")
   file(RELATIVE_PATH TO_DOWNLOAD_TARGET_DIR "${OUTPUT_PATH}/config" "${DOWNLOAD_TARGET_DIR}")
+  file(RELATIVE_PATH TO_NVPRO_CORE_DIR "${OUTPUT_PATH}/config" "${BASE_DIRECTORY}/nvpro_core")
   
   add_definitions(-DPROJECT_NAME="${name}")
   add_definitions(-DPROJECT_RELDIRECTORY="${TO_CURRENT_SOURCE_DIR}/")
   add_definitions(-DPROJECT_DOWNLOAD_RELDIRECTORY="${TO_DOWNLOAD_TARGET_DIR}/")
+  add_definitions(-DPROJECT_NVPRO_CORE_RELDIRECTORY="${TO_NVPRO_CORE_DIR}/")
 endmacro(_add_project_definitions)
 
 #####################################################################################
