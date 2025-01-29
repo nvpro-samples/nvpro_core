@@ -113,6 +113,15 @@ void nvvkhl::Application::init(ApplicationCreateInfo& info)
     // Set the resource free queue
     resetFreeQueue(m_swapchain.getMaxFramesInFlight());
   }
+  else
+  {
+    // Headless default size
+    if(m_windowSize.width == 0 || m_windowSize.height == 0)
+    {
+      m_windowSize = {800, 600};
+    }
+  }
+
   // Initializing Dear ImGui
   initImGui(info.imguiConfigFlags);
 }
@@ -150,8 +159,11 @@ void nvvkhl::Application::initGlfw(ApplicationCreateInfo& info)
 void nvvkhl::Application::shutdown()
 {
   // Query the size/pos of the window, such that it get persisted
-  glfwGetWindowSize(m_windowHandle, &m_winSize.x, &m_winSize.y);
-  glfwGetWindowPos(m_windowHandle, &m_winPos.x, &m_winPos.y);
+  if(!m_headless)
+  {
+    glfwGetWindowSize(m_windowHandle, &m_winSize.x, &m_winSize.y);
+    glfwGetWindowPos(m_windowHandle, &m_winPos.x, &m_winPos.y);
+  }
 
   // This will call the onDetach of the elements
   for(std::shared_ptr<IAppElement>& e : m_elements)
@@ -245,6 +257,19 @@ void nvvkhl::Application::run()
   {
     headlessRun();
     return;
+  }
+
+  ImGui::LoadIniSettingsFromDisk(m_iniFilename.c_str());
+  if(m_winPos != glm::ivec2(0, 0))
+  {
+    // Position must be set before size to take into account DPI
+    glfwSetWindowPos(m_windowHandle, m_winPos.x, m_winPos.y);
+  }
+  if(m_winSize != glm::ivec2(0, 0))
+  {
+    m_windowSize = {uint32_t(m_winSize.x), uint32_t(m_winSize.y)};
+    glfwSetWindowSize(m_windowHandle, m_winSize.x, m_winSize.y);
+    m_swapchain.requestRebuild();
   }
 
   // Main rendering loop
@@ -565,11 +590,6 @@ void nvvkhl::Application::endDynamicRenderingToSwapchain(VkCommandBuffer cmd)
 void nvvkhl::Application::headlessRun()
 {
   nvh::ScopedTimer st(__FUNCTION__);
-  if(m_windowSize.width == 0 || m_windowSize.height == 0)
-  {
-    m_windowSize = {800, 600};
-  }
-
   m_viewportSize = m_windowSize;
 
   VkCommandBuffer cmd = nvvkhl::beginSingleTimeCommands(m_device, m_transientCmdPool);
@@ -716,19 +736,6 @@ void nvvkhl::Application::initImGui(ImGuiConfigFlags configFlags)
   m_settingsHandler.setSetting("Size", &m_winSize);
   m_settingsHandler.setSetting("Pos", &m_winPos);
   m_settingsHandler.addImGuiHandler();
-
-  ImGui::LoadIniSettingsFromDisk(m_iniFilename.c_str());
-  if(m_winPos != glm::ivec2(0, 0))
-  {
-    // Position must be set before size to take into account DPI
-    glfwSetWindowPos(m_windowHandle, m_winPos.x, m_winPos.y);
-  }
-  if(m_winSize != glm::ivec2(0, 0))
-  {
-    m_windowSize = {uint32_t(m_winSize.x), uint32_t(m_winSize.y)};
-    glfwSetWindowSize(m_windowHandle, m_winSize.x, m_winSize.y);
-  }
-
 
   ImGuiIO& io    = ImGui::GetIO();
   io.ConfigFlags = configFlags;

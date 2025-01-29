@@ -791,6 +791,37 @@ void ResourceAllocator::destroy(AccelKHR& a_)
   a_ = AccelKHR();
 }
 
+LargeAccelKHR ResourceAllocator::createLargeAcceleration(VkQueue queue, const VkAccelerationStructureCreateInfoKHR& accel_)
+{
+  LargeAccelKHR resultAccel;
+
+  // Allocating the buffer to hold the acceleration structure
+  resultAccel.buffer =
+      createLargeBuffer(queue, accel_.size,
+                        VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);
+  // Setting the buffer
+  VkAccelerationStructureCreateInfoKHR accel = accel_;
+  accel.buffer                               = resultAccel.buffer.buffer;
+
+  // Create the acceleration structure
+  vkCreateAccelerationStructureKHR(m_device, &accel, nullptr, &resultAccel.accel);
+
+  VkAccelerationStructureDeviceAddressInfoKHR info{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR};
+  info.accelerationStructure = resultAccel.accel;
+  resultAccel.address        = vkGetAccelerationStructureDeviceAddressKHR(m_device, &info);
+
+  return resultAccel;
+}
+
+
+void ResourceAllocator::destroy(LargeAccelKHR& a_)
+{
+  vkDestroyAccelerationStructureKHR(m_device, a_.accel, nullptr);
+  destroy(a_.buffer);
+
+  a_ = LargeAccelKHR();
+}
+
 VkSampler ResourceAllocator::acquireSampler(const VkSamplerCreateInfo& info)
 {
   return m_samplerPool->acquireSampler(info);

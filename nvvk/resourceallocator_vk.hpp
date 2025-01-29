@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2024, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2019-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -195,6 +195,13 @@ struct AccelKHR
   VkDeviceAddress            address{0};
 };
 
+struct LargeAccelKHR
+{
+  VkAccelerationStructureKHR accel = VK_NULL_HANDLE;
+  nvvk::LargeBuffer          buffer;
+  VkDeviceAddress            address{0};
+};
+
 //--------------------------------------------------------------------------------------------------
 // Allocator for buffers, images and acceleration structures
 //
@@ -374,9 +381,15 @@ public:
   //--------------------------------------------------------------------------------------------------
   // Create the acceleration structure
   //
-  // If a queue is provided and the requested buffer size is higher than the size supported for a single allocation, createAcceleration will create a large buffer comprising several
-  // allocations, each of size maxChunkSize at most.
   nvvk::AccelKHR createAcceleration(const VkAccelerationStructureCreateInfoKHR& accel_);
+
+
+  //--------------------------------------------------------------------------------------------------
+  // Create the acceleration structure with LargeBuffer as underlying storage
+  // This allows for very large acceleration structures > 4GB; utilizing sparse buffer bindings underneath
+  // Provide a queue to perform the vkQueueSparseBinding() call on
+  LargeAccelKHR createLargeAcceleration(VkQueue queue, const VkAccelerationStructureCreateInfoKHR& accel_);
+
 
   //--------------------------------------------------------------------------------------------------
   // Acquire a sampler with the provided information (see nvvk::SamplerPool for details).
@@ -417,6 +430,9 @@ public:
 
   VkDevice         getDevice() const { return m_device; }
   VkPhysicalDevice getPhysicalDevice() const { return m_physicalDevice; }
+
+
+  void destroy(LargeAccelKHR& a_);
 
 
 protected:

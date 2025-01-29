@@ -476,7 +476,7 @@ public:
 
   DescriptorSetContainer() {}
   DescriptorSetContainer(VkDevice device)
-      : nvvk::DescriptorSetContainer(device){};
+      : nvvk::DescriptorSetContainer(device) {};
 
   void addBinding(uint32_t binding,  // Slot to which the descriptor will be bound, corresponding to the layout
                   // binding index in the shader
@@ -1290,7 +1290,7 @@ public:
   }
 
   // All staging buffers must be cleared before
-  virtual ~ResourceAllocator(){};
+  virtual ~ResourceAllocator() {};
 
   inline nvvk::Texture createTexture(const vk::CommandBuffer&     cmdBuf,
                                      size_t                       size_,
@@ -1376,9 +1376,15 @@ public:
     return nvvk::ResourceAllocator::createAcceleration(static_cast<VkAccelerationStructureCreateInfoNV&>(accel_));
   }
 
-  nvvk::AccelKHR createAcceleration(vk::AccelerationStructureCreateInfoKHR& accel_)
+  nvvk::AccelKHR createAcceleration(const vk::AccelerationStructureCreateInfoKHR& accel_)
   {
-    return nvvk::ResourceAllocator::createAcceleration(static_cast<VkAccelerationStructureCreateInfoKHR&>(accel_));
+    return nvvk::ResourceAllocator::createAcceleration(static_cast<const VkAccelerationStructureCreateInfoKHR&>(accel_));
+  }
+
+  nvvk::LargeAccelKHR createLargeAcceleration(vk::Queue queue, const vk::AccelerationStructureCreateInfoKHR& accel_)
+  {
+    return nvvk::ResourceAllocator::createLargeAcceleration(static_cast<VkQueue>(queue),
+                                                            static_cast<const VkAccelerationStructureCreateInfoKHR&>(accel_));
   }
 };
 

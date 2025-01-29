@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -60,7 +60,7 @@ namespace nvvk {
   VkBuffer myFirstBuffer = createMyFirstBuffer(...);
   VkBuffer mySecondBuffer = createMySecondBuffer(...);
   VkDevice device = getMyVkDevice(...);
-  myCompute.create(device);
+  myCompute.init(device);
   const uint8_t* spvCode = getMyComputeShaderCode(...);
   size_t spvCodeSize = getMyComputeShaderCodeSize(...);
   myCompute.getBindings().addBinding(BindingLocation::eMyBindingLocation, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_ALL););
@@ -96,18 +96,18 @@ class PushComputeDispatcher
 {
 public:
   PushComputeDispatcher() = default;
-  PushComputeDispatcher(VkDevice device) { create(device); }
+  PushComputeDispatcher(VkDevice device) { init(device); }
 
-  virtual ~PushComputeDispatcher() { destroy(); }
+  virtual ~PushComputeDispatcher() { deinit(); }
 
-  void create(VkDevice device) { m_device = device; }
+  void init(VkDevice device) { m_device = device; }
 
   // Set the shader code for the pipeline at index pipelineIndex. The code will be compiled into a shader module that will be destroyed when the PushComputeDispatcher is destroyed.
   bool setCode(const void* shaderCode, size_t codeSize, int32_t pipelineIndex = 0)
   {
     if(m_device == VK_NULL_HANDLE)
     {
-      LOGE("%s: VK_NULL_HANDLE device. Call PushComputeDispatcher::create() beforehand.\n", __FUNCTION__);
+      LOGE("%s: VK_NULL_HANDLE device. Call PushComputeDispatcher::init() beforehand.\n", __FUNCTION__);
       assert(false);
       return false;
     }
@@ -136,7 +136,7 @@ public:
   {
     if(m_device == VK_NULL_HANDLE)
     {
-      LOGE("%s: VK_NULL_HANDLE device. Call PushComputeDispatcher::create() beforehand.\n", __FUNCTION__);
+      LOGE("%s: VK_NULL_HANDLE device. Call PushComputeDispatcher::init() beforehand.\n", __FUNCTION__);
       assert(false);
       return false;
     }
@@ -168,7 +168,7 @@ public:
 
     if(m_device == VK_NULL_HANDLE)
     {
-      LOGE("%s: VK_NULL_HANDLE device. Call PushComputeDispatcher::create() beforehand.\n", __FUNCTION__);
+      LOGE("%s: VK_NULL_HANDLE device. Call PushComputeDispatcher::init() beforehand.\n", __FUNCTION__);
       assert(false);
       return false;
     }
@@ -533,7 +533,7 @@ public:
   }
 
   // Destroy the pipeline layout and the pipelines, and clear the binding data
-  void destroy()
+  void deinit()
   {
     if(m_device == VK_NULL_HANDLE)
     {

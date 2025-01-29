@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -58,7 +58,7 @@ public:
   {
     static bool close_app{false};
     bool        v_sync = m_app->isVsync();
-#ifndef NDEBUG
+#ifdef SHOW_IMGUI_DEMO
     static bool s_showDemo{false};
     static bool s_showDemoPlot{false};
 #endif
@@ -75,14 +75,14 @@ public:
       ImGui::MenuItem("V-Sync", "Ctrl+Shift+V", &v_sync);
       ImGui::EndMenu();
     }
-#ifndef NDEBUG
+#ifdef SHOW_IMGUI_DEMO
     if(ImGui::BeginMenu("Debug"))
     {
       ImGui::MenuItem("Show ImGui Demo", nullptr, &s_showDemo);
       ImGui::MenuItem("Show ImPlot Demo", nullptr, &s_showDemoPlot);
       ImGui::EndMenu();
     }
-#endif  // !NDEBUG
+#endif  // SHOW_IMGUI_DEMO
 
     // Shortcuts
     if(ImGui::IsKeyPressed(ImGuiKey_Q) && ImGui::IsKeyDown(ImGuiKey_LeftCtrl))
@@ -99,7 +99,7 @@ public:
     {
       m_app->close();
     }
-#ifndef NDEBUG
+#ifdef SHOW_IMGUI_DEMO
     if(s_showDemo)
     {
       ImGui::ShowDemoWindow(&s_showDemo);
@@ -108,7 +108,7 @@ public:
     {
       ImPlot::ShowDemoWindow(&s_showDemoPlot);
     }
-#endif  // !NDEBUG
+#endif  // SHOW_IMGUI_DEMO
 
     if(m_app->isVsync() != v_sync)
     {
