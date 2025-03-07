@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2024, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2016-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2016-2024 NVIDIA CORPORATION
+ * SPDX-FileCopyrightText: Copyright (c) 2016-2025 NVIDIA CORPORATION
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -580,7 +580,7 @@ bool isDXGIFormatCompressed(const uint32_t dxgiFormat)
              && dxgiFormat <= texture_formats::DXGI_FORMAT_ASTC_12X12_UNORM_SRGB);
 }
 
-bool dx9HeaderSupported(const uint32_t dxgiFormat)
+bool dx9HeaderSupported(const uint32_t dxgiFormat, bool allowD3DFormatInFourCC)
 {
   switch(dxgiFormat)
   {
@@ -600,13 +600,14 @@ bool dx9HeaderSupported(const uint32_t dxgiFormat)
     case DXGI_FORMAT_B8G8R8A8_UNORM:
     case DXGI_FORMAT_B8G8R8X8_TYPELESS:
     case DXGI_FORMAT_B8G8R8X8_UNORM:
+      return true;
     case DXGI_FORMAT_R16_FLOAT:
     case DXGI_FORMAT_R16G16_FLOAT:
     case DXGI_FORMAT_R16G16B16A16_FLOAT:
     case DXGI_FORMAT_R32_FLOAT:
     case DXGI_FORMAT_R32G32_FLOAT:
     case DXGI_FORMAT_R32G32B32A32_FLOAT:
-      return true;
+      return allowD3DFormatInFourCC;
     default:
       return false;
   }
@@ -687,10 +688,10 @@ void setDX9PixelFormat(const uint32_t format, ColorTransform colorTransform, con
         pf.dwABitMask    = 0;
         break;
       case DXGI_FORMAT_R8G8_UNORM:
-        if(colorTransform == ColorTransform::eOrthographicNormal)
+        if(colorTransform == ColorTransform::eOrthographicNormal && writeSettings.legacyNvtteStyleFloatCodes)
         {
-          pf.dwFlags = DDPF_FOURCC;
-          pf.dwFlags = D3DFMT_CxV8U8;
+          pf.dwFlags  = DDPF_FOURCC;
+          pf.dwFourCC = D3DFMT_CxV8U8;
         }
         else
         {
@@ -1843,7 +1844,7 @@ ErrorWithText Image::writeToStream(std::ostream& output, const WriteSettings& wr
   // can tell that they're reading files written with the newest version of
   // NVDDS.
   header.dwReserved1[9]  = FOURCC_LIBRARY_NVPS;
-  header.dwReserved1[10] = (2 << 16) | (1 << 8) | 0;
+  header.dwReserved1[10] = (2 << 16) | (1 << 8) | 1;
 
   //---------------------------------------------------------------------------
   // DDS Pixel Format
@@ -1867,7 +1868,7 @@ ErrorWithText Image::writeToStream(std::ostream& output, const WriteSettings& wr
   // 2. BC3n can only be specified using the DX9 header.
   // 3. Array textures must use the DX10 header.
   // 4. If useDX10HeaderIfPossible, use the DX10 header.
-  // 5. Otherwise, use the DX10 hader only if DX9HeaderSupported(formatOpts) is false.
+  // 5. Otherwise, use the DX10 hader only if dx9HeaderSupported returns false.
   bool       usesDXT10Header = false;
   const bool isBC3N          = (dxgiFormat == DXGI_FORMAT_BC3_UNORM || dxgiFormat == DXGI_FORMAT_BC3_TYPELESS)
                       && (colorTransform == ColorTransform::eAGBR);
@@ -1881,7 +1882,7 @@ ErrorWithText Image::writeToStream(std::ostream& output, const WriteSettings& wr
   }
   else
   {
-    usesDXT10Header = !dx9HeaderSupported(dxgiFormat);
+    usesDXT10Header = !dx9HeaderSupported(dxgiFormat, writeSettings.legacyNvtteStyleFloatCodes);
   }
 
   if(usesDXT10Header)

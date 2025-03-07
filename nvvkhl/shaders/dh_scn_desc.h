@@ -185,11 +185,14 @@ INLINE GltfShadeMaterial defaultGltfMaterial()
   m.anisotropyRotation          = vec2(0, 0);
   m.sheenRoughnessFactor        = 0;
   m.sheenColorFactor            = vec3(0, 0, 0);
+  m.occlusionStrength           = 1;
   m.dispersion                  = 0;
   m.usePbrSpecularGlossiness    = 0;
   m.pbrDiffuseFactor            = vec4(1);
   m.pbrSpecularFactor           = vec3(1);
   m.pbrGlossinessFactor         = 1;
+  m.diffuseTransmissionColor    = vec3(1, 1, 1);
+  m.diffuseTransmissionFactor   = 0;
 
   m.pbrBaseColorTexture          = defaultGltfTextureInfo();
   m.normalTexture                = defaultGltfTextureInfo();

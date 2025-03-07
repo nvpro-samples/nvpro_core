@@ -105,7 +105,7 @@ void ImGuiH::SettingsHandler::setSetting(const std::string& key, T* value)
       return oss.str();
     };
   }
-  settings[key] = entry;
+  settings[key] = std::move(entry);
 }
 
 

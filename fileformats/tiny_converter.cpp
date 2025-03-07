@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2022-2023, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -264,7 +264,7 @@ void TinyConverter::convert(tinygltf::Model& gltf, const tinyobj::ObjReader& rea
 
 TinyConverter::Vertex TinyConverter::getVertex(const tinyobj::attrib_t& attrib, const tinyobj::index_t& index)
 {
-  Vertex       v;
+  Vertex       v{};
   const float* vp = &attrib.vertices[3ULL * index.vertex_index];
   v.pos           = {*(vp + 0), *(vp + 1), *(vp + 2)};
   if(!attrib.normals.empty() && index.normal_index >= 0)
@@ -302,11 +302,11 @@ void TinyConverter::convertMaterial(tinygltf::Model& gltf, const tinyobj::materi
   gMat.pbrMetallicRoughness.roughnessFactor = mat.shininess;
 
   gMat.doubleSided                                   = false;
-  gMat.normalTexture                                 = normalTexture;
-  gMat.occlusionTexture                              = occlusionTexture;
-  gMat.emissiveTexture                               = emissiveTexture;
-  gMat.pbrMetallicRoughness.baseColorTexture         = baseColorTexture;
-  gMat.pbrMetallicRoughness.metallicRoughnessTexture = metallicRoughnessTexture;
+  gMat.normalTexture                                 = std::move(normalTexture);
+  gMat.occlusionTexture                              = std::move(occlusionTexture);
+  gMat.emissiveTexture                               = std::move(emissiveTexture);
+  gMat.pbrMetallicRoughness.baseColorTexture         = std::move(baseColorTexture);
+  gMat.pbrMetallicRoughness.metallicRoughnessTexture = std::move(metallicRoughnessTexture);
 
 
   gltf.materials.emplace_back(gMat);

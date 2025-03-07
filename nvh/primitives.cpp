@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2022-2023, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -489,10 +489,10 @@ PrimitiveMesh createSphereMesh(float radius, int subdivisions)
       subTriangles.push_back({{m1, m2, m3}});
     }
 
-    triangles = subTriangles;
+    triangles = std::move(subTriangles);
   }
 
-  return {primitiveVertices, triangles};
+  return PrimitiveMesh{std::move(primitiveVertices), std::move(triangles)};
 }
 
 
@@ -549,7 +549,8 @@ nvh::PrimitiveMesh createTorusMesh(float majorRadius, float minorRadius, int maj
 // different objects.
 std::vector<nvh::Node> mengerSpongeNodes(int level, float probability, int seed)
 {
-  srand(seed);
+  std::mt19937                          rng(seed);
+  std::uniform_real_distribution<float> dist(0.0f, 1.0f);
 
   struct MengerSponge
   {
@@ -582,7 +583,7 @@ std::vector<nvh::Node> mengerSpongeNodes(int level, float probability, int seed)
       }
     }
 
-    void splitProb(std::vector<MengerSponge>& cubes, float prob)
+    void splitProb(std::vector<MengerSponge>& cubes, float prob, std::mt19937& rng, std::uniform_real_distribution<float>& dist)
     {
       float     size         = m_size / 3.f;
       glm::vec3 topLeftFront = m_topLeftFront;
@@ -594,7 +595,7 @@ std::vector<nvh::Node> mengerSpongeNodes(int level, float probability, int seed)
           topLeftFront[1] = m_topLeftFront[1] + static_cast<float>(y) * size;
           for(int z = 0; z < 3; z++)
           {
-            float sample = rand() / static_cast<float>(RAND_MAX);
+            float sample = dist(rng);
             if(sample > prob)
               continue;
             topLeftFront[2] = m_topLeftFront[2] + static_cast<float>(z) * size;
@@ -621,7 +622,7 @@ std::vector<nvh::Node> mengerSpongeNodes(int level, float probability, int seed)
       if(probability < 0.f)
         c.split(*next);
       else
-        c.splitProb(*next, probability);
+        c.splitProb(*next, probability, rng, dist);
     }
     auto temp = previous;
     previous  = next;
@@ -735,7 +736,7 @@ nvh::PrimitiveMesh wobblePrimitive(const nvh::PrimitiveMesh& mesh, float amplitu
     newVertices.push_back({newPosition, vertex.n, vertex.t});
   }
 
-  return {newVertices, mesh.triangles};
+  return {std::move(newVertices), std::move(mesh.triangles)};
 }
 
 // Takes a 3D mesh as input and returns a new mesh with duplicate vertices removed.
@@ -794,7 +795,7 @@ PrimitiveMesh removeDuplicateVertices(const PrimitiveMesh& mesh, bool testNormal
   // nvprintf("Before: %d vertex, %d triangles\n", mesh.vertices.size(), mesh.triangles.size());
   // nvprintf("After: %d vertex, %d triangles\n", uniqueVertices.size(), uniqueTriangles.size());
 
-  return {uniqueVertices, uniqueTriangles};
+  return {std::move(uniqueVertices), std::move(uniqueTriangles)};
 }
 
 

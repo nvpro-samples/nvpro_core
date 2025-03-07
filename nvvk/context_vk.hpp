@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2014-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2014-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2014-2025, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -107,7 +107,8 @@ then you are ready to create initialize `nvvk::Context`
 static const VkDeviceDiagnosticsConfigFlagsNV defaultAftermathFlags =
     (VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_RESOURCE_TRACKING_BIT_NV  // Additional information about the resource related to a GPU virtual address
      | VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_AUTOMATIC_CHECKPOINTS_BIT_NV  // Automatic checkpoints for all draw calls (ADD OVERHEAD)
-     | VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_SHADER_DEBUG_INFO_BIT_NV);  // instructs the shader compiler to generate debug information (ADD OVERHEAD)
+     | VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_SHADER_DEBUG_INFO_BIT_NV  // instructs the shader compiler to generate debug information (ADD OVERHEAD)
+     | VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_SHADER_ERROR_REPORTING_BIT_NV);
 
 
 struct ContextCreateInfo
@@ -177,7 +178,7 @@ struct ContextCreateInfo
 
   // Will Enable GPU crash dumps when Aftermath is available.
   // No-op when Aftermath has not been made available via SUPPORT_AFTERMATH in CMakeLists.txt
-  bool enableAftermath = true;
+  bool                             enableAftermath = true;
   VkDeviceDiagnosticsConfigFlagsNV aftermathFlags  = defaultAftermathFlags;
 
   struct Entry
@@ -498,9 +499,6 @@ private:
   std::unordered_set<int32_t> m_dbgIgnoreMessages;
   uint32_t m_dbgSeverity{VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT};
 
-  // nSight Aftermath
-  GpuCrashTracker m_gpuCrashTracker;
-
   void initDebugUtils();
   bool hasDebugUtils() const { return m_createDebugUtilsMessengerEXT != nullptr; }
 
@@ -516,6 +514,15 @@ private:
   static void initPhysicalInfo(PhysicalDeviceInfo& info, VkPhysicalDevice physicalDevice, uint32_t versionMajor, uint32_t versionMinor);
 };
 
+// nSight Aftermath support functions.
+#if defined(NVVK_SUPPORTS_AFTERMATH)
+void setGPUCheckpointFn(VkCommandBuffer cmdBuf, const char* func, unsigned line);
+// setGPUCheckpoint will insert a checkpoint into the commandbuffer.
+// The current line and file will help associating the checkpoint with the source code.
+#define setGPUCheckpoint(cmdBuf) nvvk::setGPUCheckpointFn((cmdBuf), __func__, __LINE__)
+#else
+#define setGPUCheckpoint(cmdBuf)
+#endif
 
 }  // namespace nvvk
 

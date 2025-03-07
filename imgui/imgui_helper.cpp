@@ -102,8 +102,6 @@ bool Combo(const char* label, size_t numEnums, const Enum* enums, void* valuePtr
           case TYPE_FLOAT:
             *fvalue = enums[i].fvalue;
             break;
-          default:
-            break;
         }
 
         changed = true;

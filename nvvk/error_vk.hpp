@@ -34,6 +34,7 @@ Use `NVVK_CHECK(result)` to automatically log filename/linenumber.
 #include <vulkan/vulkan_core.h>
 
 namespace nvvk {
+
 void checkResult(VkResult result, const char* message = nullptr);
 void checkResult(VkResult result, const char* file, int32_t line);
 

@@ -39,7 +39,6 @@ nvvkhl::SceneRtx::SceneRtx(VkDevice device, VkPhysicalDevice physicalDevice, nvv
   prop2.pNext          = &m_rtProperties;
   vkGetPhysicalDeviceProperties2(m_physicalDevice, &prop2);
 
-  m_device      = m_device;
   m_dutil       = std::make_unique<nvvk::DebugUtil>(m_device);  // Debug utility
   m_blasBuilder = std::make_unique<nvvk::BlasBuilder>(alloc, m_device);
 }

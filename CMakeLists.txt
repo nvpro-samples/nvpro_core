@@ -89,7 +89,7 @@ if(USING_VULKANSDK)
   endif()
 
   # Vulkan-high-level helpers
-  file(GLOB NVVKHL_SOURCE nvvkhl/*.cpp nvvkhl/*.hpp nvvkl/*.inl nvvkh;/*.h)
+  file(GLOB NVVKHL_SOURCE nvvkhl/*.cpp nvvkhl/*.hpp nvvkl/*.inl nvvkhl/*.h)
   set(SHD_DIR nvvkhl/shaders)
   file(GLOB SHD_HDR  ${SHD_DIR}/*.h)
   file(GLOB SHD_SRC ${SHD_DIR}/*.glsl)
@@ -135,10 +135,14 @@ if(USING_VULKANSDK)
   if(Vulkan_generate_extensions)
     find_package(Python3 COMPONENTS Interpreter)
     if(Python3_FOUND)
+      find_file(VULKAN_XML vk.xml
+        PATHS "$ENV{VULKAN_SDK}" "/usr"
+        PATH_SUFFIXES "share/vulkan/registry"
+        REQUIRED NO_DEFAULT_PATH)
       add_custom_command(
         OUTPUT "${GENERATED_EXTENSION_DIR}/nvvk/extensions_vk.cpp" "${GENERATED_EXTENSION_DIR}/nvvk/extensions_vk.hpp"
-        DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/nvvk/extensions_vk.py"
-        COMMAND ${Python3_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/nvvk/extensions_vk.py" --output-dir "${GENERATED_EXTENSION_DIR}/nvvk" --beta
+        DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/nvvk/extensions_vk.py" "${VULKAN_XML}"
+        COMMAND ${Python3_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/nvvk/extensions_vk.py" "${VULKAN_XML}" --output-dir "${GENERATED_EXTENSION_DIR}/nvvk" --beta
         COMMENT "Vulkan extension code generation with nvvk/extensions_vk.py (cmake option: Vulkan_generate_extensions)"
       )
       set(Vulkan_EXTENSIONS_GENERATED TRUE)
@@ -284,9 +288,11 @@ if(UNIX)
   LIST(APPEND PLATFORM_LIBRARIES ${X11_LIBRARIES})
 endif()
 
-# Make Windows compilation somewhat faster
+# Make Windows compilation somewhat faster, and link with Dbghelp for
+# stack trace information
 if(WIN32)
   target_compile_definitions(nvpro_core PRIVATE WIN32_LEAN_AND_MEAN)
+  LIST(APPEND PLATFORM_LIBRARIES DbgHelp)
 endif()
 
 if(USING_IMGUI)

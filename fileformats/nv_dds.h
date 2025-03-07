@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2024, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2016-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2016-2024 NVIDIA CORPORATION
+ * SPDX-FileCopyrightText: Copyright (c) 2016-2025 NVIDIA CORPORATION
  * SPDX-License-Identifier: Apache-2.0
  */
 
 //////////////////////////////////////////////////////////////////////////
 /** @DOC_START
-# nv_dds 2.1.0
+# nv_dds 2.1.1
      
 > A small yet complete library for reading and writing DDS files.
 
@@ -291,11 +291,14 @@ struct WriteSettings
   // FourCC codes for them), and will always use DX10.
   bool useDx10HeaderIfPossible = false;
 
-  // The legacy version of the NVIDIA Texture Tools Exporter implemented
-  // floating-point textures by copying certain numbers into the FourCC codes.
-  // This is undocumented - but since the old plugin has been around since
-  // 2004ish, the new version also needs to reproduce this behavior when
-  // writing a DX9 header. (Note that these are not DXGI formats.)
+  // Before the DX10 header existed, DX9 versions of the DDS file format
+  // allowed writing D3D9 D3DFORMAT values into the dwFourCC field.
+  // This is undocumented in DX10 and later versions of the format, so reader
+  // support for it varies greatly. If a reader doesn't support the DX10
+  // extension, it might recognize D3DFORMATs in dwFourCC.
+  //
+  // Set this to `true` to allow the writer to write D3DFORMAT values into the
+  // dwFourCC field.
   bool legacyNvtteStyleFloatCodes = false;
 
   // If set to `true`, the writer will ignore the Image's `format` field,

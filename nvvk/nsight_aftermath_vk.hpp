@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,22 +13,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
+
+#include <vector>
+#include <stdint.h>
 
 namespace nvvk {
 //// @DOC_SKIP
 class GpuCrashTracker
 {
 public:
+  void initialize();  // Initialize the GPU crash dump tracker.
+
+  void addShaderBinary(const std::vector<uint32_t>& data);
+
+  // Track an optimized shader with additional debug information
+  void addShaderBinaryWithDebugInfo(const std::vector<uint32_t>& data, const std::vector<uint32_t>& strippedData);
+
+  static GpuCrashTracker& getInstance();
+
+private:
   GpuCrashTracker();
   ~GpuCrashTracker();
 
-  void initialize();  // Initialize the GPU crash dump tracker.
-
-private:
   class GpuCrashTrackerImpl* m_pimpl;
 };
 

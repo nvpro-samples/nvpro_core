@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2023-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2023-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #ifndef IMGUI_DEFINE_MATH_OPERATORS
@@ -112,7 +112,7 @@ public:
     {
       ElementInspectorInternal::ValueFormat component = src;
       component.name += suffixes[i];
-      res.push_back(component);
+      res.emplace_back(component);
     }
   }
 
@@ -128,7 +128,7 @@ public:
       {
         ElementInspectorInternal::ValueFormat component = src;
         component.name += "." + suffixes[y] + suffixes[x];
-        res.push_back(component);
+        res.emplace_back(component);
       }
     }
   }
@@ -164,7 +164,7 @@ public:
       {
         componentCount = 1;
         internal.type  = *reinterpret_cast<const ValueType*>(&f.type);
-        res.push_back(internal);
+        res.emplace_back(internal);
         continue;
       }
 
@@ -1075,10 +1075,10 @@ void imguiCopy(nvvkhl::Application* app, T& src, const std::vector<T>& existingO
       copyBuffer.isCopy                 = true;
       copyBuffer.showSnapshot           = true;
       copyBuffer.showOnlyDiffToSnapshot = false;
-      copyBuffer.name                   = copyName;
+      copyBuffer.name                   = std::move(copyName);
       copyBuffer.hostBuffer             = {};
 
-      copies.push_back(copyBuffer);
+      copies.emplace_back(copyBuffer);
       ImGui::CloseCurrentPopup();
     }
 
@@ -2759,26 +2759,28 @@ void ElementInspectorInternal::imGuiBlock(uint32_t absoluteBlockIndex, Inspected
     return;
   }
 
-  ImGui::BeginTable(fmt::format("Block {}{}", absoluteBlockIndex, m_childIndex++).c_str(), visibleWarpCount,
-                    ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable);
-  uint32_t entrySizeInBytes = computeVar.formatSizeInBytes;
-  uint32_t warpSizeInBytes  = entrySizeInBytes * WARP_SIZE;
-
-  uint32_t baseGlobalThreadIndex = absoluteBlockIndex * warpsPerBlock * WARP_SIZE;
-  ImGui::TableNextRow();
-  for(uint32_t absoluteWarpIndexInBlock = computeVar.minWarpInBlock;
-      absoluteWarpIndexInBlock <= computeVar.maxWarpInBlock; absoluteWarpIndexInBlock++)
+  if(ImGui::BeginTable(fmt::format("Block {}{}", absoluteBlockIndex, m_childIndex++).c_str(), visibleWarpCount,
+                       ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable))
   {
-    uint32_t inspectedWarpIndex = absoluteWarpIndexInBlock - computeVar.minWarpInBlock;
-    if(computeVar.showWarps[inspectedWarpBeginIndex + inspectedWarpIndex])
-    {
-      ImGui::TableNextColumn();
-      imGuiWarp(absoluteBlockIndex, baseGlobalThreadIndex, absoluteWarpIndexInBlock,
-                offsetInBytes + inspectedWarpIndex * warpSizeInBytes, computeVar);
-    }
-  }
+    uint32_t entrySizeInBytes = computeVar.formatSizeInBytes;
+    uint32_t warpSizeInBytes  = entrySizeInBytes * WARP_SIZE;
 
-  ImGui::EndTable();
+    uint32_t baseGlobalThreadIndex = absoluteBlockIndex * warpsPerBlock * WARP_SIZE;
+    ImGui::TableNextRow();
+    for(uint32_t absoluteWarpIndexInBlock = computeVar.minWarpInBlock;
+        absoluteWarpIndexInBlock <= computeVar.maxWarpInBlock; absoluteWarpIndexInBlock++)
+    {
+      uint32_t inspectedWarpIndex = absoluteWarpIndexInBlock - computeVar.minWarpInBlock;
+      if(computeVar.showWarps[inspectedWarpBeginIndex + inspectedWarpIndex])
+      {
+        ImGui::TableNextColumn();
+        imGuiWarp(absoluteBlockIndex, baseGlobalThreadIndex, absoluteWarpIndexInBlock,
+                  offsetInBytes + inspectedWarpIndex * warpSizeInBytes, computeVar);
+      }
+    }
+
+    ImGui::EndTable();
+  }
 }
 
 
@@ -2965,81 +2967,83 @@ void ElementInspectorInternal::imGuiWarp(uint32_t                   absoluteBloc
   auto&          format           = var.format;
   ImGui::Text("%s", fmt::format("Warp {}", index).c_str());
 
-  ImGui::BeginTable(fmt::format("Warp {}{}", index, m_childIndex++).c_str(),
-                    2 + (static_cast<int32_t>(format.size()) * ((var.showDynamic ? 1 : 0) + (var.showSnapshot ? 1 : 0))),
-                    ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable);
-  ImGui::TableNextRow();
-  ImGui::TableNextColumn();
-  ImGui::Text("Global Index");
-  ImGui::TableNextColumn();
-  ImGui::Text("Local Index");
-
-  size_t entrySizeInBytes = var.formatSizeInBytes;
-  for(size_t i = 0; i < format.size(); i++)
-  {
-    if(var.showSnapshot)
-    {
-      ImGui::TableNextColumn();
-      ImGui::Text("SNAPSHOT\n%s", valueFormatToString(format[i]).c_str());
-      imguiPushActiveButtonStyle(format[i].hexDisplay);
-      if(ImGui::Button(fmt::format("Hex##{}", i).c_str()))
-      {
-        format[i].hexDisplay = !format[i].hexDisplay;
-      }
-
-      imguiPopActiveButtonStyle();
-    }
-    if(var.showDynamic)
-    {
-      ImGui::TableNextColumn();
-      ImGui::Text("%s", valueFormatToString(format[i]).c_str());
-      imguiPushActiveButtonStyle(format[i].hexDisplay);
-      if(ImGui::Button(fmt::format("Hex##{}", i).c_str()))
-      {
-        format[i].hexDisplay = !format[i].hexDisplay;
-      }
-
-      imguiPopActiveButtonStyle();
-    }
-  }
-
-  uint32_t offset          = 0;
-  size_t   entrySize       = var.formatSizeInBytes;
-  bool     isAnyEntryShown = false;
-  for(uint32_t i = 0; i < WARP_SIZE; i++)
-  {
-    if(var.showOnlyDiffToSnapshot)
-    {
-      if(memcmp(snapshotContents + offset, contents + offset, entrySizeInBytes) == 0)
-        continue;
-    }
-    isAnyEntryShown = true;
-    ImGui::TableNextRow();
-    ImGui::TableNextColumn();
-
-    glm::uvec3 globalInvocationId = getThreadInvocationId(absoluteBlockIndex, index, i, var);
-
-    ImGui::TextDisabled("%d %s", baseGlobalThreadIndex + index * WARP_SIZE + i,
-                        multiDimUvec3ToString(globalInvocationId, var.blockSize.y > 1 || var.blockSize.z > 1).c_str());
-    ImGui::TableNextColumn();
-    ImGui::TextDisabled("%d", i);
-
-    imGuiColumns(var, offsetInBytes + offset);
-    offset += static_cast<uint32_t>(entrySize);
-  }
-
-  if(!isAnyEntryShown)
+  if(ImGui::BeginTable(fmt::format("Warp {}{}", index, m_childIndex++).c_str(),
+                       2 + (static_cast<int32_t>(format.size()) * ((var.showDynamic ? 1 : 0) + (var.showSnapshot ? 1 : 0))),
+                       ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable))
   {
     ImGui::TableNextRow();
-    size_t tableWidth = 2 + var.format.size() * ((var.showDynamic ? 1 : 0) + (var.showSnapshot ? 1 : 0));
-    for(size_t i = 0; i < tableWidth; i++)
-    {
-      ImGui::TableNextColumn();
-      ImGui::TextDisabled("Not found");
-    }
-  }
+    ImGui::TableNextColumn();
+    ImGui::Text("Global Index");
+    ImGui::TableNextColumn();
+    ImGui::Text("Local Index");
 
-  ImGui::EndTable();
+    size_t entrySizeInBytes = var.formatSizeInBytes;
+    for(size_t i = 0; i < format.size(); i++)
+    {
+      if(var.showSnapshot)
+      {
+        ImGui::TableNextColumn();
+        ImGui::Text("SNAPSHOT\n%s", valueFormatToString(format[i]).c_str());
+        imguiPushActiveButtonStyle(format[i].hexDisplay);
+        if(ImGui::Button(fmt::format("Hex##{}", i).c_str()))
+        {
+          format[i].hexDisplay = !format[i].hexDisplay;
+        }
+
+        imguiPopActiveButtonStyle();
+      }
+      if(var.showDynamic)
+      {
+        ImGui::TableNextColumn();
+        ImGui::Text("%s", valueFormatToString(format[i]).c_str());
+        imguiPushActiveButtonStyle(format[i].hexDisplay);
+        if(ImGui::Button(fmt::format("Hex##{}", i).c_str()))
+        {
+          format[i].hexDisplay = !format[i].hexDisplay;
+        }
+
+        imguiPopActiveButtonStyle();
+      }
+    }
+
+    uint32_t offset          = 0;
+    size_t   entrySize       = var.formatSizeInBytes;
+    bool     isAnyEntryShown = false;
+    for(uint32_t i = 0; i < WARP_SIZE; i++)
+    {
+      if(var.showOnlyDiffToSnapshot)
+      {
+        if(memcmp(snapshotContents + offset, contents + offset, entrySizeInBytes) == 0)
+          continue;
+      }
+      isAnyEntryShown = true;
+      ImGui::TableNextRow();
+      ImGui::TableNextColumn();
+
+      glm::uvec3 globalInvocationId = getThreadInvocationId(absoluteBlockIndex, index, i, var);
+
+      ImGui::TextDisabled("%d %s", baseGlobalThreadIndex + index * WARP_SIZE + i,
+                          multiDimUvec3ToString(globalInvocationId, var.blockSize.y > 1 || var.blockSize.z > 1).c_str());
+      ImGui::TableNextColumn();
+      ImGui::TextDisabled("%d", i);
+
+      imGuiColumns(var, offsetInBytes + offset);
+      offset += static_cast<uint32_t>(entrySize);
+    }
+
+    if(!isAnyEntryShown)
+    {
+      ImGui::TableNextRow();
+      size_t tableWidth = 2 + var.format.size() * ((var.showDynamic ? 1 : 0) + (var.showSnapshot ? 1 : 0));
+      for(size_t i = 0; i < tableWidth; i++)
+      {
+        ImGui::TableNextColumn();
+        ImGui::TextDisabled("Not found");
+      }
+    }
+
+    ImGui::EndTable();
+  }
 }
 
 
@@ -3369,7 +3373,7 @@ std::vector<ElementInspector::ValueFormat> ElementInspector::formatStruct(const 
 
     if(nameStart != nameEnd && typeStart != typeEnd)
     {
-      res.push_back(value);
+      res.emplace_back(value);
     }
 
     if(pos >= structure.size())

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2024 NVIDIA CORPORATION & AFFILIATES.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2025 NVIDIA CORPORATION & AFFILIATES.
  * SPDX-License-Identifier: LicenseRef-NvidiaProprietary
  *
  * NVIDIA CORPORATION, its affiliates and licensors retain all intellectual
@@ -478,68 +478,69 @@ struct ElementNvml : public nvvkhl::IAppElement
 #if defined(NVP_SUPPORTS_NVML)
     const NvmlMonitor::DeviceInfo& deviceInfo = m_nvmlMonitor->getDeviceInfo(deviceIndex);
 
-    ImGui::BeginTable(fmt::format("Device Info###DevInfo{}", deviceIndex).c_str(), 2,
-                      ImGuiTableFlags_Borders | ImGuiTableFlags_HighlightHoveredColumn | ImGuiTableFlags_RowBg);
+    if(ImGui::BeginTable(fmt::format("Device Info###DevInfo{}", deviceIndex).c_str(), 2,
+                         ImGuiTableFlags_Borders | ImGuiTableFlags_HighlightHoveredColumn | ImGuiTableFlags_RowBg))
+    {
+      imguiNvmlField(deviceInfo.deviceName, "Device name");
+      imguiNvmlField(deviceInfo.brand, "Brand");
+      imguiNvmlField(deviceInfo.computeCapabilityMajor, "Compute capability major");
+      imguiNvmlField(deviceInfo.computeCapabilityMinor, "Compute capability minor");
+      imguiNvmlField(deviceInfo.pcieLinkGen, "PCIe link generation");
+      imguiNvmlField(deviceInfo.pcieLinkWidth, "PCIe link width");
+      imguiNvmlField(deviceInfo.vbiosVersion, "VBIOS version");
 
-    imguiNvmlField(deviceInfo.deviceName, "Device name");
-    imguiNvmlField(deviceInfo.brand, "Brand");
-    imguiNvmlField(deviceInfo.computeCapabilityMajor, "Compute capability major");
-    imguiNvmlField(deviceInfo.computeCapabilityMinor, "Compute capability minor");
-    imguiNvmlField(deviceInfo.pcieLinkGen, "PCIe link generation");
-    imguiNvmlField(deviceInfo.pcieLinkWidth, "PCIe link width");
-    imguiNvmlField(deviceInfo.vbiosVersion, "VBIOS version");
+      imguiNvmlField(deviceInfo.boardId, "Board ID");
+      imguiNvmlField(deviceInfo.partNumber, "Part number");
 
-    imguiNvmlField(deviceInfo.boardId, "Board ID");
-    imguiNvmlField(deviceInfo.partNumber, "Part number");
+      imguiNvmlField(deviceInfo.currentDriverModel, "Current driver model");
+      imguiNvmlField(deviceInfo.currentDriverModel, "Pending driver model");
 
-    imguiNvmlField(deviceInfo.currentDriverModel, "Current driver model");
-    imguiNvmlField(deviceInfo.currentDriverModel, "Pending driver model");
-
-    imguiNvmlField(deviceInfo.cpuAffinity, "CPU affinity");
-    imguiNvmlField(deviceInfo.computeMode, "Compute mode");
-
-
-    imguiNvmlField(deviceInfo.clockDefaultGraphics, "Default clock graphics", "MHz");
-    imguiNvmlField(deviceInfo.clockMaxGraphics, "Max clock graphics", "MHz");
-    imguiNvmlField(deviceInfo.clockBoostGraphics, "Boost clock graphics", "MHz");
-
-    imguiNvmlField(deviceInfo.clockDefaultSM, "Default clock SM", "MHz");
-    imguiNvmlField(deviceInfo.clockMaxSM, "Max clock SM", "MHz");
-    imguiNvmlField(deviceInfo.clockBoostSM, "Boost clock SM", "MHz");
-
-    imguiNvmlField(deviceInfo.clockDefaultMem, "Default clock memory", "MHz");
-    imguiNvmlField(deviceInfo.clockMaxMem, "Max clock memory", "MHz");
-    imguiNvmlField(deviceInfo.clockBoostMem, "Boost clock memory", "MHz");
-
-    imguiNvmlField(deviceInfo.clockDefaultVideo, "Default clock video", "MHz");
-    imguiNvmlField(deviceInfo.clockMaxVideo, "Max clock video", "MHz");
-    imguiNvmlField(deviceInfo.clockBoostVideo, "Boost clock video", "MHz");
-
-    imguiNvmlField(deviceInfo.currentEccMode, "Current ECC mode");
-    imguiNvmlField(deviceInfo.pendingEccMode, "Pending ECC mode");
-    imguiNvmlField(deviceInfo.encoderCapacityH264, "Encoder capacity H264", "%");
-    imguiNvmlField(deviceInfo.encoderCapacityHEVC, "Encoder capacity HEVC", "%");
-    imguiNvmlField(deviceInfo.infoROMImageVersion, "InfoROM image version");
-    imguiNvmlField(deviceInfo.infoROMOEMVersion, "InfoROM OEM version");
-    imguiNvmlField(deviceInfo.infoROMECCVersion, "InfoROM ECC version");
-    imguiNvmlField(deviceInfo.infoROMPowerVersion, "InfoROM power version");
-    imguiNvmlField(deviceInfo.supportedClocksThrottleReasons, "Supported clock throttle reasons");
-
-    imguiNvmlField(deviceInfo.maxLinkGen, "Max PCIe link generation");
-    imguiNvmlField(deviceInfo.maxLinkWidth, "Max PCIe link width");
-    imguiNvmlField(deviceInfo.minorNumber, "Minor number");
-    imguiNvmlField(deviceInfo.multiGpuBool, "Multi-GPU setup");
+      imguiNvmlField(deviceInfo.cpuAffinity, "CPU affinity");
+      imguiNvmlField(deviceInfo.computeMode, "Compute mode");
 
 
-    imguiNvmlField(deviceInfo.tempThresholdShutdown, "Temperature threshold HW Shutdown", "C");
-    imguiNvmlField(deviceInfo.tempThresholdHWSlowdown, "Temperature threshold HW Slowdown", "C");
-    imguiNvmlField(deviceInfo.tempThresholdSWSlowdown, "Temperature threshold SW Slowdown", "C");
-    imguiNvmlField(deviceInfo.tempThresholdDropBelowBaseClock, "Temperature threshold before dropping below base clocks", "C");
+      imguiNvmlField(deviceInfo.clockDefaultGraphics, "Default clock graphics", "MHz");
+      imguiNvmlField(deviceInfo.clockMaxGraphics, "Max clock graphics", "MHz");
+      imguiNvmlField(deviceInfo.clockBoostGraphics, "Boost clock graphics", "MHz");
 
-    imguiNvmlField(deviceInfo.powerLimit, "Maximum power draw", "W");
+      imguiNvmlField(deviceInfo.clockDefaultSM, "Default clock SM", "MHz");
+      imguiNvmlField(deviceInfo.clockMaxSM, "Max clock SM", "MHz");
+      imguiNvmlField(deviceInfo.clockBoostSM, "Boost clock SM", "MHz");
+
+      imguiNvmlField(deviceInfo.clockDefaultMem, "Default clock memory", "MHz");
+      imguiNvmlField(deviceInfo.clockMaxMem, "Max clock memory", "MHz");
+      imguiNvmlField(deviceInfo.clockBoostMem, "Boost clock memory", "MHz");
+
+      imguiNvmlField(deviceInfo.clockDefaultVideo, "Default clock video", "MHz");
+      imguiNvmlField(deviceInfo.clockMaxVideo, "Max clock video", "MHz");
+      imguiNvmlField(deviceInfo.clockBoostVideo, "Boost clock video", "MHz");
+
+      imguiNvmlField(deviceInfo.currentEccMode, "Current ECC mode");
+      imguiNvmlField(deviceInfo.pendingEccMode, "Pending ECC mode");
+      imguiNvmlField(deviceInfo.encoderCapacityH264, "Encoder capacity H264", "%");
+      imguiNvmlField(deviceInfo.encoderCapacityHEVC, "Encoder capacity HEVC", "%");
+      imguiNvmlField(deviceInfo.infoROMImageVersion, "InfoROM image version");
+      imguiNvmlField(deviceInfo.infoROMOEMVersion, "InfoROM OEM version");
+      imguiNvmlField(deviceInfo.infoROMECCVersion, "InfoROM ECC version");
+      imguiNvmlField(deviceInfo.infoROMPowerVersion, "InfoROM power version");
+      imguiNvmlField(deviceInfo.supportedClocksThrottleReasons, "Supported clock throttle reasons");
+
+      imguiNvmlField(deviceInfo.maxLinkGen, "Max PCIe link generation");
+      imguiNvmlField(deviceInfo.maxLinkWidth, "Max PCIe link width");
+      imguiNvmlField(deviceInfo.minorNumber, "Minor number");
+      imguiNvmlField(deviceInfo.multiGpuBool, "Multi-GPU setup");
 
 
-    ImGui::EndTable();
+      imguiNvmlField(deviceInfo.tempThresholdShutdown, "Temperature threshold HW Shutdown", "C");
+      imguiNvmlField(deviceInfo.tempThresholdHWSlowdown, "Temperature threshold HW Slowdown", "C");
+      imguiNvmlField(deviceInfo.tempThresholdSWSlowdown, "Temperature threshold SW Slowdown", "C");
+      imguiNvmlField(deviceInfo.tempThresholdDropBelowBaseClock, "Temperature threshold before dropping below base clocks", "C");
+
+      imguiNvmlField(deviceInfo.powerLimit, "Maximum power draw", "W");
+
+
+      ImGui::EndTable();
+    }
 #endif
   }
 
@@ -1046,35 +1047,37 @@ struct ElementNvml : public nvvkhl::IAppElement
       ImGui::Text("NVIDIA-SMI Commands");
       ImGui::TreePush("NVIDIA-SMI Commands");
 
-      ImGui::BeginTable(fmt::format("NVIDIA-SMI commands###NVSMICMD{}", deviceIndex).c_str(), 2,
-                        ImGuiTableFlags_Borders | ImGuiTableFlags_HighlightHoveredColumn | ImGuiTableFlags_RowBg);
-      ImGui::TableNextRow();
-      ImGui::TableNextColumn();
-      ImGui::Text("Memory clock lock");
-      ImGui::TableNextColumn();
-      imguiCopyableText(nvidiaSmiMemClockLockCommand, reinterpret_cast<uint64_t>(&nvidiaSmiMemClockLockCommand));
+      if(ImGui::BeginTable(fmt::format("NVIDIA-SMI commands###NVSMICMD{}", deviceIndex).c_str(), 2,
+                           ImGuiTableFlags_Borders | ImGuiTableFlags_HighlightHoveredColumn | ImGuiTableFlags_RowBg))
+      {
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::Text("Memory clock lock");
+        ImGui::TableNextColumn();
+        imguiCopyableText(nvidiaSmiMemClockLockCommand, reinterpret_cast<uint64_t>(&nvidiaSmiMemClockLockCommand));
 
-      ImGui::TableNextRow();
-      ImGui::TableNextColumn();
-      ImGui::Text("Graphics clock lock");
-      ImGui::TableNextColumn();
-      imguiCopyableText(nvidiaSmiGfxClockLockCommand, reinterpret_cast<uint64_t>(&nvidiaSmiGfxClockLockCommand));
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::Text("Graphics clock lock");
+        ImGui::TableNextColumn();
+        imguiCopyableText(nvidiaSmiGfxClockLockCommand, reinterpret_cast<uint64_t>(&nvidiaSmiGfxClockLockCommand));
 
-      ImGui::TableNextRow();
-      ImGui::TableNextColumn();
-      ImGui::Text("Memory clock unlock (reset to default behavior)");
-      ImGui::TableNextColumn();
-      std::string memoryClockResetCommand = fmt::format("nvidia-smi -i {} -rmc", deviceIndex);
-      imguiCopyableText(memoryClockResetCommand, reinterpret_cast<uint64_t>(&memoryClockResetCommand));
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::Text("Memory clock unlock (reset to default behavior)");
+        ImGui::TableNextColumn();
+        std::string memoryClockResetCommand = fmt::format("nvidia-smi -i {} -rmc", deviceIndex);
+        imguiCopyableText(memoryClockResetCommand, reinterpret_cast<uint64_t>(&memoryClockResetCommand));
 
-      ImGui::TableNextRow();
-      ImGui::TableNextColumn();
-      ImGui::Text("Graphics clock unlock (reset to default behavior)");
-      ImGui::TableNextColumn();
-      std::string graphicsClockResetCommand = fmt::format("nvidia-smi -i {} -rgc", deviceIndex);
-      imguiCopyableText(graphicsClockResetCommand, reinterpret_cast<uint64_t>(&graphicsClockResetCommand));
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::Text("Graphics clock unlock (reset to default behavior)");
+        ImGui::TableNextColumn();
+        std::string graphicsClockResetCommand = fmt::format("nvidia-smi -i {} -rgc", deviceIndex);
+        imguiCopyableText(graphicsClockResetCommand, reinterpret_cast<uint64_t>(&graphicsClockResetCommand));
 
-      ImGui::EndTable();
+        ImGui::EndTable();
+      }
       tooltip("Copy these commands into an \nAdministrator console to setup\n the GPU clocks");
 
       ImGui::TreePop();

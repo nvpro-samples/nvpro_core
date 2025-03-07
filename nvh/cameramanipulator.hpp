@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2024, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2018-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2018-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2018-2025, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 //--------------------------------------------------------------------
@@ -215,11 +215,11 @@ protected:
   Camera m_snapshot;  // Current camera the moment a set look-at is done
 
   // Animation
-  std::array<glm::vec3, 3> m_bezier;
-  double                   m_start_time = 0;
+  std::array<glm::vec3, 3> m_bezier     = {};
+  double                   m_start_time = 0.0;
   double                   m_duration   = 0.5;
-  bool                     m_anim_done{true};
-  glm::vec3                m_key_vec{0, 0, 0};
+  bool                     m_anim_done  = true;
+  glm::vec3                m_key_vec    = {0, 0, 0};
 
   // Screen
   int m_width  = 1;

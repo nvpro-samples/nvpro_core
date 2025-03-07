@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -137,7 +137,7 @@ void HdrEnv::loadEnvironment(const std::string& hrdImage, bool enableMipmaps)
           m_accelImpSmpl = m_alloc->createBuffer(cmd, envAccel, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
           m_debug.setObjectName(m_accelImpSmpl.buffer, "HDR_accel");
 
-          nvvk::Image image = m_alloc->createImage(cmd, buffer_size, pixels, imageInfo);
+          nvvk::Image           image      = m_alloc->createImage(cmd, buffer_size, pixels, imageInfo);
           VkImageViewCreateInfo createInfo = nvvk::makeImageViewCreateInfo(image.image, imageInfo);
           m_texHdr                         = m_alloc->createTexture(image, createInfo, samplerInfo);
           m_debug.setObjectName(m_texHdr.image, "HDR");
@@ -216,6 +216,10 @@ inline float buildAliasmap(const std::vector<float>& data, std::vector<nvvkhl_sh
   // Since each element in data is already weighted by its solid angle
   // the integral is a simple sum
   float sum = std::accumulate(data.begin(), data.end(), 0.F);
+  if(sum == 0.0f)
+  {
+    sum = 1.0f;
+  }
 
   // For each texel, compute the ratio q between the emitted radiance of the texel and the average
   // emitted radiance over the entire sphere
@@ -335,6 +339,10 @@ inline std::vector<nvvkhl_shaders::EnvAccel> createEnvironmentAccel(float*&     
   // each smaller radiance texel will be assigned an "alias" with higher emitted radiance
   // As a byproduct this function also returns the integral of the radiance emitted by the environment
   integral = buildAliasmap(importance_data, env_accel);
+  if(integral == 0.0f)
+  {
+    integral = 1.0f;
+  }
 
   // We deduce the PDF of each texel by normalizing its emitted radiance by the radiance integral
   const float inv_env_integral = 1.0F / integral;

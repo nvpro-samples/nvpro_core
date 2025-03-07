@@ -21,6 +21,7 @@
 #include "error_vk.hpp"
 
 #include <nvh/nvprint.hpp>
+#include <nvh/stacktrace.hpp>
 #include <vulkan/vk_enum_string_helper.h>
 
 namespace nvvk {
@@ -50,6 +51,7 @@ void checkResult(VkResult result, const char* message)
     {
       LOGE("VkResult %d - %s\n", result, string_VkResult(result));
     }
+    LOGE("Stacktrace:\n%s\n", nvh::getStacktrace(1).c_str());
     assert(!"Critical Vulkan Error");
     exit(1);
   }
@@ -69,6 +71,7 @@ void checkResult(VkResult result, const char* file, int32_t line)
   if(result < 0)
   {
     LOGE("%s(%d): Vulkan Error : %s\n", file, line, string_VkResult(result));
+    LOGE("Stacktrace:\n%s\n", nvh::getStacktrace(1).c_str());
     assert(!"Critical Vulkan Error");
     exit(1);
   }

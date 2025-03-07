@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
@@ -172,7 +172,7 @@ private:
     std::string              name;
     float                    cpuTime = 0.f;
     float                    gpuTime = -1.f;
-    std::vector<MyEntryNode> child;
+    std::vector<MyEntryNode> child{};
     Entry*                   entry = nullptr;
   };
 
@@ -191,7 +191,7 @@ private:
       entryNode.entry   = &entry;
       if(entry.level == LEVEL_SINGLESHOT)
       {
-        m_single.child.push_back(entryNode);
+        m_single.child.emplace_back(entryNode);
         continue;
       }
 
@@ -200,7 +200,7 @@ private:
       {
         curIndex = addEntries(entryNode.child, curIndex + 1, endIndex, nextLevel);
       }
-      nodes.push_back(entryNode);
+      nodes.emplace_back(entryNode);
       if(nextLevel < currentLevel)
         return curIndex;
     }

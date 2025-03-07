@@ -32,6 +32,8 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 20)
 # Find includes in corresponding build directories
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
+# Include symbols in executables for better stack trace information on Linux
+set(CMAKE_ENABLE_EXPORTS ON)
 
 # IDE Setup
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)  # Generate folders for IDE targets

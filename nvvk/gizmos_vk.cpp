@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2023, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,12 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2020-2023, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 
 #include "gizmos_vk.hpp"
+#include "shaders_vk.hpp"
 
 #include <glm/gtc/type_ptr.hpp>
 
@@ -180,13 +181,8 @@ void AxisVK::createAxisObject(CreateAxisInfo& info)
   VkShaderModule smVertex;
   VkShaderModule smFrag;
 
-  VkShaderModuleCreateInfo createInfo{VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
-  createInfo.codeSize = sizeof(s_vert_spv);
-  createInfo.pCode    = s_vert_spv;
-  vkCreateShaderModule(m_device, &createInfo, nullptr, &smVertex);
-  createInfo.codeSize = sizeof(s_frag_spv);
-  createInfo.pCode    = s_frag_spv;
-  vkCreateShaderModule(m_device, &createInfo, nullptr, &smFrag);
+  smVertex = nvvk::createShaderModule(m_device, s_vert_spv, sizeof(s_vert_spv));
+  smFrag   = nvvk::createShaderModule(m_device, s_frag_spv, sizeof(s_frag_spv));
 
   // Pipeline state
   nvvk::GraphicsPipelineState gps;

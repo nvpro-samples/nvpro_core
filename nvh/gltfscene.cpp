@@ -338,9 +338,9 @@ void nvh::gltf::Scene::createRootIfMultipleNodes(tinygltf::Scene& scene)
 
   tinygltf::Node newNode;
   newNode.name = scene.name;
-  newNode.children.swap(scene.nodes);  // Move the scene nodes to the new node
-  m_model.nodes.push_back(newNode);    // Add to then to avoid invalidating any references
-  scene.nodes.clear();                 // Should be already empty, due to the swap
+  newNode.children.swap(scene.nodes);   // Move the scene nodes to the new node
+  m_model.nodes.emplace_back(newNode);  // Add to then to avoid invalidating any references
+  scene.nodes.clear();                  // Should be already empty, due to the swap
   scene.nodes.push_back(int(m_model.nodes.size()) - 1);
 }
 
@@ -917,7 +917,7 @@ void nvh::gltf::Scene::parseAnimations()
         }
       }
 
-      animation.samplers.push_back(sampler);
+      animation.samplers.emplace_back(sampler);
     }
 
     // Channels
@@ -948,11 +948,11 @@ void nvh::gltf::Scene::parseAnimations()
       channel.samplerIndex = source.sampler;
       channel.node         = source.target_node;
 
-      animation.channels.push_back(channel);
+      animation.channels.emplace_back(channel);
     }
 
     animation.info.reset();
-    m_animations.push_back(animation);
+    m_animations.emplace_back(animation);
   }
 
   // Find all animated primitives (morph)
@@ -1219,7 +1219,7 @@ void nvh::gltf::Scene::parseVariants()
       for(size_t i = 0; i < variants.ArrayLen(); i++)
       {
         std::string name = variants.Get(int(i)).Get("name").Get<std::string>();
-        m_variants.push_back(name);
+        m_variants.emplace_back(name);
       }
     }
   }
@@ -1763,6 +1763,12 @@ void nvh::GltfScene::createTexcoords(GltfPrimMesh& resultMesh)
       vc      = pos.y;
     }
 
+    // Avoid possible division by zero
+    if(maxAxis == 0.0f)
+    {
+      maxAxis = 1.0f;
+    }
+
     // Convert range from -1 to 1 to 0 to 1
     float u = 0.5f * (uc / maxAxis + 1.0f);
     float v = 0.5f * (vc / maxAxis + 1.0f);
@@ -2144,7 +2150,7 @@ void nvh::GltfScene::exportDrawableNodes(tinygltf::Model& tmodel, GltfAttributes
         matrix[i] = n.worldMatrix[row][col];
       }
       if(!isIdentity)
-        node->matrix = matrix;
+        node->matrix = std::move(matrix);
     }
     node->mesh = n.primMesh;
 
@@ -2197,7 +2203,7 @@ void nvh::GltfScene::exportDrawableNodes(tinygltf::Model& tmodel, GltfAttributes
     // Add camera to scene
     tmodel.scenes[0].nodes.push_back((int)tnodes.size() - 1);
   }
-  tmodel.nodes = tnodes;
+  tmodel.nodes = std::move(tnodes);
 
   // Mesh/Primitive
   std::vector<tinygltf::Mesh> tmeshes;
@@ -2379,7 +2385,7 @@ void nvh::GltfScene::exportDrawableNodes(tinygltf::Model& tmodel, GltfAttributes
       attributes["COLOR_O"] = static_cast<int>(tmodel.accessors.size() - 1);
     }
   }
-  tmodel.meshes = tmeshes;
+  tmodel.meshes = std::move(tmeshes);
 
 
   // Add back accessors for extra buffers (see collection at start of function)

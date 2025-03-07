@@ -138,9 +138,9 @@ Buffer ResourceAllocator::createBuffer(const VkBufferCreateInfo& info_, const Vk
   {
     VkBufferDeviceAddressInfo info = {VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO};
     info.buffer                    = resultBuffer.buffer;
-    if(vkGetBufferDeviceAddress != NULL)
+    if((void*)vkGetBufferDeviceAddress != nullptr)
       resultBuffer.address = vkGetBufferDeviceAddress(m_device, &info);
-    else if(vkGetBufferDeviceAddressKHR != NULL)
+    else if((void*)vkGetBufferDeviceAddressKHR != nullptr)
       resultBuffer.address = vkGetBufferDeviceAddressKHR(m_device, &info);
   }
 
@@ -280,9 +280,9 @@ nvvk::LargeBuffer ResourceAllocator::createLargeBuffer(VkQueue                  
   {
     VkBufferDeviceAddressInfo info = {VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO};
     info.buffer                    = resultBuffer.buffer;
-    if(vkGetBufferDeviceAddress != NULL)
+    if((void*)vkGetBufferDeviceAddress != nullptr)
       resultBuffer.address = vkGetBufferDeviceAddress(m_device, &info);
-    else if(vkGetBufferDeviceAddressKHR != NULL)
+    else if((void*)vkGetBufferDeviceAddressKHR != nullptr)
       resultBuffer.address = vkGetBufferDeviceAddressKHR(m_device, &info);
   }
 
@@ -773,7 +773,7 @@ AccelKHR ResourceAllocator::createAcceleration(const VkAccelerationStructureCrea
   // Create the acceleration structure
   vkCreateAccelerationStructureKHR(m_device, &accel, nullptr, &resultAccel.accel);
 
-  if(vkGetAccelerationStructureDeviceAddressKHR != nullptr)
+  if((void*)vkGetAccelerationStructureDeviceAddressKHR != nullptr)
   {
     VkAccelerationStructureDeviceAddressInfoKHR info{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR};
     info.accelerationStructure = resultAccel.accel;

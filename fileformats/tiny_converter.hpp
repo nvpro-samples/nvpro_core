@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -70,9 +70,9 @@ private:
 
   struct Vertex
   {
-    glm::vec3 pos;
-    glm::vec3 nrm;
-    glm::vec2 tex;
+    glm::vec3 pos{};
+    glm::vec3 nrm{};
+    glm::vec2 tex{};
 
     bool operator==(const Vertex& l) const { return this->pos == l.pos && this->nrm == l.nrm && this->tex == l.tex; }
   };

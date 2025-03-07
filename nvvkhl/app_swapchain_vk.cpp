@@ -19,6 +19,7 @@
 #include "app_swapchain_vk.hpp"
 #include "nvvk/error_vk.hpp"
 #include "nvvk/images_vk.hpp"
+#include "nvh/nvprint.hpp"
 
 nvvkhl::AppSwapchain::~AppSwapchain()
 {
@@ -67,6 +68,15 @@ VkSemaphore nvvkhl::AppSwapchain::getRenderFinishedSemaphore() const
 
 void nvvkhl::AppSwapchain::init(VkPhysicalDevice physicalDevice, VkDevice device, const nvvkhl::QueueInfo& queue, VkSurfaceKHR surface, VkCommandPool cmdPool)
 {
+  VkBool32 supportsPresent = VK_FALSE;
+  NVVK_CHECK(vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, queue.familyIndex, surface, &supportsPresent));
+
+  if(!supportsPresent)
+  {
+    LOGE("ERROR: Selected queue family %d cannot present on surface %px. Swapchain creation failed. Aborting.\n", queue.familyIndex, surface);
+    exit(EXIT_FAILURE);
+  }
+
   m_physicalDevice = physicalDevice;
   m_device         = device;
   m_queue          = queue;
@@ -84,21 +94,24 @@ VkExtent2D nvvkhl::AppSwapchain::initResources(bool vSync /*= true*/)
 {
   VkExtent2D outWindowSize;
 
+  assert(m_surface);
+
   // Query the physical device's capabilities for the given surface.
   const VkPhysicalDeviceSurfaceInfo2KHR surfaceInfo2{.sType   = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SURFACE_INFO_2_KHR,
                                                      .surface = m_surface};
   VkSurfaceCapabilities2KHR             capabilities2{.sType = VK_STRUCTURE_TYPE_SURFACE_CAPABILITIES_2_KHR};
-  vkGetPhysicalDeviceSurfaceCapabilities2KHR(m_physicalDevice, &surfaceInfo2, &capabilities2);
+  NVVK_CHECK(vkGetPhysicalDeviceSurfaceCapabilities2KHR(m_physicalDevice, &surfaceInfo2, &capabilities2));
 
   uint32_t formatCount;
-  vkGetPhysicalDeviceSurfaceFormats2KHR(m_physicalDevice, &surfaceInfo2, &formatCount, nullptr);
+  NVVK_CHECK(vkGetPhysicalDeviceSurfaceFormats2KHR(m_physicalDevice, &surfaceInfo2, &formatCount, nullptr));
+
   std::vector<VkSurfaceFormat2KHR> formats(formatCount, {.sType = VK_STRUCTURE_TYPE_SURFACE_FORMAT_2_KHR});
-  vkGetPhysicalDeviceSurfaceFormats2KHR(m_physicalDevice, &surfaceInfo2, &formatCount, formats.data());
+  NVVK_CHECK(vkGetPhysicalDeviceSurfaceFormats2KHR(m_physicalDevice, &surfaceInfo2, &formatCount, formats.data()));
 
   uint32_t presentModeCount;
-  vkGetPhysicalDeviceSurfacePresentModesKHR(m_physicalDevice, m_surface, &presentModeCount, nullptr);
+  NVVK_CHECK(vkGetPhysicalDeviceSurfacePresentModesKHR(m_physicalDevice, m_surface, &presentModeCount, nullptr));
   std::vector<VkPresentModeKHR> presentModes(presentModeCount);
-  vkGetPhysicalDeviceSurfacePresentModesKHR(m_physicalDevice, m_surface, &presentModeCount, presentModes.data());
+  NVVK_CHECK(vkGetPhysicalDeviceSurfacePresentModesKHR(m_physicalDevice, m_surface, &presentModeCount, presentModes.data()));
 
   // Choose the best available surface format and present mode
   const VkSurfaceFormat2KHR surfaceFormat2 = selectSwapSurfaceFormat(formats);
@@ -131,10 +144,10 @@ VkExtent2D nvvkhl::AppSwapchain::initResources(bool vSync /*= true*/)
 
   // Retrieve the swapchain images
   uint32_t imageCount;
-  vkGetSwapchainImagesKHR(m_device, m_swapChain, &imageCount, nullptr);
+  NVVK_CHECK(vkGetSwapchainImagesKHR(m_device, m_swapChain, &imageCount, nullptr));
   assert(m_maxFramesInFlight == imageCount && "Wrong swapchain setup");
   std::vector<VkImage> swapImages(imageCount);
-  vkGetSwapchainImagesKHR(m_device, m_swapChain, &imageCount, swapImages.data());
+  NVVK_CHECK(vkGetSwapchainImagesKHR(m_device, m_swapChain, &imageCount, swapImages.data()));
 
   // Store the swapchain images and create views for them
   m_nextImages.resize(m_maxFramesInFlight);

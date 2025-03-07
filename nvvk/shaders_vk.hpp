@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2024, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2018-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2018-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2018-2025, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -25,6 +25,9 @@
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
+#include "nsight_aftermath_vk.hpp"
+#include "error_vk.hpp"
+
 namespace nvvk {
 /** @DOC_START
 # functions in nvvk
@@ -32,7 +35,9 @@ namespace nvvk {
 - createShaderModule : create the shader module from various binary code inputs
 - createShaderStageInfo: create the shader module and setup the stage from the incoming binary code
 @DOC_END */
-inline VkShaderModule createShaderModule(VkDevice device, const uint32_t* binarycode, size_t sizeInBytes)
+
+// setting `doCheck` false means nvvk_check is not run, and therefore the function is guaranteed to make progress
+inline VkShaderModule createShaderModule(VkDevice device, const uint32_t* binarycode, size_t sizeInBytes, bool doCheck = true)
 {
   VkShaderModuleCreateInfo createInfo = {};
   createInfo.sType                    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -40,13 +45,26 @@ inline VkShaderModule createShaderModule(VkDevice device, const uint32_t* binary
   createInfo.pCode                    = binarycode;
 
   VkShaderModule shaderModule = VK_NULL_HANDLE;
-  if(vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS)
+  VkResult       result       = vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule);
+
+  if(doCheck)
   {
-    assert(0 && "failed to create shader module!");
+    NVVK_CHECK(result);
+  }
+
+  if(result == VK_SUCCESS)
+  {
+    GpuCrashTracker::getInstance().addShaderBinary(std::vector<uint32_t>(binarycode, binarycode + sizeInBytes / 4));
   }
 
   return shaderModule;
 }
+
+inline VkShaderModule createShaderModule(VkDevice device, const void* binarycode, size_t sizeInBytes)
+{
+  return createShaderModule(device, (const uint32_t*)binarycode, sizeInBytes);
+}
+
 
 inline VkShaderModule createShaderModule(VkDevice device, const char* binarycode, size_t numInt32)
 {

@@ -26,6 +26,7 @@
 #include <glm/glm.hpp>
 #include "vulkan/vulkan_core.h"
 #include "descriptorsets_vk.hpp"
+#include "nvvk/shaders_vk.hpp"
 
 #define NVVK_COMPUTE_DEFAULT_BLOCK_SIZE_1D 256
 
@@ -118,16 +119,16 @@ public:
       assert(false);
       return false;
     }
-    VkShaderModuleCreateInfo moduleCreateInfo{VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
-    moduleCreateInfo.codeSize = codeSize;
-    moduleCreateInfo.pCode    = reinterpret_cast<const uint32_t*>(shaderCode);
 
-    VkResult r = vkCreateShaderModule(m_device, &moduleCreateInfo, nullptr, &(m_shaderModules[pipelineIndex].module));
-    if(r != VK_SUCCESS || m_shaderModules[pipelineIndex].module == VK_NULL_HANDLE)
+
+    m_shaderModules[pipelineIndex].module = nvvk::createShaderModule(m_device, shaderCode, codeSize);
+
+    if(m_shaderModules[pipelineIndex].module == VK_NULL_HANDLE)
     {
       return false;
     }
     m_shaderModules[pipelineIndex].isLocal = true;
+
     return true;
   }
 

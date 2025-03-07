@@ -29,6 +29,7 @@
 
 #include <nvh/fileoperations.hpp>
 #include <nvh/nvprint.hpp>
+#include "shaders_vk.hpp"
 
 #if NVP_SUPPORTS_SHADERC
 #include <shaderc/shaderc.hpp>
@@ -250,7 +251,6 @@ bool ShaderModuleManager::setupShaderModule(ShaderModule& module)
   }
   else
   {
-    VkResult                 vkresult         = VK_ERROR_INVALID_SHADER_NV;
     VkShaderModuleCreateInfo shaderModuleInfo = {VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
 
 #if NVP_SUPPORTS_SHADERC
@@ -363,9 +363,15 @@ bool ShaderModuleManager::setupShaderModule(ShaderModule& module)
       shaderModuleInfo.pCode    = (const uint32_t*)definition.content.c_str();
     }
 
-    vkresult = ::vkCreateShaderModule(m_device, &shaderModuleInfo, nullptr, &module.module);
+    // allow failure
+    module.module = nvvk::createShaderModule(m_device, shaderModuleInfo.pCode, shaderModuleInfo.codeSize, false);
+    if(!module.module)
+    {
+      LOGE("%s: failed to create VkShaderModule", definition.filename.c_str());
+      return false;
+    }
 
-    if(vkresult == VK_SUCCESS && m_keepModuleSPIRV)
+    if(m_keepModuleSPIRV)
     {
       module.moduleSPIRV = std::string((const char*)shaderModuleInfo.pCode, shaderModuleInfo.codeSize);
     }
@@ -377,7 +383,7 @@ bool ShaderModuleManager::setupShaderModule(ShaderModule& module)
     }
 #endif
 
-    return vkresult == VK_SUCCESS;
+    return true;
   }
 }
 
@@ -428,7 +434,10 @@ ShaderModuleID ShaderModuleManager::createShaderModule(const Definition& definit
   ShaderModule module;
   module.definition = definition;
 
-  setupShaderModule(module);
+  if(!setupShaderModule(module))
+  {
+    return ShaderModuleID();
+  }
 
   // find unused
   for(size_t i = 0; i < m_shadermodules.size(); i++)
@@ -461,7 +470,8 @@ ShaderModuleID ShaderModuleManager::createShaderModule(uint32_t           type,
 
 bool ShaderModuleManager::areShaderModulesValid()
 {
-  bool valid = true;
+  // if m_shadermodules is empty, createShaderModule() likely failed.
+  bool valid = !m_shadermodules.empty();
   for(size_t i = 0; i < m_shadermodules.size(); i++)
   {
     valid = valid && isValid(i);

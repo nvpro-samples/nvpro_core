@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2023, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2019-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,25 +21,10 @@
 #include "error_vk.hpp"
 
 #if defined(LINUX)
-#include <signal.h> // LINUX SIGTRAP
+#include <signal.h>  // LINUX SIGTRAP
 #endif
 
 namespace nvvk {
-
-//--------------------------------------------------------------------------------------------------
-// Converter utility from Vulkan memory property to VMA
-//
-static inline VmaMemoryUsage vkToVmaMemoryUsage(VkMemoryPropertyFlags flags)
-
-{
-  if((flags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) == VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
-    return VMA_MEMORY_USAGE_GPU_ONLY;
-  else if((flags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) == VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)
-    return VMA_MEMORY_USAGE_CPU_ONLY;
-  else if((flags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) == VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
-    return VMA_MEMORY_USAGE_CPU_TO_GPU;
-  return VMA_MEMORY_USAGE_UNKNOWN;
-}
 
 class VMAMemoryHandle : public MemHandleBase
 {
@@ -101,21 +86,34 @@ inline void VMAMemoryAllocator::deinit()
 inline MemHandle VMAMemoryAllocator::allocMemory(const MemAllocateInfo& allocInfo, VkResult* pResult)
 {
   VmaAllocationCreateInfo vmaAllocInfo = {};
-  vmaAllocInfo.usage                   = vkToVmaMemoryUsage(allocInfo.getMemoryProperties());
-  if(allocInfo.getDedicatedBuffer() || allocInfo.getDedicatedImage())
-  {
-    vmaAllocInfo.flags |= VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
-  }
+  vmaAllocInfo.usage = VMA_MEMORY_USAGE_UNKNOWN;  // the other members of VmaAllocationCreateInfo specify requirements.
+
+  vmaAllocInfo.requiredFlags  = allocInfo.getMemoryProperties();
+  vmaAllocInfo.memoryTypeBits = allocInfo.getMemoryRequirements().memoryTypeBits;
+
   vmaAllocInfo.priority = allocInfo.getPriority();
 
   // Not supported by VMA
   assert(!allocInfo.getExportable());
   assert(!allocInfo.getDeviceMask());
 
-  VmaAllocationInfo allocationDetail;
-  VmaAllocation     allocation = nullptr;
+  VmaAllocation allocation = nullptr;
+  VkResult      result     = VK_ERROR_UNKNOWN;
 
-  VkResult result = vmaAllocateMemory(m_vma, &allocInfo.getMemoryRequirements(), &vmaAllocInfo, &allocation, &allocationDetail);
+  if(allocInfo.getDedicatedBuffer())
+  {
+    vmaAllocInfo.flags |= VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
+    result = vmaAllocateMemoryForBuffer(m_vma, allocInfo.getDedicatedBuffer(), &vmaAllocInfo, &allocation, nullptr);
+  }
+  else if(allocInfo.getDedicatedImage())
+  {
+    vmaAllocInfo.flags |= VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
+    result = vmaAllocateMemoryForImage(m_vma, allocInfo.getDedicatedImage(), &vmaAllocInfo, &allocation, nullptr);
+  }
+  else
+  {
+    result = vmaAllocateMemory(m_vma, &allocInfo.getMemoryRequirements(), &vmaAllocInfo, &allocation, nullptr);
+  }
 
 #ifndef NDEBUG
   // !! VMA leaks finder!!
@@ -133,7 +131,7 @@ inline MemHandle VMAMemoryAllocator::allocMemory(const MemAllocateInfo& allocInf
     raise(SIGTRAP);
 #endif
   }
-  if (result == VK_SUCCESS)
+  if(result == VK_SUCCESS)
   {
     std::string allocID = std::string("nv_alloc: ") + std::to_string(counter++);
     vmaSetAllocationName(m_vma, allocation, allocID.c_str());
@@ -217,7 +215,7 @@ inline VkPhysicalDevice VMAMemoryAllocator::getPhysicalDevice() const
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 inline ResourceAllocatorVma::ResourceAllocatorVma(VkInstance instance, VkDevice device, VkPhysicalDevice physicalDevice, VkDeviceSize stagingBlockSize)
 {
-  init(instance, device, physicalDevice);
+  init(instance, device, physicalDevice, stagingBlockSize);
 }
 
 inline ResourceAllocatorVma::~ResourceAllocatorVma()

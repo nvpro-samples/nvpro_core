@@ -200,12 +200,12 @@ public:
   inline VkDevice                 getDevice() const { return m_device; }
   inline const nvvkhl::QueueInfo& getQueue(uint32_t index) const { return m_queues[index]; }
   inline VkCommandPool            getCommandPool() const { return m_transientCmdPool; }
-  inline const VkDescriptorPool   getDescriptorPool() const { return m_descriptorPool; }
+  inline VkDescriptorPool         getDescriptorPool() const { return m_descriptorPool; }
   inline const VkExtent2D&        getViewportSize() const { return m_viewportSize; }
   inline const VkExtent2D&        getWindowSize() const { return m_windowSize; }
   inline GLFWwindow*              getWindowHandle() const { return m_windowHandle; }
-  inline const uint32_t           getFrameCycleIndex() const { return m_frameRingCurrent; }
-  inline const uint32_t           getFrameCycleSize() const { return uint32_t(m_frameData.size()); }
+  inline uint32_t                 getFrameCycleIndex() const { return m_frameRingCurrent; }
+  inline uint32_t                 getFrameCycleSize() const { return uint32_t(m_frameData.size()); }
 
   // Simulate the Drag&Drop of a file
   void onFileDrop(const char* filename);

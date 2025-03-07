@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2025, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -22,10 +22,14 @@
 
 #if defined(NVVK_SUPPORTS_AFTERMATH) && defined(NVP_SUPPORTS_VULKANSDK)
 #include <vulkan/vulkan.h>  // needed so GFSDK_Aftermath_SpirvCode gets declared
+#include <vulkan/vk_enum_string_helper.h>
 
 #include "nvh/nvprint.hpp"
 #include "nvp/perproject_globals.hpp"
 #include "nvp/nvpsystem.hpp"
+
+#include "nvvk/error_vk.hpp"
+#include "nvvk/context_vk.hpp"
 
 #include "GFSDK_Aftermath.h"
 #include "GFSDK_Aftermath_GpuCrashDump.h"
@@ -43,6 +47,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <thread>
 //--------------------------------------------------------------------------------------------------
 // Some std::to_string overloads for some Nsight Aftermath API types.
 //
@@ -163,10 +168,10 @@ public:
   void initialize();
 
   // Track a shader compiled with -g
-  void addShaderBinary(std::vector<uint32_t>& data);
+  void addShaderBinary(const std::vector<uint32_t>& data);
 
   // Track an optimized shader with additional debug information
-  void addShaderBinaryWithDebugInfo(std::vector<uint32_t>& data, std::vector<uint32_t>& strippedData);
+  void addShaderBinaryWithDebugInfo(const std::vector<uint32_t>& data, const std::vector<uint32_t>& strippedData);
 
 
 private:
@@ -299,9 +304,68 @@ GpuCrashTrackerImpl::~GpuCrashTrackerImpl()
   }
 }
 
+static bool aftermathCheckResult(VkResult result, const char* file, int32_t line, const char* message)
+{
+  // Copied from https://docs.nvidia.com/nsight-aftermath/SDK/index.html
+  if(result == VK_ERROR_DEVICE_LOST)
+  {
+    GFSDK_Aftermath_CrashDump_Status status = GFSDK_Aftermath_CrashDump_Status_Unknown;
+    AFTERMATH_CHECK_ERROR(GFSDK_Aftermath_GetCrashDumpStatus(&status));
+
+    auto tStart            = std::chrono::steady_clock::now();
+    auto tElapsed          = std::chrono::milliseconds::zero();
+    auto deviceLostTimeout = std::chrono::seconds(10);
+
+    LOGW("Waiting for aftermath to finishing dumping debug info...\n");
+
+    // Loop while Aftermath crash dump data collection has not finished or
+    // the application is still processing the crash dump data.
+    while(status != GFSDK_Aftermath_CrashDump_Status_CollectingDataFailed
+          && status != GFSDK_Aftermath_CrashDump_Status_Finished && tElapsed < deviceLostTimeout)
+    {
+      // Sleep a couple of milliseconds and poll the status again.
+      std::this_thread::sleep_for(std::chrono::milliseconds(50));
+      AFTERMATH_CHECK_ERROR(GFSDK_Aftermath_GetCrashDumpStatus(&status));
+
+      tElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - tStart);
+    }
+
+    if(status == GFSDK_Aftermath_CrashDump_Status_Finished)
+    {
+      LOGW("Aftermath finished processing the crash dump.\n");
+    }
+    else
+    {
+      LOGW("Unexpected crash dump status after timeout: %d\n", status);
+    }
+    exit(-1);
+  }
+
+  // Broadly matching checkResult() from error_vk.hpp
+  if(result == VK_SUCCESS)
+    return false;
+
+  if(result < 0)
+  {
+    if(message)
+    {
+      LOGE("VkResult %d - %s - %s\n", result, string_VkResult(result), message);
+    }
+    else
+    {
+      LOGE("VkResult %d - %s\n", result, string_VkResult(result));
+    }
+    assert(!"Critical Vulkan Error");
+    return true;
+  }
+  return true;
+}
+
 // Initialize the GPU Crash Dump Tracker
 void GpuCrashTrackerImpl::initialize()
 {
+  assert(!m_initialized);
+
   // Enable GPU crash dumps and set up the callbacks for crash dump notifications,
   // shader debug information notifications, and providing additional crash
   // dump description data.Only the crash dump callback is mandatory. The other two
@@ -319,6 +383,10 @@ void GpuCrashTrackerImpl::initialize()
       crashDumpDescriptionCallback,  // Register callback for GPU crash dump description.
       resolveMarkerCallback,         // Register callback for resolving application-managed markers.
       this));                        // Set the GpuCrashTrackerImpl object as user data for the above callbacks.
+
+  // Aftermath silently misses its callback if we don't wait for it after
+  // getting a VK_DEVICE_LOST
+  nvvk::setCheckResultHook(aftermathCheckResult);
 
   m_initialized = true;
 }
@@ -467,6 +535,9 @@ void GpuCrashTrackerImpl::writeShaderDebugInformationToFile(GFSDK_Aftermath_Shad
 {
   // Create a unique file name.
   const std::string file_path = "shader-" + std::to_string(identifier) + ".nvdbg";
+  LOGE("\n--------------------------------------------------------------\n");
+  LOGE("Writing shader debug information to:\n  %s", file_path.c_str());
+  LOGE("\n--------------------------------------------------------------\n");
 
   std::ofstream f(file_path, std::ios::out | std::ios::binary);
   if(f)
@@ -485,6 +556,7 @@ void GpuCrashTrackerImpl::onShaderDebugInfoLookup(const GFSDK_Aftermath_ShaderDe
   auto i_debug_info = m_shaderDebugInfo.find(identifier);
   if(i_debug_info == m_shaderDebugInfo.end())
   {
+    LOGE("Failed to find shader debug info\n");
     // Early exit, nothing found. No need to call setShaderDebugInfo.
     return;
   }
@@ -506,6 +578,7 @@ void GpuCrashTrackerImpl::onShaderLookup(const GFSDK_Aftermath_ShaderBinaryHash&
   std::vector<uint32_t> shader_binary;
   if(!findShaderBinary(shaderHash, shader_binary))
   {
+    LOGE("Failed to find shader 0x%lX\n", shaderHash.hash);
     // Early exit, nothing found. No need to call setShaderBinary.
     return;
   }
@@ -526,6 +599,7 @@ void GpuCrashTrackerImpl::onShaderSourceDebugInfoLookup(const GFSDK_Aftermath_Sh
   std::vector<uint32_t> shader_binary;
   if(!findShaderBinaryWithDebugData(shaderDebugName, shader_binary))
   {
+    LOGE("Failed to find shader source debug info\n");
     // Early exit, nothing found. No need to call setShaderBinary.
     return;
   }
@@ -595,7 +669,7 @@ void GpuCrashTrackerImpl::shaderSourceDebugInfoLookupCallback(const GFSDK_Afterm
 }
 
 
-void GpuCrashTrackerImpl::addShaderBinary(std::vector<uint32_t>& data)
+void GpuCrashTrackerImpl::addShaderBinary(const std::vector<uint32_t>& data)
 {
 
   // Create shader hash for the shader
@@ -603,18 +677,22 @@ void GpuCrashTrackerImpl::addShaderBinary(std::vector<uint32_t>& data)
   GFSDK_Aftermath_ShaderBinaryHash shaderHash{};
   AFTERMATH_CHECK_ERROR(GFSDK_Aftermath_GetShaderHashSpirv(GFSDK_Aftermath_Version_API, &shader, &shaderHash));
 
+  LOGI("adding shader binary with hash 0x%lX\n", shaderHash.hash);
+
   // Store the data for shader mapping when decoding GPU crash dumps.
   // cf. FindShaderBinary()
   m_shaderBinaries[shaderHash] = data;
 }
 
-void GpuCrashTrackerImpl::addShaderBinaryWithDebugInfo(std::vector<uint32_t>& data, std::vector<uint32_t>& strippedData)
+void GpuCrashTrackerImpl::addShaderBinaryWithDebugInfo(const std::vector<uint32_t>& data, const std::vector<uint32_t>& strippedData)
 {
   // Generate shader debug name.
   GFSDK_Aftermath_ShaderDebugName debugName{};
   const GFSDK_Aftermath_SpirvCode shader{data.data(), static_cast<uint32_t>(data.size())};
   const GFSDK_Aftermath_SpirvCode strippedShader{strippedData.data(), static_cast<uint32_t>(strippedData.size())};
   AFTERMATH_CHECK_ERROR(GFSDK_Aftermath_GetShaderDebugNameSpirv(GFSDK_Aftermath_Version_API, &shader, &strippedShader, &debugName));
+
+  LOGI("adding debug shader binary %s\n", debugName.name);
 
   // Store the data for shader instruction address mapping when decoding GPU crash dumps.
   // cf. FindShaderBinaryWithDebugData()
@@ -628,6 +706,7 @@ bool GpuCrashTrackerImpl::findShaderBinary(const GFSDK_Aftermath_ShaderBinaryHas
   auto i_shader = m_shaderBinaries.find(shaderHash);
   if(i_shader == m_shaderBinaries.end())
   {
+    LOGE("Failed to find shader binary with hash 0x%lX\n", shaderHash.hash);
     // Nothing found.
     return false;
   }
@@ -644,6 +723,7 @@ bool GpuCrashTrackerImpl::findShaderBinaryWithDebugData(const GFSDK_Aftermath_Sh
   auto i_shader = m_shaderBinariesWithDebugInfo.find(shaderDebugName);
   if(i_shader == m_shaderBinariesWithDebugInfo.end())
   {
+    LOGE("Failed to find shader with debug info: %s\n", shaderDebugName.name);
     // Nothing found.
     return false;
   }
@@ -671,7 +751,33 @@ void GpuCrashTracker::initialize()
   m_pimpl->initialize();
 }
 
+void setGPUCheckpointFn(VkCommandBuffer cmdBuf, const char* func, unsigned line)
+{
+  std::ostringstream sstream;
+  sstream << func << " : " << line;
+
+  std::string checkPointName(sstream.str());
+
+  uint64_t hash = static_cast<uint64_t>(std::hash<std::string>()(checkPointName));
+  g_marker_map[0].insert(std::make_pair(hash, std::move(checkPointName)));
+
+  vkCmdSetCheckpointNV(cmdBuf, reinterpret_cast<void*>(hash));
+}
+
+
+void GpuCrashTracker::addShaderBinary(const std::vector<uint32_t>& data)
+{
+  m_pimpl->addShaderBinary(data);
+}
+
+// Track an optimized shader with additional debug information
+void GpuCrashTracker::addShaderBinaryWithDebugInfo(const std::vector<uint32_t>& data, const std::vector<uint32_t>& strippedData)
+{
+  m_pimpl->addShaderBinaryWithDebugInfo(data, strippedData);
+}
+
 }  // namespace nvvk
+
 
 #else
 
@@ -685,7 +791,20 @@ GpuCrashTracker::GpuCrashTracker()
 GpuCrashTracker::~GpuCrashTracker() {}
 
 void GpuCrashTracker::initialize() {}
+void GpuCrashTracker::addShaderBinary(const std::vector<uint32_t>& data) {};
+void GpuCrashTracker::addShaderBinaryWithDebugInfo(const std::vector<uint32_t>& data, const std::vector<uint32_t>& strippedData) {};
 
 }  // namespace nvvk
 
 #endif
+
+namespace nvvk {
+
+
+GpuCrashTracker& GpuCrashTracker::getInstance()
+{
+  static GpuCrashTracker instance;
+  return instance;
+}
+
+}  // namespace nvvk

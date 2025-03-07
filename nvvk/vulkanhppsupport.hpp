@@ -1065,11 +1065,7 @@ public:
   template <typename T>
   vk::PipelineShaderStageCreateInfo& addShader(const std::vector<T>& code, vk::ShaderStageFlagBits stage, const char* entryPoint = "main")
   {
-    VkShaderModuleCreateInfo createInfo{VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
-    createInfo.codeSize = sizeof(T) * code.size();
-    createInfo.pCode    = reinterpret_cast<const uint32_t*>(code.data());
-    VkShaderModule shaderModule;
-    vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule);
+    VkShaderModule shaderModule = nvvk::createShaderModule(device, code);
     temporaryModules.push_back(shaderModule);
 
     return addShader(shaderModule, stage, entryPoint);

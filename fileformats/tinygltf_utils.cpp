@@ -625,12 +625,13 @@ void tinygltf::utils::createTangentAttribute(tinygltf::Model& model, tinygltf::P
   }
 
   // Create a new TANGENT attribute
-  tinygltf::Accessor tangentAccessor;
+  tinygltf::Accessor tangentAccessor{};
   tangentAccessor.componentType = TINYGLTF_COMPONENT_TYPE_FLOAT;
   tangentAccessor.type          = TINYGLTF_TYPE_VEC4;
   tangentAccessor.count         = tinygltf::utils::getVertexCount(model, primitive);
+  tangentAccessor.sparse        = {};
 
-  tinygltf::BufferView tangentBufferView;
+  tinygltf::BufferView tangentBufferView{};
   tangentBufferView.buffer     = 0;  // Assume using the first buffer
   tangentBufferView.byteOffset = model.buffers[0].data.size();
   tangentBufferView.byteLength = tangentAccessor.count * 4 * sizeof(float);
@@ -638,10 +639,10 @@ void tinygltf::utils::createTangentAttribute(tinygltf::Model& model, tinygltf::P
   model.buffers[0].data.resize(tangentBufferView.byteOffset + tangentBufferView.byteLength, 0);
 
   tangentAccessor.bufferView = static_cast<int32_t>(model.bufferViews.size());
-  model.bufferViews.push_back(tangentBufferView);
+  model.bufferViews.emplace_back(tangentBufferView);
 
   primitive.attributes["TANGENT"] = static_cast<int32_t>(model.accessors.size());
-  model.accessors.push_back(tangentAccessor);
+  model.accessors.emplace_back(tangentAccessor);
 }
 
 
@@ -657,6 +658,12 @@ void tinygltf::utils::simpleCreateTangents(tinygltf::Model& model, tinygltf::Pri
   auto nrmIt = primitive.attributes.find("NORMAL");
   auto uvIt  = primitive.attributes.find("TEXCOORD_0");
   auto tanIt = primitive.attributes.find("TANGENT");
+
+  if(tanIt == primitive.attributes.end() || posIt == primitive.attributes.end())
+  {
+    LOGE("Attributes are missing\n");
+    return;
+  }
 
   int32_t posAccessorIndex = posIt->second;
   int32_t tanAccessorIndex = tanIt->second;

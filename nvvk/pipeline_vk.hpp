@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2024, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2019-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2019-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2019-2025, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -25,6 +25,8 @@
 #include <string>
 #include <vector>
 #include <vulkan/vulkan_core.h>
+
+#include <nvvk/shaders_vk.hpp>
 
 namespace nvvk {
 //--------------------------------------------------------------------------------------------------
@@ -499,11 +501,7 @@ public:
   VkPipelineShaderStageCreateInfo& addShader(const std::vector<T>& code, VkShaderStageFlagBits stage, const char* entryPoint = "main")
 
   {
-    VkShaderModuleCreateInfo createInfo{VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
-    createInfo.codeSize = sizeof(T) * code.size();
-    createInfo.pCode    = reinterpret_cast<const uint32_t*>(code.data());
-    VkShaderModule shaderModule;
-    vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule);
+    VkShaderModule shaderModule = nvvk::createShaderModule(device, code);
     temporaryModules.push_back(shaderModule);
 
     return addShader(shaderModule, stage, entryPoint);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -93,11 +93,11 @@ private:
 
   VkPipeline                 m_graphicsPipeline{VK_NULL_HANDLE};  // The graphic pipeline to render
   VkPipeline                 m_computePipeline{VK_NULL_HANDLE};   // The graphic pipeline to render
-  nvvkhl_shaders::Tonemapper m_settings;
+  nvvkhl_shaders::Tonemapper m_settings{};
 
   // To use VK_KHR_push_descriptor
-  VkDescriptorImageInfo             m_iimage;
-  VkDescriptorImageInfo             m_oimage;
+  VkDescriptorImageInfo             m_iimage{};
+  VkDescriptorImageInfo             m_oimage{};
   std::vector<VkWriteDescriptorSet> m_writes;
 
   enum class TmMode

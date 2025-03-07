@@ -847,9 +847,8 @@ void nvvkhl::SceneVk::loadImage(const std::filesystem::path& basedir, const tiny
   {
     c = tolower(c);
   }
-  std::string imgName = uri.filename().string();
-  image.imgName       = imgName;
-  std::string imgURI  = fs::path(basedir / uri).string();
+  image.imgName      = uri.filename().string();
+  std::string imgURI = fs::path(basedir / uri).string();
 
   if(extension == ".dds")
   {
@@ -973,9 +972,6 @@ void nvvkhl::SceneVk::loadImage(const std::filesystem::path& basedir, const tiny
                                   VK_FORMAT_R8G8B8A8_UNORM;
 
         break;
-      default:
-        assert(false);
-        image.format = VK_FORMAT_UNDEFINED;
     }
 
     // Make a copy of the image data to be uploaded to vulkan later

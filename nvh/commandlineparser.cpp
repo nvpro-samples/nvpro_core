@@ -38,12 +38,12 @@ nvh::CommandLineParser::CommandLineParser(const std::string& description)
 
 void nvh::CommandLineParser::addArgument(std::vector<std::string> const& flags, Value const& value, std::string const& help, Callback callback)
 {
-  m_arguments.emplace_back(Argument{flags, value, help, {}, callback});
+  m_arguments.emplace_back(Argument{flags, value, help, {}, std::move(callback)});
 }
 
 void nvh::CommandLineParser::addArgument(std::vector<std::string> const& flags, int numArgsToAdvance, std::string const& help, CallbackArgs callbackArgs)
 {
-  m_arguments.emplace_back(Argument{flags, {}, help, callbackArgs, {}, numArgsToAdvance});
+  m_arguments.emplace_back(Argument{flags, {}, help, std::move(callbackArgs), {}, numArgsToAdvance});
 }
 
 void nvh::CommandLineParser::addFilename(const std::string& extension, std::string* filename, const std::string& help)
@@ -255,7 +255,14 @@ void nvh::CommandLineParser::printHelp() const
       {
         LOGI("%s\n", sstr.str().c_str());
         sstr = std::stringstream();
-        sstr << std::left << std::setw(maxFlagLength - 1) << " ";
+        if(maxFlagLength > 0)
+        {
+          sstr << std::left << std::setw(maxFlagLength - 1) << " ";
+        }
+        else
+        {
+          sstr << " ";
+        }
         lineWidth = 0;
       }
     }

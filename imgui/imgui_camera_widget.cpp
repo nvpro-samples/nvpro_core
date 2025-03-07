@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2020-2024, NVIDIA CORPORATION.  All rights reserved.
+* Copyright (c) 2020-2025, NVIDIA CORPORATION.  All rights reserved.
 *
 * NVIDIA CORPORATION and its licensors retain all intellectual property
 * and proprietary rights in and to this software, related documentation
@@ -44,6 +44,11 @@ struct CameraManager
       saveSetting(nvh::CameraManipulator::Singleton());
   };
 
+  static CameraManager& getInstance()
+  {
+    static CameraManager instance;
+    return instance;
+  }
 
   // update setting, load or save
   void update(nvh::CameraManipulator& cameraM)
@@ -250,8 +255,6 @@ struct CameraManager
   bool                                        m_doLoadSetting{true};
 };
 
-static std::unique_ptr<CameraManager> sCamMgr;
-
 
 //--------------------------------------------------------------------------------------------------
 // Display the values of the current camera: position, center, up and FOV
@@ -341,17 +344,19 @@ void CurrentCameraTab(nvh::CameraManipulator& cameraM, nvh::CameraManipulator::C
 //
 void SavedCameraTab(nvh::CameraManipulator& cameraM, nvh::CameraManipulator::Camera& camera, bool& changed)
 {
+  CameraManager& camMgr = CameraManager::getInstance();
+
   // Dummy
   ImVec2      button_sz(50, 30);
   char        label[128];
   ImGuiStyle& style             = ImGui::GetStyle();
-  int         buttons_count     = (int)sCamMgr->m_cameras.size();
+  int         buttons_count     = (int)camMgr.m_cameras.size();
   float       window_visible_x2 = ImGui::GetWindowPos().x + ImGui::GetWindowContentRegionMax().x;
 
   // The HOME camera button, different from the other ones
   if(ImGui::Button("Home", ImVec2(ImGui::GetWindowContentRegionMax().x, 50)))
   {
-    camera  = sCamMgr->m_cameras[0];
+    camera  = camMgr.m_cameras[0];
     changed = true;
   }
   ImGuiH::tooltip("Reset the camera to its origin");
@@ -364,7 +369,7 @@ void SavedCameraTab(nvh::CameraManipulator& cameraM, nvh::CameraManipulator::Cam
     sprintf(label, "# %d", n);
     if(ImGui::Button(label, button_sz))
     {
-      camera  = sCamMgr->m_cameras[n];
+      camera  = camMgr.m_cameras[n];
       changed = true;
     }
 
@@ -373,8 +378,8 @@ void SavedCameraTab(nvh::CameraManipulator& cameraM, nvh::CameraManipulator::Cam
       delete_item = n;
 
     // Displaying the position of the camera when hovering the button
-    sprintf(label, "Pos: %3.5f, %3.5f, %3.5f", sCamMgr->m_cameras[n].eye.x, sCamMgr->m_cameras[n].eye.y,
-            sCamMgr->m_cameras[n].eye.z);
+    sprintf(label, "Pos: %3.5f, %3.5f, %3.5f", camMgr.m_cameras[n].eye.x, camMgr.m_cameras[n].eye.y,
+            camMgr.m_cameras[n].eye.z);
     ImGuiH::tooltip(label);
 
     // Wrapping all buttons (see ImGUI Demo)
@@ -389,7 +394,7 @@ void SavedCameraTab(nvh::CameraManipulator& cameraM, nvh::CameraManipulator::Cam
   // Adding a camera button
   if(ImGui::Button("+"))
   {
-    sCamMgr->addCamera(cameraM.getCamera());
+    camMgr.addCamera(cameraM.getCamera());
   }
   ImGuiH::tooltip("Add a new saved camera");
   ImGui::SameLine();
@@ -399,7 +404,7 @@ void SavedCameraTab(nvh::CameraManipulator& cameraM, nvh::CameraManipulator::Cam
   // Remove element
   if(delete_item > 0)
   {
-    sCamMgr->removeCamera(delete_item);
+    camMgr.removeCamera(delete_item);
   }
 }
 
@@ -444,15 +449,12 @@ void CameraExtraTab(nvh::CameraManipulator& cameraM, bool& changed)
 // And basic control information is displayed
 bool CameraWidget(nvh::CameraManipulator& cameraM /*= nvh::CameraManipulator::Singleton()*/)
 {
-  if(!sCamMgr)
-    sCamMgr = std::make_unique<CameraManager>();
-
   bool changed{false};
   bool instantSet{false};
   auto camera = cameraM.getCamera();
 
   // Updating the camera manager
-  sCamMgr->update(cameraM);
+  CameraManager::getInstance().update(cameraM);
 
   // Starting UI
   if(ImGui::BeginTabBar("Hello"))
@@ -489,23 +491,17 @@ bool CameraWidget(nvh::CameraManipulator& cameraM /*= nvh::CameraManipulator::Si
 
 void SetCameraJsonFile(const std::string& filename)
 {
-  if(!sCamMgr)
-    sCamMgr = std::make_unique<CameraManager>();
-  sCamMgr->setCameraJsonFile(filename);
+  CameraManager::getInstance().setCameraJsonFile(filename);
 }
 
 void SetHomeCamera(const nvh::CameraManipulator::Camera& camera)
 {
-  if(!sCamMgr)
-    sCamMgr = std::make_unique<CameraManager>();
-  sCamMgr->setHomeCamera(camera);
+  CameraManager::getInstance().setHomeCamera(camera);
 }
 
 void AddCamera(const nvh::CameraManipulator::Camera& camera)
 {
-  if(!sCamMgr)
-    sCamMgr = std::make_unique<CameraManager>();
-  sCamMgr->addCamera(camera);
+  CameraManager::getInstance().addCamera(camera);
 }
 
 }  // namespace ImGuiH
