@@ -141,6 +141,8 @@ void nvvkhl::GBuffer::create(const VkExtent2D& size, std::vector<VkFormat> color
     VkSamplerCreateInfo info{VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
     info.minFilter      = VK_FILTER_LINEAR;
     info.magFilter      = VK_FILTER_LINEAR;
+    info.addressModeU   = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    info.addressModeV   = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
     m_res.linearSampler = m_alloc->acquireSampler(info);
 
     for(size_t d = 0; d < m_res.descriptor.size(); ++d)

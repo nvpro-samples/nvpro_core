@@ -583,6 +583,19 @@ void GpuCrashTrackerImpl::onShaderLookup(const GFSDK_Aftermath_ShaderBinaryHash&
     return;
   }
 
+  // Create a unique file name.
+  const std::string file_path = "shader-" + std::to_string(shaderHash.hash) + ".spirv";
+  LOGE("\n--------------------------------------------------------------\n");
+  LOGE("Writing shader SPIR-V information to:\n  %s", file_path.c_str());
+  LOGE("\n--------------------------------------------------------------\n");
+
+  std::ofstream f(file_path, std::ios::out | std::ios::binary);
+  if(f)
+  {
+    f.write(reinterpret_cast<const char*>(shader_binary.data()), sizeof(uint32_t) * static_cast<uint32_t>(shader_binary.size()));
+  }
+
+
   // Let the GPU crash dump decoder know about the shader data
   // that was found.
   setShaderBinary(shader_binary.data(), sizeof(uint32_t) * static_cast<uint32_t>(shader_binary.size()));
@@ -673,7 +686,7 @@ void GpuCrashTrackerImpl::addShaderBinary(const std::vector<uint32_t>& data)
 {
 
   // Create shader hash for the shader
-  const GFSDK_Aftermath_SpirvCode  shader{data.data(), static_cast<uint32_t>(data.size())};
+  const GFSDK_Aftermath_SpirvCode shader{.pData = data.data(), .size = static_cast<uint32_t>(data.size() * sizeof(uint32_t))};
   GFSDK_Aftermath_ShaderBinaryHash shaderHash{};
   AFTERMATH_CHECK_ERROR(GFSDK_Aftermath_GetShaderHashSpirv(GFSDK_Aftermath_Version_API, &shader, &shaderHash));
 
@@ -688,8 +701,9 @@ void GpuCrashTrackerImpl::addShaderBinaryWithDebugInfo(const std::vector<uint32_
 {
   // Generate shader debug name.
   GFSDK_Aftermath_ShaderDebugName debugName{};
-  const GFSDK_Aftermath_SpirvCode shader{data.data(), static_cast<uint32_t>(data.size())};
-  const GFSDK_Aftermath_SpirvCode strippedShader{strippedData.data(), static_cast<uint32_t>(strippedData.size())};
+  const GFSDK_Aftermath_SpirvCode shader{.pData = data.data(), .size = static_cast<uint32_t>(data.size() * sizeof(uint32_t))};
+  const GFSDK_Aftermath_SpirvCode strippedShader{.pData = strippedData.data(),
+                                                 .size = static_cast<uint32_t>(strippedData.size() * sizeof(uint32_t))};
   AFTERMATH_CHECK_ERROR(GFSDK_Aftermath_GetShaderDebugNameSpirv(GFSDK_Aftermath_Version_API, &shader, &strippedShader, &debugName));
 
   LOGI("adding debug shader binary %s\n", debugName.name);

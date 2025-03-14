@@ -1,5 +1,5 @@
 #*****************************************************************************
-# Copyright 2020-2024 NVIDIA Corporation. All rights reserved.
+# Copyright 2020-2025 NVIDIA Corporation. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -152,7 +152,11 @@ function(compile_glsl)
     # Find the dependency files for the GLSL source
     # or use all headers as dependencies.
     if(COMPILE_DEPENDENCY)
-        get_glsl_dependencies(SRC ${GLSL_SRC} FLAGS ${COMPILE_FLAGS})
+        # remove some flags exclusive to glSlangValidator for glslc compatibility
+        string(REPLACE "-V" "" _GLSLC_FLAGS "${COMPILE_FLAGS}")
+        string(REPLACE "-gVS" "" _GLSLC_FLAGS "${_GLSLC_FLAGS}")
+        string(REPLACE "-gV" "" _GLSLC_FLAGS "${_GLSLC_FLAGS}")
+        get_glsl_dependencies(SRC ${GLSL_SRC} FLAGS ${_GLSLC_FLAGS})
     else()
       set(GLSL_DEPENDENCY ${HEADER_FILES}) 
     endif()
