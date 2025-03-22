@@ -1061,6 +1061,18 @@ std::vector<uint32_t> Context::getCompatibleDevices(const ContextCreateInfo& inf
     if(info.verboseCompatibleDevices)
       LOGI("%d: %s\n", elemId, props.deviceName);
 
+    /*!
+     *  \bug  Since the getDeviceExtensions() will return all extensions, when passing an argument of CPU device.
+     *        Hence we have to skip the CPU-type device.
+     *        Especially, when user wants to enable the "VK_KHR_ray_tracing_pipeline" extension, it will return a 
+     *        wrong compatible device to user, provided that not skip the CPU type.
+     */
+    if (props.deviceType == VK_PHYSICAL_DEVICE_TYPE_OTHER || props.deviceType == VK_PHYSICAL_DEVICE_TYPE_CPU)
+    {
+      LOGI("  - this device is of CPU type\n");
+      continue;
+    }
+
     // Check if the device has all the requested extensions
     const std::vector<VkExtensionProperties> extensionProperties = getDeviceExtensions(physicalDevice);
     const std::vector<std::string> missingExtensions = checkEntryArray(extensionProperties, info.deviceExtensions);
