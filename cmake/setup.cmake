@@ -215,8 +215,9 @@ endmacro()
 # - ex. foo.zip -> foo/<data>
 # Arguments:
 #  FILENAMES   : all filenames to download
-#  URLS        : if present, a custom download URL for each FILENAME. Defaults
-#                to ${DOWNLOAD_SITE}${SOURCE_DIR}/${FILENAME}.
+#  URLS        : if present, a custom download URL for each FILENAME.
+#                If only one FILENAME is provided, a list of alternate download locations.
+#                Defaults to ${DOWNLOAD_SITE}${SOURCE_DIR}/${FILENAME}.
 #  EXTRACT     : if present, will extract the content of the file
 #  NOINSTALL   : if present, will not make files part of install
 #  INSTALL_DIR : folder for the 'install' build, default is 'media' next to the executable
@@ -261,32 +262,42 @@ function(download_files)
     endif()
     
     if(_DO_DOWNLOAD)
-      if(DOWNLOAD_FILES_URLS) # Custom URL
-        list(GET DOWNLOAD_FILES_URLS ${_DOWNLOAD_IDX} _DOWNLOAD_URL)
+      if(DOWNLOAD_FILES_URLS AND (_NUM_DOWNLOADS GREATER 1)) # One URL per file
+        list(GET DOWNLOAD_FILES_URLS ${_DOWNLOAD_IDX} _DOWNLOAD_URLS)
+      elseif(DOWNLOAD_FILES_URLS) # One file, multiple URLs
+        set(_DOWNLOAD_URLS ${DOWNLOAD_FILES_URLS})
       else()
-        set(_DOWNLOAD_URL ${DOWNLOAD_SITE}${DOWNLOAD_FILES_SOURCE_DIR}/${FILENAME})
+        set(_DOWNLOAD_URLS ${DOWNLOAD_SITE}${DOWNLOAD_FILES_SOURCE_DIR}/${FILENAME})
       endif()
-      message(STATUS "Downloading ${_DOWNLOAD_URL} to ${_TARGET_FILENAME}")
-      
-      file(DOWNLOAD ${_DOWNLOAD_URL} ${_TARGET_FILENAME}
-        SHOW_PROGRESS
-        STATUS _DOWNLOAD_STATUS)
+      foreach(_DOWNLOAD_URL ${_DOWNLOAD_URLS})
+        message(STATUS "Downloading ${_DOWNLOAD_URL} to ${_TARGET_FILENAME}")
 
-      # Check whether the download succeeded. _DOWNLOAD_STATUS is a list of
-      # length 2; element 0 is the return value (0 == no error), element 1 is
-      # a string value for the error.
-      list(GET _DOWNLOAD_STATUS 0 _DOWNLOAD_STATUS_CODE)
-      if(NOT (${_DOWNLOAD_STATUS_CODE} EQUAL 0))
-        list(GET _DOWNLOAD_STATUS 1 _DOWNLOAD_STATUS_MESSAGE)
-        # CMake usually creates a 0-byte file in this case. Remove it:
-        file(REMOVE ${_TARGET_FILENAME})
-        message(FATAL_ERROR "Download of ${_DOWNLOAD_URL} to ${_TARGET_FILENAME} failed with code ${_DOWNLOAD_STATUS_CODE}: ${_DOWNLOAD_STATUS_MESSAGE}")
+        file(DOWNLOAD ${_DOWNLOAD_URL} ${_TARGET_FILENAME}
+          SHOW_PROGRESS
+          STATUS _DOWNLOAD_STATUS)
+
+        # Check whether the download succeeded. _DOWNLOAD_STATUS is a list of
+        # length 2; element 0 is the return value (0 == no error), element 1 is
+        # a string value for the error.
+        list(GET _DOWNLOAD_STATUS 0 _DOWNLOAD_STATUS_CODE)
+        if(${_DOWNLOAD_STATUS_CODE} EQUAL 0)
+          break() # Successful download!
+        else()
+          list(GET _DOWNLOAD_STATUS 1 _DOWNLOAD_STATUS_MESSAGE)
+          # CMake usually creates a 0-byte file in this case. Remove it:
+          file(REMOVE ${_TARGET_FILENAME})
+          message(WARNING "Download of ${_DOWNLOAD_URL} to ${_TARGET_FILENAME} failed with code ${_DOWNLOAD_STATUS_CODE}: ${_DOWNLOAD_STATUS_MESSAGE}")
+        endif()
+      endforeach()
+
+      if(NOT EXISTS ${_TARGET_FILENAME})
+        message(FATAL_ERROR "All possible downloads to ${_TARGET_FILENAME} failed. See above warnings for more info.")
       endif()
-  
+
       # Extracting the ZIP file
-	    if(DOWNLOAD_FILES_EXTRACT)
-		    execute_process(COMMAND ${CMAKE_COMMAND} -E tar -xf ${_TARGET_FILENAME}
-						          WORKING_DIRECTORY ${DOWNLOAD_FILES_TARGET_DIR})
+      if(DOWNLOAD_FILES_EXTRACT)
+        execute_process(COMMAND ${CMAKE_COMMAND} -E tar -xf ${_TARGET_FILENAME}
+                      WORKING_DIRECTORY ${DOWNLOAD_FILES_TARGET_DIR})
         # We could use ARCHIVE_EXTRACT instead, but it needs CMake 3.18+:
         # file(ARCHIVE_EXTRACT INPUT ${_TARGET_FILENAME}
         #      DESTINATION ${DOWNLOAD_FILES_TARGET_DIR})
@@ -320,14 +331,16 @@ endfunction()
 # Arguments:
 #  NAME     : The name of the package to find. E.g. NVAPI looks for
 #             a folder named NVAPI or downloads NVAPI.zip.
-#  URL      : Optional path to an archive to download. By default, this
+#  URLS     : Optional path to an archive to download. By default, this
 #             downloads from ${DOWNLOAD_SITE}/libraries/${NAME}-${VERSION}.zip.
+#             If more than one URL is specified, tries them in turn until one works.
 #  VERSION  : The package's version number, like "555.0.0" or "1.1.0".
 #  LOCATION : Will be set to the package's directory.
 #
 function(download_package)
-  set(oneValueArgs NAME URL VERSION LOCATION)
-  cmake_parse_arguments(DOWNLOAD_PACKAGE "" "${oneValueArgs}" "" ${ARGN} )
+  set(oneValueArgs NAME VERSION LOCATION)
+  set(multiValueArgs URLS)
+  cmake_parse_arguments(DOWNLOAD_PACKAGE "" "${oneValueArgs}" "${multiValueArgs}" ${ARGN} )
   
   set(_TARGET_DIR ${CMAKE_BINARY_DIR}/_deps/${DOWNLOAD_PACKAGE_NAME}-${DOWNLOAD_PACKAGE_VERSION})
   if(EXISTS ${_TARGET_DIR})
@@ -342,13 +355,13 @@ function(download_package)
   endif()
   
   # Cache couldn't be used. Download the package:
-  if(DOWNLOAD_PACKAGE_URL)
-    set(_URL ${DOWNLOAD_PACKAGE_URL})
+  if(DOWNLOAD_PACKAGE_URLS)
+    set(_URLS ${DOWNLOAD_PACKAGE_URLS})
   else()
-    set(_URL ${DOWNLOAD_SITE}/libraries/${DOWNLOAD_PACKAGE_NAME}-${DOWNLOAD_PACKAGE_VERSION}.zip)
+    set(_URLS ${DOWNLOAD_SITE}/libraries/${DOWNLOAD_PACKAGE_NAME}-${DOWNLOAD_PACKAGE_VERSION}.zip)
   endif()
   download_files(FILENAMES "${DOWNLOAD_PACKAGE_NAME}.zip"
-                 URLS ${_URL}
+                 URLS ${_URLS}
                  EXTRACT
                  TARGET_DIR ${_TARGET_DIR}
                  NOINSTALL

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2022-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -438,20 +438,19 @@ void HdrEnvDome::renderToCube(const VkCommandBuffer& cmdBuf,
 
 
   // Image barrier for compute stage
-  auto barrier = [&](VkImageLayout oldLayout, VkImageLayout newLayout) {
+  auto barrier = [&](VkImageLayout oldLayout, VkImageLayout newLayout, VkAccessFlags srcAccess, VkAccessFlags dstAccess,
+                     VkPipelineStageFlags srcStage, VkPipelineStageFlags dstStage) {
     VkImageSubresourceRange range{VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
     VkImageMemoryBarrier    image_memory_barrier{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
     image_memory_barrier.oldLayout           = oldLayout;
     image_memory_barrier.newLayout           = newLayout;
     image_memory_barrier.image               = scratch.image;
     image_memory_barrier.subresourceRange    = range;
-    image_memory_barrier.srcAccessMask       = VK_ACCESS_MEMORY_WRITE_BIT;
-    image_memory_barrier.dstAccessMask       = VK_ACCESS_TRANSFER_READ_BIT;
+    image_memory_barrier.srcAccessMask       = srcAccess;
+    image_memory_barrier.dstAccessMask       = dstAccess;
     image_memory_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     image_memory_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    VkPipelineStageFlags src_stage_mask      = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-    VkPipelineStageFlags dest_stage_mask     = VK_PIPELINE_STAGE_TRANSFER_BIT;
-    vkCmdPipelineBarrier(cmdBuf, src_stage_mask, dest_stage_mask, 0, 0, nullptr, 0, nullptr, 1, &image_memory_barrier);
+    vkCmdPipelineBarrier(cmdBuf, srcStage, dstStage, 0, 0, nullptr, 0, nullptr, 1, &image_memory_barrier);
   };
 
 
@@ -475,7 +474,8 @@ void HdrEnvDome::renderToCube(const VkCommandBuffer& cmdBuf,
       vkCmdDispatch(cmdBuf, group_counts.width, group_counts.height, 1);
 
       // Wait for compute to finish before copying
-      barrier(VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+      barrier(VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_ACCESS_MEMORY_WRITE_BIT,
+              VK_ACCESS_TRANSFER_READ_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
 
       // Copy region for transfer from framebuffer to cube face
       VkImageCopy copy_region{};
@@ -493,7 +493,9 @@ void HdrEnvDome::renderToCube(const VkCommandBuffer& cmdBuf,
                      VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy_region);
 
       // Transform scratch texture back to general
-      barrier(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+      // After copy
+      barrier(VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, VK_ACCESS_TRANSFER_READ_BIT,
+              VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
     }
 
     // Next mipmap level

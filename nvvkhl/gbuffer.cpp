@@ -124,13 +124,17 @@ void nvvkhl::GBuffer::create(const VkExtent2D& size, std::vector<VkFormat> color
     VkCommandBuffer   cmd = cpool.createCommandBuffer();
     for(uint32_t c = 0; c < num_color; c++)
     {
-      nvvk::cmdBarrierImageLayout(cmd, m_res.gBufferColor[c].image, VK_IMAGE_LAYOUT_UNDEFINED, layout);
+      // Best layout for clearing color
+      nvvk::cmdBarrierImageLayout(cmd, m_res.gBufferColor[c].image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
       m_res.descriptor[c].imageLayout = layout;
 
       // Clear to avoid garbage data
       VkClearColorValue       clear_value = {{0.F, 0.F, 0.F, 0.F}};
       VkImageSubresourceRange range       = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
-      vkCmdClearColorImage(cmd, m_res.gBufferColor[c].image, layout, &clear_value, 1, &range);
+      vkCmdClearColorImage(cmd, m_res.gBufferColor[c].image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear_value, 1, &range);
+
+      // Setting the layout to the final one
+      nvvk::cmdBarrierImageLayout(cmd, m_res.gBufferColor[c].image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, layout);
     }
     cpool.submitAndWait(cmd);
   }

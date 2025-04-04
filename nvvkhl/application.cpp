@@ -260,7 +260,7 @@ void nvvkhl::Application::run()
   }
 
   ImGui::LoadIniSettingsFromDisk(m_iniFilename.c_str());
-  if(m_winPos != glm::ivec2(0, 0))
+  if(isWindowPosValid(m_windowHandle, m_winPos.x, m_winPos.y))
   {
     // Position must be set before size to take into account DPI
     glfwSetWindowPos(m_windowHandle, m_winPos.x, m_winPos.y);
@@ -479,13 +479,14 @@ void nvvkhl::Application::endFrame(VkCommandBuffer cmd)
   m_waitSemaphores.push_back({
       .sType     = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
       .semaphore = m_swapchain.getImageAvailableSemaphore(),
-      .stageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+      .stageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,  // Wait until swapchain image is available before writing to color attachments
   });
   m_signalSemaphores.push_back({
       .sType     = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
       .semaphore = m_swapchain.getRenderFinishedSemaphore(),
-      .stageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+      .stageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,  // Ensures all rendering is complete before presenting
   });
+
 
   // Get the frame data for the current frame in the ring buffer
   FrameData& frame = m_frameData[m_frameRingCurrent];
@@ -504,7 +505,7 @@ void nvvkhl::Application::endFrame(VkCommandBuffer cmd)
       .sType     = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
       .semaphore = m_frameTimelineSemaphore,
       .value     = signalFrameValue,
-      .stageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+      .stageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,  // Ensures all rendering is complete before presenting
   });
 
   // Adding the command buffer of the frame to the list of command buffers to submit
@@ -1014,4 +1015,34 @@ void nvvkhl::Application::addSignalSemaphore(const VkSemaphoreSubmitInfoKHR& sig
 void nvvkhl::Application::prependCommandBuffer(const VkCommandBufferSubmitInfoKHR& cmd)
 {
   m_commandBuffers.push_back(cmd);
+}
+
+
+//-----------------------------------------------------------------------
+// Helpers
+
+// Check if window position is within visible monitor bounds
+bool nvvkhl::Application::isWindowPosValid(GLFWwindow* window, int posX, int posY)
+{
+  int           monitorCount;
+  GLFWmonitor** monitors = glfwGetMonitors(&monitorCount);
+
+  // For each connected monitor
+  for(int i = 0; i < monitorCount; i++)
+  {
+    GLFWmonitor*       monitor = monitors[i];
+    const GLFWvidmode* mode    = glfwGetVideoMode(monitor);
+
+    int monX, monY;
+    glfwGetMonitorPos(monitor, &monX, &monY);
+
+    // Check if window position is within this monitor's bounds
+    // Add some margin to account for window decorations
+    if(posX >= monX && posX < monX + mode->width && posY >= monY && posY < monY + mode->height)
+    {
+      return true;
+    }
+  }
+
+  return false;
 }

@@ -250,6 +250,7 @@ private:
   void            endDynamicRenderingToSwapchain(VkCommandBuffer cmd);
   void            saveScreenShot(const std::string& filename, int quality);  // Immediately save the frame
   void            resetFreeQueue(uint32_t size);
+  bool            isWindowPosValid(GLFWwindow* window, int posX, int posY);
 
   std::vector<std::shared_ptr<IAppElement>> m_elements;  // List of application elements to be called
 
