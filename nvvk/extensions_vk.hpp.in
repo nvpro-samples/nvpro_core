@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2024, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2018-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2018-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2018-2025, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -43,12 +43,21 @@ load_VK_EXTENSIONS(instance, vkGetInstanceProcAddr, device, vkGetDeviceProcAddr)
 void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstanceProcAddr, VkDevice device, PFN_vkGetDeviceProcAddr getDeviceProcAddr);
 
 /* NVVK_GENERATE_DEFINE */
+#if VK_VERSION_1_4
+#define NVVK_HAS_VK_VERSION_1_4
+#endif /* VK_VERSION_1_4 */
+#if defined(VK_AMDX_shader_enqueue)
+#define NVVK_HAS_VK_AMDX_shader_enqueue
+#endif /* VK_AMDX_shader_enqueue */
 #if defined(VK_AMD_anti_lag)
 #define NVVK_HAS_VK_AMD_anti_lag
 #endif /* VK_AMD_anti_lag */
 #if defined(VK_AMD_buffer_marker)
 #define NVVK_HAS_VK_AMD_buffer_marker
 #endif /* VK_AMD_buffer_marker */
+#if defined(VK_AMD_buffer_marker) && (defined(VK_VERSION_1_3) || defined(VK_KHR_synchronization2))
+#define NVVK_HAS_VK_AMD_buffer_marker
+#endif /* VK_AMD_buffer_marker && (VK_VERSION_1_3 || VK_KHR_synchronization2) */
 #if defined(VK_AMD_display_native_hdr)
 #define NVVK_HAS_VK_AMD_display_native_hdr
 #endif /* VK_AMD_display_native_hdr */
@@ -187,6 +196,9 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #if defined(VK_EXT_external_memory_host)
 #define NVVK_HAS_VK_EXT_external_memory_host
 #endif /* VK_EXT_external_memory_host */
+#if defined(VK_EXT_external_memory_metal)
+#define NVVK_HAS_VK_EXT_external_memory_metal
+#endif /* VK_EXT_external_memory_metal */
 #if defined(VK_EXT_full_screen_exclusive)
 #define NVVK_HAS_VK_EXT_full_screen_exclusive
 #endif /* VK_EXT_full_screen_exclusive */
@@ -217,6 +229,9 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #if defined(VK_EXT_mesh_shader)
 #define NVVK_HAS_VK_EXT_mesh_shader
 #endif /* VK_EXT_mesh_shader */
+#if defined(VK_EXT_mesh_shader) && (defined(VK_KHR_draw_indirect_count) || defined(VK_VERSION_1_2))
+#define NVVK_HAS_VK_EXT_mesh_shader
+#endif /* VK_EXT_mesh_shader && (VK_KHR_draw_indirect_count || VK_VERSION_1_2) */
 #if defined(VK_EXT_metal_objects)
 #define NVVK_HAS_VK_EXT_metal_objects
 #endif /* VK_EXT_metal_objects */
@@ -334,6 +349,9 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #if defined(VK_HUAWEI_invocation_mask)
 #define NVVK_HAS_VK_HUAWEI_invocation_mask
 #endif /* VK_HUAWEI_invocation_mask */
+#if defined(VK_HUAWEI_subpass_shading) && VK_HUAWEI_SUBPASS_SHADING_SPEC_VERSION >= 2
+#define NVVK_HAS_VK_HUAWEI_subpass_shading
+#endif /* VK_HUAWEI_subpass_shading && VK_HUAWEI_SUBPASS_SHADING_SPEC_VERSION >= 2 */
 #if defined(VK_HUAWEI_subpass_shading)
 #define NVVK_HAS_VK_HUAWEI_subpass_shading
 #endif /* VK_HUAWEI_subpass_shading */
@@ -493,12 +511,6 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #if defined(VK_KHR_synchronization2)
 #define NVVK_HAS_VK_KHR_synchronization2
 #endif /* VK_KHR_synchronization2 */
-#if defined(VK_KHR_synchronization2) && defined(VK_AMD_buffer_marker)
-#define NVVK_HAS_VK_KHR_synchronization2
-#endif /* VK_KHR_synchronization2 && VK_AMD_buffer_marker */
-#if defined(VK_KHR_synchronization2) && defined(VK_NV_device_diagnostic_checkpoints)
-#define NVVK_HAS_VK_KHR_synchronization2
-#endif /* VK_KHR_synchronization2 && VK_NV_device_diagnostic_checkpoints */
 #if defined(VK_KHR_timeline_semaphore)
 #define NVVK_HAS_VK_KHR_timeline_semaphore
 #endif /* VK_KHR_timeline_semaphore */
@@ -526,24 +538,45 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #if defined(VK_NVX_image_view_handle)
 #define NVVK_HAS_VK_NVX_image_view_handle
 #endif /* VK_NVX_image_view_handle */
+#if defined(VK_NVX_image_view_handle) && VK_NVX_IMAGE_VIEW_HANDLE_SPEC_VERSION >= 3
+#define NVVK_HAS_VK_NVX_image_view_handle
+#endif /* VK_NVX_image_view_handle && VK_NVX_IMAGE_VIEW_HANDLE_SPEC_VERSION >= 3 */
+#if defined(VK_NVX_image_view_handle) && VK_NVX_IMAGE_VIEW_HANDLE_SPEC_VERSION >= 2
+#define NVVK_HAS_VK_NVX_image_view_handle
+#endif /* VK_NVX_image_view_handle && VK_NVX_IMAGE_VIEW_HANDLE_SPEC_VERSION >= 2 */
 #if defined(VK_NV_acquire_winrt_display)
 #define NVVK_HAS_VK_NV_acquire_winrt_display
 #endif /* VK_NV_acquire_winrt_display */
 #if defined(VK_NV_clip_space_w_scaling)
 #define NVVK_HAS_VK_NV_clip_space_w_scaling
 #endif /* VK_NV_clip_space_w_scaling */
+#if defined(VK_NV_cluster_acceleration_structure)
+#define NVVK_HAS_VK_NV_cluster_acceleration_structure
+#endif /* VK_NV_cluster_acceleration_structure */
 #if defined(VK_NV_cooperative_matrix)
 #define NVVK_HAS_VK_NV_cooperative_matrix
 #endif /* VK_NV_cooperative_matrix */
+#if defined(VK_NV_cooperative_matrix2)
+#define NVVK_HAS_VK_NV_cooperative_matrix2
+#endif /* VK_NV_cooperative_matrix2 */
+#if defined(VK_NV_cooperative_vector)
+#define NVVK_HAS_VK_NV_cooperative_vector
+#endif /* VK_NV_cooperative_vector */
 #if defined(VK_NV_copy_memory_indirect)
 #define NVVK_HAS_VK_NV_copy_memory_indirect
 #endif /* VK_NV_copy_memory_indirect */
 #if defined(VK_NV_coverage_reduction_mode)
 #define NVVK_HAS_VK_NV_coverage_reduction_mode
 #endif /* VK_NV_coverage_reduction_mode */
+#if defined(VK_NV_cuda_kernel_launch)
+#define NVVK_HAS_VK_NV_cuda_kernel_launch
+#endif /* VK_NV_cuda_kernel_launch */
 #if defined(VK_NV_device_diagnostic_checkpoints)
 #define NVVK_HAS_VK_NV_device_diagnostic_checkpoints
 #endif /* VK_NV_device_diagnostic_checkpoints */
+#if defined(VK_NV_device_diagnostic_checkpoints) && (defined(VK_VERSION_1_3) || defined(VK_KHR_synchronization2))
+#define NVVK_HAS_VK_NV_device_diagnostic_checkpoints
+#endif /* VK_NV_device_diagnostic_checkpoints && (VK_VERSION_1_3 || VK_KHR_synchronization2) */
 #if defined(VK_NV_device_generated_commands)
 #define NVVK_HAS_VK_NV_device_generated_commands
 #endif /* VK_NV_device_generated_commands */
@@ -571,9 +604,15 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #if defined(VK_NV_mesh_shader)
 #define NVVK_HAS_VK_NV_mesh_shader
 #endif /* VK_NV_mesh_shader */
+#if defined(VK_NV_mesh_shader) && (defined(VK_KHR_draw_indirect_count) || defined(VK_VERSION_1_2))
+#define NVVK_HAS_VK_NV_mesh_shader
+#endif /* VK_NV_mesh_shader && (VK_KHR_draw_indirect_count || VK_VERSION_1_2) */
 #if defined(VK_NV_optical_flow)
 #define NVVK_HAS_VK_NV_optical_flow
 #endif /* VK_NV_optical_flow */
+#if defined(VK_NV_partitioned_acceleration_structure)
+#define NVVK_HAS_VK_NV_partitioned_acceleration_structure
+#endif /* VK_NV_partitioned_acceleration_structure */
 #if defined(VK_NV_ray_tracing)
 #define NVVK_HAS_VK_NV_ray_tracing
 #endif /* VK_NV_ray_tracing */

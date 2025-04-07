@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2020-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2020-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -33,22 +33,31 @@ public:
 
   FileMapping& operator=(FileMapping&& other) noexcept
   {
-    m_isValid     = other.m_isValid;
-    m_fileSize    = other.m_fileSize;
-    m_mappingType = other.m_mappingType;
-    m_mappingPtr  = other.m_mappingPtr;
-    m_mappingSize = other.m_mappingSize;
+    if(this != &other)
+    {
+      // close our own handle before move assignment of other
+      if(m_isValid)
+      {
+        close();
+      }
+
+      m_isValid     = other.m_isValid;
+      m_fileSize    = other.m_fileSize;
+      m_mappingType = other.m_mappingType;
+      m_mappingPtr  = other.m_mappingPtr;
+      m_mappingSize = other.m_mappingSize;
 #ifdef _WIN32
-    m_win32.file              = other.m_win32.file;
-    m_win32.fileMapping       = other.m_win32.fileMapping;
-    other.m_win32.file        = nullptr;
-    other.m_win32.fileMapping = nullptr;
+      m_win32.file              = other.m_win32.file;
+      m_win32.fileMapping       = other.m_win32.fileMapping;
+      other.m_win32.file        = nullptr;
+      other.m_win32.fileMapping = nullptr;
 #else
-    m_unix.file       = other.m_unix.file;
-    other.m_unix.file = -1;
+      m_unix.file       = other.m_unix.file;
+      other.m_unix.file = -1;
 #endif
-    other.m_isValid    = false;
-    other.m_mappingPtr = nullptr;
+      other.m_isValid    = false;
+      other.m_mappingPtr = nullptr;
+    }
 
     return *this;
   }
