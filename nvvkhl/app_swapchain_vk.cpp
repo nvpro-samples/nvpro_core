@@ -19,6 +19,7 @@
 #include "app_swapchain_vk.hpp"
 #include "nvvk/error_vk.hpp"
 #include "nvvk/images_vk.hpp"
+#include "nvvk/debug_util_vk.hpp"
 #include "nvh/nvprint.hpp"
 
 nvvkhl::AppSwapchain::~AppSwapchain()
@@ -73,7 +74,8 @@ void nvvkhl::AppSwapchain::init(VkPhysicalDevice physicalDevice, VkDevice device
 
   if(!supportsPresent)
   {
-    LOGE("ERROR: Selected queue family %d cannot present on surface %px. Swapchain creation failed. Aborting.\n", queue.familyIndex, surface);
+    LOGE("ERROR: Selected queue family %d cannot present on surface %px. Swapchain creation failed. Aborting.\n",
+         queue.familyIndex, surface);
     exit(EXIT_FAILURE);
   }
 
@@ -92,6 +94,8 @@ void nvvkhl::AppSwapchain::deinit()
 
 VkExtent2D nvvkhl::AppSwapchain::initResources(bool vSync /*= true*/)
 {
+  nvvk::DebugUtil debugUtil(m_device);
+
   VkExtent2D outWindowSize;
 
   assert(m_surface);
@@ -140,7 +144,7 @@ VkExtent2D nvvkhl::AppSwapchain::initResources(bool vSync /*= true*/)
       .clipped          = VK_TRUE,
   };
   NVVK_CHECK(vkCreateSwapchainKHR(m_device, &swapchainCreateInfo, nullptr, &m_swapChain));
-  //DBG_VK_NAME(m_swapChain);
+  debugUtil.setObjectName(m_swapChain, "nvvkhl::AppSwapchain::m_swapChain");
 
   // Retrieve the swapchain images
   uint32_t imageCount;
@@ -161,10 +165,10 @@ VkExtent2D nvvkhl::AppSwapchain::initResources(bool vSync /*= true*/)
   for(uint32_t i = 0; i < m_maxFramesInFlight; i++)
   {
     m_nextImages[i].image = swapImages[i];
-    //DBG_VK_NAME(m_nextImages[i].image);
+    debugUtil.setObjectName(m_nextImages[i].image, "nvvkhl::AppSwapchain::m_nextImages[" + std::to_string(i) + "].image");
     imageViewCreateInfo.image = m_nextImages[i].image;
     NVVK_CHECK(vkCreateImageView(m_device, &imageViewCreateInfo, nullptr, &m_nextImages[i].imageView));
-    //DBG_VK_NAME(m_nextImages[i].imageView);
+    debugUtil.setObjectName(m_nextImages[i].imageView, "nvvkhl::AppSwapchain::m_nextImages[" + std::to_string(i) + "].imageView");
   }
 
   // Initialize frame resources for each frame
@@ -179,9 +183,11 @@ VkExtent2D nvvkhl::AppSwapchain::initResources(bool vSync /*= true*/)
       -*/
     const VkSemaphoreCreateInfo semaphoreCreateInfo{.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
     NVVK_CHECK(vkCreateSemaphore(m_device, &semaphoreCreateInfo, nullptr, &m_frameResources[i].imageAvailableSemaphore));
-    //DBG_VK_NAME(m_frameResources[i].imageAvailableSemaphore);
+    debugUtil.setObjectName(m_frameResources[i].imageAvailableSemaphore,
+                            "nvvkhl::AppSwapchain::m_frameResources[" + std::to_string(i) + "].imageAvailableSemaphore");
     NVVK_CHECK(vkCreateSemaphore(m_device, &semaphoreCreateInfo, nullptr, &m_frameResources[i].renderFinishedSemaphore));
-    //DBG_VK_NAME(m_frameResources[i].renderFinishedSemaphore);
+    debugUtil.setObjectName(m_frameResources[i].renderFinishedSemaphore,
+                            "nvvkhl::AppSwapchain::m_frameResources[" + std::to_string(i) + "].renderFinishedSemaphore");
   }
 
   // Transition images to present layout
@@ -222,9 +228,10 @@ void nvvkhl::AppSwapchain::deinitResources()
   }
   m_frameResources = {};
   m_nextImages     = {};
+  m_swapChain      = VK_NULL_HANDLE;
 }
 
-void nvvkhl::AppSwapchain::acquireNextImage(VkDevice device)
+bool nvvkhl::AppSwapchain::acquireNextImage(VkDevice device)
 {
   assert(m_needRebuild == false);  //, "Swapbuffer need to call reinitResources()");
 
@@ -237,11 +244,14 @@ void nvvkhl::AppSwapchain::acquireNextImage(VkDevice device)
   if(result == VK_ERROR_OUT_OF_DATE_KHR)
   {
     m_needRebuild = true;  // Swapchain must be rebuilt on the next frame
+    return false;
   }
   else
   {
     assert(result == VK_SUCCESS || result == VK_SUBOPTIMAL_KHR);  //, "Couldn't acquire swapchain image");
   }
+
+  return true;
 }
 
 void nvvkhl::AppSwapchain::presentFrame(VkQueue queue)

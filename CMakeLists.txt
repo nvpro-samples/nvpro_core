@@ -273,6 +273,8 @@ add_library(nvpro_core STATIC
   ${NVHELPERSOPTIX_FILES}
 )
 
+target_compile_features(nvpro_core PUBLIC cxx_std_20)
+
 # Create precompiled header (added in CMake 3.16)
 if(${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.16.0")
   set(_PCH_FILES

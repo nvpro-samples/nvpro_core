@@ -27,6 +27,7 @@
 #include "implot.h"
 #include "nvh/fileoperations.hpp"
 #include "nvvk/error_vk.hpp"
+#include "nvvk/debug_util_vk.hpp"
 #include "nvvk/images_vk.hpp"
 #include "nvh/timesampler.hpp"
 #include "imgui/imgui_helper.h"
@@ -343,9 +344,12 @@ void nvvkhl::Application::run()
 
     // The main frame rendering
     VkCommandBuffer cmd = beginFrame();
-    drawFrame(cmd);
-    endFrame(cmd);
-    presentFrame();
+    if(cmd != VK_NULL_HANDLE)
+    {
+      drawFrame(cmd);
+      endFrame(cmd);
+      presentFrame();
+    }
 
     // Update and Render additional Platform Windows (floating windows)
     if((ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable) != 0)
@@ -447,6 +451,15 @@ VkCommandBuffer nvvkhl::Application::beginFrame()
   };
   vkWaitSemaphores(m_device, &waitInfo, std::numeric_limits<uint64_t>::max());
 
+  // Acquire the image to render into.
+  // Beware that this must be happening after the above vkWaitSemaphores.
+  // If not, the GPU might still be busy with displaying the frame associated with
+  // the to-be acquired image. This in turn means the semaphore we give to vkAcquireNextImageKHR
+  // might still have not signaled yet. This causes validation errors as vkAcquireNextImageKHR
+  // expects a semaphore with no outstanding GPU work.
+  if(!m_swapchain.acquireNextImage(m_device))
+    return VK_NULL_HANDLE;
+
   // Reset the command pool to reuse the command buffer for recording
   // new rendering commands for the current frame.
   NVVK_CHECK(vkResetCommandPool(m_device, frame.cmdPool, 0));
@@ -456,9 +469,6 @@ VkCommandBuffer nvvkhl::Application::beginFrame()
   const VkCommandBufferBeginInfo beginInfo{.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
                                            .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT};
   NVVK_CHECK(vkBeginCommandBuffer(cmd, &beginInfo));
-
-  // Acquire the image to render into
-  m_swapchain.acquireNextImage(m_device);
 
   return cmd;
 }
@@ -636,13 +646,15 @@ void nvvkhl::Application::headlessRun()
 //
 void nvvkhl::Application::createTransientCommandPool()
 {
+  nvvk::DebugUtil debugUtil(m_device);
+
   const VkCommandPoolCreateInfo commandPoolCreateInfo{
       .sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
       .flags            = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,  // Hint that commands will be short-lived
       .queueFamilyIndex = m_queues[0].familyIndex,
   };
   NVVK_CHECK(vkCreateCommandPool(m_device, &commandPoolCreateInfo, nullptr, &m_transientCmdPool));
-  //DBG_VK_NAME(m_transientCmdPool);
+  debugUtil.setObjectName(m_transientCmdPool, "nvvkhl::Application::m_transientCmdPool");
 }
 
 //-----------------------------------------------------------------------
@@ -652,6 +664,8 @@ void nvvkhl::Application::createTransientCommandPool()
 //
 void nvvkhl::Application::createFrameSubmission(uint32_t numFrames)
 {
+  nvvk::DebugUtil debugUtil(m_device);
+
   VkDevice device = m_device;
 
   m_frameData.resize(numFrames);
@@ -670,7 +684,7 @@ void nvvkhl::Application::createFrameSubmission(uint32_t numFrames)
   // This ensures resources aren't overwritten while still in use by the GPU
   const VkSemaphoreCreateInfo semaphoreCreateInfo{.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO, .pNext = &timelineCreateInfo};
   NVVK_CHECK(vkCreateSemaphore(device, &semaphoreCreateInfo, nullptr, &m_frameTimelineSemaphore));
-  //DBG_VK_NAME(m_frameTimelineSemaphore);
+  debugUtil.setObjectName(m_frameTimelineSemaphore, "nvvkhl::Application::m_frameTimelineSemaphore");
 
   //Create command pools and buffers for each frame
   //Each frame gets its own command pool to allow parallel command recording while previous frames may still be executing on the GPU
@@ -685,7 +699,7 @@ void nvvkhl::Application::createFrameSubmission(uint32_t numFrames)
 
     // Separate pools allow independent reset/recording of commands while other frames are still in-flight
     NVVK_CHECK(vkCreateCommandPool(device, &cmdPoolCreateInfo, nullptr, &m_frameData[i].cmdPool));
-    //DBG_VK_NAME(m_frameData[i].cmdPool);
+    debugUtil.setObjectName(m_frameData[i].cmdPool, "nvvkhl::AppSwapchain::m_frameData[" + std::to_string(i) + "].cmdPool");
 
     const VkCommandBufferAllocateInfo commandBufferAllocateInfo = {
         .sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
@@ -694,7 +708,7 @@ void nvvkhl::Application::createFrameSubmission(uint32_t numFrames)
         .commandBufferCount = 1,
     };
     NVVK_CHECK(vkAllocateCommandBuffers(device, &commandBufferAllocateInfo, &m_frameData[i].cmdBuffer));
-    //DBG_VK_NAME(m_frameData[i].cmdBuffer);
+    debugUtil.setObjectName(m_frameData[i].cmdBuffer, "nvvkhl::AppSwapchain::m_frameData[" + std::to_string(i) + "].cmdBuffer");
   }
 }
 
@@ -704,6 +718,8 @@ void nvvkhl::Application::createFrameSubmission(uint32_t numFrames)
 //
 void nvvkhl::Application::createDescriptorPool()
 {
+  nvvk::DebugUtil debugUtil(m_device);
+
   // Query the physical device properties to determine the maximum number of descriptor sets that can be allocated
   VkPhysicalDeviceProperties deviceProperties;
   vkGetPhysicalDeviceProperties(m_physicalDevice, &deviceProperties);
@@ -723,7 +739,7 @@ void nvvkhl::Application::createDescriptorPool()
       .pPoolSizes    = poolSizes.data(),
   };
   NVVK_CHECK(vkCreateDescriptorPool(m_device, &poolInfo, nullptr, &m_descriptorPool));
-  //DBG_VK_NAME(m_descriptorPool);
+  debugUtil.setObjectName(m_descriptorPool, "nvvkhl::AppSwapchain::m_descriptorPool");
 }
 
 /*-- Initialize ImGui -*/

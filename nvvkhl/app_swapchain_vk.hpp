@@ -81,11 +81,10 @@ public:
   void deinitResources();
 
   /*--
-   * Prepares the command buffer for recording rendering commands.
-   * This function handles synchronization with the previous frame and acquires the next image from the swapchain.
-   * The command buffer is reset, ready for new rendering commands.
-  -*/
-  void acquireNextImage(VkDevice device);
+   * Acquire the next image to render to from the swapchain.
+   * Returns false in case of failure.
+   */
+  bool acquireNextImage(VkDevice device);
 
   /*--
    * Presents the rendered image to the screen.

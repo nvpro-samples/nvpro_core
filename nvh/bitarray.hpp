@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2014-2025, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2014-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2014-2025, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -23,9 +23,7 @@
 
 #include <algorithm>
 #include <platform.h>
-#if(defined(NV_X64)) && defined(_MSC_VER)
-#include <intrin.h>
-#endif
+#include <bit>
 
 namespace nvh {
 
@@ -76,16 +74,24 @@ private:
   size_t   m_offset;
 };
 
-
-#if(defined(NV_X64) || defined(NV_ARM)) && defined(_MSC_VER)
-template <typename Visitor>
-inline void bitTraverse(uint32_t bits, Visitor& visitor)
+inline constexpr uint32_t ctz(uint32_t value)
 {
-  unsigned long localIndex;
-  while(_BitScanForward(&localIndex, bits))
+  return std::countr_zero(value);
+}
+
+inline constexpr uint64_t ctz(uint64_t value)
+{
+  return std::countr_zero(value);
+}
+
+template <class T, typename Visitor>
+inline void bitTraverse(T bits, Visitor& visitor)
+{
+  while(bits)
   {
+    auto localIndex = ctz(bits);
     visitor(localIndex);
-    bits ^= 1 << localIndex;  // clear the current bit so that the next one is being found by the bitscan
+    bits ^= T(1) << localIndex;  // clear the current bit so that the next one is being found by the bitscan
   }
 }
 
@@ -93,66 +99,12 @@ template <typename Visitor>
 inline void bitTraverse(uint64_t bits, Visitor& visitor)
 {
   unsigned long localIndex;
-  while(_BitScanForward64(&localIndex, bits))
+  while(bits != 0)
   {
     visitor(localIndex);
     bits ^= uint64_t(1) << localIndex;  // clear the current bit so that the next one is being found by the bitscan
   }
 }
-
-inline size_t ctz(uint64_t bits)
-{
-  unsigned long localIndex;
-  return _BitScanForward64(&localIndex, bits) ? localIndex : 64;
-}
-
-inline size_t ctz(uint32_t bits)
-{
-  unsigned long localIndex;
-  return _BitScanForward(&localIndex, bits) ? localIndex : 32;
-}
-#else
-inline size_t ctz(uint64_t bits)
-{
-  return (bits != 0) ? __builtin_ctzl(bits) : 64;
-}
-
-inline size_t ctz(uint32_t bits)
-{
-  return (bits != 0) ? __builtin_ctz(bits) : 32;
-}
-
-// TODO implement GCC version!
-template <typename BitType, typename Visitor>
-inline void bitTraverse(BitType bits, Visitor visitor)
-{
-  size_t index = 0;
-  while(bits)
-  {
-    if(bits & 0xff)  // skip ifs if the byte is 0
-    {
-      if(bits & 0x01)
-        visitor(index + 0);
-      if(bits & 0x02)
-        visitor(index + 1);
-      if(bits & 0x04)
-        visitor(index + 2);
-      if(bits & 0x08)
-        visitor(index + 3);
-      if(bits & 0x10)
-        visitor(index + 4);
-      if(bits & 0x20)
-        visitor(index + 5);
-      if(bits & 0x40)
-        visitor(index + 6);
-      if(bits & 0x80)
-        visitor(index + 7);
-    }
-    bits >>= 8;
-    index += 8;
-  }
-}
-#endif
 
 /** >  Call visitor(index) for each bit set **/
 template <typename BitType, typename Visitor>
