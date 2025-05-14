@@ -194,25 +194,27 @@ INLINE GltfShadeMaterial defaultGltfMaterial()
   m.diffuseTransmissionColor    = vec3(1, 1, 1);
   m.diffuseTransmissionFactor   = 0;
 
-  m.pbrBaseColorTexture          = defaultGltfTextureInfo();
-  m.normalTexture                = defaultGltfTextureInfo();
-  m.pbrMetallicRoughnessTexture  = defaultGltfTextureInfo();
-  m.emissiveTexture              = defaultGltfTextureInfo();
-  m.transmissionTexture          = defaultGltfTextureInfo();
-  m.thicknessTexture             = defaultGltfTextureInfo();
-  m.clearcoatTexture             = defaultGltfTextureInfo();
-  m.clearcoatRoughnessTexture    = defaultGltfTextureInfo();
-  m.clearcoatNormalTexture       = defaultGltfTextureInfo();
-  m.specularTexture              = defaultGltfTextureInfo();
-  m.specularColorTexture         = defaultGltfTextureInfo();
-  m.iridescenceTexture           = defaultGltfTextureInfo();
-  m.iridescenceThicknessTexture  = defaultGltfTextureInfo();
-  m.anisotropyTexture            = defaultGltfTextureInfo();
-  m.sheenColorTexture            = defaultGltfTextureInfo();
-  m.sheenRoughnessTexture        = defaultGltfTextureInfo();
-  m.pbrDiffuseTexture            = defaultGltfTextureInfo();
-  m.pbrSpecularGlossinessTexture = defaultGltfTextureInfo();
-
+  m.pbrBaseColorTexture             = defaultGltfTextureInfo();
+  m.normalTexture                   = defaultGltfTextureInfo();
+  m.pbrMetallicRoughnessTexture     = defaultGltfTextureInfo();
+  m.emissiveTexture                 = defaultGltfTextureInfo();
+  m.transmissionTexture             = defaultGltfTextureInfo();
+  m.thicknessTexture                = defaultGltfTextureInfo();
+  m.clearcoatTexture                = defaultGltfTextureInfo();
+  m.clearcoatRoughnessTexture       = defaultGltfTextureInfo();
+  m.clearcoatNormalTexture          = defaultGltfTextureInfo();
+  m.specularTexture                 = defaultGltfTextureInfo();
+  m.specularColorTexture            = defaultGltfTextureInfo();
+  m.iridescenceTexture              = defaultGltfTextureInfo();
+  m.iridescenceThicknessTexture     = defaultGltfTextureInfo();
+  m.anisotropyTexture               = defaultGltfTextureInfo();
+  m.sheenColorTexture               = defaultGltfTextureInfo();
+  m.sheenRoughnessTexture           = defaultGltfTextureInfo();
+  m.occlusionTexture                = defaultGltfTextureInfo();
+  m.pbrDiffuseTexture               = defaultGltfTextureInfo();
+  m.pbrSpecularGlossinessTexture    = defaultGltfTextureInfo();
+  m.diffuseTransmissionTexture      = defaultGltfTextureInfo();
+  m.diffuseTransmissionColorTexture = defaultGltfTextureInfo();
 
   return m;
 }
