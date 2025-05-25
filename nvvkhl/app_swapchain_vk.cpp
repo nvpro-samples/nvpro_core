@@ -59,12 +59,12 @@ uint32_t nvvkhl::AppSwapchain::getMaxFramesInFlight() const
 
 VkSemaphore nvvkhl::AppSwapchain::getImageAvailableSemaphore() const
 {
-  return m_frameResources[m_currentFrame].imageAvailableSemaphore;
+  return m_imageAvailableSemaphores[m_currentFrame];
 }
 
 VkSemaphore nvvkhl::AppSwapchain::getRenderFinishedSemaphore() const
 {
-  return m_frameResources[m_currentFrame].renderFinishedSemaphore;
+  return m_renderFinishedSemaphores[m_nextImageIndex];
 }
 
 void nvvkhl::AppSwapchain::init(VkPhysicalDevice physicalDevice, VkDevice device, const nvvkhl::QueueInfo& queue, VkSurfaceKHR surface, VkCommandPool cmdPool)
@@ -153,6 +153,16 @@ VkExtent2D nvvkhl::AppSwapchain::initResources(bool vSync /*= true*/)
   std::vector<VkImage> swapImages(imageCount);
   NVVK_CHECK(vkGetSwapchainImagesKHR(m_device, m_swapChain, &imageCount, swapImages.data()));
 
+  // Initialize render finished semaphores for each swapchain image
+  m_renderFinishedSemaphores.resize(imageCount);
+  for(size_t i = 0; i < imageCount; i++)
+  {
+    const VkSemaphoreCreateInfo semaphoreCreateInfo{.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
+    NVVK_CHECK(vkCreateSemaphore(m_device, &semaphoreCreateInfo, nullptr, &m_renderFinishedSemaphores[i]));
+    debugUtil.setObjectName(m_renderFinishedSemaphores[i],
+                            "nvvkhl::AppSwapchain::m_renderFinishedSemaphores[" + std::to_string(i) + "]");
+  }
+
   // Store the swapchain images and create views for them
   m_nextImages.resize(m_maxFramesInFlight);
   VkImageViewCreateInfo imageViewCreateInfo{
@@ -171,8 +181,8 @@ VkExtent2D nvvkhl::AppSwapchain::initResources(bool vSync /*= true*/)
     debugUtil.setObjectName(m_nextImages[i].imageView, "nvvkhl::AppSwapchain::m_nextImages[" + std::to_string(i) + "].imageView");
   }
 
-  // Initialize frame resources for each frame
-  m_frameResources.resize(m_maxFramesInFlight);
+  // Initialize image available semaphores for each frame
+  m_imageAvailableSemaphores.resize(m_maxFramesInFlight);
   for(size_t i = 0; i < m_maxFramesInFlight; ++i)
   {
     /*--
@@ -182,12 +192,9 @@ VkExtent2D nvvkhl::AppSwapchain::initResources(bool vSync /*= true*/)
        * The in flight fence is signaled when the frame is in flight.
       -*/
     const VkSemaphoreCreateInfo semaphoreCreateInfo{.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
-    NVVK_CHECK(vkCreateSemaphore(m_device, &semaphoreCreateInfo, nullptr, &m_frameResources[i].imageAvailableSemaphore));
-    debugUtil.setObjectName(m_frameResources[i].imageAvailableSemaphore,
-                            "nvvkhl::AppSwapchain::m_frameResources[" + std::to_string(i) + "].imageAvailableSemaphore");
-    NVVK_CHECK(vkCreateSemaphore(m_device, &semaphoreCreateInfo, nullptr, &m_frameResources[i].renderFinishedSemaphore));
-    debugUtil.setObjectName(m_frameResources[i].renderFinishedSemaphore,
-                            "nvvkhl::AppSwapchain::m_frameResources[" + std::to_string(i) + "].renderFinishedSemaphore");
+    NVVK_CHECK(vkCreateSemaphore(m_device, &semaphoreCreateInfo, nullptr, &m_imageAvailableSemaphores[i]));
+    debugUtil.setObjectName(m_imageAvailableSemaphores[i],
+                            "nvvkhl::AppSwapchain::m_imageAvailableSemaphores[" + std::to_string(i) + "]");
   }
 
   // Transition images to present layout
@@ -217,16 +224,20 @@ VkExtent2D nvvkhl::AppSwapchain::reinitResources(bool vSync /*= true*/)
 void nvvkhl::AppSwapchain::deinitResources()
 {
   vkDestroySwapchainKHR(m_device, m_swapChain, nullptr);
-  for(FrameResources& frameRes : m_frameResources)
+  for(VkSemaphore& imageAvailableSemaphore : m_imageAvailableSemaphores)
   {
-    vkDestroySemaphore(m_device, frameRes.imageAvailableSemaphore, nullptr);
-    vkDestroySemaphore(m_device, frameRes.renderFinishedSemaphore, nullptr);
+    vkDestroySemaphore(m_device, imageAvailableSemaphore, nullptr);
+  }
+  for(VkSemaphore& renderFinishedSemaphore : m_renderFinishedSemaphores)
+  {
+    vkDestroySemaphore(m_device, renderFinishedSemaphore, nullptr);
   }
   for(AppSwapchain::Image& image : m_nextImages)
   {
     vkDestroyImageView(m_device, image.imageView, nullptr);
   }
-  m_frameResources = {};
+  m_imageAvailableSemaphores = {};
+  m_renderFinishedSemaphores = {};
   m_nextImages     = {};
   m_swapChain      = VK_NULL_HANDLE;
 }
@@ -235,11 +246,9 @@ bool nvvkhl::AppSwapchain::acquireNextImage(VkDevice device)
 {
   assert(m_needRebuild == false);  //, "Swapbuffer need to call reinitResources()");
 
-  FrameResources& frame = m_frameResources[m_currentFrame];
-
   // Acquire the next image from the swapchain
   const VkResult result = vkAcquireNextImageKHR(device, m_swapChain, std::numeric_limits<uint64_t>::max(),
-                                                frame.imageAvailableSemaphore, VK_NULL_HANDLE, &m_nextImageIndex);
+                                                m_imageAvailableSemaphores[m_currentFrame], VK_NULL_HANDLE, &m_nextImageIndex);
   // Handle special case if the swapchain is out of date (e.g., window resize)
   if(result == VK_ERROR_OUT_OF_DATE_KHR)
   {
@@ -256,16 +265,16 @@ bool nvvkhl::AppSwapchain::acquireNextImage(VkDevice device)
 
 void nvvkhl::AppSwapchain::presentFrame(VkQueue queue)
 {
-  FrameResources& frame = m_frameResources[m_currentFrame];
+  VkSemaphore& renderFinishedSemaphore = m_renderFinishedSemaphores[m_nextImageIndex];
 
   // Setup the presentation info, linking the swapchain and the image index
   const VkPresentInfoKHR presentInfo{
       .sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-      .waitSemaphoreCount = 1,                               // Wait for rendering to finish
-      .pWaitSemaphores    = &frame.renderFinishedSemaphore,  // Synchronize presentation
-      .swapchainCount     = 1,                               // Swapchain to present the image
-      .pSwapchains        = &m_swapChain,                    // Pointer to the swapchain
-      .pImageIndices      = &m_nextImageIndex,               // Index of the image to present
+      .waitSemaphoreCount = 1,                         // Wait for rendering to finish
+      .pWaitSemaphores    = &renderFinishedSemaphore,  // Synchronize presentation
+      .swapchainCount     = 1,                         // Swapchain to present the image
+      .pSwapchains        = &m_swapChain,              // Pointer to the swapchain
+      .pImageIndices      = &m_nextImageIndex,         // Index of the image to present
   };
 
   // Present the image and handle potential resizing issues
