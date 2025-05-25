@@ -51,9 +51,9 @@ public:
   VkImageView getNextImageView() const;
   VkFormat    getImageFormat() const;
   uint32_t    getMaxFramesInFlight() const;
-  // Wait for image to be available
+  // Wait for the swapchain image to be available
   VkSemaphore getImageAvailableSemaphore() const;
-  // Signal when rendering is finished
+  // Signal when rendering is finished for the current frame
   VkSemaphore getRenderFinishedSemaphore() const;
 
   // Initialize the swapchain with the provided context and surface, then we can create and re-create it
@@ -100,15 +100,6 @@ private:
     VkImage     image{};      // Image to render to
     VkImageView imageView{};  // Image view to access the image
   };
-  /*--
-   * Resources associated with each frame being processed.
-   * Each frame has its own set of resources, mainly synchronization primitives
-  -*/
-  struct FrameResources
-  {
-    VkSemaphore imageAvailableSemaphore{};  // Signals when the image is ready for rendering
-    VkSemaphore renderFinishedSemaphore{};  // Signals when rendering is finished
-  };
 
   // We choose the format that is the most common, and that is supported by* the physical device.
   VkSurfaceFormat2KHR selectSwapSurfaceFormat(const std::vector<VkSurfaceFormat2KHR>& availableFormats) const;
@@ -131,7 +122,8 @@ private:
   VkCommandPool     m_cmdPool{};         // The command pool for the swapchain
 
   std::vector<Image>          m_nextImages{};
-  std::vector<FrameResources> m_frameResources{};
+  std::vector<VkSemaphore>    m_imageAvailableSemaphores{};
+  std::vector<VkSemaphore>    m_renderFinishedSemaphores{};
   uint32_t                    m_currentFrame   = 0;
   uint32_t                    m_nextImageIndex = 0;
   bool                        m_needRebuild    = false;
