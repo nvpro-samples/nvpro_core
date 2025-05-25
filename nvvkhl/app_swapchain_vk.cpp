@@ -238,8 +238,8 @@ void nvvkhl::AppSwapchain::deinitResources()
   }
   m_imageAvailableSemaphores = {};
   m_renderFinishedSemaphores = {};
-  m_nextImages     = {};
-  m_swapChain      = VK_NULL_HANDLE;
+  m_nextImages               = {};
+  m_swapChain                = VK_NULL_HANDLE;
 }
 
 bool nvvkhl::AppSwapchain::acquireNextImage(VkDevice device)
