@@ -72,7 +72,6 @@ void nvvkhl::Application::init(ApplicationCreateInfo& info)
   m_physicalDevice     = info.physicalDevice;
   m_queues             = info.queues;
   m_vsyncWanted        = info.vSync;
-  m_windowSize         = {info.windowSize.x, info.windowSize.y};
   m_useMenubar         = info.useMenu;
   m_dockSetup          = info.dockSetup;
   m_headless           = info.headless;
@@ -90,6 +89,13 @@ void nvvkhl::Application::init(ApplicationCreateInfo& info)
   nvprintSetLogFileName(pathLog.string().c_str());
   m_iniFilename = pathIni.string();
   ImGuiH::SetCameraJsonFile(exePath.stem().string());
+
+
+  // Initialize ImGui Context and settings handler, and load window size/pos from ini
+  initializeImGuiContextAndSettings();
+
+  // Set the default size and position of the window
+  testAndSetWindowSizeAndPos({info.windowSize.x, info.windowSize.y});
 
   // Initialize GLFW and create the window only if not headless
   if(!m_headless)
@@ -114,36 +120,22 @@ void nvvkhl::Application::init(ApplicationCreateInfo& info)
     // Set the resource free queue
     resetFreeQueue(m_swapchain.getMaxFramesInFlight());
   }
-  else
-  {
-    // Headless default size
-    if(m_windowSize.width == 0 || m_windowSize.height == 0)
-    {
-      m_windowSize = {800, 600};
-    }
-  }
+
 
   // Initializing Dear ImGui
-  initImGui(info.imguiConfigFlags);
+  setupImGuiVulkanBackend(info.imguiConfigFlags);
 }
 
 void nvvkhl::Application::initGlfw(ApplicationCreateInfo& info)
 {
   glfwInit();
-  if(m_windowSize.width == 0 || m_windowSize.height == 0)
-  {
-    const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
-    m_windowSize.width      = static_cast<int>(static_cast<float>(mode->width) * 0.8F);
-    m_windowSize.height     = static_cast<int>(static_cast<float>(mode->height) * 0.8F);
-  }
 
   // Create the GLTF Window
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
   glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_TRUE);  // Aware of DPI scaling
   m_windowHandle = glfwCreateWindow(m_windowSize.width, m_windowSize.height, info.name.c_str(), nullptr, nullptr);
-  // Set size and position aware of DPI
-  glfwSetWindowSize(m_windowHandle, m_windowSize.width, m_windowSize.height);
-  glfwSetWindowPos(m_windowHandle, int32_t(m_windowSize.width * 0.1f), int32_t(m_windowSize.height * 0.1f));
+  glfwSetWindowSize(m_windowHandle, m_windowSize.width, m_windowSize.height);  // Set the size again to ensure it is correct with DPI
+  glfwSetWindowPos(m_windowHandle, m_winPos.x, m_winPos.y);
 
   // Create the window surface
   glfwCreateWindowSurface(m_instance, m_windowHandle, nullptr, reinterpret_cast<VkSurfaceKHR*>(&m_surface));
@@ -162,7 +154,9 @@ void nvvkhl::Application::shutdown()
   // Query the size/pos of the window, such that it get persisted
   if(!m_headless)
   {
-    glfwGetWindowSize(m_windowHandle, &m_winSize.x, &m_winSize.y);
+    glm::ivec2 winSize{};
+    glfwGetWindowSize(m_windowHandle, &winSize.x, &winSize.y);
+    m_winSize = {uint32_t(winSize.x), uint32_t(winSize.y)};
     glfwGetWindowPos(m_windowHandle, &m_winPos.x, &m_winPos.y);
   }
 
@@ -258,19 +252,6 @@ void nvvkhl::Application::run()
   {
     headlessRun();
     return;
-  }
-
-  ImGui::LoadIniSettingsFromDisk(m_iniFilename.c_str());
-  if(isWindowPosValid(m_windowHandle, m_winPos.x, m_winPos.y))
-  {
-    // Position must be set before size to take into account DPI
-    glfwSetWindowPos(m_windowHandle, m_winPos.x, m_winPos.y);
-  }
-  if(m_winSize != glm::ivec2(0, 0))
-  {
-    m_windowSize = {uint32_t(m_winSize.x), uint32_t(m_winSize.y)};
-    glfwSetWindowSize(m_windowHandle, m_winSize.x, m_winSize.y);
-    m_swapchain.requestRebuild();
   }
 
   // Main rendering loop
@@ -742,26 +723,25 @@ void nvvkhl::Application::createDescriptorPool()
   debugUtil.setObjectName(m_descriptorPool, "nvvkhl::AppSwapchain::m_descriptorPool");
 }
 
-/*-- Initialize ImGui -*/
-void nvvkhl::Application::initImGui(ImGuiConfigFlags configFlags)
+
+//-----------------------------------------------------------------------
+// Initializes the ImGui context, sets up the settings handler for window
+// size and position, loads the ImGui .ini file, and sets up fonts and style.
+// This function should be called before any logic that depends on the ImGui
+// context or the loaded window settings.
+//
+void nvvkhl::Application::initializeImGuiContextAndSettings()
 {
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
   ImGuiH::setStyle(false);
-
   m_settingsHandler.setHandlerName("Application");
   m_settingsHandler.setSetting("Size", &m_winSize);
   m_settingsHandler.setSetting("Pos", &m_winPos);
   m_settingsHandler.addImGuiHandler();
+  ImGui::LoadIniSettingsFromDisk(m_iniFilename.c_str());
 
   ImGuiIO& io    = ImGui::GetIO();
-  io.ConfigFlags = configFlags;
-  if(m_headless)
-  {
-    io.ConfigFlags &= ~ImGuiConfigFlags_ViewportsEnable;  // In headless mode, we don't allow other viewport
-  }
-
-  // Set the ini file name
   io.IniFilename = m_iniFilename.c_str();
 
   // Replace default font with Roboto Regular
@@ -771,6 +751,24 @@ void nvvkhl::Application::initImGui(ImGuiConfigFlags configFlags)
 
   // Add icon font
   ImGuiH::addIconicFont();
+
+  // Implot
+  ImPlot::CreateContext();
+}
+
+
+//-----------------------------------------------------------------------
+// Sets up the ImGui Vulkan and GLFW backends, and initializes ImPlot context.
+// Assumes the ImGui context and fonts are already initialized.
+//
+void nvvkhl::Application::setupImGuiVulkanBackend(ImGuiConfigFlags configFlags)
+{
+  ImGuiIO& io    = ImGui::GetIO();
+  io.ConfigFlags = configFlags;
+  if(m_headless)
+  {
+    io.ConfigFlags &= ~ImGuiConfigFlags_ViewportsEnable;  // In headless mode, we don't allow other viewport
+  }
 
   static VkFormat imageFormats = VK_FORMAT_B8G8R8A8_UNORM;  // Must be static for ImGui_ImplVulkan_InitInfo
   if(!m_headless)
@@ -798,9 +796,6 @@ void nvvkhl::Application::initImGui(ImGuiConfigFlags configFlags)
       },
   };
   ImGui_ImplVulkan_Init(&initInfo);
-
-  // Implot
-  ImPlot::CreateContext();
 }
 
 //-----------------------------------------------------------------------
@@ -1037,8 +1032,59 @@ void nvvkhl::Application::prependCommandBuffer(const VkCommandBufferSubmitInfoKH
 //-----------------------------------------------------------------------
 // Helpers
 
+
+void nvvkhl::Application::testAndSetWindowSizeAndPos(const glm::uvec2& winSize)
+{
+  // If winSize is provided, use it
+  if(winSize.x != 0 && winSize.y != 0)
+  {
+    m_winSize = winSize;
+  }
+
+  // If m_winSize is still (0,0), set defaults
+  // Could be not zero if the user set it in the settings (see loading of the ini file)
+  if(m_winSize.x == 0 && m_winSize.y == 0)
+  {
+    if(m_headless)
+    {
+      m_winSize = {800, 600};
+    }
+    else
+    {
+      // Get 80% of primary monitor
+      const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+      m_winSize.x             = static_cast<int>(mode->width * 0.8f);
+      m_winSize.y             = static_cast<int>(mode->height * 0.8f);
+    }
+    // Center the window
+    if(!m_headless)
+    {
+      int monX, monY;
+      glfwGetMonitorPos(glfwGetPrimaryMonitor(), &monX, &monY);
+      const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+      m_winPos.x              = monX + (mode->width - m_winSize.x) / 2;
+      m_winPos.y              = monY + (mode->height - m_winSize.y) / 2;
+    }
+  }
+  else if(!m_headless)
+  {
+    // If m_winSize was retrieved, check if m_winPos is valid
+    if(!isWindowPosValid(m_winPos))
+    {
+      // Center the window
+      int monX, monY;
+      glfwGetMonitorPos(glfwGetPrimaryMonitor(), &monX, &monY);
+      const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+      m_winPos.x              = monX + (mode->width - m_winSize.x) / 2;
+      m_winPos.y              = monY + (mode->height - m_winSize.y) / 2;
+    }
+  }
+
+  m_windowSize = {m_winSize.x, m_winSize.y};
+}
+
 // Check if window position is within visible monitor bounds
-bool nvvkhl::Application::isWindowPosValid(GLFWwindow* window, int posX, int posY)
+bool nvvkhl::Application::isWindowPosValid(const glm::ivec2& winPos)
 {
   int           monitorCount;
   GLFWmonitor** monitors = glfwGetMonitors(&monitorCount);
@@ -1054,7 +1100,7 @@ bool nvvkhl::Application::isWindowPosValid(GLFWwindow* window, int posX, int pos
 
     // Check if window position is within this monitor's bounds
     // Add some margin to account for window decorations
-    if(posX >= monX && posX < monX + mode->width && posY >= monY && posY < monY + mode->height)
+    if(winPos.x >= monX && winPos.x < monX + mode->width && winPos.y >= monY && winPos.y < monY + mode->height)
     {
       return true;
     }

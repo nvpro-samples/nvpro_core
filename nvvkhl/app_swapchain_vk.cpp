@@ -64,7 +64,7 @@ VkSemaphore nvvkhl::AppSwapchain::getImageAvailableSemaphore() const
 
 VkSemaphore nvvkhl::AppSwapchain::getRenderFinishedSemaphore() const
 {
-  return m_frameResources[m_currentFrame].renderFinishedSemaphore;
+  return m_frameResources[m_nextImageIndex].renderFinishedSemaphore;
 }
 
 void nvvkhl::AppSwapchain::init(VkPhysicalDevice physicalDevice, VkDevice device, const nvvkhl::QueueInfo& queue, VkSurfaceKHR surface, VkCommandPool cmdPool)
@@ -256,7 +256,7 @@ bool nvvkhl::AppSwapchain::acquireNextImage(VkDevice device)
 
 void nvvkhl::AppSwapchain::presentFrame(VkQueue queue)
 {
-  FrameResources& frame = m_frameResources[m_currentFrame];
+  FrameResources& frame = m_frameResources[m_nextImageIndex];
 
   // Setup the presentation info, linking the swapchain and the image index
   const VkPresentInfoKHR presentInfo{

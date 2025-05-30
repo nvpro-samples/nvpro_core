@@ -238,7 +238,6 @@ private:
   void            shutdown();
   void            createTransientCommandPool();
   void            createFrameSubmission(uint32_t numFrames);
-  void            initImGui(ImGuiConfigFlags configFlags);
   void            createDescriptorPool();
   void            onViewportSizeChange(VkExtent2D size);
   void            headlessRun();
@@ -250,7 +249,10 @@ private:
   void            endDynamicRenderingToSwapchain(VkCommandBuffer cmd);
   void            saveScreenShot(const std::string& filename, int quality);  // Immediately save the frame
   void            resetFreeQueue(uint32_t size);
-  bool            isWindowPosValid(GLFWwindow* window, int posX, int posY);
+  bool            isWindowPosValid(const glm::ivec2& winPos);
+  void            testAndSetWindowSizeAndPos(const glm::uvec2& winSize);
+  void            initializeImGuiContextAndSettings();
+  void            setupImGuiVulkanBackend(ImGuiConfigFlags configFlags);
 
   std::vector<std::shared_ptr<IAppElement>> m_elements;  // List of application elements to be called
 
@@ -308,8 +310,8 @@ private:
 
   // Use for persist the data
   ImGuiH::SettingsHandler m_settingsHandler;
-  glm::ivec2              m_winPos{};
-  glm::ivec2              m_winSize{};
+  glm::ivec2              m_winPos{0, 0};
+  glm::uvec2              m_winSize{0, 0};
 };
 
 
