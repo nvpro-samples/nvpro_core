@@ -1,5 +1,13 @@
 # nvpro_core
 
+> [!IMPORTANT]
+> **This repository has been deprecated** and is superseded by [nvpro_core2](https://github.com/nvpro-samples/nvpro_core2),
+> which provides an improved and consolidated version of this framework.
+>
+> If you plan to keep using nvpro_core, please be aware that this repository is 
+> no longer actively maintained and will eventually be archived, including samples
+> from nvpro-samples that use it.
+
 ## Repository
 This folder is a repository of *shared source code* : most other samples use it as library or directly reference code from it.
 
