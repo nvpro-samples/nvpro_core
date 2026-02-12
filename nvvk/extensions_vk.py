@@ -1,5 +1,5 @@
 #
-#  Copyright (c) 2018-2024, NVIDIA CORPORATION.  All rights reserved.
+#  Copyright (c) 2018-2025, NVIDIA CORPORATION.  All rights reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 #
-#  SPDX-FileCopyrightText: Copyright (c) 2018-2024, NVIDIA CORPORATION.
+#  SPDX-FileCopyrightText: Copyright (c) 2018-2025, NVIDIA CORPORATION.
 #  SPDX-License-Identifier: Apache-2.0
 #
 
@@ -57,6 +57,22 @@ ExcludeList = [
     "VK_VERSION_1_1",
     "VK_VERSION_1_2",
     "VK_VERSION_1_3",
+    "VK_VERSION_1_4",
+    "VK_BASE_VERSION_1_0",
+    "VK_BASE_VERSION_1_1",
+    "VK_BASE_VERSION_1_2",
+    "VK_BASE_VERSION_1_3",
+    "VK_BASE_VERSION_1_4",
+    "VK_COMPUTE_VERSION_1_0",
+    "VK_COMPUTE_VERSION_1_1",
+    "VK_COMPUTE_VERSION_1_2",
+    "VK_COMPUTE_VERSION_1_3",
+    "VK_COMPUTE_VERSION_1_4",
+    "VK_GRAPHICS_VERSION_1_0",
+    "VK_GRAPHICS_VERSION_1_1",
+    "VK_GRAPHICS_VERSION_1_2",
+    "VK_GRAPHICS_VERSION_1_3",
+    "VK_GRAPHICS_VERSION_1_4"
 ]
 
 # Debugging - To be sure that the exclude list is excluding commands

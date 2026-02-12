@@ -43,9 +43,6 @@ load_VK_EXTENSIONS(instance, vkGetInstanceProcAddr, device, vkGetDeviceProcAddr)
 void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstanceProcAddr, VkDevice device, PFN_vkGetDeviceProcAddr getDeviceProcAddr);
 
 /* NVVK_GENERATE_DEFINE */
-#if VK_VERSION_1_4
-#define NVVK_HAS_VK_VERSION_1_4
-#endif /* VK_VERSION_1_4 */
 #if defined(VK_AMDX_shader_enqueue)
 #define NVVK_HAS_VK_AMDX_shader_enqueue
 #endif /* VK_AMDX_shader_enqueue */
@@ -70,6 +67,18 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #if defined(VK_ANDROID_external_memory_android_hardware_buffer)
 #define NVVK_HAS_VK_ANDROID_external_memory_android_hardware_buffer
 #endif /* VK_ANDROID_external_memory_android_hardware_buffer */
+#if defined(VK_ARM_data_graph)
+#define NVVK_HAS_VK_ARM_data_graph
+#endif /* VK_ARM_data_graph */
+#if defined(VK_ARM_performance_counters_by_region)
+#define NVVK_HAS_VK_ARM_performance_counters_by_region
+#endif /* VK_ARM_performance_counters_by_region */
+#if defined(VK_ARM_tensors)
+#define NVVK_HAS_VK_ARM_tensors
+#endif /* VK_ARM_tensors */
+#if defined(VK_ARM_tensors) && defined(VK_EXT_descriptor_buffer)
+#define NVVK_HAS_VK_ARM_tensors
+#endif /* VK_ARM_tensors && VK_EXT_descriptor_buffer */
 #if defined(VK_EXT_acquire_drm_display)
 #define NVVK_HAS_VK_EXT_acquire_drm_display
 #endif /* VK_EXT_acquire_drm_display */
@@ -91,6 +100,9 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #if defined(VK_EXT_conditional_rendering)
 #define NVVK_HAS_VK_EXT_conditional_rendering
 #endif /* VK_EXT_conditional_rendering */
+#if defined(VK_EXT_custom_resolve) && (defined(VK_KHR_dynamic_rendering) || defined(VK_VERSION_1_3))
+#define NVVK_HAS_VK_EXT_custom_resolve
+#endif /* VK_EXT_custom_resolve && (VK_KHR_dynamic_rendering || VK_VERSION_1_3) */
 #if defined(VK_EXT_debug_marker)
 #define NVVK_HAS_VK_EXT_debug_marker
 #endif /* VK_EXT_debug_marker */
@@ -199,6 +211,9 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #if defined(VK_EXT_external_memory_metal)
 #define NVVK_HAS_VK_EXT_external_memory_metal
 #endif /* VK_EXT_external_memory_metal */
+#if defined(VK_EXT_fragment_density_map_offset)
+#define NVVK_HAS_VK_EXT_fragment_density_map_offset
+#endif /* VK_EXT_fragment_density_map_offset */
 #if defined(VK_EXT_full_screen_exclusive)
 #define NVVK_HAS_VK_EXT_full_screen_exclusive
 #endif /* VK_EXT_full_screen_exclusive */
@@ -226,12 +241,15 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #if defined(VK_EXT_line_rasterization)
 #define NVVK_HAS_VK_EXT_line_rasterization
 #endif /* VK_EXT_line_rasterization */
+#if defined(VK_EXT_memory_decompression)
+#define NVVK_HAS_VK_EXT_memory_decompression
+#endif /* VK_EXT_memory_decompression */
 #if defined(VK_EXT_mesh_shader)
 #define NVVK_HAS_VK_EXT_mesh_shader
 #endif /* VK_EXT_mesh_shader */
-#if defined(VK_EXT_mesh_shader) && (defined(VK_KHR_draw_indirect_count) || defined(VK_VERSION_1_2))
+#if defined(VK_EXT_mesh_shader) && (defined(VK_VERSION_1_2) || defined(VK_KHR_draw_indirect_count) || defined(VK_AMD_draw_indirect_count))
 #define NVVK_HAS_VK_EXT_mesh_shader
-#endif /* VK_EXT_mesh_shader && (VK_KHR_draw_indirect_count || VK_VERSION_1_2) */
+#endif /* VK_EXT_mesh_shader && (VK_VERSION_1_2 || VK_KHR_draw_indirect_count || VK_AMD_draw_indirect_count) */
 #if defined(VK_EXT_metal_objects)
 #define NVVK_HAS_VK_EXT_metal_objects
 #endif /* VK_EXT_metal_objects */
@@ -250,6 +268,9 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #if defined(VK_EXT_pipeline_properties)
 #define NVVK_HAS_VK_EXT_pipeline_properties
 #endif /* VK_EXT_pipeline_properties */
+#if defined(VK_EXT_present_timing)
+#define NVVK_HAS_VK_EXT_present_timing
+#endif /* VK_EXT_present_timing */
 #if defined(VK_EXT_private_data)
 #define NVVK_HAS_VK_EXT_private_data
 #endif /* VK_EXT_private_data */
@@ -379,6 +400,9 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #if defined(VK_KHR_copy_commands2)
 #define NVVK_HAS_VK_KHR_copy_commands2
 #endif /* VK_KHR_copy_commands2 */
+#if defined(VK_KHR_copy_memory_indirect)
+#define NVVK_HAS_VK_KHR_copy_memory_indirect
+#endif /* VK_KHR_copy_memory_indirect */
 #if defined(VK_KHR_create_renderpass2)
 #define NVVK_HAS_VK_KHR_create_renderpass2
 #endif /* VK_KHR_create_renderpass2 */
@@ -454,6 +478,9 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #if defined(VK_KHR_maintenance1)
 #define NVVK_HAS_VK_KHR_maintenance1
 #endif /* VK_KHR_maintenance1 */
+#if defined(VK_KHR_maintenance10)
+#define NVVK_HAS_VK_KHR_maintenance10
+#endif /* VK_KHR_maintenance10 */
 #if defined(VK_KHR_maintenance3)
 #define NVVK_HAS_VK_KHR_maintenance3
 #endif /* VK_KHR_maintenance3 */
@@ -487,6 +514,9 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #if defined(VK_KHR_present_wait)
 #define NVVK_HAS_VK_KHR_present_wait
 #endif /* VK_KHR_present_wait */
+#if defined(VK_KHR_present_wait2)
+#define NVVK_HAS_VK_KHR_present_wait2
+#endif /* VK_KHR_present_wait2 */
 #if defined(VK_KHR_push_descriptor)
 #define NVVK_HAS_VK_KHR_push_descriptor
 #endif /* VK_KHR_push_descriptor */
@@ -508,6 +538,9 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #if defined(VK_KHR_swapchain) && defined(VK_VERSION_1_1)
 #define NVVK_HAS_VK_KHR_swapchain
 #endif /* VK_KHR_swapchain && VK_VERSION_1_1 */
+#if defined(VK_KHR_swapchain_maintenance1)
+#define NVVK_HAS_VK_KHR_swapchain_maintenance1
+#endif /* VK_KHR_swapchain_maintenance1 */
 #if defined(VK_KHR_synchronization2)
 #define NVVK_HAS_VK_KHR_synchronization2
 #endif /* VK_KHR_synchronization2 */
@@ -583,6 +616,9 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #if defined(VK_NV_device_generated_commands_compute)
 #define NVVK_HAS_VK_NV_device_generated_commands_compute
 #endif /* VK_NV_device_generated_commands_compute */
+#if defined(VK_NV_external_compute_queue)
+#define NVVK_HAS_VK_NV_external_compute_queue
+#endif /* VK_NV_external_compute_queue */
 #if defined(VK_NV_external_memory_capabilities)
 #define NVVK_HAS_VK_NV_external_memory_capabilities
 #endif /* VK_NV_external_memory_capabilities */
@@ -604,9 +640,9 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #if defined(VK_NV_mesh_shader)
 #define NVVK_HAS_VK_NV_mesh_shader
 #endif /* VK_NV_mesh_shader */
-#if defined(VK_NV_mesh_shader) && (defined(VK_KHR_draw_indirect_count) || defined(VK_VERSION_1_2))
+#if defined(VK_NV_mesh_shader) && (defined(VK_VERSION_1_2) || defined(VK_KHR_draw_indirect_count) || defined(VK_AMD_draw_indirect_count))
 #define NVVK_HAS_VK_NV_mesh_shader
-#endif /* VK_NV_mesh_shader && (VK_KHR_draw_indirect_count || VK_VERSION_1_2) */
+#endif /* VK_NV_mesh_shader && (VK_VERSION_1_2 || VK_KHR_draw_indirect_count || VK_AMD_draw_indirect_count) */
 #if defined(VK_NV_optical_flow)
 #define NVVK_HAS_VK_NV_optical_flow
 #endif /* VK_NV_optical_flow */
@@ -625,9 +661,24 @@ void load_VK_EXTENSIONS(VkInstance instance, PFN_vkGetInstanceProcAddr getInstan
 #if defined(VK_NV_shading_rate_image)
 #define NVVK_HAS_VK_NV_shading_rate_image
 #endif /* VK_NV_shading_rate_image */
+#if defined(VK_OHOS_external_memory)
+#define NVVK_HAS_VK_OHOS_external_memory
+#endif /* VK_OHOS_external_memory */
+#if defined(VK_OHOS_native_buffer)
+#define NVVK_HAS_VK_OHOS_native_buffer
+#endif /* VK_OHOS_native_buffer */
+#if defined(VK_OHOS_surface)
+#define NVVK_HAS_VK_OHOS_surface
+#endif /* VK_OHOS_surface */
+#if defined(VK_QCOM_tile_memory_heap)
+#define NVVK_HAS_VK_QCOM_tile_memory_heap
+#endif /* VK_QCOM_tile_memory_heap */
 #if defined(VK_QCOM_tile_properties)
 #define NVVK_HAS_VK_QCOM_tile_properties
 #endif /* VK_QCOM_tile_properties */
+#if defined(VK_QCOM_tile_shading)
+#define NVVK_HAS_VK_QCOM_tile_shading
+#endif /* VK_QCOM_tile_shading */
 #if defined(VK_QNX_external_memory_screen_buffer)
 #define NVVK_HAS_VK_QNX_external_memory_screen_buffer
 #endif /* VK_QNX_external_memory_screen_buffer */
