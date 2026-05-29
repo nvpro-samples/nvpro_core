@@ -123,7 +123,10 @@ VkExtent2D nvvkhl::AppSwapchain::initResources(bool vSync /*= true*/)
   // Set the window size according to the surface's current extent
   outWindowSize = capabilities2.surfaceCapabilities.currentExtent;
   // Set the number of images in flight, respecting GPU limitations
-  m_maxFramesInFlight = std::min(m_maxFramesInFlight, capabilities2.surfaceCapabilities.maxImageCount);
+  if (capabilities2.surfaceCapabilities.maxImageCount > 0)
+  {
+    m_maxFramesInFlight = std::min(m_maxFramesInFlight, capabilities2.surfaceCapabilities.maxImageCount);
+  }
   // Store the chosen image format
   m_imageFormat = surfaceFormat2.surfaceFormat.format;
 
