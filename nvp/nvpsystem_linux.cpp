@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2022, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2019-2026, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2019-2022, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2019-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
  //--------------------------------------------------------------------
@@ -22,7 +22,11 @@
 
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
+
 #define GLFW_EXPOSE_NATIVE_X11
+#ifdef HAVE_WAYLAND
+#define GLFW_EXPOSE_NATIVE_WAYLAND
+#endif
 #include <GLFW/glfw3native.h>
 
 #include <vector>
@@ -135,7 +139,7 @@ private:
   XImage*         m_image{};
 };
 
-void NVPSystem::windowScreenshot(struct GLFWwindow* glfwin, const char* filename)
+static void windowScreenshotX11(struct GLFWwindow* glfwin, const char* filename)
 {
   const int                  bytesPerPixel = sizeof(Pixel);
   int                        width{};
@@ -217,6 +221,31 @@ void NVPSystem::windowScreenshot(struct GLFWwindow* glfwin, const char* filename
 
   if(fallbackXImage && !XDestroyImage(fallbackXImage))
     LOGE("Error: XDestroyImage() failed\n");
+}
+
+#if HAVE_WAYLAND
+static void windowScreenshotWayland(struct GLFWwindow* glfwin, const char* filename)
+{
+  assert(0 && "not yet implemented");
+  return;
+}
+#endif
+
+void NVPSystem::windowScreenshot(struct GLFWwindow* glfwin, const char* filename)
+{
+  switch(glfwGetPlatform())
+  {
+#if HAVE_WAYLAND
+    case GLFW_PLATFORM_WAYLAND:
+      windowScreenshotWayland(glfwin, filename);
+      break;
+#endif
+    case GLFW_PLATFORM_X11:
+      windowScreenshotX11(glfwin, filename);
+      break;
+    default:
+      assert(0 && "Unsupported platform");
+  }
 }
 
 void NVPSystem::windowClear(struct GLFWwindow* glfwin, uint32_t r, uint32_t g, uint32_t b)
@@ -305,9 +334,6 @@ static void fixSingleFilter(std::string* pFilter)
 
 std::string NVPSystem::windowOpenFileDialog(struct GLFWwindow* glfwin, const char* title, const char* exts)
 {
-  // Not sure yet how to use this; maybe make as a child window somehow?
-  [[maybe_unused]] Window hwnd = glfwGetX11Window(glfwin);
-
   std::vector<std::string> filterArgs   = toFilterArgs(exts);
   std::vector<std::string> resultVector = open_file(title, ".", filterArgs).result();
   assert(resultVector.size() <= 1);
@@ -316,9 +342,6 @@ std::string NVPSystem::windowOpenFileDialog(struct GLFWwindow* glfwin, const cha
 
 std::string NVPSystem::windowSaveFileDialog(struct GLFWwindow* glfwin, const char* title, const char* exts)
 {
-  // Not sure yet how to use this; maybe make as a child window somehow?
-  [[maybe_unused]] Window hwnd = glfwGetX11Window(glfwin);
-
   std::vector<std::string> filterArgs = toFilterArgs(exts);
   return save_file(title, ".", filterArgs).result();
 }

@@ -288,6 +288,11 @@ endif()
 if(UNIX)
   find_package(X11 REQUIRED)
   LIST(APPEND PLATFORM_LIBRARIES ${X11_LIBRARIES})
+
+  if(GLFW_BUILD_WAYLAND)
+    message(STATUS "Enabling Wayland support")
+    target_compile_definitions(nvpro_core PRIVATE HAVE_WAYLAND)
+  endif()
 endif()
 
 # Make Windows compilation somewhat faster, and link with Dbghelp for

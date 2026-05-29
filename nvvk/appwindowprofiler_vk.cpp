@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2025, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2014-2026, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * SPDX-FileCopyrightText: Copyright (c) 2014-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2014-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -34,12 +34,18 @@
 #include <vulkan/vulkan_win32.h>
 #else
 #define GLFW_EXPOSE_NATIVE_X11
+#if HAVE_WAYLAND
+#define GLFW_EXPOSE_NATIVE_WAYLAND
+#endif
 #include <GLFW/glfw3native.h>
 #include <xcb/xcb.h>
 
 // Prevent clang format from "organizing" the includes.
 
 #include <vulkan/vulkan_xcb.h>
+#if HAVE_WAYLAND
+#include <vulkan/vulkan_wayland.h>
+#endif
 #endif
 
 namespace nvvk {
@@ -54,7 +60,17 @@ void AppWindowProfilerVK::contextInit()
 #ifdef _WIN32
   contextInfo.addInstanceExtension(VK_KHR_WIN32_SURFACE_EXTENSION_NAME, false);
 #else
-  contextInfo.addInstanceExtension(VK_KHR_XCB_SURFACE_EXTENSION_NAME, false);
+  switch(glfwGetPlatform())
+  {
+#if HAVE_WAYLAND
+    case GLFW_PLATFORM_WAYLAND:
+      contextInfo.addInstanceExtension(VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME, false);
+      break;
+#endif
+    case GLFW_PLATFORM_X11:
+      contextInfo.addInstanceExtension(VK_KHR_XCB_SURFACE_EXTENSION_NAME, false);
+      break;
+  }
 #endif
   contextInfo.addDeviceExtension(VK_KHR_SWAPCHAIN_EXTENSION_NAME, false);
 
